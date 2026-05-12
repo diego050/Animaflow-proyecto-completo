@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "start_time_seconds": { "type": "number" },
+    "duration_seconds": { "type": "number" },
+    "text": { "type": "string" },
+    "type": { "type": "string" },
+    "media_query": { "type": "string", "maxLength": 500 },
+    "remotion_props": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "sfx": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "keyword": { "type": "string" },
+          "time_in_seconds": { "type": "number" },
+          "file": { "type": "string" }
+        },
+        "required": ["keyword", "time_in_seconds", "file"]
+      }
+    }
+  },
+  "required": ["start_time_seconds", "duration_seconds", "text", "type", "media_query", "remotion_props", "sfx"]
+}

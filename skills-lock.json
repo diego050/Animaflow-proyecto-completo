@@ -1,6 +1,16 @@
 {
   "version": 1,
   "skills": {
+    "accessibility": {
+      "source": "addyosmani/web-quality-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "bffe3d08cfe92ebad63699f74ce29e35c19850ebfbf474c1463183cfe34d6a09"
+    },
+    "bash-defensive-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "autoskills-registry",
+      "computedHash": "1f566c2d9c3b50a784b05d08f6b08ebfeb31f038e4d4173f2d488484edb058a6"
+    },
     "create-agentsmd": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
@@ -19,11 +29,22 @@
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
     },
+    "pitch-deck": {
+      "source": "anthropics/financial-services-plugins",
+      "sourceType": "github",
+      "skillPath": "plugins/vertical-plugins/investment-banking/skills/pitch-deck/SKILL.md",
+      "computedHash": "d468ac38a080a7361efa7b03de5123cd47d16856521bce2be1f0b689dfb30e02"
+    },
     "remotion-best-practices": {
       "source": "remotion-dev/skills",
       "sourceType": "github",
       "skillPath": "skills/remotion/SKILL.md",
       "computedHash": "d9457a606202a23c28b4c17b2611c65ecc09311ce46a5d93ffe8493d2e8ea4f3"
+    },
+    "seo": {
+      "source": "addyosmani/web-quality-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "c184da724d1c61ad077f27418ea8e7e88fd54bcdf98165e18be7e4681cbd5e20"
     },
     "skill-creator": {
       "source": "anthropics/skills",

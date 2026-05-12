@@ -1,0 +1,65 @@
+# === Python / Backend ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.flakes/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-delete-this-directory.txt
+.venv/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
+.env
+
+# === Node / Frontend ===
+node_modules/
+/frontend/dist
+/frontend/dist-ssr
+/frontend/out
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+.stylelintcache
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+
+# === Remotion / Video ===
+# Ignoramos los videos generados
+*.mp4
+*.webm
+*.wav
+*.mp3
+
+# Ignoramos los componentes dinámicos generados por el pipeline
+# para que no contaminen tu repositorio de Git con archivos de pruebas
+/frontend/src/remotion/generated/*
+!/frontend/src/remotion/generated/.gitkeep
+
+# === IDEs / Sistema ===
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
