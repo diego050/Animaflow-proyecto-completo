@@ -51,7 +51,11 @@ yarn-error.log*
 *.wav
 *.mp3
 
+# Ignoramos la carpeta de Voicebox (archivos temporales de audio/modelos)
+voicebox/
+
 # Ignoramos los componentes dinámicos generados por el pipeline
+
 # para que no contaminen tu repositorio de Git con archivos de pruebas
 /frontend/src/remotion/generated/*
 !/frontend/src/remotion/generated/.gitkeep
