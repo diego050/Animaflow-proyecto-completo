@@ -1,0 +1,100 @@
+import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig, Sequence, Audio } from "remotion";
+import React, { useState, useEffect } from "react";
+import type { TimelineSpec } from "../types/spec";
+
+// Eliminar import.meta.glob porque rompe el CLI de Remotion (Webpack)
+import { generatedModules } from './generated/index';
+
+const FallbackScene = ({ text, fallbackBg, fallbackColor, isLoading }: any) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const opacity = interpolate(frame, [0, 1 * fps], [0, 1], {
+    extrapolateRight: "clamp",
+    extrapolateLeft: "clamp",
+  });
+  return (
+    <AbsoluteFill style={{ backgroundColor: fallbackBg, justifyContent: "center", alignItems: "center" }}>
+       <div style={{ opacity, color: fallbackColor, fontSize: 80, fontWeight: "bold", fontFamily: "sans-serif", textAlign: "center", padding: 40, zIndex: 10 }}>
+        {text}
+      </div>
+      {isLoading ? <div style={{position: "absolute", bottom: 20, color: "yellow", fontSize: 20}}>Cargando IA...</div> : null}
+    </AbsoluteFill>
+  );
+};
+
+const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, mediaQuery }: any) => {
+  const [Component, setComponent] = useState<React.FC<any> | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const loadComponent = async () => {
+      // Ignorar componentes default o placeholders
+      if (type === "FadeText" || type === "Fade Text") {
+        setError(true);
+        return;
+      }
+
+      if (generatedModules[type]) {
+        try {
+          const mod: any = generatedModules[type];
+          // El contrato dice que la IA exportará `SceneComponent`
+          if (mod.SceneComponent) {
+            setComponent(() => mod.SceneComponent);
+          } else if (mod.default) {
+            setComponent(() => mod.default);
+          } else {
+             // Si el LLM nombra distinto al componente, agarramos el primer export
+            const firstExport = Object.values(mod)[0] as React.FC<any>;
+            if (firstExport) {
+                setComponent(() => firstExport);
+            } else {
+                setError(true);
+            }
+          }
+        } catch (e) {
+          console.error("Error loading generated scene:", e);
+          setError(true);
+        }
+      } else {
+        console.warn(`Scene ${type} not found in generated folder.`);
+        setError(true);
+      }
+    };
+    loadComponent();
+  }, [type]);
+
+  if (error || !Component) {
+    // Fallback de seguridad
+    return <FallbackScene text={text} fallbackBg={fallbackBg} fallbackColor={fallbackColor} isLoading={!error && !Component} />;
+  }
+
+  // Renderizar componente generado por la IA pasándole el contrato
+  return <Component text={text} durationInFrames={durationInFrames} />;
+};
+
+export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
+  const { fps } = useVideoConfig();
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#000" }}>
+      {spec.scenes.map((scene, index) => {
+        const fromFrame = Math.round(scene.start_time_seconds * fps);
+        const durationInFrames = Math.max(1, Math.round(scene.duration_seconds * fps));
+
+        return (
+          <Sequence key={index} from={fromFrame} durationInFrames={durationInFrames}>
+            <DynamicScene 
+               type={scene.type} 
+               text={scene.text} 
+               durationInFrames={durationInFrames}
+               fallbackBg={scene.remotion_props?.backgroundColor || "#000"}
+               fallbackColor={scene.remotion_props?.textColor || "#fff"}
+               mediaQuery={scene.media_query}
+            />
+            {scene.audio_url && <Audio src={scene.audio_url} />}
+          </Sequence>
+        );
+      })}
+    </AbsoluteFill>
+  );
+};
