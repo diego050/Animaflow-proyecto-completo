@@ -12,9 +12,18 @@
 
 ## Lógica de Workers (RQ)
 - `worker.py`: Conectado a Redis usando inicialización moderna `Worker` (`SimpleWorker` en Windows para evitar errores de fork).
-- `app/services/pipeline.py`: Función `run_pipeline` transiciona estado a `processing` y maneja tres bloques:
+- `app/services/pipeline.py`: Función `run_pipeline` maneja transiciones de estado granulares y tres bloques:
+  - **Estados Granulares:** El pipeline actualiza el estado del job en PostgreSQL en cada fase para permitir progress tracking en tiempo real:
+    - `segmenting`: Fragmentando guion en escenas de ~7s
+    - `visuals_generating`: Generando prompts visuales con Gemini LLM
+    - `processing_scenes`: Procesando TTS + generando componentes TSX por escena
+    - `completed`: Timeline generada exitosamente (spec.json listo)
   - **Voicebox TTS:** Llama localmente a `127.0.0.1:17493`. 
-  - **Gemini LLM (Code Gen):** Utiliza `google-genai` conectando a `gemini-3.1-flash-lite-preview`. Genera un array de TSX y lo guarda físicamente en `frontend/src/remotion/generated/`. Tiene protección Anti-Quota (429) y Backoff algorithm.
+  - **Gemini LLM (Code Gen):** Utiliza `google-genai` con estrategia de modelos dual:
+    - **Modelo Principal:** `gemma-4-31b-it` (tokens ilimitados, máxima calidad de código)
+    - **Modelo Fallback:** `gemma-4-26b-a4b-it` (se activa automáticamente si el principal falla)
+    - **Retry con Backoff Exponencial:** Reintentos automáticos para errores 429/503 (5s → 10s → 20s)
+    - Genera componentes TSX y los guarda físicamente en `frontend/src/remotion/generated/`
   - **Remotion Export (`render_video_pipeline`):** Llama mediante `subprocess` a `npx remotion render` para orquestar la conversión de los TSX, audio y Spec hacia un archivo físico `.mp4` ubicado en `frontend/public/videos/`.
 
 ## Variables de Entorno (.env)
@@ -43,4 +52,42 @@ POST /api/jobs → run_pipeline()
 - `em_alex` — Alex, masculino ← **activo**
 - `ef_dora` — Dora, femenino
 - `em_santa` — Santa, masculino
+
+## Estrategia de Modelos y Resiliencia (Sesión 3 - 12 Mayo 2026)
+
+Se implementó un sistema de **doble modelo con fallback automático** para maximizar la tasa de éxito en la generación de componentes TSX.
+
+### Modelos Configurados:
+| Rol | Modelo | Tokens/min | Calidad | Uso |
+|-----|--------|-----------|---------|-----|
+| **Principal** | `gemma-4-31b-it` | Ilimitado | ⭐⭐⭐⭐⭐ | Generación de TSX (código React/Remotion) |
+| **Fallback** | `gemma-4-26b-a4b-it` | Ilimitado | ⭐⭐⭐⭐ | Respaldo cuando el principal falla |
+
+### Lógica de Retry con Backoff Exponencial:
+- **Errores manejados:** `429` (quota), `503` (unavailable), `RESOURCE_EXHAUSTED`, `UNAVAILABLE`
+- **Backoff:** `5s → 10s → 20s` (exponencial, máximo 3 intentos)
+- **Función:** `_call_gemini_with_retry(client, prompt, max_retries=3, model=None)`
+
+### Flujo de Fallback:
+```
+1. Intentar con gemma-4-31b-it (3 reintentos, backoff 5s→10s→20s)
+   ↓ (si falla después de 3 intentos)
+2. ⚠️ WARNING logueado: "Modelo principal saturado. Usando fallback"
+3. Intentar con gemma-4-26b-a4b-it (2 reintentos, backoff 5s→10s)
+   ↓ (si falla después de 2 intentos)
+4. ⚠️ WARNING logueado: "Fallback también falló. Usando componente por defecto"
+5. Retornar "FadeText" (componente por defecto, garantiza progreso)
+```
+
+### Beneficios:
+- **Tasa de éxito:** ~70% → ~95% (estimado)
+- **Tokens ilimitados:** Sin bloqueos por quota de 15k/min de Gemma 3
+- **Graceful degradation:** El pipeline nunca se bloquea, siempre hay fallback
+- **Visibilidad:** Warnings visibles en logs para monitoreo
+
+### Variables de Entorno:
+```
+GEMINI_MODEL=gemma-4-31b-it
+GEMINI_FALLBACK_MODEL=gemma-4-26b-a4b-it
+```
 

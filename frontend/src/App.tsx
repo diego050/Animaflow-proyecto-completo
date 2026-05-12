@@ -77,33 +77,43 @@ export default function App() {
   };
 
   const pollJob = async (currentJobId: string, isRendering = false) => {
-    setStatus(isRendering ? "Renderizando MP4 (esto tomará unos minutos)..." : "Procesando con Gemini...");
+    const statusMessages: Record<string, string> = {
+      segmenting: "📝 Segmentando guion en escenas...",
+      visuals_generating: "🎨 Generando prompts visuales con IA...",
+      processing_scenes: "🎬 Procesando escenas (TTS + animaciones)...",
+      completed: "✅ ¡Timeline Generada!",
+      queued_render: "⏳ En cola para renderizado...",
+      rendering: "🎥 Renderizando video MP4...",
+      completed_video: "🎉 ¡Video Renderizado con Éxito!"
+    };
+    
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`http://localhost:8000/api/jobs/${currentJobId}`);
         const data = await res.json();
         
+        const displayStatus = statusMessages[data.status] || `Procesando: ${data.status}`;
+        setStatus(displayStatus);
+        
         if (data.status === "completed" && !isRendering) {
           setSpec(data.result_spec);
-          setStatus("¡Timeline Generada!");
           setLoading(false);
           clearInterval(interval);
         } else if (data.status === "completed_video") {
           setVideoUrl(data.video_url);
-          setStatus("¡Video Renderizado con Éxito!");
           setLoading(false);
           clearInterval(interval);
         } else if (data.status.startsWith("failed")) {
-          setStatus("Error: " + data.status);
+          setStatus("❌ Error: " + data.status);
           setLoading(false);
           clearInterval(interval);
         }
       } catch (e) {
         clearInterval(interval);
-        setStatus("Error haciendo polling");
+        setStatus("❌ Error haciendo polling");
         setLoading(false);
       }
-    }, 3000);
+    }, 2000);
   };
 
   const triggerRender = async () => {

@@ -1,7 +1,8 @@
-import os
+﻿import os
 import re
-import httpx
 import json
+import httpx
+import asyncio
 from pydantic import BaseModel, Field
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -11,13 +12,19 @@ from app.schemas.spec import Spec
 from google import genai
 from google.genai import types
 
+# =============================================================================
+# SCRIPT GENERATION WITH GEMINI
+# =============================================================================
+
 def generate_script_from_info(info: str) -> str:
     """Usa Gemini para generar un guion narrativo basado en la información del usuario."""
     from app.core.config import settings
+    
     api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    
     if not api_key:
         return "El motor IA generativo está apagado. Configura GEMINI_API_KEY."
-        
+    
     try:
         client = genai.Client(api_key=api_key)
         prompt = f"""
@@ -39,6 +46,11 @@ def generate_script_from_info(info: str) -> str:
         print(f"[LLM API] Error generando guion: {e}")
         return "Error al generar guion. Por favor, intenta de nuevo o escríbelo manualmente."
 
+
+# =============================================================================
+# VOICEBOX TTS INTEGRATION
+# =============================================================================
+
 VOICEBOX_API_URL = "http://127.0.0.1:17493"
 
 class VisualSpecResult(BaseModel):
@@ -55,17 +67,9 @@ def split_text_into_chunks(text: str) -> list[str]:
     return [s.strip() for s in sentences if s.strip()]
 
 async def get_or_create_kokoro_profile() -> str | None:
-    """Obtiene o crea el perfil preset de Kokoro para AnimaFlow.
-    
-    Voicebox requiere que el engine y voice_type del perfil sean compatibles:
-    - engine 'kokoro' solo funciona con voice_type 'preset'
-    - Los perfiles 'cloned' solo aceptan engines de clonación (qwen, chatterbox, etc.)
-    
-    Retorna el profile_id o None si falla.
-    """
+    """Obtiene o crea el perfil preset de Kokoro para AnimaFlow."""
     try:
         async with httpx.AsyncClient() as client:
-            # Buscar perfil preset Kokoro existente
             res = await client.get(f"{VOICEBOX_API_URL}/profiles", timeout=10.0)
             res.raise_for_status()
             profiles = res.json()
@@ -76,7 +80,6 @@ async def get_or_create_kokoro_profile() -> str | None:
             if existing:
                 return existing
 
-            # Crear perfil preset Kokoro en español (voz masculina em_alex)
             payload = {
                 "name": "animaflow-kokoro-es",
                 "language": "es",
@@ -146,16 +149,22 @@ async def generate_tts_with_voicebox(text: str, scene_id: str) -> tuple[Optional
         print(f"[Voicebox API] Error o no disponible: {e}")
         return None, None
 
+
+# =============================================================================
+# VISUAL SPEC GENERATION WITH GEMINI
+# =============================================================================
+
 def generate_batch_visuals_with_llm(chunks: list[str]) -> BatchVisualSpec:
     """Usa Gemini para generar un arreglo de escenas visuales para cada bloque de texto."""
     from app.core.config import settings
+    
     api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
     
     if not api_key:
         print("[LLM API] GEMINI_API_KEY no encontrada. Fallback a escenas genéricas.")
         return BatchVisualSpec(scenes=[
             VisualSpecResult(
-                media_query="A cinematic cinematic wide shot of a futuristic landscape",
+                media_query="A cinematic wide shot of a futuristic landscape",
                 backgroundColor="#0f172a",
                 textColor="#38bdf8"
             ) for _ in chunks
@@ -181,13 +190,15 @@ def generate_batch_visuals_with_llm(chunks: list[str]) -> BatchVisualSpec:
                            "stock market line chart SVG rising steeply, TradingView style, minimal dark theme"
                            "SVG padlock closing with spring animation, symbolizing security"
                            "three vertical bar chart columns growing sequentially, data analytics style"
-                           "SVG calendar with days crossing out, time passing animation"
-                           "network of connected nodes expanding from center, growth metaphor"
            Ejemplos MALOS: "abstract blue particles floating" / "dark gradient background" / "futuristic landscape"
         2. Paleta oscura y premium (backgroundColor oscuro, textColor contrastante y vibrante).
         3. Coherencia visual entre escenas — misma familia de colores pero con variación.
         4. Devuelve exactamente {len(chunks)} escenas en el mismo orden.
+        
+        Responde SOLO con JSON válido con este formato:
+        {{"scenes": [{{"media_query": "...", "backgroundColor": "...", "textColor": "..."}}]}}
         """
+        
         response = client.models.generate_content(
             model='gemini-3.1-flash-lite-preview',
             contents=prompt,
@@ -197,8 +208,7 @@ def generate_batch_visuals_with_llm(chunks: list[str]) -> BatchVisualSpec:
                 temperature=0.7,
             ),
         )
-        import json as _json
-        data = _json.loads(response.text)
+        data = json.loads(response.text)
         return BatchVisualSpec(**data)
     except Exception as e:
         print(f"[LLM API] Error conectando con Gemini: {e}")
@@ -210,9 +220,47 @@ def generate_batch_visuals_with_llm(chunks: list[str]) -> BatchVisualSpec:
             ) for _ in chunks
         ])
 
+
+# =============================================================================
+# REMOTION COMPONENT GENERATION WITH GEMINI
+# =============================================================================
+
+async def _call_gemini_with_retry(client, prompt: str, max_retries: int = 3, model: str = None) -> any:
+    """
+    Llama a Gemini API con reintentos automáticos para errores transitorios (429, 503).
+    Usa backoff exponencial: 5s → 10s → 20s
+    """
+    from app.core.config import settings
+    
+    if model is None:
+        model = settings.GEMINI_MODEL
+    
+    for attempt in range(max_retries):
+        try:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=prompt,
+            )
+            return response
+        except Exception as e:
+            error_str = str(e)
+            # Detectar errores retryables: 429 (quota), 503 (unavailable), RESOURCE_EXHAUSTED, UNAVAILABLE
+            is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
+            
+            if is_retryable and attempt < max_retries - 1:
+                wait_time = 5 * (2 ** attempt)  # 5s, 10s, 20s (backoff exponencial)
+                print(f"[LLM API] Error transitorio ({error_str[:60]}...). Reintentando en {wait_time}s (intento {attempt+1}/{max_retries})")
+                await asyncio.sleep(wait_time)
+                continue
+            
+            # No es retryable o se acabaron los intentos
+            raise
+
+
 async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecResult, text: str, duration: float, job_id: str) -> str:
     """Usa Gemini para generar el código React/Remotion dinámico para una escena."""
     from app.core.config import settings
+    
     api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
     
     if not api_key:
@@ -220,7 +268,6 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
         return "FadeText"
 
     try:
-        # Usamos cliente asíncrono
         client = genai.Client(api_key=api_key)
         
         prompt_header = (
@@ -321,26 +368,20 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
         )
         
         prompt = prompt_header + prompt_code
-        import asyncio
         
-        # Lógica de reintento para evitar el 429 RESOURCE_EXHAUSTED
-        max_retries = 3
-        for attempt in range(max_retries):
+        # Intentar con modelo principal (gemma-4-31b-it) con retry automático
+        response = None
+        try:
+            response = await _call_gemini_with_retry(client, prompt, max_retries=3)
+        except Exception as e:
+            # Fallback a modelo secundario si el principal falla
+            print(f"[LLM API] ⚠️ WARNING: Modelo principal {settings.GEMINI_MODEL} saturado. Usando fallback {settings.GEMINI_FALLBACK_MODEL}")
             try:
-                response = await client.aio.models.generate_content(
-                    model='gemini-3.1-flash-lite-preview',
-                    contents=prompt,
-                )
-                break
-            except Exception as e:
-                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                    if attempt < max_retries - 1:
-                        wait_time = 15 * (attempt + 1)
-                        print(f"[LLM API] Límite de cuota detectado (429). Esperando {wait_time}s antes de reintentar...")
-                        await asyncio.sleep(wait_time)
-                        continue
-                raise e
-                
+                response = await _call_gemini_with_retry(client, prompt, max_retries=2, model=settings.GEMINI_FALLBACK_MODEL)
+            except Exception as e2:
+                print(f"[LLM API] ⚠️ WARNING: Fallback también falló ({str(e2)[:60]}). Usando componente por defecto FadeText.")
+                return "FadeText"
+        
         code = response.text.strip()
         
         # Limpieza básica por si el LLM incluye bloques markdown
@@ -366,10 +407,14 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
         print(f"[LLM API] Error programando componente para escena {scene_index}: {e}")
         return "FadeText"
 
+
+# =============================================================================
+# SCENE PROCESSING
+# =============================================================================
+
 async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: BatchVisualSpec) -> list[dict]:
     timeline_scenes = []
     current_start_time = 0.0
-    import asyncio
 
     for i, chunk in enumerate(chunks):
         print(f"[{job_id}] Enviando escena {i+1} a Voicebox para TTS...")
@@ -407,8 +452,7 @@ async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: B
     return timeline_scenes
 
 def write_index_ts(job_id: str, timeline_scenes: list[dict]):
-    import os
-    # Escribir index.ts para exportar módulos explícitamente (compatible con Remotion Webpack CLI)
+    """Escribe index.ts para exportar módulos explícitamente (compatible con Remotion Webpack CLI)."""
     generated_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../frontend/src/remotion/generated"))
     index_path = os.path.join(generated_dir, "index.ts")
     
@@ -444,7 +488,7 @@ async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new
     scene["text"] = new_text
     scene["media_query"] = new_media_query
     
-    # Construir objeto visual spec para Gemini
+    # Construir objeto visual spec para LLM
     visual_spec = VisualSpecResult(
         media_query=new_media_query,
         backgroundColor=scene.get("remotion_props", {}).get("backgroundColor", "#0f172a"),
@@ -463,10 +507,15 @@ async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new
     return spec
 
 def regenerate_single_scene_sync(job_id: str, spec: dict, scene_index: int, new_media_query: str, new_text: str) -> dict:
-    import asyncio
     return asyncio.run(_regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text))
 
+
+# =============================================================================
+# MAIN PIPELINE FUNCTIONS
+# =============================================================================
+
 def run_pipeline(job_id: str, script_text: str):
+    """Ejecuta el pipeline completo de generación de video."""
     db: Session = SessionLocal()
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
     if not job:
@@ -474,9 +523,10 @@ def run_pipeline(job_id: str, script_text: str):
         return
 
     try:
-        job.status = "processing"
+        # Estado 1: Segmentación
+        job.status = "segmenting"
         db.commit()
-
+        
         # 1. Fragmentación Lógica (Multi-Scene)
         chunks = split_text_into_chunks(script_text)
         if not chunks:
@@ -484,14 +534,17 @@ def run_pipeline(job_id: str, script_text: str):
 
         print(f"[{job_id}] Guion segmentado en {len(chunks)} escenas.")
 
-        # 2. TTS por fragmento (o fallback matemático de duración)
-        timeline_scenes = []
-        current_start_time = 0.0
-
+        # Estado 2: Generando visuales con Gemini
+        job.status = "visuals_generating"
+        db.commit()
+        
         print(f"[{job_id}] Generando prompts visuales en Batch con Gemini...")
         batch_visuals = generate_batch_visuals_with_llm(chunks)
 
-        import asyncio
+        # Estado 3: Procesando escenas (TTS + TSX)
+        job.status = "processing_scenes"
+        db.commit()
+        
         timeline_scenes = asyncio.run(_process_chunks_async(job_id, chunks, batch_visuals))
 
         # Guardamos el timeline completo y lo validamos con Pydantic
@@ -499,6 +552,8 @@ def run_pipeline(job_id: str, script_text: str):
         final_spec = {"scenes": timeline_scenes}
         spec_obj = TimelineSpec(**final_spec)
         job.result_spec = spec_obj.model_dump()
+        
+        # Estado 4: Completado
         job.status = "completed"
         db.commit()
 
@@ -509,6 +564,7 @@ def run_pipeline(job_id: str, script_text: str):
         db.close()
 
 def render_video_pipeline(job_id: str):
+    """Ejecuta el renderizado de video con Remotion CLI."""
     db: Session = SessionLocal()
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
     if not job or not job.result_spec:
@@ -520,8 +576,7 @@ def render_video_pipeline(job_id: str):
         db.commit()
 
         # Remotion necesita un JSON string como --props
-        import json as _json
-        spec_json = _json.dumps({"spec": job.result_spec})
+        spec_json = json.dumps({"spec": job.result_spec})
         
         # Directorios
         frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../frontend"))
@@ -542,8 +597,6 @@ def render_video_pipeline(job_id: str):
             f"--props={spec_json}"
         ]
         
-        # Opcional: --gl=angle o --log=info si hay problemas
-        # Dependiendo del OS, env=os.environ.copy() puede ser necesario
         result = subprocess.run(cmd, cwd=frontend_dir, capture_output=True, text=True, encoding="utf-8", env=os.environ.copy())
         
         if result.returncode != 0:
@@ -562,4 +615,3 @@ def render_video_pipeline(job_id: str):
         db.commit()
     finally:
         db.close()
-

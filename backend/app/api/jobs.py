@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+﻿from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from rq import Queue
 from redis import Redis
@@ -56,10 +56,10 @@ async def trigger_render(job_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Job no encontrado")
         
     if not job.result_spec:
-        raise HTTPException(status_code=400, detail="El job aún no tiene un Spec generado para renderizar")
+        raise HTTPException(status_code=400, detail="El job aÃºn no tiene un Spec generado para renderizar")
         
     if job.status == "rendering":
-        raise HTTPException(status_code=400, detail="El job ya se está renderizando")
+        raise HTTPException(status_code=400, detail="El job ya se estÃ¡ renderizando")
 
     # Encolar la tarea de render
     from app.services.pipeline import render_video_pipeline
@@ -84,7 +84,7 @@ async def generate_script(req: ScriptGenerateRequest):
     script = generate_script_from_info(req.info)
     return ScriptGenerateResponse(script_text=script)
 
-@router.get("/", response_model=List[JobListResponse])
+@router.get("", response_model=List[JobListResponse])
 async def get_all_jobs(db: Session = Depends(get_db)):
     jobs = db.query(JobModel).order_by(JobModel.created_at.desc().nullslast()).limit(50).all()
     return [
@@ -104,7 +104,7 @@ async def trigger_scene_regenerate(job_id: str, scene_index: int, req: SceneRege
         raise HTTPException(status_code=404, detail="Job no encontrado o sin spec")
         
     if scene_index < 0 or scene_index >= len(job.result_spec.get("scenes", [])):
-        raise HTTPException(status_code=400, detail="Índice de escena inválido")
+        raise HTTPException(status_code=400, detail="Ãndice de escena invÃ¡lido")
         
     from app.services.pipeline import _regenerate_scene_async
     
