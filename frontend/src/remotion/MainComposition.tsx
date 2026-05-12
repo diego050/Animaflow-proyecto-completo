@@ -1,8 +1,6 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig, Sequence, Audio } from "remotion";
+﻿import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig, Sequence, Audio } from "remotion";
 import React, { useState, useEffect } from "react";
 import type { TimelineSpec } from "../types/spec";
-
-// Eliminar import.meta.glob porque rompe el CLI de Remotion (Webpack)
 import { generatedModules } from './generated/index';
 
 const FallbackScene = ({ text, fallbackBg, fallbackColor, isLoading }: any) => {
@@ -22,16 +20,15 @@ const FallbackScene = ({ text, fallbackBg, fallbackColor, isLoading }: any) => {
   );
 };
 
-const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, mediaQuery }: any) => {
+const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, mediaQuery: _mediaQuery }: any) => {
   const [Component, setComponent] = useState<React.FC<any> | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     const loadComponent = async () => {
-      // Ignorar componentes default o placeholders
+      // FadeText/Fade Text son placeholders del LLM, usar fallback directamente
       if (type === "FadeText" || type === "Fade Text") {
-        setError(true);
-        return;
+        return; // No setError, simplemente no carga componente → fallback se activa
       }
 
       if (generatedModules[type]) {

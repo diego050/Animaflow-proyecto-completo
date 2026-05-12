@@ -35,7 +35,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
     }
   };
 
-  const handleOpenJob = async (jobId: string, summaryStatus: string, scriptText: string) => {
+  const handleOpenJob = async (jobId: string, _summaryStatus: string, scriptText: string) => {
     try {
       const res = await fetch(`http://localhost:8000/api/jobs/${jobId}`);
       const data = await res.json();
