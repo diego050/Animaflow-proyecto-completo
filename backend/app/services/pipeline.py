@@ -4,7 +4,7 @@ import json
 import httpx
 import asyncio
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.db.models import JobModel
@@ -156,6 +156,7 @@ async def generate_tts_with_voicebox(text: str, scene_id: str) -> tuple[Optional
 
 def generate_batch_visuals_with_llm(chunks: list[str]) -> BatchVisualSpec:
     """Usa Gemini para generar un arreglo de escenas visuales para cada bloque de texto."""
+    import time
     from app.core.config import settings
     
     api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
@@ -176,39 +177,134 @@ def generate_batch_visuals_with_llm(chunks: list[str]) -> BatchVisualSpec:
         scenes_context = "\n".join([f"Escena {i+1}: \"{t}\"" for i, t in enumerate(chunks)])
         
         prompt = f"""
-        Eres el director de arte de AnimaFlow, un pipeline de videos generativos premium.
-        Tienes un guion dividido en {len(chunks)} escenas.
+Eres el director de animación SENIOR de AnimaFlow. Analiza este guion y crea descripciones visuales DETALLADAS para animaciones SVG 2D complejas.
 
-        {scenes_context}
+{scenes_context}
 
-        Tu tarea es proponer la configuración visual NARRATIVA para cada escena.
-        El media_query NO es una descripción de fondo abstracto — es la instrucción para crear el OBJETO VISUAL PRINCIPAL que ilustra el concepto del texto.
+TU TAREA: Para cada escena, describe una animación SVG 2D única y contextual que refleje el mensaje del texto.
 
-        REGLAS CRÍTICAS:
-        1. media_query SIEMPRE EN INGLÉS. Debe describir un OBJETO CONCRETO o METÁFORA VISUAL que represente el concepto del texto.
-           Ejemplos BUENOS: "animated chocolate bar SVG with bite taken out, symbolizing impulse purchase"
-                           "stock market line chart SVG rising steeply, TradingView style, minimal dark theme"
-                           "SVG padlock closing with spring animation, symbolizing security"
-                           "three vertical bar chart columns growing sequentially, data analytics style"
-           Ejemplos MALOS: "abstract blue particles floating" / "dark gradient background" / "futuristic landscape"
-        2. Paleta oscura y premium (backgroundColor oscuro, textColor contrastante y vibrante).
-        3. Coherencia visual entre escenas — misma familia de colores pero con variación.
-        4. Devuelve exactamente {len(chunks)} escenas en el mismo orden.
+REQUISITOS CRÍTICOS:
+
+1. ANIMACIÓN COMPLEJA:
+   - Describe una animación SVG 2D específica (NO abstracta).
+   - Puede incluir: colisiones, morphing, partículas, conexiones, revelaciones, construcciones, etc.
+   - Usa easing curves: bounce, spring, ease-in-out, elastic.
+   - Incluye transiciones de entrada, desarrollo y salida.
+   - Ejemplos: "Dos bloques chocan y generan destello", "Calendario aparece con bounce", "Nodos se conectan en secuencia"
+
+2. ELEMENTOS SVG CONCRETOS:
+   - Especifica formas: calendarios, cuadrados, círculos, líneas, partículas, etc.
+   - Mínimo 3-5 elementos visuales por escena.
+   - Describe tamaños, posiciones relativas y colores.
+
+3. ESTILO VISUAL:
+   - Minimalista 2D, sin elementos 3D.
+   - Colores vibrantes, sombras, glows, gradientes.
+   - Paleta oscura y premium.
+
+4. MEDIA_QUERY EN INGLÉS:
+   - Debe ser una descripción narrativa detallada de la animación completa.
+   - Ejemplo: "Two rectangular blocks slide from opposite sides, collide at center creating a bright flash burst, from which text emerges with scale animation. Minimalist 2D style, vibrant colors, bounce easing."
+
+5. AE_METADATA (OBLIGATORIO):
+   Además del media_query, genera ae_metadata detallado con:
+   
+   a) animation_type: ELIGE el más apropiado para el texto:
+      - collision: formas que chocan con destello
+      - bounce_in: entrada con rebote
+      - morphing: transformación de formas
+      - particles: sistema de partículas
+      - connection: nodos que se conectan
+      - reveal: capas que revelan contenido
+      - construction: ensamblaje pieza por pieza
+      - flash: destello explosivo
+      - fade_in: aparición suave
+      - scale_emerge: escala desde cero
+   
+   b) elements: Lista de 3-8 elementos SVG con keyframes:
+      - type: rectangle, circle, flash, line, particle
+      - position_keyframes: [{{"time": 0, "value": [x, y]}}, {{"time": 1, "value": [x, y]}}]
+      - scale_keyframes: [{{"time": 0, "value": [0, 0]}}, {{"time": 1, "value": [100, 100]}}]
+      - opacity_keyframes: [{{"time": 0, "value": 0}}, {{"time": 0.5, "value": 100}}]
+      - effects: [{{"type": "glow", "intensity": 50, "color": "#38bdf8"}}]
+   
+   c) text_animation: ELIGE el más apropiado:
+      - letter_by_letter: aparece letra por letra
+      - word_reveal: aparece palabra por palabra
+      - scale_emerge: escala desde cero
+      - fade_in: aparición suave
+
+6. COHERENCIA:
+   - Mantén coherencia visual entre escenas (misma familia de colores).
+   - Devuelve exactamente {len(chunks)} escenas en el mismo orden.
+
+Ejemplo de estructura completa:
+{{"scenes": [{{
+  "media_query": "Two blocks collide creating flash...",
+  "backgroundColor": "#0f172a",
+  "textColor": "#38bdf8",
+  "ae_metadata": {{
+    "animation_type": "collision",
+    "elements": [
+      {{"type": "rectangle", "id": "block_1", "position_keyframes": [{{"time": 0, "value": [400, 540]}}, {{"time": 1.5, "value": [800, 540]}}], "opacity_keyframes": [{{"time": 0, "value": 0}}, {{"time": 0.3, "value": 100}}], "effects": [{{"type": "drop_shadow", "distance": 10, "color": "#000000", "opacity": 50}}]}},
+      {{"type": "flash", "id": "collision_flash", "opacity_keyframes": [{{"time": 1.5, "value": 0}}, {{"time": 1.6, "value": 100}}, {{"time": 1.8, "value": 0}}], "scale_keyframes": [{{"time": 1.5, "value": [0, 0]}}, {{"time": 1.6, "value": [300, 300]}}], "effects": [{{"type": "glow", "intensity": 100, "color": "#fbbf24"}}]}}
+    ],
+    "text_animation": "word_reveal"
+  }}
+}}]}}
+
+Responde SOLO con JSON válido.
+"""
         
-        Responde SOLO con JSON válido con este formato:
-        {{"scenes": [{{"media_query": "...", "backgroundColor": "...", "textColor": "..."}}]}}
-        """
+        # INTENTO 1: Modelo principal con retry
+        max_retries = 3
+        response = None
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=settings.GEMINI_MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=BatchVisualSpec,
+                        temperature=0.7,
+                    ),
+                )
+                break
+            except Exception as e:
+                error_str = str(e)
+                is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
+                
+                if is_retryable and attempt < max_retries - 1:
+                    wait_time = 3 * (2 ** attempt)  # 3s, 6s, 12s
+                    print(f"[LLM API] Batch visuals: retry en {wait_time}s (intento {attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                raise
         
-        response = client.models.generate_content(
-            model='gemini-3.1-flash-lite-preview',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=BatchVisualSpec,
-                temperature=0.7,
-            ),
-        )
+        # Si el modelo principal falló, intentar con fallback
+        if response is None:
+            print(f"[LLM API] ⚠️ WARNING: Modelo principal {settings.GEMINI_MODEL} saturado para batch visuals. Usando fallback {settings.GEMINI_FALLBACK_MODEL}")
+            response = client.models.generate_content(
+                model=settings.GEMINI_FALLBACK_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=BatchVisualSpec,
+                    temperature=0.7,
+                ),
+            )
+        
         data = json.loads(response.text)
+        
+        # Validar que media_query no sea genérico
+        generic_phrases = ["generic abstract background", "particle effects", "futuristic landscape"]
+        for scene in data.get('scenes', []):
+            media_query = scene.get('media_query', '').lower()
+            if any(phrase in media_query for phrase in generic_phrases):
+                print(f"[LLM API] ⚠️ WARNING: media_query genérico detectado. Regenerando...")
+                raise ValueError("media_query genérico detectado, reintentando")
+        
         return BatchVisualSpec(**data)
     except Exception as e:
         print(f"[LLM API] Error conectando con Gemini: {e}")
@@ -219,6 +315,98 @@ def generate_batch_visuals_with_llm(chunks: list[str]) -> BatchVisualSpec:
                 textColor="#38bdf8"
             ) for _ in chunks
         ])
+
+
+def generate_ae_metadata_with_llm(text: str, media_query: str, duration: float) -> Optional[Dict[str, Any]]:
+    """
+    Genera ae_metadata para After Effects en llamada separada.
+    Esto evita el error 'additionalProperties is not supported' cuando se usa
+    response_schema con campos Dict[str, Any].
+    """
+    import time
+    from app.core.config import settings
+    
+    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("[LLM AE] GEMINI_API_KEY no encontrada. ae_metadata será null.")
+        return None
+    
+    try:
+        client = genai.Client(api_key=api_key)
+        
+        prompt = f"""
+Eres un experto en After Effects. Genera metadata de animación para una escena de video.
+
+TEXTO: "{text}"
+ANIMACIÓN: "{media_query}"
+DURACIÓN: {duration} segundos
+
+Genera un JSON con:
+- animation_type: ELIGE UNO: collision, bounce_in, morphing, particles, connection, reveal, construction, flash, fade_in, scale_emerge
+- elements: Lista de 3-8 elementos SVG con keyframes. Cada elemento tiene:
+  - type: rectangle, circle, flash, line, particle
+  - id: nombre único (ej: "block_1", "flash_1")
+  - position_keyframes: [{{"time": 0, "value": [x, y]}}, {{"time": 1, "value": [x, y]}}]
+  - scale_keyframes: [{{"time": 0, "value": [0, 0]}}, {{"time": 1, "value": [100, 100]}}]
+  - opacity_keyframes: [{{"time": 0, "value": 0}}, {{"time": 0.5, "value": 100}}]
+  - effects: [{{"type": "glow", "intensity": 50, "color": "#38bdf8"}}]
+- text_animation: ELIGE UNO: letter_by_letter, word_reveal, scale_emerge, fade_in
+
+Ejemplo:
+{{
+  "animation_type": "collision",
+  "elements": [
+    {{"type": "rectangle", "id": "block_1", "position_keyframes": [{{"time": 0, "value": [400, 540]}}, {{"time": 1.5, "value": [800, 540]}}], "opacity_keyframes": [{{"time": 0, "value": 0}}, {{"time": 0.3, "value": 100}}], "effects": [{{"type": "drop_shadow", "distance": 10, "color": "#000000", "opacity": 50}}]}},
+    {{"type": "flash", "id": "collision_flash", "opacity_keyframes": [{{"time": 1.5, "value": 0}}, {{"time": 1.6, "value": 100}}, {{"time": 1.8, "value": 0}}], "scale_keyframes": [{{"time": 1.5, "value": [0, 0]}}, {{"time": 1.6, "value": [300, 300]}}], "effects": [{{"type": "glow", "intensity": 100, "color": "#fbbf24"}}]}}
+  ],
+  "text_animation": "word_reveal"
+}}
+
+Responde SOLO con JSON válido.
+"""
+        
+        # Retry con backoff
+        max_retries = 3
+        response = None
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=settings.GEMINI_MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.7,
+                    ),
+                )
+                break
+            except Exception as e:
+                error_str = str(e)
+                is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
+                
+                if is_retryable and attempt < max_retries - 1:
+                    wait_time = 3 * (2 ** attempt)
+                    print(f"[LLM AE] Retry en {wait_time}s (intento {attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                raise
+        
+        # Fallback si el modelo principal falló
+        if response is None:
+            print(f"[LLM AE] ⚠️ WARNING: Modelo principal saturado. Usando fallback.")
+            response = client.models.generate_content(
+                model=settings.GEMINI_FALLBACK_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.7,
+                ),
+            )
+        
+        return json.loads(response.text)
+        
+    except Exception as e:
+        print(f"[LLM AE] Error generando ae_metadata: {e}")
+        return None
 
 
 # =============================================================================
@@ -271,7 +459,7 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
         client = genai.Client(api_key=api_key)
         
         prompt_header = (
-            "Eres el director de animación SENIOR de AnimaFlow. Creas animaciones cinematográficas en React + Remotion.\n"
+            "Eres el director de animación SENIOR de AnimaFlow. Creas animaciones SVG 2D complejas en React + Remotion.\n"
             "Tu trabajo es comparable a motion graphics de Apple, Stripe o MrBeast intros — IMPACTANTES y DETALLADAS.\n\n"
             "════════════════════════════════════════\n"
             "ESCENA A ANIMAR\n"
@@ -281,53 +469,53 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
             f"Duración: {duration} segundos ({round(duration * 30)} frames a 30fps)\n"
             f"Color base: fondo {visual_spec.backgroundColor} · texto {visual_spec.textColor}\n\n"
             "════════════════════════════════════════\n"
-            "FILOSOFÍA — ANIMACIÓN NARRATIVA DE ALTA FIDELIDAD\n"
+            "REQUISITOS DE ANIMACIÓN COMPLEJA\n"
             "════════════════════════════════════════\n"
-            "NUNCA hagas solo texto + fondo. SIEMPRE hay un objeto SVG principal GRANDE y DETALLADO.\n\n"
-            "ESTÁNDARES DE CALIDAD OBLIGATORIOS:\n"
-            "1. TAMAÑO DEL OBJETO: El SVG principal debe medir 250-400px. Si es pequeño, FALLAS.\n"
-            "2. DETALLE DEL SVG: Mínimo 5-8 elementos SVG (rect, path, circle, line...). No íconos minimalistas.\n"
-            "3. FONDO: NUNCA negro puro. Usa radialGradient o linearGradient. Ejemplo: '#0a0a1a' con glow radial dorado/azul centrado.\n"
-            "4. COLORES DEL OBJETO: Usa gradientes internos en el SVG con <defs>/<linearGradient>. Añade sombras con filter: drop-shadow.\n"
-            "5. TIPOGRAFÍA PREMIUM: fontSize 56-72px, fontWeight 800-900, letterSpacing '-2px' o '-3px', textTransform 'uppercase'.\n"
-            "6. GLOW/AURA: El objeto debe tener un resplandor detrás (un div/circle SVG grande, opacidad 0.15-0.3, blur via boxShadow o filter).\n\n"
-            "ARQUETIPOS VISUALES — ELIGE EL MÁS RELEVANTE:\n"
-            f"El texto dice: \"{text}\"\n"
-            "• CHOCOLATE/CAPRICHO → Barra de chocolate SVG (300x200px): rectángulo marrón oscuro con segmentos en grid (6 cuadrados), brillos en la esquina superior, sombra bajo. Aparece con spring() rebotando desde arriba. Texto: 'NO ES UN CAPRICHO' en amarillo dorado.\n"
-            "• INVERSIÓN/DINERO → Gráfica de stock SVG (350x200px): eje X/Y, línea de precio que se dibuja de izquierda a derecha con strokeDashoffset animado, área de relleno verde bajo la línea, puntos en los picos. La línea SUBE al final.\n"
-            "• TIEMPO → Reloj analógico SVG (280px): círculo con 12 marcas de hora, aguja de minutos y hora que giran con interpolate, números en posiciones 12/3/6/9.\n"
-            "• CRECIMIENTO/RED → 5-7 nodos circulares conectados por líneas que aparecen con spring() en secuencia, expandiéndose desde el centro.\n"
-            "• SEGURIDAD → Candado SVG (250x300px): cuerpo del candado + arco superior, se cierra con animación spring, tiene brillo metálico.\n"
-            "• DATOS → 6-8 barras verticales de distintas alturas que crecen desde abajo con interpolate en secuencia escalonada (delay por índice).\n"
-            "• VELOCIDAD → Líneas paralelas que salen disparadas desde la izquierda con distintos offsets y opacidades, efecto motion blur.\n"
-            "• ÉXITO/LOGRO → Estrella o trofeo SVG dorado con rayos que se expanden, partículas que salen (círculos pequeños en posiciones radiales).\n\n"
+            "1. ANALIZA el media_query y determina QUÉ tipo de animación necesita:\n"
+            "   - Colisión: formas que chocan, generan destello, rebotan\n"
+            "   - Morphing: una forma se transforma en otra\n"
+            "   - Partículas: elementos pequeños que se agrupan/dispersan\n"
+            "   - Conexión: nodos que se conectan progresivamente\n"
+            "   - Revelación: capas que se deslizan para revelar contenido\n"
+            "   - Construcción: elementos que se ensamblan pieza por pieza\n"
+            "   - O cualquier otra animación contextual que el media_query describa\n\n"
+            "2. USA EASING CURVES para movimiento natural:\n"
+            "   - Easing.out(Easing.back(2)) para rebote\n"
+            "   - Easing.inOut(Easing.cubic) para transiciones suaves\n"
+            "   - Easing.out(Easing.quad) para desaceleración\n"
+            "   - spring({ config: { damping: 8, stiffness: 200 } }) para elasticidad\n"
+            "   - Easing.bezier([0.68, -0.55, 0.265, 1.55]) para custom curves\n\n"
+            "3. SVG DETALLADO: Mínimo 3-5 elementos (rect, circle, path, line, ellipse).\n"
+            "   - Usa <defs> para gradientes y filtros\n"
+            "   - Aplica drop-shadow para profundidad\n"
+            "   - Incluye glow effects con filter: blur()\n\n"
+            "4. ANIMACIONES EN CAPAS:\n"
+            "   - Entrada (frames 0-30): aparición de elementos principales\n"
+            "   - Desarrollo (frames 30-durationInFrames-30): animación central\n"
+            "   - Salida (últimos 30 frames): transición de salida o loop\n\n"
+            "5. TEXTO PREMIUM:\n"
+            "   - fontSize 56-72px, fontWeight 800-900\n"
+            "   - Animación: letter_by_letter, word_reveal, o scale_emerge\n"
+            "   - textShadow con glow del color del objeto principal\n\n"
             "════════════════════════════════════════\n"
-            "ESTRUCTURA DE CAPAS (OBLIGATORIA)\n"
+            "EJEMPLOS DE CÓDIGO PARA DIFERENTES ANIMACIONES\n"
             "════════════════════════════════════════\n"
-            "CAPA 1 - FONDO (zIndex 0, position absolute, width/height 100%):\n"
-            "  → background: radialGradient o linearGradient. Ej: 'radial-gradient(ellipse at 50% 40%, #1a0a2e 0%, #0a0a1a 70%)'\n"
-            "  → Opcional: elementos de fondo sutiles (puntos, líneas de grid con opacidad 0.05)\n\n"
-            "CAPA 2 - AURA/GLOW (zIndex 1, position absolute, centrado):\n"
-            "  → Un div o circle SVG grande (300-500px), backgroundColor del color del objeto, opacity: 0.12-0.2, filter: 'blur(80px)'\n"
-            "  → Aparece con interpolate de opacity: 0 → 0.2\n\n"
-            "CAPA 3 - OBJETO PRINCIPAL (zIndex 5, centrado, marginBottom '10%'):\n"
-            "  → El SVG detallado de 250-400px del concepto.\n"
-            "  → scale: spring() con damping 10, stiffness 150 (rebote pronunciado)\n"
-            "  → rotate: leve rotación inicial (-15deg → 0deg) con spring()\n\n"
-            "CAPA 4 - TEXTO (zIndex 10, position absolute, bottom '12%'):\n"
-            "  → Aparece en frame 25-50 con interpolate opacity 0→1, translateY 40→0\n"
-            "  → fontSize 60-72px, fontWeight 900, letterSpacing '-2px', textTransform 'uppercase'\n"
-            "  → textShadow: '0 0 40px rgba(255,200,0,0.5)' o el color del objeto\n\n"
-            "════════════════════════════════════════\n"
-            "TÉCNICAS REMOTION ESENCIALES\n"
-            "════════════════════════════════════════\n"
-            "const scaleIn = spring({ frame, fps, config: { damping: 10, stiffness: 150 } });\n"
-            "const rotateIn = interpolate(spring({ frame, fps, config: { damping: 8, stiffness: 120 } }), [0,1], [-15,0]);\n"
-            "const lineProgress = interpolate(frame, [5, durationInFrames*0.65], [0, 1], { extrapolateRight: 'clamp' });\n"
-            "const glowOpacity = interpolate(frame, [0, 20], [0, 0.18], { extrapolateRight: 'clamp' });\n"
-            "const textOpacity = interpolate(frame, [25, 50], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });\n"
-            "const textY = interpolate(frame, [25, 50], [40, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });\n"
-            "// Para líneas SVG animadas: strokeDasharray={totalLen} strokeDashoffset={totalLen * (1 - lineProgress)}\n\n"
+            "COLISIÓN:\n"
+            "  const block1X = interpolate(frame, [0, 40], [-200, 0], {{ easing: Easing.out(Easing.back(2)) }});\n"
+            "  const block2X = interpolate(frame, [0, 40], [200, 0], {{ easing: Easing.out(Easing.back(2)) }});\n"
+            "  const flashOpacity = interpolate(frame, [40, 45, 50], [0, 1, 0], {{ extrapolateRight: 'clamp' }});\n"
+            "  const flashScale = interpolate(frame, [40, 45], [0, 3], {{ easing: Easing.out(Easing.quad) }});\n\n"
+            "MORPHING:\n"
+            "  const morphProgress = interpolate(frame, [20, 60], [0, 1], {{ easing: Easing.inOut(Easing.cubic) }});\n"
+            "  // Interpola entre dos paths SVG o transforma shapes\n\n"
+            "PARTÍCULAS:\n"
+            "  const particles = Array.from({{ length: 8 }}).map((_, i) => ({{\n"
+            "    x: interpolate(frame, [i*5, i*5+30], [-100, 0], {{ easing: Easing.out(Easing.quad) }}),\n"
+            "    opacity: interpolate(frame, [i*5, i*5+20, i*5+40], [0, 1, 0])\n"
+            "  }}));\n\n"
+            "BOUNCE IN:\n"
+            "  const bounceY = interpolate(frame, [0, 30], [-200, 0], {{ easing: Easing.out(Easing.back(3)) }});\n"
+            "  const bounceScale = spring({{ frame, fps, config: {{ damping: 10, stiffness: 150 }} }});\n\n"
             "════════════════════════════════════════\n"
             "REGLAS ABSOLUTAS DE CÓDIGO\n"
             "════════════════════════════════════════\n"
@@ -337,29 +525,44 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
             "- SVG inline en JSX. Usa <svg viewBox> + <defs> para gradientes internos.\n"
             "- PROHIBIDO: CSS transitions, Tailwind, librerías externas, @keyframes.\n"
             "- PROHIBIDO: objetos placeholder, SVGs vacíos, rectángulos sin detalle.\n"
-            "- El código debe compilar sin errores y ser 100% funcional.\n\n"
+            "- El código debe compilar sin errores y ser 100% funcional.\n"
+            "- IMPORTA Easing de 'remotion': import {{ useCurrentFrame, useVideoConfig, spring, interpolate, Easing }} from 'remotion';\n"
+            "- NUNCA uses 'easing' en minúscula. SIEMPRE usa 'Easing' con E mayúscula.\n"
+            "- Si usas easing en interpolate, debe ser: easing: Easing.out(Easing.back(2))\n"
+            "- CRUCIAL: En interpolate(), inputRange y outputRange DEBEN tener exactamente la misma cantidad de elementos.\n"
+            "  Ejemplo CORRECTO: interpolate(frame, [0, 10, 20], [0, 1, 0]) → 3 inputs, 3 outputs\n"
+            "  Ejemplo INCORRECTO: interpolate(frame, [0, 20], [0, 1, 0]) → 2 inputs, 3 outputs ← FALLA\n"
+            "- Si necesitas fade in/out, usa: interpolate(frame, [start, mid, end], [0, 1, 0]) con 3 valores en ambos\n"
+            "- CRUCIAL para SVG: NUNCA uses valores directos en r={}. SIEMPRE usa Math.max(0, expression).\n"
+            "  Ejemplo CORRECTO: r={{Math.max(0, 100 * springScale)}}\n"
+            "  Ejemplo INCORRECTO: r={{100 * springScale}} ← puede ser negativo y romper SVG\n\n"
             "ESTRUCTURA BASE (REEMPLAZA Y EXPANDE — NO copies literal):\n"
         )
         
         bg_color = visual_spec.backgroundColor
         txt_color = visual_spec.textColor
         prompt_code = (
-            "import { useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';\n"
+            "import { useCurrentFrame, useVideoConfig, spring, interpolate, Easing } from 'remotion';\n"
             "import React from 'react';\n\n"
             "export const SceneComponent = ({ text, durationInFrames }) => {\n"
             "    const frame = useCurrentFrame();\n"
             "    const { fps } = useVideoConfig();\n\n"
-            "    // CAPA 2: animaciones del objeto visual principal\n\n"
-            "    // CAPA 3: animaciones del texto\n"
-            "    const textOpacity = interpolate(frame, [20, 40], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });\n"
-            "    const textY = interpolate(frame, [20, 40], [30, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });\n\n"
+            "    // Analiza el media_query y crea animaciones SVG complejas contextualizadas\n"
+            "    // Usa easing curves: Easing.out(Easing.back(2)), Easing.inOut(Easing.cubic), spring()\n"
+            "    // Crea mínimo 3-5 elementos SVG (rect, circle, path, line, ellipse)\n"
+            "    // Implementa: entrada (0-30f), desarrollo (30f-durationInFrames-30f), salida (últimos 30f)\n"
+            "    // IMPORTANTE: Cuando uses spring() para escalar circulos, usa Math.max(0, radius * scale)\n"
+            "    // para evitar valores negativos. Ejemplo: r={{Math.max(0, 20 * coreScale)}}\n\n"
             "    return (\n"
-            f"        <div style={{{{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative', overflow: 'hidden', backgroundColor: '{bg_color}', fontFamily: 'Inter, Outfit, sans-serif' }}}}>\n"
-            "            {/* CAPA 1: fondo */}\n"
-            "            {/* CAPA 2: objeto SVG narrativo OBLIGATORIO */}\n"
-            "            {/* CAPA 3: texto con animacion de entrada */}\n"
-            "            <div style={{ position: 'absolute', bottom: '15%', textAlign: 'center', zIndex: 10, opacity: textOpacity, transform: `translateY(${textY}px)` }}>\n"
-            f"                <h1 style={{{{ color: '{txt_color}', fontSize: '52px', margin: 0, textShadow: '0 4px 20px rgba(0,0,0,0.9)' }}}}>{{text}}</h1>\n"
+            f"        <div style={{{{ width: '100%', height: '100%', backgroundColor: '{bg_color}', overflow: 'hidden', fontFamily: 'Inter, Outfit, sans-serif' }}}}>\n"
+            "            {/* SVG principal con animaciones complejas */}\n"
+            "            <svg viewBox=\"0 0 1920 1080\" style={{ position: 'absolute', width: '100%', height: '100%' }}>\n"
+            "                {/* Elementos SVG animados aquí */}\n"
+            "            </svg>\n"
+            "            \n"
+            "            {/* Texto con animación de entrada */}\n"
+            "            <div style={{ position: 'absolute', bottom: '15%', left: '50%', transform: 'translateX(-50%)', textAlign: 'center' }}>\n"
+            f"                <h1 style={{{{ color: '{txt_color}', fontSize: '64px', fontWeight: 900, margin: 0, textShadow: '0 4px 20px rgba(0,0,0,0.8)' }}}}>{{text}}</h1>\n"
             "            </div>\n"
             "        </div>\n"
             "    );\n"
@@ -390,6 +593,78 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
         elif code.startswith("```"): code = code[3:]
         if code.endswith("```"): code = code[:-3]
         code = code.strip()
+        
+        # Post-procesamiento para evitar errores comunes en TSX generado
+        import re
+        
+        # 1. Corregir 'easing.' (minúscula) a 'Easing.' (mayúscula)
+        code = re.sub(r'\beasing\.', 'Easing.', code)
+        
+        # 2. Asegurar que Easing está en el import de remotion
+        if "from 'remotion'" in code and 'Easing' not in code:
+            code = code.replace(
+                "interpolate } from 'remotion'",
+                "interpolate, Easing } from 'remotion'"
+            )
+        
+        # 3. Asegurar que React está importado
+        if "import React" not in code and "from 'react'" not in code:
+            code = "import React from 'react';\n" + code
+        
+        # 4. Validar que no haya valores negativos en atributos SVG
+        if 'r={' in code and 'Math.max' not in code:
+            print(f"[TSX] ⚠️ WARNING: Posible valor negativo en radio SVG para escena {scene_index}")
+        
+        # 5. Corregir mismatches en interpolate() donde inputRange y outputRange tienen longitudes distintas
+        def fix_interpolate_mismatch(code):
+            """Detecta y corrige mismatches en interpolate(inputRange, outputRange)"""
+            pattern = r'interpolate\(([^,]+),\s*\[([^\]]+)\],\s*\[([^\]]+)\]'
+            
+            def check_match(m):
+                arg = m.group(1)
+                input_range = m.group(2)
+                output_range = m.group(3)
+                
+                input_vals = [x.strip() for x in input_range.split(',')]
+                output_vals = [x.strip() for x in output_range.split(',')]
+                input_count = len(input_vals)
+                output_count = len(output_vals)
+                
+                if input_count != output_count:
+                    if output_count > input_count:
+                        # Agregar puntos intermedios al input range
+                        first = input_vals[0]
+                        last = input_vals[-1]
+                        new_input = [first]
+                        for i in range(1, output_count - 1):
+                            # Interpolar proporcionalmente
+                            fraction = f"{i}/{output_count-1}"
+                            new_input.append(f"({first} + ({last} - {first}) * {fraction})")
+                        new_input.append(last)
+                        return f"interpolate({arg}, [{', '.join(new_input)}], [{output_range}]"
+                    else:
+                        # Recortar output range para que coincida con input
+                        new_output = output_vals[:input_count]
+                        return f"interpolate({arg}, [{input_range}], [{', '.join(new_output)}]"
+                return m.group(0)
+            
+            return re.sub(pattern, check_match, code)
+        
+        code = fix_interpolate_mismatch(code)
+        
+        # 6. Envolver TODOS los r={} con Math.max(0, ...) si no lo tienen ya
+        def wrap_radius_with_math_max(code):
+            """Envuelve r={expression} con Math.max(0, ...) si no está ya protegido"""
+            # Patrón para r={...} que NO empieza con Math.max
+            pattern = r'r=\{((?!Math\.max)[^}]+)\}'
+            
+            def wrap_match(m):
+                expr = m.group(1).strip()
+                return f'r={{Math.max(0, {expr})}}'
+            
+            return re.sub(pattern, wrap_match, code)
+        
+        code = wrap_radius_with_math_max(code)
         
         # Guardar archivo físicamente
         generated_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../frontend/src/remotion/generated"))
@@ -433,6 +708,10 @@ async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: B
         if i < len(chunks) - 1:
             await asyncio.sleep(4)
 
+        # Generar ae_metadata en llamada separada (evita additionalProperties error)
+        print(f"[{job_id}] Generando ae_metadata para escena {i+1}...")
+        ae_meta = generate_ae_metadata_with_llm(chunk, visual_spec.media_query, duration)
+
         timeline_scenes.append({
             "start_time_seconds": round(current_start_time, 2),
             "duration_seconds": round(duration, 2),
@@ -444,7 +723,8 @@ async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: B
                 "textColor": visual_spec.textColor
             },
             "sfx": [],
-            "audio_url": audio_url
+            "audio_url": audio_url,
+            "ae_metadata": ae_meta
         })
         current_start_time += duration
         

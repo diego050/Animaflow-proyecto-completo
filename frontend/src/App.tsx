@@ -31,6 +31,7 @@ export default function App() {
   const [spec, setSpec] = useState<TimelineSpec>(defaultSpec);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   const generateScriptIA = async () => {
     if (!scriptTopic.trim()) return;
@@ -225,7 +226,7 @@ export default function App() {
           <PreviewPlayer spec={spec} />
           {loading && <p className="mt-4 text-emerald-400 animate-pulse">{status}</p>}
 
-          {!loading && jobId && !videoUrl && status === "¡Timeline Generada!" && (
+          {!loading && jobId && !videoUrl && (status.includes("Timeline") || status.includes("completed")) && (
             <button 
               onClick={triggerRender}
               className="mt-6 py-3 px-8 rounded-lg font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2"
@@ -249,6 +250,66 @@ export default function App() {
               >
                 📥 Descargar MP4
               </a>
+            </div>
+          )}
+
+          {jobId && (status.includes("Timeline") || status.includes("completed")) && (
+            <div className="mt-6 flex flex-col gap-3 w-full max-w-sm">
+              <p className="text-slate-400 text-sm text-center">Exportar proyecto:</p>
+              <button
+                onClick={async () => {
+                  setDownloading("ae");
+                  try {
+                    const res = await fetch(`http://localhost:8000/api/jobs/${jobId}/export/after-effects`);
+                    if (!res.ok) throw new Error("Error al exportar");
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `animaflow_${jobId}_ae.zip`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                  } catch (e) {
+                    alert("Error al descargar After Effects: " + e);
+                  } finally {
+                    setDownloading(null);
+                  }
+                }}
+                disabled={downloading === "ae"}
+                className={`w-full py-3 px-6 rounded-lg font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${downloading === "ae" ? 'bg-purple-600 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-500/30'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000.svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                {downloading === "ae" ? "⏳ Descargando After Effects..." : "🎬 Descargar After Effects (.zip)"}
+              </button>
+              <button
+                onClick={async () => {
+                  setDownloading("spec");
+                  try {
+                    const res = await fetch(`http://localhost:8000/api/jobs/${jobId}/export/spec-json`);
+                    if (!res.ok) throw new Error("Error al exportar");
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `animaflow_${jobId}_spec.json`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                  } catch (e) {
+                    alert("Error al descargar spec.json: " + e);
+                  } finally {
+                    setDownloading(null);
+                  }
+                }}
+                disabled={downloading === "spec"}
+                className={`w-full py-3 px-6 rounded-lg font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${downloading === "spec" ? 'bg-slate-600 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-slate-600 to-gray-600 hover:from-slate-500 hover:to-gray-500 shadow-slate-500/30'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000.svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                {downloading === "spec" ? "⏳ Descargando spec.json..." : "📋 Descargar spec.json"}
+              </button>
             </div>
           )}
           </div>
