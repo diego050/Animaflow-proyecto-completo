@@ -248,7 +248,7 @@ async def _call_gemini_with_retry(client, prompt: str, max_retries: int = 3, mod
             is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
             
             if is_retryable and attempt < max_retries - 1:
-                wait_time = 5 * (2 ** attempt)  # 5s, 10s, 20s (backoff exponencial)
+                wait_time = 3 * (2 ** attempt)  # 3s, 6s, 12s (backoff exponencial optimizado)
                 print(f"[LLM API] Error transitorio ({error_str[:60]}...). Reintentando en {wait_time}s (intento {attempt+1}/{max_retries})")
                 await asyncio.sleep(wait_time)
                 continue
@@ -377,7 +377,7 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
             # Fallback a modelo secundario si el principal falla
             print(f"[LLM API] ⚠️ WARNING: Modelo principal {settings.GEMINI_MODEL} saturado. Usando fallback {settings.GEMINI_FALLBACK_MODEL}")
             try:
-                response = await _call_gemini_with_retry(client, prompt, max_retries=2, model=settings.GEMINI_FALLBACK_MODEL)
+                response = await _call_gemini_with_retry(client, prompt, max_retries=1, model=settings.GEMINI_FALLBACK_MODEL)
             except Exception as e2:
                 print(f"[LLM API] ⚠️ WARNING: Fallback también falló ({str(e2)[:60]}). Usando componente por defecto FadeText.")
                 return "FadeText"

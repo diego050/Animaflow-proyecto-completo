@@ -22,7 +22,7 @@ async def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
     db.refresh(new_job)
 
     # Enviar la tarea pesada a Redis para que el Worker la procese en background
-    queue.enqueue(run_pipeline, new_job.id, new_job.script_text)
+    queue.enqueue(run_pipeline, new_job.id, new_job.script_text, job_timeout="10m")
 
     return JobResponse(job_id=new_job.id, status=new_job.status)
 
