@@ -8,30 +8,36 @@ import json
 import shutil
 import tempfile
 import zipfile
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 from sqlalchemy.orm import Session
 
 from app.db.models import JobModel
+from app.core.resolutions import get_resolution
 
 
 def hex_to_rgb_array(hex_color: str) -> str:
     """Convierte color HEX a array RGB normalizado [r, g, b] para AE."""
-    hex_color = hex_color.lstrip('#')
-    if len(hex_color) == 6:
+    hex_color = hex_color.lstrip('#').rstrip('}').strip()
+    if len(hex_color) != 6:
+        return "[0.220, 0.741, 0.973]"
+    try:
         r = int(hex_color[0:2], 16) / 255.0
         g = int(hex_color[2:4], 16) / 255.0
         b = int(hex_color[4:6], 16) / 255.0
         return f"[{r:.3f}, {g:.3f}, {b:.3f}]"
-    return "[1, 1, 1]"  # Blanco por defecto
+    except ValueError:
+        return "[0.220, 0.741, 0.973]"
 
 
-def generate_ae_script(scene: Dict, index: int) -> str:
+def generate_ae_script(scene: Dict, index: int, width: int = 1080, height: int = 1920) -> str:
     """
     Genera código ExtendScript (.jsx) para una escena de After Effects.
     
     Args:
         scene: Diccionario con datos de la escena (ae_metadata)
         index: Índice de la escena
+        width: Ancho de la composición
+        height: Alto de la composición
     
     Returns:
         Código JSX para After Effects
@@ -40,10 +46,19 @@ def generate_ae_script(scene: Dict, index: int) -> str:
     elements = ae_metadata.get('elements', [])
     text_animation = ae_metadata.get('text_animation', 'fade_in')
     audio_layer = ae_metadata.get('audio_layer', {})
+    bg_color = scene.get('remotion_props', {}).get('backgroundColor', '#0f172a')
+    text_color = scene.get('remotion_props', {}).get('textColor', '#38bdf8')
     
     script_lines = [
         f"// Escena {index + 1} - Generado por AnimaFlow",
-        f'var comp = app.project.items.addComp("AnimaFlow_Scene_{index + 1}", 1920, 1080, 1, {scene.get("duration_seconds", 6) * 30}, 30);',
+        f'var comp = app.project.items.addComp("AnimaFlow_Scene_{index + 1}", {width}, {height}, 1, {scene.get("duration_seconds", 6)}, 30);',
+        "",
+        "// ====================================",
+        "// FONDO",
+        "// ====================================",
+        f'var bgLayer = comp.layers.addSolid({hex_to_rgb_array(bg_color)}, "Fondo", {width}, {height}, 1);',
+        "bgLayer.inPoint = 0;",
+        "bgLayer.outPoint = comp.duration;",
         "",
         "// ====================================",
         "// ELEMENTOS SVG",
@@ -56,19 +71,19 @@ def generate_ae_script(scene: Dict, index: int) -> str:
         elem_id = elem.get('id', f'element_{index}')
         
         if elem_type == 'rectangle':
-            script_lines.extend(generate_ae_rectangle(elem))
+            script_lines.extend(generate_ae_rectangle(elem, width, height))
         elif elem_type == 'circle':
-            script_lines.extend(generate_ae_circle(elem))
+            script_lines.extend(generate_ae_circle(elem, width, height))
         elif elem_type == 'flash':
-            script_lines.extend(generate_ae_flash(elem))
+            script_lines.extend(generate_ae_flash(elem, width, height))
         elif elem_type == 'calendar':
-            script_lines.extend(generate_ae_calendar(elem))
+            script_lines.extend(generate_ae_calendar(elem, width, height))
         elif elem_type == 'line':
-            script_lines.extend(generate_ae_line(elem))
+            script_lines.extend(generate_ae_line(elem, width, height))
         elif elem_type == 'particle':
-            script_lines.extend(generate_ae_particle(elem))
+            script_lines.extend(generate_ae_particle(elem, width, height))
         else:
-            script_lines.extend(generate_ae_shape_generic(elem))
+            script_lines.extend(generate_ae_shape_generic(elem, width, height))
     
     # Agregar capa de texto
     script_lines.extend([
@@ -80,6 +95,10 @@ def generate_ae_script(scene: Dict, index: int) -> str:
         "textLayer.name = \"Texto_Principal\";",
         f"textLayer.inPoint = 0;",
         f"textLayer.outPoint = {scene.get('duration_seconds', 6)};",
+        "",
+        "// Color del texto",
+        f'var textProp = textLayer.property("ADBE Text Properties");',
+        f'textProp.property("ADBE Text Fill Color").setValue({hex_to_rgb_array(text_color)});',
         "",
         "// Animación de texto",
         "var textProp = textLayer.property(\"ADBE Text Properties\");",
@@ -130,34 +149,37 @@ def generate_ae_script(scene: Dict, index: int) -> str:
     return "\n".join(script_lines)
 
 
-def generate_ae_rectangle(elem: Dict) -> List[str]:
+def generate_ae_rectangle(elem: Dict, width: int = 1080, height: int = 1920) -> List[str]:
     """Genera código para un rectángulo en AE."""
+    size = elem.get('size', [100, 100])
+    
     lines = [
         f"// {elem.get('id', 'rect')} - Rectángulo",
         f'var layer_{elem.get("id", "rect")} = comp.layers.addShape();',
         f'layer_{elem.get("id", "rect")}.name = "{elem.get("id", "rect")}";',
         f'var shapeGroup = layer_{elem.get("id", "rect")}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var rect = shapeGroup.property("ADBE Vector Shape - Group").addProperty("ADBE Vector Shape - Rectangle");',
+        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
+        f'var rect = vectorsGroup.addProperty("ADBE Vector Shape - Rect");',
+        f'if (rect != null) {{',
+        f'    rect.property("ADBE Vector Rect Size").setValue([{size[0]}, {size[1]}]);',
+        f'}}',
     ]
-    
-    size = elem.get('size', [100, 100])
-    lines.append(f'rect.property("ADBE Vector Rect Size").setValue([{size[0]}, {size[1]}]);')
     
     if 'position' in elem:
         pos = elem['position']
         lines.append(f'rect.property("ADBE Vector Rect Position").setValue([{pos[0]}, {pos[1]}]);')
     
-    # Color con transiciones
+    # Color con transiciones - primero crear fill, luego setear color
     color_keyframes = elem.get('color_keyframes', [])
     if color_keyframes:
-        lines.append(f'var fill = shapeGroup.property("ADBE Vector Graphic - Fill").addProperty("ADBE Vector Fill Color");')
+        lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
         for kf in color_keyframes:
             time = kf.get('time', 0)
-            color = kf.get('color', [0.22, 0.74, 0.97, 1])  # RGBA 0-1
-            lines.append(f'fill.setValueAtTime({time}, [{color[0]}, {color[1]}, {color[2]}, {color[3]}]);')
+            color = kf.get('color', '#38bdf8')
+            lines.append(f'fill.property("ADBE Vector Fill Color").setValueAtTime({time}, {hex_to_rgb_array(color)});')
     else:
-        lines.append(f'var fill = shapeGroup.property("ADBE Vector Graphic - Fill").addProperty("ADBE Vector Fill Color");')
-        lines.append(f'fill.setValue([0.22, 0.74, 0.97, 1]);')  # Azul por defecto
+        lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
+        lines.append(f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#38bdf8")});')
     
     # Animación de posición
     position_keyframes = elem.get('position_keyframes', [])
@@ -165,8 +187,7 @@ def generate_ae_rectangle(elem: Dict) -> List[str]:
         lines.append(f'var posProp = layer_{elem.get("id", "rect")}.property("ADBE Transform Group").property("ADBE Position");')
         for kf in position_keyframes:
             time = kf.get('time', 0)
-            value = kf.get('value', [960, 540])
-            easing = kf.get('easing', 'linear')
+            value = kf.get('value', [width//2, height//2])
             lines.append(f'posProp.setValueAtTime({time}, [{value[0]}, {value[1]}]);')
     
     # Animación de escala
@@ -194,52 +215,52 @@ def generate_ae_rectangle(elem: Dict) -> List[str]:
         for effect in effects:
             effect_type = effect.get('type', '')
             if effect_type == 'glow':
-                lines.append(f'var glow = effects_{elem.get("id", "rect")}.addProperty("ADBE Glow");')
-                lines.append(f'glow.property("ADBE Glow Intensity").setValue({effect.get("intensity", 50)});')
-                glow_color = effect.get('color', '#38bdf8')
-                lines.append(f'glow.property("ADBE Glow Colors").setValue({hex_to_rgb_array(glow_color)});')
+                lines.append(f'var glow = effects_{elem.get("id", "rect")}.addProperty("ADBE Glo2");')
+                lines.append(f'glow.property(3).setValue({effect.get("intensity", 50)});')
+                lines.append(f'glow.property(4).setValue(1);')
             elif effect_type == 'drop_shadow':
                 lines.append(f'var shadow = effects_{elem.get("id", "rect")}.addProperty("ADBE Drop Shadow");')
-                lines.append(f'shadow.property("ADBE Drop Shadow Distance").setValue({effect.get("distance", 10)});')
-                lines.append(f'shadow.property("ADBE Drop Shadow Opacity").setValue({effect.get("opacity", 50)});')
-                shadow_color = effect.get('color', '#000000')
-                lines.append(f'shadow.property("ADBE Drop Shadow Color").setValue({hex_to_rgb_array(shadow_color)});')
+                lines.append(f'shadow.property(5).setValue({effect.get("distance", 10)});')
+                lines.append(f'shadow.property(2).setValue({effect.get("opacity", 50)});')
             elif effect_type == 'blur':
-                lines.append(f'var blur = effects_{elem.get("id", "rect")}.addProperty("ADBE Fast Blur");')
+                lines.append(f'var blur = effects_{elem.get("id", "rect")}.addProperty("ADBE Box Blur2");')
                 lines.append(f'blur.property("ADBE Blur Sharpen").setValue({effect.get("intensity", 50)});')
     
     lines.append("")
     return lines
 
 
-def generate_ae_circle(elem: Dict) -> List[str]:
+def generate_ae_circle(elem: Dict, width: int = 1080, height: int = 1920) -> List[str]:
     """Genera código para un círculo en AE."""
+    size = elem.get('size', [50, 50])
+    
     lines = [
         f"// {elem.get('id', 'circle')} - Círculo",
         f'var layer_{elem.get("id", "circle")} = comp.layers.addShape();',
         f'layer_{elem.get("id", "circle")}.name = "{elem.get("id", "circle")}";',
         f'var shapeGroup = layer_{elem.get("id", "circle")}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var ellipse = shapeGroup.property("ADBE Vector Shape - Group").addProperty("ADBE Vector Shape - Ellipse");',
+        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
+        f'var ellipse = vectorsGroup.addProperty("ADBE Vector Shape - Ellipse");',
+        f'if (ellipse != null) {{',
+        f'    ellipse.property("ADBE Vector Ellipse Size").setValue([{size[0]}, {size[1]}]);',
+        f'}}',
     ]
-    
-    size = elem.get('size', [50, 50])
-    lines.append(f'ellipse.property("ADBE Vector Ellipse Size").setValue([{size[0]}, {size[1]}]);')
     
     if 'position' in elem:
         pos = elem['position']
         lines.append(f'ellipse.property("ADBE Vector Ellipse Position").setValue([{pos[0]}, {pos[1]}]);')
     
-    # Color con transiciones
+    # Color con transiciones - primero crear fill, luego setear color
     color_keyframes = elem.get('color_keyframes', [])
     if color_keyframes:
-        lines.append(f'var fill = shapeGroup.property("ADBE Vector Graphic - Fill").addProperty("ADBE Vector Fill Color");')
+        lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
         for kf in color_keyframes:
             time = kf.get('time', 0)
-            color = kf.get('color', [0.22, 0.74, 0.97, 1])
-            lines.append(f'fill.setValueAtTime({time}, [{color[0]}, {color[1]}, {color[2]}, {color[3]}]);')
+            color = kf.get('color', '#38bdf8')
+            lines.append(f'fill.property("ADBE Vector Fill Color").setValueAtTime({time}, {hex_to_rgb_array(color)});')
     else:
-        lines.append(f'var fill = shapeGroup.property("ADBE Vector Graphic - Fill").addProperty("ADBE Vector Fill Color");')
-        lines.append(f'fill.setValue([0.22, 0.74, 0.97, 1]);')
+        lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
+        lines.append(f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#38bdf8")});')
     
     # Animación de posición
     position_keyframes = elem.get('position_keyframes', [])
@@ -247,7 +268,7 @@ def generate_ae_circle(elem: Dict) -> List[str]:
         lines.append(f'var posProp = layer_{elem.get("id", "circle")}.property("ADBE Transform Group").property("ADBE Position");')
         for kf in position_keyframes:
             time = kf.get('time', 0)
-            value = kf.get('value', [960, 540])
+            value = kf.get('value', [width//2, height//2])
             lines.append(f'posProp.setValueAtTime({time}, [{value[0]}, {value[1]}]);')
     
     # Animación de escala
@@ -275,38 +296,57 @@ def generate_ae_circle(elem: Dict) -> List[str]:
         for effect in effects:
             effect_type = effect.get('type', '')
             if effect_type == 'glow':
-                lines.append(f'var glow = effects_{elem.get("id", "circle")}.addProperty("ADBE Glow");')
-                lines.append(f'glow.property("ADBE Glow Intensity").setValue({effect.get("intensity", 50)});')
+                lines.append(f'var glow = effects_{elem.get("id", "circle")}.addProperty("ADBE Glo2");')
+                lines.append(f'glow.property(3).setValue({effect.get("intensity", 50)});')
+                lines.append(f'glow.property(4).setValue(1);')
             elif effect_type == 'drop_shadow':
                 lines.append(f'var shadow = effects_{elem.get("id", "circle")}.addProperty("ADBE Drop Shadow");')
-                lines.append(f'shadow.property("ADBE Drop Shadow Distance").setValue({effect.get("distance", 10)});')
+                lines.append(f'shadow.property(5).setValue({effect.get("distance", 10)});')
+                lines.append(f'shadow.property(2).setValue({effect.get("opacity", 50)});')
             elif effect_type == 'blur':
-                lines.append(f'var blur = effects_{elem.get("id", "circle")}.addProperty("ADBE Fast Blur");')
+                lines.append(f'var blur = effects_{elem.get("id", "circle")}.addProperty("ADBE Box Blur2");')
                 lines.append(f'blur.property("ADBE Blur Sharpen").setValue({effect.get("intensity", 50)});')
     
     lines.append("")
     return lines
 
 
-def generate_ae_flash(elem: Dict) -> List[str]:
-    """Genera código para un destello/flash en AE."""
+def generate_ae_flash(elem: Dict, width: int = 1080, height: int = 1920) -> List[str]:
+    """Genera código para un destello/flash en AE usando shape layer (no sólido pantalla completa)."""
     flash_color = elem.get('color', '#fbbf24')
-    rgb = hex_to_rgb_array(flash_color)
+    
+    # Posición del flash
+    position_keyframes = elem.get('position_keyframes', [])
+    if position_keyframes:
+        pos = position_keyframes[0].get('value', [width//2, height//2])
+    else:
+        pos = [width//2, height//2]
     
     lines = [
         f"// {elem.get('id', 'flash')} - Destello",
-        f'var layer_{elem.get("id", "flash")} = comp.layers.addSolid({rgb}, "{elem.get("id", "flash")}", 1920, 1080);',
+        f'var layer_{elem.get("id", "flash")} = comp.layers.addShape();',
+        f'layer_{elem.get("id", "flash")}.name = "{elem.get("id", "flash")}";',
+        f'var shapeGroup = layer_{elem.get("id", "flash")}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
+        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
+        f'var ellipse = vectorsGroup.addProperty("ADBE Vector Shape - Ellipse");',
+        f'if (ellipse != null) {{',
+        f'    ellipse.property("ADBE Vector Ellipse Size").setValue([200, 200]);',
+        f'}}',
+        f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");',
+        f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(flash_color)});',
+        f'var posProp = layer_{elem.get("id", "flash")}.property("ADBE Transform Group").property("ADBE Position");',
+        f'posProp.setValue([{pos[0]}, {pos[1]}]);',
     ]
     
     # Opacidad para flash (aparece y desaparece rápidamente)
-    opacity_keyframes = elem.get('opacity_keyframes', [
+    opacity_kfs = elem.get('opacity_keyframes', [
         {'time': 2, 'value': 0},
         {'time': 2.1, 'value': 100},
         {'time': 2.3, 'value': 0}
     ])
     
     lines.append(f'var opacityProp = layer_{elem.get("id", "flash")}.property("ADBE Transform Group").property("ADBE Opacity");')
-    for kf in opacity_keyframes:
+    for kf in opacity_kfs:
         time = kf.get('time', 0)
         value = kf.get('value', 100)
         lines.append(f'opacityProp.setValueAtTime({time}, {value});')
@@ -330,32 +370,36 @@ def generate_ae_flash(elem: Dict) -> List[str]:
         for effect in effects:
             effect_type = effect.get('type', '')
             if effect_type == 'glow':
-                lines.append(f'var glow = effects_{elem.get("id", "flash")}.addProperty("ADBE Glow");')
-                lines.append(f'glow.property("ADBE Glow Intensity").setValue({effect.get("intensity", 100)});')
+                lines.append(f'var glow = effects_{elem.get("id", "flash")}.addProperty("ADBE Glo2");')
+                lines.append(f'glow.property(3).setValue({effect.get("intensity", 100)});')
+                lines.append(f'glow.property(4).setValue(1);')
             elif effect_type == 'blur':
-                lines.append(f'var blur = effects_{elem.get("id", "flash")}.addProperty("ADBE Fast Blur");')
+                lines.append(f'var blur = effects_{elem.get("id", "flash")}.addProperty("ADBE Box Blur2");')
                 lines.append(f'blur.property("ADBE Blur Sharpen").setValue({effect.get("intensity", 50)});')
     else:
-        # Glow por defecto para flash
-        lines.append(f'var glow = layer_{elem.get("id", "flash")}.property("ADBE Effect Parade").addProperty("ADBE Glow");')
-        lines.append(f'glow.property("ADBE Glow Intensity").setValue(100);')
+        lines.append(f'var glow = layer_{elem.get("id", "flash")}.property("ADBE Effect Parade").addProperty("ADBE Glo2");')
+        lines.append(f'glow.property(3).setValue(100);')
+        lines.append(f'glow.property(4).setValue(1);')
     
     lines.append("")
     return lines
 
 
-def generate_ae_calendar(elem: Dict) -> List[str]:
+def generate_ae_calendar(elem: Dict, width: int = 1080, height: int = 1920) -> List[str]:
     """Genera código para un calendario en AE."""
     lines = [
         f"// {elem.get('id', 'calendar')} - Calendario",
         f'var layer_{elem.get("id", "calendar")} = comp.layers.addShape();',
         f'layer_{elem.get("id", "calendar")}.name = "{elem.get("id", "calendar")}";',
         f'var shapeGroup = layer_{elem.get("id", "calendar")}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var rect = shapeGroup.property("ADBE Vector Shape - Group").addProperty("ADBE Vector Shape - Rectangle");',
-        f'rect.property("ADBE Vector Rect Size").setValue([120, 100]);',
-        f'rect.property("ADBE Vector Rect Roundness").setValue([8, 8]);',
-        f'var fill = shapeGroup.property("ADBE Vector Graphic - Fill").addProperty("ADBE Vector Fill Color");',
-        f'fill.setValue([0.22, 0.74, 0.97, 1]);',
+        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
+        f'var rect = vectorsGroup.addProperty("ADBE Vector Shape - Rect");',
+        f'if (rect != null) {{',
+        f'    rect.property("ADBE Vector Rect Size").setValue([120, 100]);',
+        f'    rect.property("ADBE Vector Rect Roundness").setValue([8, 8]);',
+        f'}}',
+        f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");',
+        f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#38bdf8")});',
     ]
     
     # Animación bounce in (solo si no hay keyframes personalizados)
@@ -364,14 +408,14 @@ def generate_ae_calendar(elem: Dict) -> List[str]:
         lines.append(f'var posProp = layer_{elem.get("id", "calendar")}.property("ADBE Transform Group").property("ADBE Position");')
         for kf in position_keyframes:
             time = kf.get('time', 0)
-            value = kf.get('value', [960, 540])
+            value = kf.get('value', [width//2, height//2])
             lines.append(f'posProp.setValueAtTime({time}, [{value[0]}, {value[1]}]);')
     else:
         lines.append(f'var posProp = layer_{elem.get("id", "calendar")}.property("ADBE Transform Group").property("ADBE Position");')
-        lines.append(f'posProp.setValueAtTime(0, [960, 740]);')
-        lines.append(f'posProp.setValueAtTime(0.5, [960, 480]);')
-        lines.append(f'posProp.setValueAtTime(0.8, [960, 520]);')
-        lines.append(f'posProp.setValueAtTime(1.0, [960, 500]);')
+        lines.append(f'posProp.setValueAtTime(0, [{width//2}, {int(height*0.74)}]);')
+        lines.append(f'posProp.setValueAtTime(0.5, [{width//2}, {int(height*0.48)}]);')
+        lines.append(f'posProp.setValueAtTime(0.8, [{width//2}, {int(height*0.52)}]);')
+        lines.append(f'posProp.setValueAtTime(1.0, [{width//2}, {int(height*0.50)}]);')
     
     opacity_keyframes = elem.get('opacity_keyframes', [])
     if opacity_keyframes:
@@ -392,20 +436,22 @@ def generate_ae_calendar(elem: Dict) -> List[str]:
         for effect in effects:
             effect_type = effect.get('type', '')
             if effect_type == 'glow':
-                lines.append(f'var glow = effects_{elem.get("id", "calendar")}.addProperty("ADBE Glow");')
-                lines.append(f'glow.property("ADBE Glow Intensity").setValue({effect.get("intensity", 50)});')
+                lines.append(f'var glow = effects_{elem.get("id", "calendar")}.addProperty("ADBE Glo2");')
+                lines.append(f'glow.property(3).setValue({effect.get("intensity", 50)});')
+                lines.append(f'glow.property(4).setValue(1);')
             elif effect_type == 'drop_shadow':
                 lines.append(f'var shadow = effects_{elem.get("id", "calendar")}.addProperty("ADBE Drop Shadow");')
-                lines.append(f'shadow.property("ADBE Drop Shadow Distance").setValue({effect.get("distance", 10)});')
+                lines.append(f'shadow.property(5).setValue({effect.get("distance", 10)});')
+                lines.append(f'shadow.property(2).setValue({effect.get("opacity", 50)});')
             elif effect_type == 'blur':
-                lines.append(f'var blur = effects_{elem.get("id", "calendar")}.addProperty("ADBE Fast Blur");')
+                lines.append(f'var blur = effects_{elem.get("id", "calendar")}.addProperty("ADBE Box Blur2");')
                 lines.append(f'blur.property("ADBE Blur Sharpen").setValue({effect.get("intensity", 50)});')
     
     lines.append("")
     return lines
 
 
-def generate_ae_shape_generic(elem: Dict) -> List[str]:
+def generate_ae_shape_generic(elem: Dict, width: int = 1080, height: int = 1920) -> List[str]:
     """Genera código para una forma genérica en AE."""
     elem_type = elem.get('type', 'shape')
     elem_id = elem.get('id', elem_type)
@@ -415,8 +461,9 @@ def generate_ae_shape_generic(elem: Dict) -> List[str]:
         f'var layer_{elem_id} = comp.layers.addShape();',
         f'layer_{elem_id}.name = "{elem_id}";',
         f'var shapeGroup = layer_{elem_id}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var fill = shapeGroup.property("ADBE Vector Graphic - Fill").addProperty("ADBE Vector Fill Color");',
-        f'fill.setValue([0.22, 0.74, 0.97, 1]);',
+        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
+        f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");',
+        f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#38bdf8")});',
     ]
     
     # Keyframes de posición
@@ -425,7 +472,7 @@ def generate_ae_shape_generic(elem: Dict) -> List[str]:
         lines.append(f'var posProp = layer_{elem_id}.property("ADBE Transform Group").property("ADBE Position");')
         for kf in position_keyframes:
             time = kf.get('time', 0)
-            value = kf.get('value', [960, 540])
+            value = kf.get('value', [width//2, height//2])
             lines.append(f'posProp.setValueAtTime({time}, [{value[0]}, {value[1]}]);')
     
     # Keyframes de escala
@@ -453,51 +500,43 @@ def generate_ae_shape_generic(elem: Dict) -> List[str]:
         for effect in effects:
             effect_type = effect.get('type', '')
             if effect_type == 'glow':
-                lines.append(f'var glow = effects_{elem_id}.addProperty("ADBE Glow");')
-                lines.append(f'glow.property("ADBE Glow Intensity").setValue({effect.get("intensity", 50)});')
+                lines.append(f'var glow = effects_{elem_id}.addProperty("ADBE Glo2");')
+                lines.append(f'glow.property(3).setValue({effect.get("intensity", 50)});')
+                lines.append(f'glow.property(4).setValue(1);')
             elif effect_type == 'drop_shadow':
                 lines.append(f'var shadow = effects_{elem_id}.addProperty("ADBE Drop Shadow");')
-                lines.append(f'shadow.property("ADBE Drop Shadow Distance").setValue({effect.get("distance", 10)});')
+                lines.append(f'shadow.property(5).setValue({effect.get("distance", 10)});')
+                lines.append(f'shadow.property(2).setValue({effect.get("opacity", 50)});')
             elif effect_type == 'blur':
-                lines.append(f'var blur = effects_{elem_id}.addProperty("ADBE Fast Blur");')
+                lines.append(f'var blur = effects_{elem_id}.addProperty("ADBE Box Blur2");')
                 lines.append(f'blur.property("ADBE Blur Sharpen").setValue({effect.get("intensity", 50)});')
     
     lines.append("")
     return lines
 
 
-def generate_ae_line(elem: Dict) -> List[str]:
-    """Genera código para una línea en AE."""
+def generate_ae_line(elem: Dict, width: int = 1080, height: int = 1920) -> List[str]:
+    """Genera código para una línea en AE usando rectángulo delgado."""
     elem_id = elem.get('id', 'line')
-    start_point = elem.get('start', [0, 540])
-    end_point = elem.get('end', [1920, 540])
+    stroke_color = elem.get('color', '#38bdf8')
+    stroke_width = elem.get('width', 2)
     
     lines = [
         f"// {elem_id} - Línea",
         f'var layer_{elem_id} = comp.layers.addShape();',
         f'layer_{elem_id}.name = "{elem_id}";',
         f'var shapeGroup = layer_{elem_id}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var path = shapeGroup.property("ADBE Vector Shape - Group").addProperty("ADBE Vector Shape - Path");',
+        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
+        f'var line = vectorsGroup.addProperty("ADBE Vector Shape - Rect");',
+        f'if (line != null) {{',
+        f'    line.property("ADBE Vector Rect Size").setValue([{width}, {stroke_width}]);',
+        f'    line.property("ADBE Vector Rect Position").setValue([0, {height//2}]);',
+        f'}}',
     ]
     
-    # Path keyframes si existen
-    path_keyframes = elem.get('path_keyframes', [])
-    if path_keyframes:
-        for kf in path_keyframes:
-            time = kf.get('time', 0)
-            start = kf.get('start', start_point)
-            end = kf.get('end', end_point)
-            lines.append(f'path.property("ADBE Vector Shape").setValueAtTime({time}, createPath([{start[0]},{start[1]}], [{end[0]},{end[1]}], [], false));')
-    else:
-        lines.append(f'path.property("ADBE Vector Shape").setValue(createPath([{start_point[0]},{start_point[1]}], [{end_point[0]},{end_point[1]}], [], false));')
-    
-    # Stroke
-    stroke_color = elem.get('color', '#38bdf8')
-    stroke_width = elem.get('width', 2)
-    lines.append(f'var stroke = shapeGroup.property("ADBE Vector Graphic - Stroke").addProperty("ADBE Vector Stroke Color");')
-    lines.append(f'stroke.setValue({hex_to_rgb_array(stroke_color)});')
-    lines.append(f'var strokeWidth = shapeGroup.property("ADBE Vector Graphic - Stroke").addProperty("ADBE Vector Stroke Width");')
-    lines.append(f'strokeWidth.setValue({stroke_width});')
+    # Fill como color de línea
+    lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
+    lines.append(f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(stroke_color)});')
     
     # Opacidad
     opacity_keyframes = elem.get('opacity_keyframes', [])
@@ -515,32 +554,35 @@ def generate_ae_line(elem: Dict) -> List[str]:
         for effect in effects:
             effect_type = effect.get('type', '')
             if effect_type == 'glow':
-                lines.append(f'var glow = effects_{elem_id}.addProperty("ADBE Glow");')
-                lines.append(f'glow.property("ADBE Glow Intensity").setValue({effect.get("intensity", 50)});')
+                lines.append(f'var glow = effects_{elem_id}.addProperty("ADBE Glo2");')
+                lines.append(f'glow.property(3).setValue({effect.get("intensity", 50)});')
+                lines.append(f'glow.property(4).setValue(1);')
     
     lines.append("")
     return lines
 
 
-def generate_ae_particle(elem: Dict) -> List[str]:
+def generate_ae_particle(elem: Dict, width: int = 1080, height: int = 1920) -> List[str]:
     """Genera código para una partícula en AE."""
     elem_id = elem.get('id', 'particle')
+    size = elem.get('size', [10, 10])
     
     lines = [
         f"// {elem_id} - Partícula",
         f'var layer_{elem_id} = comp.layers.addShape();',
         f'layer_{elem_id}.name = "{elem_id}";',
         f'var shapeGroup = layer_{elem_id}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var ellipse = shapeGroup.property("ADBE Vector Shape - Group").addProperty("ADBE Vector Shape - Ellipse");',
+        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
+        f'var ellipse = vectorsGroup.addProperty("ADBE Vector Shape - Ellipse");',
+        f'if (ellipse != null) {{',
+        f'    ellipse.property("ADBE Vector Ellipse Size").setValue([{size[0]}, {size[1]}]);',
+        f'}}',
     ]
     
-    size = elem.get('size', [10, 10])
-    lines.append(f'ellipse.property("ADBE Vector Ellipse Size").setValue([{size[0]}, {size[1]}]);')
-    
-    # Color
+    # Color - primero crear fill, luego setear color
     particle_color = elem.get('color', '#38bdf8')
-    lines.append(f'var fill = shapeGroup.property("ADBE Vector Graphic - Fill").addProperty("ADBE Vector Fill Color");')
-    lines.append(f'fill.setValue({hex_to_rgb_array(particle_color)});')
+    lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
+    lines.append(f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(particle_color)});')
     
     # Posición
     position_keyframes = elem.get('position_keyframes', [])
@@ -548,7 +590,7 @@ def generate_ae_particle(elem: Dict) -> List[str]:
         lines.append(f'var posProp = layer_{elem_id}.property("ADBE Transform Group").property("ADBE Position");')
         for kf in position_keyframes:
             time = kf.get('time', 0)
-            value = kf.get('value', [960, 540])
+            value = kf.get('value', [width//2, height//2])
             lines.append(f'posProp.setValueAtTime({time}, [{value[0]}, {value[1]}]);')
     
     # Opacidad
@@ -567,8 +609,9 @@ def generate_ae_particle(elem: Dict) -> List[str]:
         for effect in effects:
             effect_type = effect.get('type', '')
             if effect_type == 'glow':
-                lines.append(f'var glow = effects_{elem_id}.addProperty("ADBE Glow");')
-                lines.append(f'glow.property("ADBE Glow Intensity").setValue({effect.get("intensity", 50)});')
+                lines.append(f'var glow = effects_{elem_id}.addProperty("ADBE Glo2");')
+                lines.append(f'glow.property(3).setValue({effect.get("intensity", 50)});')
+                lines.append(f'glow.property(4).setValue(1);')
     
     lines.append("")
     return lines
@@ -577,34 +620,38 @@ def generate_ae_particle(elem: Dict) -> List[str]:
 def create_ae_full_script(job: JobModel) -> str:
     """
     Crea un script completo de After Effects para todo el job.
-    
-    Args:
-        job: JobModel con result_spec
-    
-    Returns:
-        Código JSX completo para After Effects
+    Usa ae_script_code directamente si está disponible, fallback a generación desde ae_metadata.
     """
     if not job.result_spec:
         return "// Error: No hay spec.json para este job"
     
     scenes = job.result_spec.get('scenes', [])
+    aspect_ratio = job.result_spec.get('aspect_ratio', job.aspect_ratio or "9:16")
+    width, height = get_resolution(aspect_ratio)
     
-    script_header = """// ============================================
+    script_header = f"""// ============================================
 // ANIMAFLOW - After Effects Export Script
 // Generado automáticamente
+// Aspect Ratio: {aspect_ratio} ({width}x{height})
 // ============================================
 
 // Verificar que hay un proyecto abierto
-if (app.project == null) {
+if (app.project == null) {{
     app.newProject();
-}
+}}
 
 """
     
-    script_body = []
+    script_parts = []
     for i, scene in enumerate(scenes):
-        scene_script = generate_ae_script(scene, i)
-        script_body.append(scene_script)
+        # Primero intentar usar ae_script_code directo
+        ae_script_code = scene.get('ae_script_code')
+        if ae_script_code:
+            scene_script = f"// Escena {i + 1} - Generado por AnimaFlow\n{ae_script_code}\n"
+        else:
+            # Fallback: generar desde ae_metadata (legacy)
+            scene_script = generate_ae_script(scene, i, width, height)
+        script_parts.append(scene_script)
     
     script_footer = """
 // ============================================
@@ -614,7 +661,7 @@ app.beginUndoGroup("AnimaFlow Import Complete");
 app.endUndoGroup();
 """
     
-    return script_header + "\n".join(script_body) + script_footer
+    return script_header + "\n".join(script_parts) + script_footer
 
 
 def download_audio_files(job: JobModel, audio_dir: str) -> List[str]:
@@ -696,6 +743,9 @@ def create_export_zip(job_id: str, db: Session) -> tuple:
         with open(spec_path, 'w', encoding='utf-8') as f:
             json.dump(job.result_spec, f, indent=2)
         
+        aspect_ratio = job.result_spec.get('aspect_ratio', job.aspect_ratio or "9:16")
+        width, height = get_resolution(aspect_ratio)
+        
         # 4. Crear README.md
         readme_content = f"""# AnimaFlow Project - {job_id}
 
@@ -705,8 +755,9 @@ def create_export_zip(job_id: str, db: Session) -> tuple:
 2. Ve a `File > Scripts > Run Script File...`
 3. Selecciona el archivo `script.jsx`
 4. El script creará automáticamente:
-   - Composición 1920x1080 a 30fps
-   - Capas de texto con timing
+   - Composición {width}x{height} a 30fps
+   - Capa de fondo con color del spec
+   - Capas de texto con timing y color
    - Formas SVG animadas
    - Capa de audio
 

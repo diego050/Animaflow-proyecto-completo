@@ -4,6 +4,14 @@ import { SceneEditor } from './components/SceneEditor';
 import { Dashboard } from './components/Dashboard';
 import type { TimelineSpec } from './types/spec';
 
+const ASPECT_RATIOS = [
+  { label: "9:16 (Stories/Reels)", value: "9:16" },
+  { label: "4:5 (Instagram Feed)", value: "4:5" },
+  { label: "3:4", value: "3:4" },
+  { label: "1:1 (Square)", value: "1:1" },
+  { label: "16:9 (YouTube)", value: "16:9" },
+];
+
 const defaultSpec: TimelineSpec = {
   scenes: [
     {
@@ -18,7 +26,8 @@ const defaultSpec: TimelineSpec = {
       },
       sfx: []
     }
-  ]
+  ],
+  aspect_ratio: "9:16"
 };
 
 export default function App() {
@@ -32,6 +41,7 @@ export default function App() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState("9:16");
 
   const generateScriptIA = async () => {
     if (!scriptTopic.trim()) return;
@@ -66,7 +76,7 @@ export default function App() {
       const res = await fetch("http://localhost:8000/api/jobs/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script_text: inputText })
+        body: JSON.stringify({ script_text: inputText, aspect_ratio: aspectRatio })
       });
       const data = await res.json();
       setJobId(data.job_id);
@@ -98,6 +108,7 @@ export default function App() {
         
         if (data.status === "completed" && !isRendering) {
           setSpec(data.result_spec);
+          if (data.result_spec?.aspect_ratio) setAspectRatio(data.result_spec.aspect_ratio);
           setLoading(false);
           clearInterval(interval);
         } else if (data.status === "completed_video") {
@@ -167,7 +178,10 @@ export default function App() {
           }}
           onSelectJob={(id, loadedSpec, loadedStatus, loadedVideoUrl, loadedScriptText) => {
             setJobId(id);
-            if (loadedSpec) setSpec(loadedSpec);
+            if (loadedSpec) {
+              setSpec(loadedSpec);
+              if (loadedSpec.aspect_ratio) setAspectRatio(loadedSpec.aspect_ratio);
+            }
             setStatus(loadedStatus);
             setVideoUrl(loadedVideoUrl);
             setInputText(loadedScriptText);
@@ -197,8 +211,28 @@ export default function App() {
           
           <hr className="border-slate-800 my-2" />
           
-          <h2 className="text-xl font-bold">1. Ingresa o revisa tu guion principal</h2>
-          <textarea
+           <h2 className="text-xl font-bold">1. Ingresa o revisa tu guion principal</h2>
+           
+           <div className="flex flex-col gap-2">
+             <label className="text-sm text-slate-400 font-semibold">Formato de video:</label>
+             <div className="flex flex-wrap gap-2">
+               {ASPECT_RATIOS.map((ar) => (
+                 <button
+                   key={ar.value}
+                   onClick={() => setAspectRatio(ar.value)}
+                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                     aspectRatio === ar.value
+                       ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                       : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+                   }`}
+                 >
+                   {ar.label}
+                 </button>
+               ))}
+             </div>
+           </div>
+           
+           <textarea
             className="w-full h-40 bg-slate-900 border border-slate-700 text-slate-100 p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
@@ -223,7 +257,7 @@ export default function App() {
         
         <div className="flex flex-col items-center">
           <h2 className="text-xl font-bold mb-4">2. Preview del Director</h2>
-          <PreviewPlayer spec={spec} />
+          <PreviewPlayer spec={spec} aspectRatio={aspectRatio} />
           {loading && <p className="mt-4 text-emerald-400 animate-pulse">{status}</p>}
 
           {!loading && jobId && !videoUrl && (status.includes("Timeline") || status.includes("completed")) && (

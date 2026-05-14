@@ -4,6 +4,7 @@ import datetime
 
 class JobCreate(BaseModel):
     script_text: str
+    aspect_ratio: str = "9:16"
 
 class SceneRegenerateRequest(BaseModel):
     media_query: str

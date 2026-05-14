@@ -154,10 +154,11 @@ async def generate_tts_with_voicebox(text: str, scene_id: str) -> tuple[Optional
 # VISUAL SPEC GENERATION WITH GEMINI
 # =============================================================================
 
-def generate_batch_visuals_with_llm(chunks: list[str]) -> BatchVisualSpec:
+def generate_batch_visuals_with_llm(chunks: list[str], aspect_ratio: str = "9:16") -> BatchVisualSpec:
     """Usa Gemini para generar un arreglo de escenas visuales para cada bloque de texto."""
     import time
     from app.core.config import settings
+    from app.core.resolutions import get_resolution
     
     api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
     
@@ -174,10 +175,13 @@ def generate_batch_visuals_with_llm(chunks: list[str]) -> BatchVisualSpec:
     try:
         client = genai.Client(api_key=api_key)
         
+        w, h = get_resolution(aspect_ratio)
         scenes_context = "\n".join([f"Escena {i+1}: \"{t}\"" for i, t in enumerate(chunks)])
         
         prompt = f"""
 Eres el director de animación SENIOR de AnimaFlow. Analiza este guion y crea descripciones visuales DETALLADAS para animaciones SVG 2D complejas.
+
+CANVAS: {aspect_ratio} ({w}x{h} píxeles). TODAS las posiciones y tamaños deben caber en este canvas.
 
 {scenes_context}
 
@@ -196,6 +200,7 @@ REQUISITOS CRÍTICOS:
    - Especifica formas: calendarios, cuadrados, círculos, líneas, partículas, etc.
    - Mínimo 3-5 elementos visuales por escena.
    - Describe tamaños, posiciones relativas y colores.
+   - POSICIONES: X debe estar entre 0 y {w}, Y entre 0 y {h}.
 
 3. ESTILO VISUAL:
    - Minimalista 2D, sin elementos 3D.
@@ -204,54 +209,13 @@ REQUISITOS CRÍTICOS:
 
 4. MEDIA_QUERY EN INGLÉS:
    - Debe ser una descripción narrativa detallada de la animación completa.
-   - Ejemplo: "Two rectangular blocks slide from opposite sides, collide at center creating a bright flash burst, from which text emerges with scale animation. Minimalist 2D style, vibrant colors, bounce easing."
+   - Cada escena debe tener un media_query DIFERENTE y contextual al texto.
+   - Ejemplo escenas distintas: "Two rectangular blocks slide from opposite sides, collide at center creating a bright flash burst..." vs "A leaf grows from bottom center, branches extend outward with organic curves..."
 
-5. AE_METADATA (OBLIGATORIO):
-   Además del media_query, genera ae_metadata detallado con:
-   
-   a) animation_type: ELIGE el más apropiado para el texto:
-      - collision: formas que chocan con destello
-      - bounce_in: entrada con rebote
-      - morphing: transformación de formas
-      - particles: sistema de partículas
-      - connection: nodos que se conectan
-      - reveal: capas que revelan contenido
-      - construction: ensamblaje pieza por pieza
-      - flash: destello explosivo
-      - fade_in: aparición suave
-      - scale_emerge: escala desde cero
-   
-   b) elements: Lista de 3-8 elementos SVG con keyframes:
-      - type: rectangle, circle, flash, line, particle
-      - position_keyframes: [{{"time": 0, "value": [x, y]}}, {{"time": 1, "value": [x, y]}}]
-      - scale_keyframes: [{{"time": 0, "value": [0, 0]}}, {{"time": 1, "value": [100, 100]}}]
-      - opacity_keyframes: [{{"time": 0, "value": 0}}, {{"time": 0.5, "value": 100}}]
-      - effects: [{{"type": "glow", "intensity": 50, "color": "#38bdf8"}}]
-   
-   c) text_animation: ELIGE el más apropiado:
-      - letter_by_letter: aparece letra por letra
-      - word_reveal: aparece palabra por palabra
-      - scale_emerge: escala desde cero
-      - fade_in: aparición suave
-
-6. COHERENCIA:
+5. COHERENCIA:
    - Mantén coherencia visual entre escenas (misma familia de colores).
    - Devuelve exactamente {len(chunks)} escenas en el mismo orden.
-
-Ejemplo de estructura completa:
-{{"scenes": [{{
-  "media_query": "Two blocks collide creating flash...",
-  "backgroundColor": "#0f172a",
-  "textColor": "#38bdf8",
-  "ae_metadata": {{
-    "animation_type": "collision",
-    "elements": [
-      {{"type": "rectangle", "id": "block_1", "position_keyframes": [{{"time": 0, "value": [400, 540]}}, {{"time": 1.5, "value": [800, 540]}}], "opacity_keyframes": [{{"time": 0, "value": 0}}, {{"time": 0.3, "value": 100}}], "effects": [{{"type": "drop_shadow", "distance": 10, "color": "#000000", "opacity": 50}}]}},
-      {{"type": "flash", "id": "collision_flash", "opacity_keyframes": [{{"time": 1.5, "value": 0}}, {{"time": 1.6, "value": 100}}, {{"time": 1.8, "value": 0}}], "scale_keyframes": [{{"time": 1.5, "value": [0, 0]}}, {{"time": 1.6, "value": [300, 300]}}], "effects": [{{"type": "glow", "intensity": 100, "color": "#fbbf24"}}]}}
-    ],
-    "text_animation": "word_reveal"
-  }}
-}}]}}
+   - NUNCA uses "generic abstract background" o "particle effects" como media_query.
 
 Responde SOLO con JSON válido.
 """
@@ -276,13 +240,12 @@ Responde SOLO con JSON válido.
                 is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
                 
                 if is_retryable and attempt < max_retries - 1:
-                    wait_time = 3 * (2 ** attempt)  # 3s, 6s, 12s
+                    wait_time = 3 * (2 ** attempt)
                     print(f"[LLM API] Batch visuals: retry en {wait_time}s (intento {attempt+1}/{max_retries})")
                     time.sleep(wait_time)
                     continue
                 raise
         
-        # Si el modelo principal falló, intentar con fallback
         if response is None:
             print(f"[LLM API] ⚠️ WARNING: Modelo principal {settings.GEMINI_MODEL} saturado para batch visuals. Usando fallback {settings.GEMINI_FALLBACK_MODEL}")
             response = client.models.generate_content(
@@ -295,7 +258,22 @@ Responde SOLO con JSON válido.
                 ),
             )
         
-        data = json.loads(response.text)
+        # Parsear JSON con limpieza
+        raw_text = response.text.strip()
+        # Extraer JSON de bloques markdown si existen
+        if raw_text.startswith("```"):
+            lines = raw_text.split("\n")
+            json_lines = []
+            in_json = False
+            for line in lines:
+                if line.startswith("```json") or line.startswith("```"):
+                    in_json = not in_json
+                    continue
+                if in_json:
+                    json_lines.append(line)
+            raw_text = "\n".join(json_lines)
+        
+        data = json.loads(raw_text)
         
         # Validar que media_query no sea genérico
         generic_phrases = ["generic abstract background", "particle effects", "futuristic landscape"]
@@ -308,20 +286,325 @@ Responde SOLO con JSON válido.
         return BatchVisualSpec(**data)
     except Exception as e:
         print(f"[LLM API] Error conectando con Gemini: {e}")
+        # Fallback con escenas diferenciadas
+        fallback_queries = [
+            "A plant leaf growing from bottom center with organic curves and glowing particles",
+            "A heart shape forming from connected dots with warm golden light",
+            "Water drops falling into a pool creating expanding ripple circles",
+            "Sun rays expanding from center with warm gradient transitions",
+            "Mountain peaks emerging from fog with layered parallax movement",
+            "A tree branching upward with leaves appearing one by one",
+        ]
         return BatchVisualSpec(scenes=[
             VisualSpecResult(
-                media_query="A generic abstract background with particle effects",
+                media_query=fallback_queries[i % len(fallback_queries)],
                 backgroundColor="#0f172a",
                 textColor="#38bdf8"
-            ) for _ in chunks
+            ) for i, _ in enumerate(chunks)
         ])
 
 
-def generate_ae_metadata_with_llm(text: str, media_query: str, duration: float) -> Optional[Dict[str, Any]]:
+def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_color: str = "#0f172a", text_color: str = "#38bdf8", width: int = 1080, height: int = 1920) -> Optional[str]:
+    """
+    Traduce código TSX de Remotion directamente a ExtendScript de After Effects.
+    Usa createPath() para paths SVG, addShape() para círculos, addSolid() para fondos.
+    """
+    import time
+    from app.core.config import settings
+    from app.services.ae_export import hex_to_rgb_array
+    
+    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("[LLM AE] GEMINI_API_KEY no encontrada. ae_script será null.")
+        return None
+    
+    try:
+        client = genai.Client(api_key=api_key)
+        
+        prompt = f"""
+Eres un experto en After Effects ExtendScript y React/Remotion. Traduce este código TSX a un script de After Effects funcional.
+
+CANVAS: {width}x{height} píxeles, {duration} segundos, 30fps.
+COLOR FONDO: {bg_color}
+COLOR TEXTO: {text_color}
+
+CÓDIGO TSX DE REMOTION:
+```tsx
+{tsx_code[:5000]}
+```
+
+Tu tarea: Crear un script de After Effects que reproduzca visualmente esta animación.
+
+REGLAS CRÍTICAS:
+
+1. FONDO:
+   var bgLayer = comp.layers.addSolid({hex_to_rgb_array(bg_color)}, "Fondo", {width}, {height}, 1);
+
+2. PATHS SVG → Shape object (NO usar createPath, no existe en ExtendScript):
+   // Para <path d="M x1 y1 L x2 y2 C cx1 cy1 cx2 cy2 x3 y3 Z" />
+   var shapeGroup = layer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
+   var pathProp = shapeGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Group");
+   var myShape = new Shape();
+   myShape.vertices = [[x1,y1], [x2,y2], [x3,y3]];
+   myShape.inTangents = [[0,0], [0,0], [0,0]];
+   myShape.outTangents = [[0,0], [0,0], [0,0]];
+   myShape.closed = true;  // true si el path tiene Z, false si no
+   pathProp.property("ADBE Vector Shape").setValue(myShape);
+   var fill = shapeGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Fill");
+   fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#color")});
+
+   // Para curvas bezier (C en SVG), ajustar tangentes:
+   // C cx1 cy1 cx2 cy2 x3 y3 → outTangent del punto anterior = [cx1-x1, cy1-y1], inTangent de x3 = [cx2-x3, cy2-y3]
+
+3. CÍRCULOS → Ellipse:
+   var shapeGroup = layer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
+   var ellipse = shapeGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Ellipse");
+   ellipse.property("ADBE Vector Ellipse Size").setValue([diameter, diameter]);
+   var fill = shapeGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Fill");
+   fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#color")});
+   
+   // IMPORTANTE: NO usar setValueAtTime() en ellipse.property("ADBE Vector Ellipse Size")
+   // Para animar tamaño de elipse, usar AD BE Scale del layer:
+   // layer.property("ADBE Transform Group").property("ADBE Scale").setValueAtTime(t, [scaleX, scaleY]);
+
+4. LÍNEAS → Shape object abierto:
+   var myShape = new Shape();
+   myShape.vertices = [[x1,y1], [x2,y2]];
+   myShape.inTangents = [[0,0], [0,0]];
+   myShape.outTangents = [[0,0], [0,0]];
+   myShape.closed = false;
+   pathProp.property("ADBE Vector Shape").setValue(myShape);
+   var stroke = shapeGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Stroke");
+   stroke.property("ADBE Vector Stroke Color").setValue({hex_to_rgb_array("#color")});
+   stroke.property("ADBE Vector Stroke Width").setValue(2);
+
+5. ANIMACIONES (SOLO en Transform Group del layer):
+   // Posición:
+   var posProp = layer.property("ADBE Transform Group").property("ADBE Position");
+   posProp.setValueAtTime(0, [x, y]);
+   posProp.setValueAtTime(1, [x2, y2]);
+   
+   // Escala (en porcentaje, 100 = normal):
+   var scaleProp = layer.property("ADBE Transform Group").property("ADBE Scale");
+   scaleProp.setValueAtTime(0, [0, 0]);
+   scaleProp.setValueAtTime(1, [100, 100]);
+   
+   // Opacidad:
+   var opacityProp = layer.property("ADBE Transform Group").property("ADBE Opacity");
+   opacityProp.setValueAtTime(0, 0);
+   opacityProp.setValueAtTime(0.5, 100);
+   
+   // Rotación (en grados):
+   var rotProp = layer.property("ADBE Transform Group").property("ADBE Rotation");
+   rotProp.setValueAtTime(0, 0);
+   rotProp.setValueAtTime(1, 360);
+
+6. TEXTO:
+   var textLayer = comp.layers.addText("{text}");
+   textLayer.property("ADBE Text Properties").property("ADBE Text Fill Color").setValue({hex_to_rgb_array(text_color)});
+
+7. COORDENADAS:
+   - El viewBox del TSX es "0 0 {width} {height}"
+   - Las coordenadas del TSX son directamente aplicables al canvas de AE
+   - Si el TSX usa translate(x, y), sumar esas coordenadas a la posición base
+
+8. GLOW:
+   var effects = layer.property("ADBE Effect Parade");
+   var glow = effects.addProperty("ADBE Glo2");
+   glow.property(3).setValue(50);
+   glow.property(4).setValue(1);
+
+9. RANDOM:
+   - NO usar Math.random() en ExtendScript (puede fallar en AE)
+   - Usar generateRandomNumber() en su lugar
+   - Ejemplo: var x = 540 + (generateRandomNumber() - 0.5) * 300;
+
+10. EXPRESIONES:
+    - Evitar usar expresiones complejas en scripts (.jsx)
+    - Si necesitas animación continua (pulse, oscillation), usa setValueAtTime() con keyframes manuales
+    - NO usar: layer.property("ADBE Scale").expression = "..."
+
+IMPORTANTE:
+- NO usar addSolid() para elementos que no sean fondo
+- NO usar createPath() — NO existe en ExtendScript. Usar "new Shape()" con vertices, inTangents, outTangents, closed
+- NO usar setValueAtTime() en ellipse.property("ADBE Vector Ellipse Size") — retorna null. Usar AD BE Scale del layer
+- NO usar Math.random() — usar generateRandomNumber()
+- NO usar expressions en scripts — usar keyframes manuales con setValueAtTime()
+- Mantener el orden de capas: fondo → elementos traseros → elementos delanteros → texto
+- Cada capa debe tener nombre descriptivo
+
+Responde SOLO con el código ExtendScript. Sin markdown, sin explicaciones.
+"""
+        
+        max_retries = 3
+        response = None
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=settings.GEMINI_MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.7,
+                    ),
+                )
+                break
+            except Exception as e:
+                error_str = str(e)
+                is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
+                
+                if is_retryable and attempt < max_retries - 1:
+                    wait_time = 3 * (2 ** attempt)
+                    print(f"[LLM AE-TSX] Retry en {wait_time}s (intento {attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                raise
+        
+        if response is None:
+            print(f"[LLM AE-TSX] Modelo principal saturado. Usando fallback.")
+            response = client.models.generate_content(
+                model=settings.GEMINI_FALLBACK_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                ),
+            )
+        
+        script = response.text.strip()
+        # Limpiar bloques markdown si existen
+        if script.startswith("```"):
+            lines = script.split("\n")
+            code_lines = []
+            in_code = False
+            for line in lines:
+                if line.startswith("```jsx") or line.startswith("```javascript") or line.startswith("```"):
+                    in_code = not in_code
+                    continue
+                if in_code:
+                    code_lines.append(line)
+            script = "\n".join(code_lines)
+        
+        return script
+        
+    except Exception as e:
+        print(f"[LLM AE-TSX] Error generando script AE desde TSX: {e}")
+        return None
+
+
+def generate_ae_metadata_from_tsx(tsx_code: str, text: str, duration: float, width: int = 1080, height: int = 1920) -> Optional[Dict[str, Any]]:
+    """
+    Genera ae_metadata analizando el código TSX generado por Remotion.
+    Esto asegura que AE y Remotion tengan los mismos elementos visuales.
+    """
+    import time
+    from app.core.config import settings
+    
+    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("[LLM AE] GEMINI_API_KEY no encontrada. ae_metadata será null.")
+        return None
+    
+    try:
+        client = genai.Client(api_key=api_key)
+        
+        prompt = f"""
+Eres un experto en After Effects y Remotion. Analiza este código TSX de Remotion y genera metadata equivalente para After Effects.
+
+CANVAS AE: {width}x{height} píxeles. TODAS las posiciones [x, y] deben estar dentro de este rango.
+  - X válido: 0 a {width}
+  - Y válido: 0 a {height}
+  - Centro del canvas: [{width//2}, {height//2}]
+
+TEXTO DE LA ESCENA: "{text}"
+DURACIÓN: {duration} segundos
+
+CÓDIGO TSX DE REMOTION:
+```tsx
+{tsx_code[:4000]}
+```
+
+Tu tarea: Traduce los elementos visuales del TSX a ae_metadata para After Effects.
+
+Genera un JSON con:
+- animation_type: ELIGE UNO basado en lo que ves en el TSX: collision, bounce_in, morphing, particles, connection, reveal, construction, flash, fade_in, scale_emerge
+- elements: Lista de 3-8 elementos que correspondan a lo que hay en el TSX. Cada elemento tiene:
+  - type: rectangle, circle, flash, line, particle (elige el más cercano al elemento SVG del TSX)
+  - id: nombre descriptivo basado en el TSX
+  - position_keyframes: [{{"time": 0, "value": [x, y]}}, {{"time": duracion, "value": [x, y]}}]
+  - scale_keyframes: [{{"time": 0, "value": [0, 0]}}, {{"time": duracion, "value": [100, 100]}}]
+  - opacity_keyframes: [{{"time": 0, "value": 0}}, {{"time": 0.5, "value": 100}}]
+  - effects: [{{"type": "glow", "intensity": 50, "color": "#38bdf8"}}]
+  - CRÍTICO: Las posiciones [x, y] DEBEN estar dentro del canvas {width}x{height}.
+- text_animation: ELIGE UNO basado en cómo aparece el texto en el TSX: letter_by_letter, word_reveal, scale_emerge, fade_in
+
+IMPORTANTE:
+- Los elementos deben reflejar lo que realmente existe en el TSX (paths, circles, lines, etc.)
+- Si el TSX tiene un path de hoja, genera un circle o rectangle que lo represente
+- Si el TSX tiene partículas, genera elementos type "particle"
+- Las posiciones y tiempos deben ser coherentes con la animación del TSX
+- NUNCA inventes elementos que no existen en el TSX
+
+Responde SOLO con JSON válido.
+"""
+        
+        max_retries = 3
+        response = None
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=settings.GEMINI_MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.7,
+                    ),
+                )
+                break
+            except Exception as e:
+                error_str = str(e)
+                is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
+                
+                if is_retryable and attempt < max_retries - 1:
+                    wait_time = 3 * (2 ** attempt)
+                    print(f"[LLM AE-TSX] Retry en {wait_time}s (intento {attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                raise
+        
+        if response is None:
+            print(f"[LLM AE-TSX] Modelo principal saturado. Usando fallback.")
+            response = client.models.generate_content(
+                model=settings.GEMINI_FALLBACK_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.7,
+                ),
+            )
+        
+        raw_text = response.text.strip()
+        if raw_text.startswith("```"):
+            lines = raw_text.split("\n")
+            json_lines = []
+            in_json = False
+            for line in lines:
+                if line.startswith("```json") or line.startswith("```"):
+                    in_json = not in_json
+                    continue
+                if in_json:
+                    json_lines.append(line)
+            raw_text = "\n".join(json_lines)
+        
+        return json.loads(raw_text)
+        
+    except Exception as e:
+        print(f"[LLM AE-TSX] Error generando ae_metadata desde TSX: {e}")
+        return None
+
+
+def generate_ae_metadata_with_llm(text: str, media_query: str, duration: float, width: int = 1080, height: int = 1920) -> Optional[Dict[str, Any]]:
     """
     Genera ae_metadata para After Effects en llamada separada.
-    Esto evita el error 'additionalProperties is not supported' cuando se usa
-    response_schema con campos Dict[str, Any].
+    width y height se pasan para que el LLM genere posiciones dentro del canvas.
     """
     import time
     from app.core.config import settings
@@ -337,6 +620,11 @@ def generate_ae_metadata_with_llm(text: str, media_query: str, duration: float) 
         prompt = f"""
 Eres un experto en After Effects. Genera metadata de animación para una escena de video.
 
+CANVAS: {width}x{height} píxeles. TODAS las posiciones [x, y] deben estar dentro de este rango.
+  - X válido: 0 a {width}
+  - Y válido: 0 a {height}
+  - Centro del canvas: [{width//2}, {height//2}]
+
 TEXTO: "{text}"
 ANIMACIÓN: "{media_query}"
 DURACIÓN: {duration} segundos
@@ -350,6 +638,7 @@ Genera un JSON con:
   - scale_keyframes: [{{"time": 0, "value": [0, 0]}}, {{"time": 1, "value": [100, 100]}}]
   - opacity_keyframes: [{{"time": 0, "value": 0}}, {{"time": 0.5, "value": 100}}]
   - effects: [{{"type": "glow", "intensity": 50, "color": "#38bdf8"}}]
+  - CRÍTICO: Los valores de position_keyframes [x, y] DEBEN estar dentro del canvas {width}x{height}.
 - text_animation: ELIGE UNO: letter_by_letter, word_reveal, scale_emerge, fade_in
 
 Ejemplo:
@@ -445,9 +734,10 @@ async def _call_gemini_with_retry(client, prompt: str, max_retries: int = 3, mod
             raise
 
 
-async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecResult, text: str, duration: float, job_id: str) -> str:
+async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecResult, text: str, duration: float, job_id: str, aspect_ratio: str = "9:16") -> str:
     """Usa Gemini para generar el código React/Remotion dinámico para una escena."""
     from app.core.config import settings
+    from app.core.resolutions import get_resolution
     
     api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
     
@@ -457,6 +747,7 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
 
     try:
         client = genai.Client(api_key=api_key)
+        w, h = get_resolution(aspect_ratio)
         
         prompt_header = (
             "Eres el director de animación SENIOR de AnimaFlow. Creas animaciones SVG 2D complejas en React + Remotion.\n"
@@ -467,7 +758,8 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
             f"Texto del guion: \"{text}\"\n"
             f"Descripción visual: \"{visual_spec.media_query}\"\n"
             f"Duración: {duration} segundos ({round(duration * 30)} frames a 30fps)\n"
-            f"Color base: fondo {visual_spec.backgroundColor} · texto {visual_spec.textColor}\n\n"
+            f"Color base: fondo {visual_spec.backgroundColor} · texto {visual_spec.textColor}\n"
+            f"Aspect ratio: {aspect_ratio} (canvas {w}x{h} píxeles)\n\n"
             "════════════════════════════════════════\n"
             "REQUISITOS DE ANIMACIÓN COMPLEJA\n"
             "════════════════════════════════════════\n"
@@ -497,6 +789,9 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
             "   - fontSize 56-72px, fontWeight 800-900\n"
             "   - Animación: letter_by_letter, word_reveal, o scale_emerge\n"
             "   - textShadow con glow del color del objeto principal\n\n"
+            f"6. CANVAS: El viewBox del SVG debe ser exactamente \"0 0 {w} {h}\".\n"
+            f"   Todas las posiciones y tamaños deben caber dentro de {w}x{h}.\n"
+            f"   Centro del canvas: [{w//2}, {h//2}].\n\n"
             "════════════════════════════════════════\n"
             "EJEMPLOS DE CÓDIGO PARA DIFERENTES ANIMACIONES\n"
             "════════════════════════════════════════\n"
@@ -556,7 +851,7 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
             "    return (\n"
             f"        <div style={{{{ width: '100%', height: '100%', backgroundColor: '{bg_color}', overflow: 'hidden', fontFamily: 'Inter, Outfit, sans-serif' }}}}>\n"
             "            {/* SVG principal con animaciones complejas */}\n"
-            "            <svg viewBox=\"0 0 1920 1080\" style={{ position: 'absolute', width: '100%', height: '100%' }}>\n"
+            f"            <svg viewBox=\"0 0 {w} {h}\" style={{ position: 'absolute', width: '100%', height: '100%' }}>\n"
             "                {/* Elementos SVG animados aquí */}\n"
             "            </svg>\n"
             "            \n"
@@ -666,6 +961,15 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
         
         code = wrap_radius_with_math_max(code)
         
+        # 7. Fix double-brace Math.max errors: r={Math.max(0, { Math.max(0, expr))}}
+        code = re.sub(r'\{Math\.max\(0,\s*\{', '{Math.max(0, ', code)
+        code = re.sub(r'\)\)\}\}', '))}', code)
+        code = re.sub(r'\{Math\.max\(0,\s*\{', '{Math.max(0, ', code)
+        code = re.sub(r'\)\)\}\}', '))}', code)
+        
+        # 8. Fix unbalanced parentheses in Math.max
+        code = re.sub(r'Math\.max\(0,\s*\{([^}]+)\)', r'Math.max(0, \1)', code)
+        
         # Guardar archivo físicamente
         generated_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../frontend/src/remotion/generated"))
         os.makedirs(generated_dir, exist_ok=True)
@@ -687,7 +991,9 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
 # SCENE PROCESSING
 # =============================================================================
 
-async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: BatchVisualSpec) -> list[dict]:
+async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: BatchVisualSpec, aspect_ratio: str = "9:16") -> list[dict]:
+    from app.core.resolutions import get_resolution
+    w, h = get_resolution(aspect_ratio)
     timeline_scenes = []
     current_start_time = 0.0
 
@@ -695,22 +1001,34 @@ async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: B
         print(f"[{job_id}] Enviando escena {i+1} a Voicebox para TTS...")
         duration, audio_url = await generate_tts_with_voicebox(chunk, f"Escena-{i+1}")
         
-        # Lógica de fallback si Voicebox no está activo o falla
         if duration is None:
             duration = max(3.0, len(chunk) / 15.0)
         
         visual_spec = batch_visuals.scenes[i] if i < len(batch_visuals.scenes) else batch_visuals.scenes[-1]
 
         print(f"[{job_id}] Generando código TSX de Remotion para escena {i+1}...")
-        component_type_name = await generate_remotion_component(i, visual_spec, chunk, duration, job_id)
+        component_type_name = await generate_remotion_component(i, visual_spec, chunk, duration, job_id, aspect_ratio)
 
-        # Añadir pausa asíncrona para proteger el límite de 15 RPM (Requests Per Minute)
         if i < len(chunks) - 1:
             await asyncio.sleep(4)
 
-        # Generar ae_metadata en llamada separada (evita additionalProperties error)
-        print(f"[{job_id}] Generando ae_metadata para escena {i+1}...")
-        ae_meta = generate_ae_metadata_with_llm(chunk, visual_spec.media_query, duration)
+        # Generar ExtendScript directamente desde el TSX
+        print(f"[{job_id}] Generando ExtendScript AE desde TSX para escena {i+1}...")
+        tsx_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../frontend/src/remotion/generated", f"Scene_{job_id}_{i}.tsx"))
+        tsx_code = ""
+        if os.path.exists(tsx_file_path):
+            with open(tsx_file_path, "r", encoding="utf-8") as f:
+                tsx_code = f.read()
+        
+        ae_script_code = None
+        if tsx_code:
+            ae_script_code = generate_ae_script_from_tsx(
+                tsx_code, chunk, duration,
+                visual_spec.backgroundColor, visual_spec.textColor,
+                w, h
+            )
+        else:
+            print(f"[{job_id}] TSX no encontrado, ae_script será null.")
 
         timeline_scenes.append({
             "start_time_seconds": round(current_start_time, 2),
@@ -724,7 +1042,7 @@ async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: B
             },
             "sfx": [],
             "audio_url": audio_url,
-            "ae_metadata": ae_meta
+            "ae_script_code": ae_script_code
         })
         current_start_time += duration
         
@@ -755,9 +1073,11 @@ def write_index_ts(job_id: str, timeline_scenes: list[dict]):
         print(f"[{job_id}] Error escribiendo index.ts: {e}")
 
 async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new_media_query: str, new_text: str) -> dict:
+    from app.core.resolutions import get_resolution
     scene = spec["scenes"][scene_index]
+    aspect_ratio = spec.get("aspect_ratio", "9:16")
+    w, h = get_resolution(aspect_ratio)
     
-    # Regenerar TTS si el texto cambió
     if new_text != scene["text"]:
         print(f"[{job_id}] Regenerando TTS para escena {scene_index}...")
         duration, audio_url = await generate_tts_with_voicebox(new_text, f"Escena-{scene_index+1}")
@@ -768,7 +1088,6 @@ async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new
     scene["text"] = new_text
     scene["media_query"] = new_media_query
     
-    # Construir objeto visual spec para LLM
     visual_spec = VisualSpecResult(
         media_query=new_media_query,
         backgroundColor=scene.get("remotion_props", {}).get("backgroundColor", "#0f172a"),
@@ -776,12 +1095,29 @@ async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new
     )
     
     print(f"[{job_id}] Regenerando TSX para escena {scene_index}...")
-    component_type_name = await generate_remotion_component(scene_index, visual_spec, new_text, scene["duration_seconds"], job_id)
+    component_type_name = await generate_remotion_component(scene_index, visual_spec, new_text, scene["duration_seconds"], job_id, aspect_ratio)
     
     scene["type"] = component_type_name
+    
+    # Generar ExtendScript directamente desde el TSX
+    print(f"[{job_id}] Generando ExtendScript AE desde TSX para escena {scene_index}...")
+    tsx_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../frontend/src/remotion/generated", f"Scene_{job_id}_{scene_index}.tsx"))
+    tsx_code = ""
+    if os.path.exists(tsx_file_path):
+        with open(tsx_file_path, "r", encoding="utf-8") as f:
+            tsx_code = f.read()
+    
+    if tsx_code:
+        scene["ae_script_code"] = generate_ae_script_from_tsx(
+            tsx_code, new_text, scene["duration_seconds"],
+            visual_spec.backgroundColor, visual_spec.textColor,
+            w, h
+        )
+    else:
+        scene["ae_script_code"] = None
+    
     spec["scenes"][scene_index] = scene
     
-    # Reescribir el index.ts
     write_index_ts(job_id, spec["scenes"])
     
     return spec
@@ -794,13 +1130,17 @@ def regenerate_single_scene_sync(job_id: str, spec: dict, scene_index: int, new_
 # MAIN PIPELINE FUNCTIONS
 # =============================================================================
 
-def run_pipeline(job_id: str, script_text: str):
+def run_pipeline(job_id: str, script_text: str, aspect_ratio: str = "9:16"):
     """Ejecuta el pipeline completo de generación de video."""
     db: Session = SessionLocal()
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
     if not job:
         db.close()
         return
+
+    # Actualizar aspect_ratio del job
+    job.aspect_ratio = aspect_ratio
+    db.commit()
 
     try:
         # Estado 1: Segmentación
@@ -812,24 +1152,24 @@ def run_pipeline(job_id: str, script_text: str):
         if not chunks:
             chunks = [script_text]
 
-        print(f"[{job_id}] Guion segmentado en {len(chunks)} escenas.")
+        print(f"[{job_id}] Guion segmentado en {len(chunks)} escenas (aspect_ratio: {aspect_ratio}).")
 
         # Estado 2: Generando visuales con Gemini
         job.status = "visuals_generating"
         db.commit()
         
         print(f"[{job_id}] Generando prompts visuales en Batch con Gemini...")
-        batch_visuals = generate_batch_visuals_with_llm(chunks)
+        batch_visuals = generate_batch_visuals_with_llm(chunks, aspect_ratio)
 
         # Estado 3: Procesando escenas (TTS + TSX)
         job.status = "processing_scenes"
         db.commit()
         
-        timeline_scenes = asyncio.run(_process_chunks_async(job_id, chunks, batch_visuals))
+        timeline_scenes = asyncio.run(_process_chunks_async(job_id, chunks, batch_visuals, aspect_ratio))
 
         # Guardamos el timeline completo y lo validamos con Pydantic
         from app.schemas.spec import TimelineSpec
-        final_spec = {"scenes": timeline_scenes}
+        final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
         spec_obj = TimelineSpec(**final_spec)
         job.result_spec = spec_obj.model_dump()
         

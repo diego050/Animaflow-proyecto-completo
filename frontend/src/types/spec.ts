@@ -17,4 +17,5 @@ export interface Spec {
 
 export interface TimelineSpec {
   scenes: Spec[];
+  aspect_ratio?: string;
 }
