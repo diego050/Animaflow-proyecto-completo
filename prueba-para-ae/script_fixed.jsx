@@ -33,7 +33,7 @@ var f1 = vg1.addProperty("ADBE Vector Graphic - Fill");
 f1.property("ADBE Vector Fill Color").setValue([0, 0, 0]);
 sl1.property("ADBE Transform Group").property("ADBE Position").setValue([80, 0]);
 var ds1 = sl1.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds1.property("ADBE Drop Shadow-0002").setValue(75); ds1.property("ADBE Drop Shadow-0005").setValue(20); ds1.property("ADBE Drop Shadow-0004").setValue(4);
+ds1.property("Opacity").setValue(75); ds1.property("Softness").setValue(20); ds1.property("Distance").setValue(4);
 
 // Leaf_Gradient
 var sl2 = comp.layers.addShape(); 
@@ -51,13 +51,13 @@ var f2 = vg2.addProperty("ADBE Vector Graphic - Fill");
 f2.property("ADBE Vector Fill Color").setValue([0.345, 0.839, 0.553]);
 sl2.property("ADBE Transform Group").property("ADBE Position").setValue([80, 0]);
 var ramp2 = sl2.property("ADBE Effect Parade").addProperty("ADBE Ramp");
-ramp2.property("ADBE Ramp-0002").setValue([0.345, 0.839, 0.553]); 
-ramp2.property("ADBE Ramp-0004").setValue([0.180, 0.800, 0.443]); 
-ramp2.property("ADBE Ramp-0005").setValue(2);
+ramp2.property("Start Color").setValue([0.345, 0.839, 0.553]); 
+ramp2.property("End Color").setValue([0.180, 0.800, 0.443]); 
+ramp2.property("Ramp Shape").setValue(2);
 var glow2 = sl2.property("ADBE Effect Parade").addProperty("ADBE Glo2");
-glow2.property("ADBE Glo2-0003").setValue(8.0);
+glow2.property("Glow Radius").setValue(8.0);
 var ds2 = sl2.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds2.property("ADBE Drop Shadow-0002").setValue(75); ds2.property("ADBE Drop Shadow-0005").setValue(20); ds2.property("ADBE Drop Shadow-0004").setValue(4);
+ds2.property("Opacity").setValue(75); ds2.property("Softness").setValue(20); ds2.property("Distance").setValue(4);
 
 // Leaf_Stroke
 var sl3 = comp.layers.addShape(); 
@@ -76,7 +76,7 @@ st3.property("ADBE Vector Stroke Color").setValue([0.118, 0.518, 0.286]);
 st3.property("ADBE Vector Stroke Width").setValue(1.0);
 sl3.property("ADBE Transform Group").property("ADBE Position").setValue([0, 0]);
 var ds3 = sl3.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds3.property("ADBE Drop Shadow-0002").setValue(75); ds3.property("ADBE Drop Shadow-0005").setValue(20); ds3.property("ADBE Drop Shadow-0004").setValue(4);
+ds3.property("Opacity").setValue(75); ds3.property("Softness").setValue(20); ds3.property("Distance").setValue(4);
 
 // Circle_1
 var sl4 = comp.layers.addShape(); 
@@ -90,9 +90,9 @@ st4.property("ADBE Vector Stroke Color").setValue([0.635, 0.875, 0.969]);
 st4.property("ADBE Vector Stroke Width").setValue(1.0);
 sl4.property("ADBE Transform Group").property("ADBE Position").setValue([540, 960]);
 var glow4 = sl4.property("ADBE Effect Parade").addProperty("ADBE Glo2");
-glow4.property("ADBE Glo2-0003").setValue(3.0);
+glow4.property("Glow Radius").setValue(3.0);
 var ds4 = sl4.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds4.property("ADBE Drop Shadow-0002").setValue(75); ds4.property("ADBE Drop Shadow-0005").setValue(20); ds4.property("ADBE Drop Shadow-0004").setValue(4);
+ds4.property("Opacity").setValue(75); ds4.property("Softness").setValue(20); ds4.property("Distance").setValue(4);
 
 // Circle_2
 var sl5 = comp.layers.addShape(); 
@@ -105,7 +105,7 @@ var f5 = vg5.addProperty("ADBE Vector Graphic - Fill");
 f5.property("ADBE Vector Fill Color").setValue([0.635, 0.875, 0.969]);
 sl5.property("ADBE Transform Group").property("ADBE Position").setValue([0, 0]);
 var ds5 = sl5.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds5.property("ADBE Drop Shadow-0002").setValue(75); ds5.property("ADBE Drop Shadow-0005").setValue(20); ds5.property("ADBE Drop Shadow-0004").setValue(4);
+ds5.property("Opacity").setValue(75); ds5.property("Softness").setValue(20); ds5.property("Distance").setValue(4);
 
 // Text Layer
 var textLayer = comp.layers.addText("Tus plantas limpian el aire y reducen el estrés.");
@@ -213,7 +213,7 @@ var st1 = vg1.addProperty("ADBE Vector Graphic - Stroke"); st1.property("ADBE Ve
 var trim1 = vg1.addProperty("ADBE Vector Filter - Trim"); trim1.property("ADBE Vector Trim Start").setValue(0); trim1.property("ADBE Vector Trim End").setValue(100);
 sl1.property("ADBE Transform Group").property("ADBE Position").setValue([470, 1030]);
 var ds1 = sl1.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds1.property("ADBE Drop Shadow-0002").setValue(75); ds1.property("ADBE Drop Shadow-0005").setValue(20); ds1.property("ADBE Drop Shadow-0004").setValue(4);
+ds1.property("Opacity").setValue(75); ds1.property("Softness").setValue(20); ds1.property("Distance").setValue(4);
 
 // Element_2: Path
 var sl2 = comp.layers.addShape(); sl2.name = "Line_Right";
@@ -226,7 +226,7 @@ var st2 = vg2.addProperty("ADBE Vector Graphic - Stroke"); st2.property("ADBE Ve
 var trim2 = vg2.addProperty("ADBE Vector Filter - Trim"); trim2.property("ADBE Vector Trim Start").setValue(0); trim2.property("ADBE Vector Trim End").setValue(100);
 sl2.property("ADBE Transform Group").property("ADBE Position").setValue([610, 1030]);
 var ds2 = sl2.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds2.property("ADBE Drop Shadow-0002").setValue(75); ds2.property("ADBE Drop Shadow-0005").setValue(20); ds2.property("ADBE Drop Shadow-0004").setValue(4);
+ds2.property("Opacity").setValue(75); ds2.property("Softness").setValue(20); ds2.property("Distance").setValue(4);
 
 // Element_3: Path
 var sl3 = comp.layers.addShape(); sl3.name = "Line_Center";
@@ -239,7 +239,7 @@ var st3 = vg3.addProperty("ADBE Vector Graphic - Stroke"); st3.property("ADBE Ve
 var trim3 = vg3.addProperty("ADBE Vector Filter - Trim"); trim3.property("ADBE Vector Trim Start").setValue(0); trim3.property("ADBE Vector Trim End").setValue(100);
 sl3.property("ADBE Transform Group").property("ADBE Position").setValue([540, 1080]);
 var ds3 = sl3.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds3.property("ADBE Drop Shadow-0002").setValue(75); ds3.property("ADBE Drop Shadow-0005").setValue(20); ds3.property("ADBE Drop Shadow-0004").setValue(4);
+ds3.property("Opacity").setValue(75); ds3.property("Softness").setValue(20); ds3.property("Distance").setValue(4);
 
 // Element_4: Path (Leaf)
 var sl4 = comp.layers.addShape(); sl4.name = "Leaf_1";
@@ -251,7 +251,7 @@ ps4.property("ADBE Vector Shape").setValue(s4);
 var f4 = vg4.addProperty("ADBE Vector Graphic - Fill"); f4.property("ADBE Vector Fill Color").setValue([0.294, 0.863, 0.502]);
 sl4.property("ADBE Transform Group").property("ADBE Position").setValue([540, 950]);
 var ds4 = sl4.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds4.property("ADBE Drop Shadow-0002").setValue(75); ds4.property("ADBE Drop Shadow-0005").setValue(20); ds4.property("ADBE Drop Shadow-0004").setValue(4);
+ds4.property("Opacity").setValue(75); ds4.property("Softness").setValue(20); ds4.property("Distance").setValue(4);
 
 // Element_5: Path (Heart)
 var sl5 = comp.layers.addShape(); sl5.name = "Heart_Main";
@@ -263,9 +263,9 @@ ps5.property("ADBE Vector Shape").setValue(s5);
 var f5 = vg5.addProperty("ADBE Vector Graphic - Fill"); f5.property("ADBE Vector Fill Color").setValue([1.0, 0.376, 0.565]);
 sl5.property("ADBE Transform Group").property("ADBE Position").setValue([540, 930]);
 var ramp5 = sl5.property("ADBE Effect Parade").addProperty("ADBE Ramp");
-ramp5.property("ADBE Ramp-0002").setValue([1.0, 0.376, 0.565]); ramp5.property("ADBE Ramp-0004").setValue([0.914, 0.118, 0.388]); ramp5.property("ADBE Ramp-0005").setValue(2);
+ramp5.property("Start Color").setValue([1.0, 0.376, 0.565]); ramp5.property("End Color").setValue([0.914, 0.118, 0.388]); ramp5.property("Ramp Shape").setValue(2);
 var ds5 = sl5.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds5.property("ADBE Drop Shadow-0002").setValue(75); ds5.property("ADBE Drop Shadow-0005").setValue(20); ds5.property("ADBE Drop Shadow-0004").setValue(4);
+ds5.property("Opacity").setValue(75); ds5.property("Softness").setValue(20); ds5.property("Distance").setValue(4);
 
 // Element_6: Circle
 var sl6 = comp.layers.addShape(); sl6.name = "Circle_1";
@@ -276,7 +276,7 @@ ps6.property("ADBE Vector Ellipse Size").setValue([50, 50]);
 var f6 = vg6.addProperty("ADBE Vector Graphic - Fill"); f6.property("ADBE Vector Fill Color").setValue([0.294, 0.863, 0.502]);
 sl6.property("ADBE Transform Group").property("ADBE Position").setValue([540, 960]);
 var ds6 = sl6.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds6.property("ADBE Drop Shadow-0002").setValue(75); ds6.property("ADBE Drop Shadow-0005").setValue(20); ds6.property("ADBE Drop Shadow-0004").setValue(4);
+ds6.property("Opacity").setValue(75); ds6.property("Softness").setValue(20); ds6.property("Distance").setValue(4);
 
 // Element_7: Rect
 var sl7 = comp.layers.addShape(); sl7.name = "Rect_1";
@@ -287,7 +287,7 @@ ps7.property("ADBE Vector Rect Size").setValue([80, 60]);
 var f7 = vg7.addProperty("ADBE Vector Graphic - Fill"); f7.property("ADBE Vector Fill Color").setValue([0.294, 0.863, 0.502]);
 sl7.property("ADBE Transform Group").property("ADBE Position").setValue([540, 990]);
 var ds7 = sl7.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds7.property("ADBE Drop Shadow-0002").setValue(75); ds7.property("ADBE Drop Shadow-0005").setValue(20); ds7.property("ADBE Drop Shadow-0004").setValue(4);
+ds7.property("Opacity").setValue(75); ds7.property("Softness").setValue(20); ds7.property("Distance").setValue(4);
 
 // Element_8: Line
 var sl8 = comp.layers.addShape(); sl8.name = "Line_Detail";
@@ -299,7 +299,7 @@ ps8.property("ADBE Vector Shape").setValue(s8);
 var st8 = vg8.addProperty("ADBE Vector Graphic - Stroke"); st8.property("ADBE Vector Stroke Color").setValue([0.294, 0.863, 0.502]);
 sl8.property("ADBE Transform Group").property("ADBE Position").setValue([540, 905]);
 var ds8 = sl8.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds8.property("ADBE Drop Shadow-0002").setValue(75); ds8.property("ADBE Drop Shadow-0005").setValue(20); ds8.property("ADBE Drop Shadow-0004").setValue(4);
+ds8.property("Opacity").setValue(75); ds8.property("Softness").setValue(20); ds8.property("Distance").setValue(4);
 
 // Element_9: Ellipse
 var sl9 = comp.layers.addShape(); sl9.name = "Ellipse_1";
@@ -310,7 +310,7 @@ ps9.property("ADBE Vector Ellipse Size").setValue([30, 60]);
 var f9 = vg9.addProperty("ADBE Vector Graphic - Fill"); f9.property("ADBE Vector Fill Color").setValue([0.133, 0.773, 0.369]);
 sl9.property("ADBE Transform Group").property("ADBE Position").setValue([540, 940]);
 var ds9 = sl9.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds9.property("ADBE Drop Shadow-0002").setValue(75); ds9.property("ADBE Drop Shadow-0005").setValue(20); ds9.property("ADBE Drop Shadow-0004").setValue(4);
+ds9.property("Opacity").setValue(75); ds9.property("Softness").setValue(20); ds9.property("Distance").setValue(4);
 
 // Element_10: Ellipse
 var sl10 = comp.layers.addShape(); sl10.name = "Ellipse_2";
@@ -321,7 +321,7 @@ ps10.property("ADBE Vector Ellipse Size").setValue([30, 60]);
 var f10 = vg10.addProperty("ADBE Vector Graphic - Fill"); f10.property("ADBE Vector Fill Color").setValue([0.133, 0.773, 0.369]);
 sl10.property("ADBE Transform Group").property("ADBE Position").setValue([541, 940]);
 var ds10 = sl10.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
-ds10.property("ADBE Drop Shadow-0002").setValue(75); ds10.property("ADBE Drop Shadow-0005").setValue(20); ds10.property("ADBE Drop Shadow-0004").setValue(4);
+ds10.property("Opacity").setValue(75); ds10.property("Softness").setValue(20); ds10.property("Distance").setValue(4);
 
 // Text Layer
 var textLayer = comp.layers.addText("Cuidarlas es invertir en tu bienestar y tu entorno.");

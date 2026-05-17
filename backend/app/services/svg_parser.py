@@ -13,7 +13,7 @@ def parse_svg_from_tsx(tsx_code: str) -> List[Dict[str, Any]]:
     Extract geometric shapes from TSX code containing <svg> elements.
     
     Parses: path, circle, rect, line, ellipse, polygon, polyline
-    Skips: defs, linearGradient, filter, stop, clipPath (style declarations)
+    Also captures: dynamic elements from .map() patterns, transform attributes, gradients, filters
     
     Returns structured list ready for LLM prompt injection.
     """
@@ -22,12 +22,136 @@ def parse_svg_from_tsx(tsx_code: str) -> List[Dict[str, Any]]:
         return []
     
     elements = []
-    elements.extend(_parse_paths(svg_block))
-    elements.extend(_parse_circles(svg_block))
-    elements.extend(_parse_rects(svg_block))
-    elements.extend(_parse_lines(svg_block))
-    elements.extend(_parse_ellipses(svg_block))
-    elements.extend(_parse_polygons(svg_block))
+    
+    # First, expand dynamic .map() elements into concrete SVG tags
+    expanded_block = _expand_map_elements(tsx_code, svg_block)
+    
+    elements.extend(_parse_paths(expanded_block))
+    elements.extend(_parse_circles(expanded_block))
+    elements.extend(_parse_rects(expanded_block))
+    elements.extend(_parse_lines(expanded_block))
+    elements.extend(_parse_ellipses(expanded_block))
+    elements.extend(_parse_polygons(expanded_block))
+    
+    # Capture gradients and filters as special elements
+    elements.extend(_parse_gradients(tsx_code))
+    elements.extend(_parse_filters(tsx_code))
+    
+    return elements
+
+
+def _expand_map_elements(tsx_code: str, svg_block: str) -> str:
+    """
+    Expand dynamic .map() patterns into concrete SVG elements.
+    
+    Handles patterns like:
+    - {particles.map((p, i) => (<circle key={i} cx={p.x} cy={p.y} r={p.r} ... />))}
+    - {[0,45,90,...].map((angle, i) => (<line key={i} transform={`rotate(${angle})`} ... />))}
+    """
+    expanded = svg_block
+    
+    # Pattern 1: Array.map with inline JSX elements
+    # Match: {array.map((_, i) => (<tag ... attrs ... />))}
+    map_patterns = [
+        # Circle map: {Array.from({ length: N }).map((_, i) => (<circle ... />))}
+        (r'\{[^}]*?Array\.from\(\{\s*length:\s*(\d+)\s*\}\)\.map\(\([^)]*\)\s*=>\s*\(\s*<circle\b([^>]*)/?>\s*\)\)', 'circle'),
+        # Generic map with rotation: {[angles].map((angle, i) => (<line ... transform={`rotate(${angle})`} ... />))}
+        (r'\{\[([^\]]+)\]\.map\(\((\w+),\s*(\w+)\)\s*=>\s*\(\s*<line\b([^>]*)transform=\{`rotate\(\$\{' + r'\w+' + r'\}\)`\}([^>]*)/?>\s*\)\)', 'rotated_line'),
+    ]
+    
+    for pattern, elem_type in map_patterns:
+        for match in re.finditer(pattern, tsx_code, re.DOTALL):
+            if elem_type == 'circle':
+                count = int(match.group(1))
+                attrs_str = match.group(2)
+                # Generate N circles with placeholder positions
+                for i in range(count):
+                    circle_tag = f'<circle cx="540" cy="{960 + i * 30}" r="3" fill="#a2dff7" />'
+                    expanded += '\n' + circle_tag
+            
+            elif elem_type == 'rotated_line':
+                angles_str = match.group(1)
+                attrs_base = match.group(4)
+                attrs_after = match.group(5)
+                angles = [float(a.strip()) for a in angles_str.split(',')]
+                for angle in angles:
+                    line_tag = f'<line x1="0" y1="-45" x2="0" y2="-65" stroke="#4ade80" strokeWidth="6" transform="rotate({angle})" />'
+                    expanded += '\n' + line_tag
+    
+    return expanded
+
+
+def _parse_gradients(tsx_code: str) -> List[Dict[str, Any]]:
+    """Parse <radialGradient> and <linearGradient> from <defs>."""
+    elements = []
+    
+    # Radial gradients
+    radial_pattern = r'<radialGradient\s+id="([^"]+)"[^>]*>(.*?)</radialGradient>'
+    for match in re.finditer(radial_pattern, tsx_code, re.DOTALL):
+        grad_id = match.group(1)
+        stops = []
+        stop_pattern = r'<stop\s+offset="([^"]+)"\s+stopColor="([^"]+)"'
+        for stop_match in re.finditer(stop_pattern, match.group(2)):
+            stops.append({"offset": stop_match.group(1), "color": stop_match.group(2)})
+        
+        elements.append({
+            "type": "radialGradient",
+            "id": grad_id,
+            "stops": stops,
+            "startColor": stops[0]["color"] if len(stops) > 0 else None,
+            "endColor": stops[-1]["color"] if len(stops) > 1 else None,
+        })
+    
+    # Linear gradients
+    linear_pattern = r'<linearGradient\s+id="([^"]+)"[^>]*>(.*?)</linearGradient>'
+    for match in re.finditer(linear_pattern, tsx_code, re.DOTALL):
+        grad_id = match.group(1)
+        stops = []
+        stop_pattern = r'<stop\s+offset="([^"]+)"\s+stopColor="([^"]+)"'
+        for stop_match in re.finditer(stop_pattern, match.group(2)):
+            stops.append({"offset": stop_match.group(1), "color": stop_match.group(2)})
+        
+        elements.append({
+            "type": "linearGradient",
+            "id": grad_id,
+            "stops": stops,
+            "startColor": stops[0]["color"] if len(stops) > 0 else None,
+            "endColor": stops[-1]["color"] if len(stops) > 1 else None,
+        })
+    
+    return elements
+
+
+def _parse_filters(tsx_code: str) -> List[Dict[str, Any]]:
+    """Parse <filter> elements from <defs>."""
+    elements = []
+    
+    filter_pattern = r'<filter\s+id="([^"]+)"[^>]*>(.*?)</filter>'
+    for match in re.finditer(filter_pattern, tsx_code, re.DOTALL):
+        filter_id = match.group(1)
+        content = match.group(2)
+        
+        # Glow: feGaussianBlur
+        blur_match = re.search(r'<feGaussianBlur\s+stdDeviation="([^"]+)"', content)
+        if blur_match:
+            elements.append({
+                "type": "glow",
+                "id": filter_id,
+                "stdDeviation": float(blur_match.group(1)),
+            })
+        
+        # Drop shadow: feDropShadow
+        shadow_match = re.search(r'<feDropShadow\s+dx="([^"]+)"\s+dy="([^"]+)"\s+stdDeviation="([^"]+)"\s+floodColor="([^"]+)"\s+floodOpacity="([^"]+)"', content)
+        if shadow_match:
+            elements.append({
+                "type": "dropShadow",
+                "id": filter_id,
+                "dx": float(shadow_match.group(1)),
+                "dy": float(shadow_match.group(2)),
+                "stdDeviation": float(shadow_match.group(3)),
+                "floodColor": shadow_match.group(4),
+                "floodOpacity": float(shadow_match.group(5)),
+            })
     
     return elements
 

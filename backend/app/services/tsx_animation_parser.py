@@ -91,7 +91,13 @@ def _parse_interpolate_calls(tsx_code: str, fps: int) -> List[Dict[str, Any]]:
         # Determine animation type based on variable name
         anim_type = _classify_animation(var_name, output_values)
         
-        animations.append({
+        # Detect if values are offsets (small values < 200 for position types)
+        is_offset = anim_type in ("positionY", "positionX") and all(abs(v) < 200 for v in output_values)
+        
+        # Detect if values are pixel values for scale (values > 100 for scale types)
+        is_pixel_value = anim_type == "scale" and any(v > 100 for v in output_values)
+        
+        anim_entry = {
             "variable": var_name,
             "type": anim_type,
             "inputFrames": input_frames,
@@ -99,8 +105,17 @@ def _parse_interpolate_calls(tsx_code: str, fps: int) -> List[Dict[str, Any]]:
             "outputValues": output_values,
             "keyframes": keyframes,
             "easing": easing,
-            "ae_property": _map_to_ae_property(var_name, anim_type)
-        })
+            "ae_property": _map_to_ae_property(var_name, anim_type),
+            "isOffset": is_offset,
+            "isPixelValue": is_pixel_value
+        }
+        
+        if is_offset:
+            anim_entry["ae_instruction"] = f"SUMA estos offsets a la posición base. NO usar como posición absoluta."
+        if is_pixel_value:
+            anim_entry["ae_instruction"] = f"Estos son píxeles, NO porcentajes. Convierte a scale %: (valor / tamaño_base) * 100."
+        
+        animations.append(anim_entry)
     
     return animations
 

@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     
     # LLM - Google Gemini API (Free Tier)
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemma-4-31b-it"
-    GEMINI_FALLBACK_MODEL: str = "gemma-4-26b-a4b-it"
+    GEMINI_MODEL: str = "gemini-3.1-flash"
+    GEMINI_FALLBACK_MODEL: str = "gemini-3.1-flash-lite-preview"
     
     # Voicebox (TTS)
     VOICEBOX_URL: str = "http://127.0.0.1:17493"

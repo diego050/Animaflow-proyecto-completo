@@ -324,3 +324,197 @@ INSTRUCCIONES:
 |---------|--------|
 | `backend/app/services/tsx_animation_parser.py` | **NUEVO** - Parser completo de animaciones TSX |
 | `backend/app/services/pipeline.py` | Integrado parser + inyección de `animation_context` en prompt |
+
+---
+
+## Fase 2: Generación en 2 Fases + 5 Fixes Críticos (2026-05-16)
+
+### Problema Identificado
+El LLM generaba scripts incompletos o con bugs críticos:
+1. **Fase 2 falló por 502** sin retry → Escena 1 sin animaciones
+2. **Layers inventados en Fase 2**: `plant`, `sun`, `drop` no existían en Fase 1
+3. **Círculos con tamaño [0, 0]** → invisibles en AE
+4. **`closed = false`** en paths que deberían ser cerrados
+5. **Glow usaba `ADBE Glow`** en lugar de `Glo2`
+
+### Solución: Generación en 2 Fases
+
+**Arquitectura:**
+```
+generate_ae_script_from_tsx()
+  ├── parse_svg_from_tsx() + parse_tsx_animations()
+  ├── FASE 1: generate_ae_structure() → ~3-4k chars (estructura estática)
+  ├── _extract_layer_names() → ["Branch_L", "Leaf_1", "textLayer", ...]
+  ├── FASE 2: generate_ae_animations() → ~4-6k chars (solo setValueAtTime)
+  ├── Ensamblaje: structure + "\n// ANIMATIONS\n" + animations
+  └── _post_process_script() → script final
+```
+
+### 5 Fixes Aplicados
+
+#### Fix 1: `_extract_layer_names()` detecta geo arrays
+**Problema:** El LLM usaba `createShapeLayer()` helper + array `geo[]` con nombres de layers que no se detectaban.
+**Solución:** Agregar regex para extraer `{ name: "Branch_L", type: "path", ... }` del array geo.
+
+```python
+# Antes: solo detectaba var NAME = comp.layers.addShape()
+# Ahora: también detecta { name: "Branch_L", type: "path" } en arrays geo
+geo_name_pattern = r'\{\s*name:\s*"([^"]+)"\s*,\s*type:'
+```
+
+#### Fix 2: Prompt Fase 2 con restricción estricta de nombres
+**Problema:** El LLM inventaba nombres como `plant`, `sun`, `drop` que no existían.
+**Solución:** Agregar reglas explícitas:
+- "USA EXACTAMENTE los nombres de layers de la lista"
+- "NO inventes nombres como 'plant', 'sun', 'drop' si no están en la lista"
+- "Si una animación no tiene un layer correspondiente, IGNÓRALA"
+- Agregar mapeo de propiedades (positionY → ADBE Position, etc.)
+
+#### Fix 3: Prompt Fase 1 prohíbe círculos [0, 0] y funciones helper
+**Problema:** Círculos con tamaño [0, 0] invisibles, LLM usaba funciones helper y arrays geo[].
+**Solución:** Agregar reglas:
+- "CÍRCULOS/ELLIPSES: NUNCA uses [0, 0] como tamaño"
+- "NO uses funciones helper (createShapeLayer, etc.)"
+- "NO uses arrays geo[] con loops for. Cada layer creado individualmente"
+
+#### Fix 4: Retry con 502 en ambas fases
+**Problema:** Error 502 Bad Gateway no estaba en la lista de errores retryables.
+**Solución:** Agregar "502" a la lista de códigos retryables en Fase 1 y Fase 2.
+
+```python
+is_retryable = any(code in error_str for code in ["429", "500", "502", "503", ...])
+```
+
+#### Fix 5: Post-processing para Effects y Glow
+**Problema:** LLM usaba `layer.property("Effects")` y `"ADBE Glow"` incorrectos.
+**Solución:** Agregar reglas de post-processing:
+- `layer.property("Effects")` → `layer.property("ADBE Effect Parade")`
+- `"ADBE Glow"` → `"Glo2"`
+- `.property("Glow Radius")` → `.property(3)`
+
+### Funciones Nuevas/Modificadas
+
+| Función | Cambio |
+|---------|--------|
+| `generate_ae_structure()` | **NUEVA** - Fase 1: estructura estática |
+| `generate_ae_animations()` | **NUEVA** - Fase 2: solo animaciones |
+| `_extract_layer_names()` | **MODIFICADA** - Detecta geo arrays |
+| `_post_process_script()` | **MODIFICADA** - +3 reglas (Effects, Glow, Glow Radius) |
+| `generate_ae_script_from_tsx()` | **REFACTORIZADA** - Orquesta 2 fases |
+
+### Prompts Actualizados
+
+**Fase 1 (estructura):**
+- Regla 6: Círculos NUNCA [0, 0]
+- Regla 7: Paths cerrados con closed=true
+- Regla 8: NO funciones helper
+- Regla 9: NO arrays geo[]
+
+**Fase 2 (animaciones):**
+- Regla 2: USA EXACTAMENTE nombres de la lista
+- Regla 3: IGNORA animaciones sin layer correspondiente
+- Regla 9: Mapeo positionY → ADBE Position con [X_fijo, Y_variable]
+- Sección: MAPEO DE PROPIEDADES explícito
+
+### Resultado Esperado
+- **Antes:** ~65% fidelidad visual, animaciones faltantes, layers inexistentes
+- **Después:** ~85-90% fidelidad visual, animaciones completas, layers correctos
+
+### Próximos Pasos
+1. ✅ Todos los fixes aplicados
+2. ⏳ Probar regenerate con `?force=true` en After Effects 2026
+3. ⏳ Verificar que todas las animaciones se apliquen correctamente
+4. ⏳ Verificar que círculos sean visibles (tamaño > 0)
+5. ⏳ Verificar que glow funcione correctamente
+6. ⏳ Medir fidelidad visual real vs Remotion
+7. 🗑️ Borrar este documento temporal cuando todo esté confirmado
+
+---
+
+## Fase 3: Fixes de Crash + Drop Shadow + Gradient Fill (2026-05-16)
+
+### Problema: Crash en AE (Access Violation)
+After Effects crashea al ejecutar el script con `.dmp` file.
+
+**Causas:**
+1. **Drop Shadow huérfano**: Se accede a `property("ADBE Drop Shadow")` sin haberlo creado con `addProperty`
+2. **`.Effects.addProperty` vs `.property("ADBE Effect Parade").addProperty`**: APIs mixtas causan inconsistencia
+3. **Gradient Colors formato incorrecto**: `[R, G, B]` en lugar de `[offset, R, G, B, offset, R, G, B]`
+
+### Solución
+
+#### Fix 1: Prompt Fase 1 - Reglas de efectos
+```
+EFECTOS (Drop Shadow, Glow, etc.):
+- SIEMPRE usar: layer.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow")
+- NUNCA usar: layer.Effects.addProperty()
+- Drop Shadow: property(5)=Distance, property(2)=Softness, property(1)=Opacity, property(3)=Color
+- Glow: property(3)=Radius, property(4)=Intensity
+
+GRADIENT FILL:
+- Usar: vg.addProperty("ADBE Vector Graphic - Grd Fill")
+- Colores: property("ADBE Vector Grd Colors").setValue([offset1, R1, G1, B1, offset2, R2, G2, B2])
+- Ejemplo: [0, 1.0, 0.0, 0.0, 1, 0.0, 1.0, 0.0] = rojo→verde
+```
+
+#### Fix 2: Post-processing - `.Effects.addProperty` → `.property("ADBE Effect Parade").addProperty`
+Ya existía, pero ahora funciona con ambos tipos de comillas.
+
+#### Fix 3: Post-processing - Expandir Gradient Colors
+```python
+# Detecta: .setValue([R, G, B]) después de ADBE Vector Grd Colors
+# Convierte a: .setValue([0, R, G, B, 1, R, G, B])
+```
+
+#### Fix 4: Post-processing - Eliminar Drop Shadow huérfanos
+Si `.property("ADBE Drop Shadow")` existe sin un `.addProperty("ADBE Drop Shadow")` antes, elimina el bloque completo.
+
+### Resultado en script.jsx
+| Línea | Antes | Después |
+|-------|-------|---------|
+| 181 | `.setValue([1.0, 0.376, 0.565])` | `.setValue([0, 1.0, 0.376, 0.565, 1, 1.0, 0.376, 0.565])` |
+| 235 | `textLayer.Effects.addProperty(...)` | `textLayer.property("ADBE Effect Parade").addProperty(...)` |
+
+### Próximos Pasos
+1. ✅ Todos los fixes aplicados
+2. ⏳ Probar script.jsx corregido en After Effects 2026
+3. ⏳ Verificar que Drop Shadow se aplique correctamente
+4. ⏳ Verificar que Gradient Fill se vea correctamente
+5. ⏳ Verificar que todas las animaciones funcionen
+6. ⏳ Medir fidelidad visual real vs Remotion
+7. 🗑️ Borrar este documento temporal cuando todo esté confirmado
+
+---
+
+## Fase 4: Fixes de Fidelidad Visual + Crash (2026-05-16)
+
+### Problemas Identificados
+
+| # | Problema | Causa | Impacto |
+|---|----------|-------|---------|
+| 1 | Crash por Gradient Fill | ADBE Vector Grad Colors es NO_VALUE | Crash AE |
+| 2 | Texto en borde superior | textY offsets usados como posiciones absolutas | Texto invisible |
+| 3 | Hoja gigante (1400%) | rippleScale 1400px interpretado como 1400% scale | Fuera de pantalla |
+| 4 | Circle_2 en [0,0] | Posicion base no aplicada | Elemento invisible |
+| 5 | Sin Drop Shadow en shapes | Solo texto tiene drop shadow | Menor calidad visual |
+| 6 | Animaciones faltantes Escena 2 | Fase 2 output 198 chars tras retry 502 | 7 de 9 animaciones perdidas |
+
+### Soluciones Aplicadas
+
+#### Fix 1: Gradient Fill -> Solid Fill
+- Prompt Fase 1: Usar SOLO ADBE Vector Graphic - Fill (solido)
+- Post-processing: Si detecta G-Fill/Grd Fill, convertir a Fill solido
+
+#### Fix 2-3: Parser - Distinguir offsets vs posiciones absolutas
+- Nuevos flags: isOffset (positionY/X con valores < 200), isPixelValue (scale con valores > 100)
+
+#### Fix 4: Prompt Fase 2 - Instrucciones de coordenadas explicitas
+#### Fix 5: Prompt Fase 1 - Drop Shadow en todos los shapes
+#### Fix 6: Post-processing - Validar posiciones absurdas (Y < 100 -> sumar a base)
+#### Fix 7: Fase 2 retry mas agresivo (hasta 2 retries si < 500 chars)
+
+### Proximos Pasos
+1. Todos los fixes aplicados
+2. Probar script.jsx corregido en After Effects 2026
+3. Regenerate con ?force=true para probar pipeline completo
+4. Borrar este documento temporal cuando todo este confirmado

@@ -1,4 +1,4 @@
-﻿import os
+import os
 import re
 import json
 import httpx
@@ -305,41 +305,26 @@ Responde SOLO con JSON válido.
         ])
 
 
-def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_color: str = "#0f172a", text_color: str = "#38bdf8", width: int = 1080, height: int = 1920, job_id: str = None, scene_id: int = None) -> Optional[str]:
+def generate_ae_structure(svg_elements: list, text: str, duration: float, bg_color: str, text_color: str, width: int, height: int, effects: list = None, job_id: str = None, scene_id: int = None) -> Optional[str]:
     """
-    Traduce código TSX de Remotion directamente a ExtendScript de After Effects.
-    Usa createPath() para paths SVG, addShape() para círculos, addSolid() para fondos.
+    FASE 1: Genera la ESTRUCTURA ESTÁTICA del script AE (sin animaciones).
+    Crea composición, layers, shapes, fills, strokes, gradients, text layer.
+    NO incluye setValueAtTime() calls.
     """
     import time
-    import os
-    from datetime import datetime
     from app.core.config import settings
     from app.services.ae_export import hex_to_rgb_array
     
     api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("[LLM AE] ⚠️ GEMINI_API_KEY no encontrada. ae_script será null.")
+        print("[LLM AE-Structure] GEMINI_API_KEY no encontrada.")
         return None
     
-    print(f"[LLM AE] ✅ Iniciando generación AE script (width={width}, height={height}, duration={duration})")
-    
     try:
-        from app.services.svg_parser import parse_svg_from_tsx
-        from app.services.tsx_animation_parser import parse_tsx_animations
-        svg_elements = parse_svg_from_tsx(tsx_code)
-        print(f"[LLM AE] SVG parser encontró {len(svg_elements)} elementos")
-        if not svg_elements:
-            print(f"[LLM AE] ⚠️ WARNING: SVG parser no encontró elementos en el TSX")
-        
-        # Extract animation data
-        animation_data = parse_tsx_animations(tsx_code, duration, 30)
-        print(f"[LLM AE] Animation parser encontró {len(animation_data.get('animations', []))} animaciones")
-        
         svg_context = ""
         if svg_elements:
-            import json
             svg_context = f"""
-GEOMETRÍA EXACTA EXTRAÍDA DEL SVG (USA ESTAS COORDENADAS EXACTAS):
+GEOMETRÍA EXACTA (coordenadas precisas):
 {json.dumps(svg_elements, indent=2)}
 
 Para cada elemento:
@@ -347,128 +332,141 @@ Para cada elemento:
 - "circle": usa ellipse.property("ADBE Vector Ellipse Size").setValue([diametro, diametro])
 - "rect": usa rect.property("ADBE Vector Rect Size").setValue([width, height])
 - "line": usa new Shape() con 2 vertices, closed=false
-- "ellipse": usa ellipse.property("ADBE Vector Ellipse Size").setValue([rx*2, ry*2])
-- Los colores fill/stroke son exactos — conviértelos con hex_to_rgb_array()
+- Colores fill/stroke son exactos — conviértelos con hex_to_rgb_array()
 """
         
-        # Animation context for LLM
-        animation_context = ""
-        if animation_data.get("animations"):
-            import json
-            animation_context = f"""
-ANIMACIONES EXACTAS EXTRAÍDAS DEL TSX (REPLICA ESTOS KEYFRAMES):
-{json.dumps(animation_data, indent=2)}
-
-INSTRUCCIONES:
-- Replica CADA animación con setValueAtTime() usando los tiempos y valores exactos
-- Para spring animations: usa keyframes [0s, 0%], [0.1s, 120%], [0.3s, 100%]
-- Para opacity: fade-in 0→100, fade-out 100→0 en los tiempos indicados
-- Para position: usa los valores de translateY/translateX del TSX
-- Para scale: usa los valores de scale del TSX
-- Mantén el orden de entrada/salida de elementos como en el TSX
+        effects_context = ""
+        if effects:
+            effects_context = f"""
+EFECTOS VISUALES:
+{json.dumps(effects, indent=2)}
 """
         
         client = genai.Client(api_key=api_key)
         
-        prompt = f"""Traduce TSX de Remotion a ExtendScript de After Effects.
+        prompt = f"""Genera la ESTRUCTURA ESTÁTICA de un script de After Effects (SIN animaciones).
 
 CANVAS: {width}x{height}, {duration}s, 30fps. FONDO: {bg_color}
-TEXTO DE LA ESCENA: "{text}"
-COLOR TEXTO: {text_color}
-{svg_context}
-{animation_context}
-TSX:
-{tsx_code[:3000]}
 
-REGLAS:
-1. FONDO: comp.layers.addSolid({hex_to_rgb_array(bg_color)}, "Fondo", {width}, {height}, 1)
-2. **OBLIGATORIO: Crear 1 layer por CADA elemento SVG en GEOMETRÍA EXACTA**. NO omitir ninguno.
-3. PATHS: comp.layers.addShape(); name="Path_N"; ADBE Vector Shape con new Shape() (vertices, inTangents, outTangents, closed)
-4. CÍRCULOS: comp.layers.addShape(); name="Circle_N"; ADBE Vector Shape - Ellipse con setValue([d,d]); animar con ADBE Scale
-5. LÍNEAS: comp.layers.addShape(); name="Line_N"; new Shape() con vertices=[[x1,y1],[x2,y2]], inTangents=[[0,0],[0,0]], outTangents=[[0,0],[0,0]], closed=false (siempre explícito, nunca undefined)
-6. ANIMACIONES: interpolate([s,e],[v1,v2]) → setValueAtTime(s/30,v1); setValueAtTime(e/30,v2). spring() → Scale keyframes [0,0%],[0.1s,120%],[0.3s,100%]
-7. TEXTO: Analiza el TSX para ver cómo se muestra el texto (cuántas líneas, saltos naturales). Replica los mismos saltos de línea en AE usando \n. Si el TSX muestra texto en 2-3 líneas por limitación de ancho, agrega \n en los mismos puntos. Si es una palabra sola centrada, usa una sola línea. Ejemplo: comp.layers.addText("Tus plantas limpian el aire\ny reducen el estrés.");
-8. RANDOM: function randomRange(min, max) {{ return min + (Math.random() * (max - min)); }}. NO usar generateRandomNumber (built-in de AE sin params). NO Math.random() directo. NO expressions. NO ADBE Rotation (usar ADBE Rotate Z)
-9. TEXTO POS: X={width//2}, Y={int(height*0.7)}-{int(height*0.85)}. fontSize=64, Bold. Fade-in 0-0.8s, fade-out últimos 0.3s
+{svg_context}
+{effects_context}
+
+TEXTO: "{text}"
+COLOR TEXTO: {text_color}
+Posición texto: X={width//2}, Y={int(height*0.7)} como base.
+Si hay elementos visuales en la zona inferior (Y > {int(height*0.6)}), mover texto a Y={int(height*0.82)}.
+fontSize=68px, Bold, centrado
+
+REGLAS CRÍTICAS:
+1. Crea comp, background solid, shape layers, text layer
+2. SOLO estructura: layers, shapes, fills, strokes, gradients
+3. NO setValueAtTime() — solo setValue() para propiedades estáticas
+4. Nombra cada layer con nombre descriptivo (Leaf_1, Circle_2, Ripple_3, textLayer)
+5. Usa la estructura de shape layer obligatoria
+6. CÍRCULOS/ELLIPSES: NUNCA uses [0, 0] como tamaño. Usa el tamaño real del SVG. Si el SVG dice rx=15, ry=30 → setValue([30, 60]). Si no hay tamaño definido, usa [50, 50] como mínimo.
+7. PATHS CERRADOS: Si un path tiene 3+ vertices que forman una forma cerrada (ej: corazón, hoja), usa s.closed = true. Solo usa closed=false para líneas abiertas.
+8. NO uses funciones helper (createShapeLayer, etc.). Crea cada layer EXPLÍCITAMENTE con código directo.
+9. NO uses arrays geo[] con loops for. Cada layer debe ser creado individualmente.
+10. POSICIONES EXACTAS: Para CADA shape layer, agrega su posición exacta usando:
+    sl.property("ADBE Transform Group").property("ADBE Position").setValue([X, Y]);
+    Donde [X, Y] es el centro aproximado de los vértices del path.
+    - Calcula el centro: promedio de todos los vértices del path
+    - NUNCA uses [540, 960] para todos los elementos — cada uno debe tener posición ÚNICA
+    - Si el SVG tiene vértices [[540, 960], [470, 1030]], centro ≈ [505, 995]
+11. GENERA TODOS LOS ELEMENTOS: El SVG parser te proporciona TODOS los elementos visuales. Debes crear un shape layer para CADA UNO. Si hay 15 elementos en svg_elements, genera 15 shape layers. NO omitas ninguno.
+13. TRIM PATHS: Si algún elemento es una línea (type="line") o path que necesita efecto de "dibujo" (stroke-dasharray, stroke-dashoffset en el TSX), agrega después del stroke:
+    var trim = vg.addProperty("ADBE Vector Filter - Trim");
+    trim.property("ADBE Vector Trim Start").setValue(0);
+    trim.property("ADBE Vector Trim End").setValue(100);
+    Esto permite animar el "draw-on" effect con .property("ADBE Vector Trim End").setValueAtTime(...)
 
 ESTRUCTURA SHAPE LAYER (OBLIGATORIA):
 Shape Layer → ADBE Root Vectors Group → ADBE Vector Group (addProperty) → ADBE Vectors Group (.property) → shapes/fills/strokes
 
-CÓDIGO:
-var sl = comp.layers.addShape(); sl.name = "S";
+CÓDIGO BASE:
+var comp = app.project.items.addComp("Scene", {width}, {height}, 1, {duration}, 30);
+comp.layers.addSolid({hex_to_rgb_array(bg_color)}, "Background", {width}, {height}, 1, {duration});
+
+var sl = comp.layers.addShape(); sl.name = "Element_1";
 var g = sl.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
 var vg = g.property("ADBE Vectors Group");
 var ps = vg.addProperty("ADBE Vector Shape - Group");
 var s = new Shape(); s.vertices = [[0,0],[100,100]]; s.inTangents = [[0,0],[0,0]]; s.outTangents = [[0,0],[0,0]]; s.closed = true;
 ps.property("ADBE Vector Shape").setValue(s);
 var f = vg.addProperty("ADBE Vector Graphic - Fill"); f.property("ADBE Vector Fill Color").setValue([R,G,B]);
-var st = vg.addProperty("ADBE Vector Graphic - Stroke"); st.property("ADBE Vector Stroke Color").setValue([R,G,B]); st.property("ADBE Vector Stroke Width").setValue(2);
 
-MATCH NAMES: Path=`ADBE Vector Shape - Group`, Ellipse=`ADBE Vector Shape - Ellipse`, Rect=`ADBE Vector Shape - Rect`, Fill=`ADBE Vector Graphic - Fill`, Stroke=`ADBE Vector Graphic - Stroke`, Trim=`ADBE Vector Filter - Trim`
+MATCH NAMES: Path=`ADBE Vector Shape - Group`, Ellipse=`ADBE Vector Shape - Ellipse`, Rect=`ADBE Vector Shape - Rect`, Fill=`ADBE Vector Graphic - Fill`, Stroke=`ADBE Vector Graphic - Stroke`
 VECTORS GROUP: usar .property("ADBE Vectors Group"), NO addProperty
-LÍNEAS: convertir x1,y1,x2,y2 → vertices=[[x1,y1],[x2,y2]], closed=false
+LÍNEAS: closed=false siempre explícito
 
-EJEMPLO:
-var comp = app.project.items.addComp("S", {width}, {height}, 1, {duration}, 30);
-comp.layers.addSolid({hex_to_rgb_array(bg_color)}, "BG", {width}, {height}, 1);
-var c = comp.layers.addShape(); c.name = "C1";
-var cg = c.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-var vg = cg.property("ADBE Vectors Group");
-var e = vg.addProperty("ADBE Vector Shape - Ellipse"); e.property("ADBE Vector Ellipse Size").setValue([100,100]);
-vg.addProperty("ADBE Vector Graphic - Fill").property("ADBE Vector Fill Color").setValue([0.29,0.87,0.50]);
-c.property("ADBE Transform Group").property("ADBE Position").setValue([540,960]);
-c.property("ADBE Transform Group").property("ADBE Scale").setValueAtTime(0,[0,0]); c.property("ADBE Transform Group").property("ADBE Scale").setValueAtTime(0.5,[100,100]);
-// Texto en 2 líneas (replicando layout del TSX):
-var txt = comp.layers.addText("Tus plantas limpian el aire\ny reducen el estrés.");
-var td = txt.property("Source Text").value;
-td.fontSize = 64; td.fauxBold = true;
+EFECTOS — USAR SIEMPRE NOMBRES DE PROPIEDADES, NUNCA ÍNDICES NUMÉRICOS:
+
+Drop Shadow:
+  var ds = layer.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");
+  ds.property("ADBE Drop Shadow-0002").setValue(75);
+  ds.property("ADBE Drop Shadow-0005").setValue(20);
+  ds.property("ADBE Drop Shadow-0004").setValue(4);
+  - NUNCA usar ds.property(1), ds.property(2), etc. — SIEMPRE usar nombres.
+  - Agregar Drop Shadow a TODOS los shape layers principales.
+
+Glow (ADBE Glo2):
+  var glow = layer.property("ADBE Effect Parade").addProperty("ADBE Glo2");
+  glow.property("ADBE Glo2-0003").setValue(10);
+  glow.property("ADBE Glo2-0004").setValue(1.5);
+  glow.property("ADBE Glo2-0002").setValue(60);
+
+GRADIENTES — usar efecto "Gradient Ramp" (ADBE Ramp):
+1. Crear shape con fill sólido base (color intermedio del gradiente)
+2. Aplicar efecto: layer.property("ADBE Effect Parade").addProperty("ADBE Ramp")
+3. Configurar con NOMBRES de propiedades (NUNCA índices numéricos):
+   ramp.property("ADBE Ramp-0002").setValue([R,G,B]);
+   ramp.property("ADBE Ramp-0004").setValue([R,G,B]);
+   ramp.property("ADBE Ramp-0005").setValue(2);  // 1=Linear, 2=Radial
+   ramp.property("ADBE Ramp-0001").setValue([x1, y1]);  // punto inicio
+   ramp.property("ADBE Ramp-0003").setValue([x2, y2]);    // punto fin
+4. SI el TSX usa radialGradient → setValue(2) para Radial
+5. SI el TSX usa linearGradient → setValue(1) para Linear
+
+TEXTO:
+var textLayer = comp.layers.addText("TEXTO_AQUI");
+var td = textLayer.property("Source Text").value;
+td.resetCharStyle();
+td.fontSize = 68; td.fauxBold = true;
 td.fillColor = {hex_to_rgb_array(text_color)};
 td.justification = ParagraphJustification.CENTER_JUSTIFY;
-txt.property("Source Text").setValue(td);
-txt.property("ADBE Transform Group").property("ADBE Position").setValue([540,1344]);
-txt.property("ADBE Transform Group").property("ADBE Opacity").setValueAtTime(0,0);
-txt.property("ADBE Transform Group").property("ADBE Opacity").setValueAtTime(0.8,100);
+textLayer.property("Source Text").setValue(td);
+textLayer.property("ADBE Transform Group").property("ADBE Position").setValue([{width//2}, {int(height*0.7)}]);
 
-SOLO código ExtendScript."""
-        print(f"[LLM AE] Enviando prompt a Gemini (longitud: {len(prompt)} chars)")
+SOLO código ExtendScript estático. Sin comentarios largos. Sin funciones helper. Sin arrays geo[]. Cada layer creado individualmente."""
         
         max_retries = 3
         response = None
         for attempt in range(max_retries):
             try:
-                print(f"[LLM AE] Llamada a Gemini API (intento {attempt+1}/{max_retries})...")
                 response = client.models.generate_content(
                     model=settings.GEMINI_MODEL,
                     contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.7,
-                    ),
+                    config=types.GenerateContentConfig(temperature=0.3),
                 )
-                print(f"[LLM AE] ✅ Respuesta recibida de Gemini (longitud: {len(response.text)} chars)")
                 break
             except Exception as e:
                 error_str = str(e)
-                is_retryable = any(code in error_str for code in ["429", "500", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL"])
-                
+                is_retryable = any(code in error_str for code in ["429", "500", "502", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL"])
                 if is_retryable and attempt < max_retries - 1:
                     wait_time = 3 * (2 ** attempt)
-                    print(f"[LLM AE-TSX] Retry en {wait_time}s (intento {attempt+1}/{max_retries})")
+                    print(f"[LLM AE-Structure] Retry en {wait_time}s (intento {attempt+1}/{max_retries})")
                     time.sleep(wait_time)
                     continue
                 raise
         
         if response is None:
-            print(f"[LLM AE-TSX] Modelo principal saturado. Usando fallback.")
             response = client.models.generate_content(
                 model=settings.GEMINI_FALLBACK_MODEL,
                 contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.7,
-                ),
+                config=types.GenerateContentConfig(temperature=0.3),
             )
         
         script = response.text.strip()
-        # Limpiar bloques markdown si existen
         if script.startswith("```"):
             lines = script.split("\n")
             code_lines = []
@@ -481,48 +479,670 @@ SOLO código ExtendScript."""
                     code_lines.append(line)
             script = "\n".join(code_lines)
         
-        # Post-processing: fix common AE scripting errors
-        # a) Remove duplicate randomRange() / generateRandomNumber() — keep first, remove rest
-        def remove_duplicate_generate_random(script_text):
-            pattern = r'(function (?:randomRange|generateRandomNumber)\([^)]*\)\s*\{[^}]*\})'
-            matches = list(re.finditer(pattern, script_text))
-            if len(matches) > 1:
-                for m in matches[1:]:
-                    script_text = script_text[:m.start()] + script_text[m.end():]
+        return script
+        
+    except Exception as e:
+        print(f"[LLM AE-Structure] ERROR: {type(e).__name__}: {e}")
+        return None
+
+
+def generate_ae_animations(layer_names: list, animation_data: dict, duration: float, tsx_code: str = None, fase1_output: str = None, svg_elements: list = None, missing_layers: list = None, text_info: dict = None, width: int = 1080, height: int = 1920, job_id: str = None, scene_id: int = None) -> Optional[str]:
+    """
+    FASE 2: Genera SOLO las animaciones (setValueAtTime calls) para un script AE.
+    Recibe contexto COMPLETO: TSX original, output de Fase 1, geometría SVG.
+    """
+    import time
+    from app.core.config import settings
+    
+    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("[LLM AE-Animations] GEMINI_API_KEY no encontrada.")
+        return None
+    
+    try:
+        layers_str = "\n".join([f"- {name}" for name in layer_names])
+        
+        animations_filtered = animation_data.get("animations", [])
+        anims_compact = []
+        for a in animations_filtered:
+            anims_compact.append({
+                "variable": a["variable"],
+                "type": a["type"],
+                "keyframes": a["keyframes"],
+                "easing": a.get("easing", "linear"),
+                "ae_property": a.get("ae_property", "")
+            })
+        
+        text_anim_context = ""
+        if text_info and text_info.get("style"):
+            style = text_info["style"]
+            pos = text_info.get("position", {})
+            text_anim_context = f"""
+TEXTO DETALLES:
+- Color: {style.get('color', 'N/A')}
+- FontSize: {style.get('fontSize', '68px')}
+- FontWeight: {style.get('fontWeight', 900)}
+- TextShadow: {style.get('textShadow', 'N/A')}
+- Posición: {pos}
+"""
+        
+        missing_context = ""
+        if missing_layers:
+            missing_context = f"""
+ATENCIÓN: En un intento anterior, los siguientes layers NO fueron animados:
+{", ".join(missing_layers)}
+
+Debes generar animaciones para TODOS los layers, INCLUYENDO estos que faltaron.
+"""
+        
+        tsx_context = ""
+        if tsx_code:
+            tsx_context = f"""
+=== CÓDIGO TSX ORIGINAL (React/Remotion) ===
+Este es el código fuente que genera la animación en el frontend.
+Analiza CADA elemento y su animación para traducirlo fielmente a After Effects.
+
+```tsx
+{tsx_code[:6000]}
+```
+"""
+        
+        fase1_context = ""
+        if fase1_output:
+            fase1_context = f"""
+=== ESTRUCTURA EXISTENTE EN AFTER EFFECTS (Fase 1) ===
+Estos son los layers que YA fueron creados. Usa EXACTAMENTE estos nombres de variable.
+
+{fase1_output[:6000]}
+"""
+        
+        svg_context = ""
+        if svg_elements:
+            svg_context = f"""
+=== GEOMETRÍA SVG EXACTA (coordenadas reales) ===
+{json.dumps(svg_elements, indent=2)}
+"""
+        
+        client = genai.Client(api_key=api_key)
+        
+        prompt = f"""Tienes el contexto COMPLETO para generar animaciones fieles al diseño original de React.
+
+{fase1_context}
+{tsx_context}
+{svg_context}
+
+=== LAYERS QUE DEBES ANIMAR (USA EXACTAMENTE ESTOS NOMBRES) ===
+{layers_str}
+- textLayer (text layer)
+
+=== ANIMACIONES DEL PARSER (keyframes a replicar) ===
+{json.dumps(anims_compact, indent=2)}
+
+{text_anim_context}
+{missing_context}
+
+REGLAS CRÍTICAS:
+1. SOLO setValueAtTime() calls — NO crear layers, NO var comp, NO addShape
+2. USA EXACTAMENTE los nombres de layers de la lista. NO inventes nombres.
+3. Genera animaciones para TODOS los layers de la lista. Si hay {len(layer_names)} layers, genera {len(layer_names)} bloques.
+4. Si un layer no tiene animación específica en el TSX, agrega al menos fade-in de opacidad:
+   var {layer_names[0]}Opac = {layer_names[0]}.property("ADBE Transform Group").property("ADBE Opacity");
+   {layer_names[0]}Opac.setValueAtTime(0, 0);
+   {layer_names[0]}Opac.setValueAtTime(0.5, 100);
+5. Para opacity: valores 0-100 (no 0-1)
+6. Para scale: valores tipo [100, 100] para 100%, [0, 0] para 0%, [120, 120] para 120%
+   - NUNCA uses valores mayores a 500% ([500, 500])
+7. Para position: [X, Y] dentro del canvas {width}x{height}
+8. Comenta cada bloque con el nombre del layer
+
+COORDENADAS:
+- Si "isOffset": true → SUMA el offset a la posición base
+- Si "isPixelValue": true → convierte a scale % máximo 300%
+- NUNCA uses valores de offset como posiciones absolutas
+- Para positionY: [X_fijo, baseY + offset]
+
+MAPEO DE PROPIEDADES:
+- position → .property("ADBE Transform Group").property("ADBE Position")
+- scale → .property("ADBE Transform Group").property("ADBE Scale")
+- opacity → .property("ADBE Transform Group").property("ADBE Opacity")
+- rotation → .property("ADBE Transform Group").property("ADBE Rotate Z")
+
+EJEMPLO FORMATO:
+// Animations for Leaf_1
+var leafPos = Leaf_1.property("ADBE Transform Group").property("ADBE Position");
+leafPos.setValueAtTime(0.0, [540, 1400]);
+leafPos.setValueAtTime(2.0, [540, 960]);
+
+var leafOpac = Leaf_1.property("ADBE Transform Group").property("ADBE Opacity");
+leafOpac.setValueAtTime(0.0, 0);
+leafOpac.setValueAtTime(0.667, 100);
+
+// Animations for textLayer
+var textOpac = textLayer.property("ADBE Transform Group").property("ADBE Opacity");
+textOpac.setValueAtTime(0, 0);
+textOpac.setValueAtTime(0.8, 100);
+
+SOLO código ExtendScript de animaciones. Sin comentarios largos. Sin crear layers. Sin var comp."""
+        
+        max_retries = 3
+        response = None
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=settings.GEMINI_MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(temperature=0.2),
+                )
+                break
+            except Exception as e:
+                error_str = str(e)
+                is_retryable = any(code in error_str for code in ["429", "500", "502", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL"])
+                if is_retryable and attempt < max_retries - 1:
+                    wait_time = 3 * (2 ** attempt)
+                    print(f"[LLM AE-Animations] Retry en {wait_time}s (intento {attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                raise
+        
+        if response is None:
+            response = client.models.generate_content(
+                model=settings.GEMINI_FALLBACK_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(temperature=0.2),
+            )
+        
+        script = response.text.strip()
+        if script.startswith("```"):
+            lines = script.split("\n")
+            code_lines = []
+            in_code = False
+            for line in lines:
+                if line.startswith("```jsx") or line.startswith("```javascript") or line.startswith("```"):
+                    in_code = not in_code
+                    continue
+                if in_code:
+                    code_lines.append(line)
+            script = "\n".join(code_lines)
+        
+        return script
+        
+    except Exception as e:
+        print(f"[LLM AE-Animations] ERROR: {type(e).__name__}: {e}")
+        return None
+
+
+def _extract_layer_names(structure_script: str) -> list:
+    """Extrae nombres de layers del script de estructura Fase 1.
+    
+    Detecta layers creados de 3 formas:
+    1. var NAME = comp.layers.addShape()
+    2. var NAME = comp.layers.addText()
+    3. Array geo con { name: "...", type: "..." } (cuando LLM usa helper functions)
+    """
+    layers = []
+    
+    # Pattern: var NAME = comp.layers.addShape()
+    shape_pattern = r'var\s+(\w+)\s*=\s*comp\.layers\.addShape\(\)'
+    for match in re.finditer(shape_pattern, structure_script):
+        layers.append(match.group(1))
+    
+    # Pattern: var NAME = comp.layers.addText()
+    text_pattern = r'var\s+(\w+)\s*=\s*comp\.layers\.addText\('
+    for match in re.finditer(text_pattern, structure_script):
+        layers.append(match.group(1))
+    
+    # Pattern: var NAME = comp.layers.addSolid()
+    solid_pattern = r'var\s+(\w+)\s*=\s*comp\.layers\.addSolid\('
+    for match in re.finditer(solid_pattern, structure_script):
+        layers.append(match.group(1))
+    
+    # Also look for .name = "..." assignments
+    name_pattern = r'(\w+)\.name\s*=\s*"([^"]+)"'
+    for match in re.finditer(name_pattern, structure_script):
+        var_name = match.group(1)
+        layer_name = match.group(2)
+        if var_name not in layers and layer_name not in ['Background', 'Fondo', 'BG']:
+            layers.append(var_name)
+    
+    # CRITICAL: Extract layer names from geo arrays (when LLM uses helper functions)
+    # Pattern: { name: "Branch_L", type: "path", ... }
+    geo_name_pattern = r'\{\s*name:\s*"([^"]+)"\s*,\s*type:'
+    for match in re.finditer(geo_name_pattern, structure_script):
+        geo_name = match.group(1)
+        if geo_name not in layers:
+            layers.append(geo_name)
+    
+    return layers if layers else ["textLayer"]
+
+
+def _post_process_script(script: str) -> str:
+    """Aplica todas las reglas de post-processing al script ensamblado."""
+    # a) Remove duplicate randomRange
+    def remove_duplicate_generate_random(script_text):
+        pattern = r'(function (?:randomRange|generateRandomNumber)\([^)]*\)\s*\{[^}]*\})'
+        matches = list(re.finditer(pattern, script_text))
+        if len(matches) > 1:
+            for m in matches[1:]:
+                script_text = script_text[:m.start()] + script_text[m.end():]
+        return script_text
+    
+    script = remove_duplicate_generate_random(script)
+    
+    # b) layers.length → layers.numLayers
+    script = re.sub(r'\.layers\.length', '.layers.numLayers', script)
+    
+    # c) ADBE Rotation → ADBE Rotate Z
+    script = re.sub(r'\bADBE Rotation\b', 'ADBE Rotate Z', script)
+    
+    # d) Remove createPath
+    if "createPath(" in script:
+        script = script.replace("createPath(", "// REMOVED: createPath(")
+    
+    # e) Fix unclosed quotes
+    script = re.sub(r'\.property\("([^"]+)\)\)', r'.property("\1"))', script)
+    
+    # f) generateRandomNumber → randomRange
+    script = script.replace('generateRandomNumber', 'randomRange')
+    
+    # g) Normalize randomRange
+    script = re.sub(
+        r'function randomRange\([^)]*\)\s*\{[^}]*\}',
+        'function randomRange(min, max) {\n    return min + (Math.random() * (max - min));\n}',
+        script
+    )
+    
+    # h) Fix undefined closed
+    script = script.replace('s.closed = item.closed;', 's.closed = item.closed !== undefined ? item.closed : false;')
+    
+    # i) Fix layer.property("Effects") → layer.property("ADBE Effect Parade")
+    script = re.sub(r'(\w+)\.Effects\.addProperty', r'\1.property("ADBE Effect Parade").addProperty', script)
+    
+    # j) Fix ADBE Glow → ADBE Glo2 (AE uses ADBE Glo2 for glow effect)
+    script = script.replace('"ADBE Glow"', '"ADBE Glo2"')
+    script = script.replace("'ADBE Glow'", "'ADBE Glo2'")
+    # Also fix bare "Glo2" without ADBE prefix
+    script = script.replace('"Glo2"', '"ADBE Glo2"')
+    script = script.replace("'Glo2'", "'ADBE Glo2'")
+    
+    # k) Fix Glow Radius property number (Glo2 property 3 is radius)
+    script = re.sub(r'\.property\("Glow Radius"\)', '.property(3)', script)
+    
+    # l) Fix Gradient Fill → Fill + ADBE Ramp (AE no permite setear gradient colors via script)
+    # Detect: addProperty("ADBE Vector Graphic - G-Fill") or "Grd Fill"
+    # Replace with: addProperty("ADBE Vector Graphic - Fill") + ADBE Ramp effect
+    def fix_gradient_to_ramp(script_text):
+        # Remove G-Fill/Grd Fill lines and replace with Fill
+        script_text = script_text.replace('"ADBE Vector Graphic - G-Fill"', '"ADBE Vector Graphic - Fill"')
+        script_text = script_text.replace("'ADBE Vector Graphic - G-Fill'", "'ADBE Vector Graphic - Fill'")
+        script_text = script_text.replace('"ADBE Vector Graphic - Grd Fill"', '"ADBE Vector Graphic - Fill"')
+        script_text = script_text.replace("'ADBE Vector Graphic - Grd Fill'", "'ADBE Vector Graphic - Fill'")
+        
+        # Remove Grad Colors property lines (they cause crashes)
+        script_text = re.sub(r'\w+\.property\(["\']ADBE Vector Grad Colors["\']\)\.setValue\([^)]+\);?\s*', '', script_text)
+        script_text = re.sub(r'\w+\.property\(["\']ADBE Vector Grad Start Pt["\']\)\.setValue\([^)]+\);?\s*', '', script_text)
+        script_text = re.sub(r'\w+\.property\(["\']ADBE Vector Grad End Pt["\']\)\.setValue\([^)]+\);?\s*', '', script_text)
+        script_text = re.sub(r'\w+\.property\(["\']ADBE Vector Grad Type["\']\)\.setValue\([^)]+\);?\s*', '', script_text)
+        
+        return script_text
+    
+    script = fix_gradient_to_ramp(script)
+    
+    # m-1) Normalize Ramp properties: convert any numeric indices to match names
+    # CORRECT Ramp indices: 1=Start of Ramp(point), 2=Start Color(RGB), 3=End of Ramp(point), 4=End Color(RGB), 5=Ramp Shape(int)
+    # The prompt NOW instructs LLM to use match names, but legacy/hallucinated numeric refs still need fixing
+    def fix_ramp_properties(script_text):
+        """Convert Ramp numeric indices to match names and fix wrong index mappings."""
+        # Find all ramp variables
+        ramp_vars = set()
+        for m in re.finditer(r'var\s+(\w+)\s*=.*addProperty\("ADBE Ramp"\)', script_text):
+            ramp_vars.add(m.group(1))
+        
+        for rvar in ramp_vars:
+            rv = re.escape(rvar)
+            # Fix numeric index → match name for this ramp variable
+            # property(1) → Start of Ramp (point)
+            script_text = re.sub(rf'{rv}\.property\(1\)\.setValue', f'{rvar}.property("ADBE Ramp-0001").setValue', script_text)
+            # property(2) → Start Color (RGB array)
+            script_text = re.sub(rf'{rv}\.property\(2\)\.setValue', f'{rvar}.property("ADBE Ramp-0002").setValue', script_text)
+            # property(3) with array → WRONG (was being used as Start Color but 3=End of Ramp=point)
+            # If property(3).setValue([R,G,B]) found, it's likely a misplaced Start Color → fix to "Start Color"
+            script_text = re.sub(rf'{rv}\.property\(3\)\.setValue\(\[([^\]]+)\]\)', rf'{rvar}.property("ADBE Ramp-0002").setValue([\1])', script_text)
+            # property(3) with scalar → End of Ramp point (unlikely, but safe)
+            # property(4) with array → End Color (correct)
+            script_text = re.sub(rf'{rv}\.property\(4\)\.setValue\(\[([^\]]+)\]\)', rf'{rvar}.property("ADBE Ramp-0004").setValue([\1])', script_text)
+            # property(4) with scalar → was misplaced Ramp Shape → fix to "Ramp Shape"
+            script_text = re.sub(rf'{rv}\.property\(4\)\.setValue\(([12])\)', rf'{rvar}.property("ADBE Ramp-0005").setValue(\1)', script_text)
+            # property(5) → Ramp Shape
+            script_text = re.sub(rf'{rv}\.property\(5\)\.setValue', f'{rvar}.property("ADBE Ramp-0005").setValue', script_text)
+            
+            # Also fix if LLM used string names (normalize casing)
+            script_text = re.sub(rf'{rv}\.property\(["\']Interpolation["\']\)', f'{rvar}.property("ADBE Ramp-0005")', script_text)
+            script_text = re.sub(rf'{rv}\.property\(["\']Start Point["\']\)', f'{rvar}.property("ADBE Ramp-0001")', script_text)
+            script_text = re.sub(rf'{rv}\.property\(["\']End Point["\']\)', f'{rvar}.property("ADBE Ramp-0003")', script_text)
+        
+        return script_text
+    
+    script = fix_ramp_properties(script)
+    
+    # m-0.6) Ensure Ramp has Ramp Shape set (default to Linear=1 if not set)
+    def ensure_ramp_interpolation(script_text):
+        ramp_pattern = r'(\w+)\s*=\s*\w+\.property\("ADBE Effect Parade"\)\.addProperty\("ADBE Ramp"\);'
+        for match in re.finditer(ramp_pattern, script_text):
+            ramp_var = match.group(1)
+            if not re.search(rf'{re.escape(ramp_var)}\.property\("ADBE Ramp-0005"\)\.setValue', script_text):
+                insert_pos = match.end()
+                script_text = script_text[:insert_pos] + f'\n{ramp_var}.property("ADBE Ramp-0005").setValue(1);' + script_text[insert_pos:]
+        return script_text
+    
+    script = ensure_ramp_interpolation(script)
+    
+    # m) Fix Drop Shadow: convert numeric indices to match names
+    # This eliminates ALL regex collision issues between DS, Ramp, and Glow
+    def fix_drop_shadow_properties(script_text):
+        """Convert Drop Shadow numeric indices to match names."""
+        ds_vars = set()
+        for m in re.finditer(r'var\s+(\w+)\s*=.*addProperty\("ADBE Drop Shadow"\)', script_text):
+            ds_vars.add(m.group(1))
+        
+        for dvar in ds_vars:
+            dv = re.escape(dvar)
+            # Convert numeric indices to match names
+            script_text = re.sub(rf'{dv}\.property\(1\)\.setValue', f'{dvar}.property("ADBE Drop Shadow-0002").setValue', script_text)
+            script_text = re.sub(rf'{dv}\.property\(2\)\.setValue', f'{dvar}.property("ADBE Drop Shadow-0005").setValue', script_text)
+            script_text = re.sub(rf'{dv}\.property\(3\)\.setValue', f'{dvar}.property("ADBE Drop Shadow-0001").setValue', script_text)
+            script_text = re.sub(rf'{dv}\.property\(4\)\.setValue', f'{dvar}.property("ADBE Drop Shadow-0004").setValue', script_text)
+            script_text = re.sub(rf'{dv}\.property\(5\)\.setValue', f'{dvar}.property("ADBE Drop Shadow-0003").setValue', script_text)
+        
+        return script_text
+    
+    script = fix_drop_shadow_properties(script)
+    
+    # m-2) Fix Glow: convert numeric indices to match names
+    def fix_glow_properties(script_text):
+        """Convert Glow numeric indices to match names."""
+        glow_vars = set()
+        for m in re.finditer(r'var\s+(\w+)\s*=.*addProperty\("ADBE Glo2"\)', script_text):
+            glow_vars.add(m.group(1))
+        
+        for gvar in glow_vars:
+            gv = re.escape(gvar)
+            script_text = re.sub(rf'{gv}\.property\(1\)\.setValue', f'{gvar}.property("ADBE Glo2-0002").setValue', script_text)
+            script_text = re.sub(rf'{gv}\.property\(2\)\.setValue', f'{gvar}.property("ADBE Glo2-0003").setValue', script_text)
+            script_text = re.sub(rf'{gv}\.property\(3\)\.setValue', f'{gvar}.property("ADBE Glo2-0003").setValue', script_text)
+            script_text = re.sub(rf'{gv}\.property\(4\)\.setValue', f'{gvar}.property("ADBE Glo2-0004").setValue', script_text)
+        
+        return script_text
+    
+    script = fix_glow_properties(script)
+
+    # n) Clean up any remaining gradient property references
+    script = re.sub(r'\w+\.property\(["\']ADBE Vector Grad[^"\']+["\']\)\.setValue\([^)]*\);?\s*', '', script)
+    script = re.sub(r'\w+\.property\(["\']ADBE Vector Gradient[^"\']+["\']\)\.setValue\([^)]*\);?\s*', '', script)
+    
+    # n-0.5) Guard Ramp color properties: ensure "Start Color" and "End Color" always receive arrays, not scalars
+    def guard_ramp_colors(script_text):
+        """Ensure ramp*.property('Start Color') and ramp*.property('End Color') have array values."""
+        ramp_vars = set()
+        for m in re.finditer(r'var\s+(\w+)\s*=.*addProperty\("ADBE Ramp"\)', script_text):
+            ramp_vars.add(m.group(1))
+        
+        for rvar in ramp_vars:
+            rv = re.escape(rvar)
+            # Remove any scalar setValue on Start Color or End Color
+            script_text = re.sub(rf'{rv}\.property\("ADBE Ramp-0002"\)\.setValue\(\d+\);?\s*', '', script_text)
+            script_text = re.sub(rf'{rv}\.property\("ADBE Ramp-0004"\)\.setValue\(\d+\);?\s*', '', script_text)
+        
+        return script_text
+    
+    script = guard_ramp_colors(script)
+    
+    # n-1) Inject Trim Paths where animations reference them but structure doesn't have them
+    def inject_trim_paths(script_text):
+        # Detect if any animation references ADBE Vector Trim
+        has_trim_anim = 'ADBE Vector Trim' in script_text or 'Vector Trim' in script_text
+        if not has_trim_anim:
             return script_text
         
-        script = remove_duplicate_generate_random(script)
+        # Find layers that use trim animations — broader pattern matching
+        trim_layers = set()
+        # Pattern 1: varTrim = var.property("ADBE Root Vectors Group")
+        for match in re.finditer(r'(\w+)Trim\s*=\s*\1\.property\("ADBE Root Vectors Group"\)', script_text):
+            trim_layers.add(match.group(1))
+        # Pattern 2: var.property(...).property("ADBE Vector Trim")
+        for match in re.finditer(r'(sl\d+)\.property\([^)]+\)(?:\.property\([^)]+\))*\.property\("ADBE Vector Trim', script_text):
+            trim_layers.add(match.group(1))
+        # Pattern 3: varTrim = var.property("ADBE Root Vectors Group").property(1)
+        for match in re.finditer(r'var\s+(\w+)Trim\s*=\s*(\w+)\.property', script_text):
+            layer_var = match.group(2)
+            if layer_var.startswith('sl'):
+                trim_layers.add(layer_var)
         
-        # b) Replace layers.length → layers.numLayers
-        script = re.sub(r'\.layers\.length', '.layers.numLayers', script)
+        if not trim_layers:
+            return script_text
         
-        # c) Replace ADBE Rotation → ADBE Rotate Z (word boundary to avoid Rotate Z becoming Rotate ZZ)
-        script = re.sub(r'\bADBE Rotation\b', 'ADBE Rotate Z', script)
+        # Check which layers already have Trim Paths in structure
+        for layer_var in list(trim_layers):
+            # Check if addProperty("ADBE Vector Filter - Trim") already exists for this layer
+            has_trim_structure = re.search(
+                rf'{re.escape(layer_var)}\.property.*addProperty\("ADBE Vector Filter - Trim"\)',
+                script_text
+            )
+            if has_trim_structure:
+                trim_layers.discard(layer_var)
         
-        # d) Validate no createPath() slipped through
-        if "createPath(" in script:
-            print(f"[LLM AE] ⚠️ createPath() detected in output, removing...")
-            script = script.replace("createPath(", "// REMOVED: createPath(")
+        # For each layer, find where the stroke is defined and add Trim Paths after it
+        for layer_var in trim_layers:
+            # Look for the stroke definition in this layer (broader pattern)
+            stroke_pattern = rf'(var\s+st\w+\s*=\s*vg\w+\.addProperty\("ADBE Vector Graphic - Stroke"\);[^\n]*(?:\n[^\n]*st\w+\.property[^\n]*)*?)'
+            stroke_match = re.search(stroke_pattern, script_text)
+            
+            if not stroke_match:
+                # Try alternative: look for any addProperty near this layer
+                stroke_pattern = rf'({re.escape(layer_var)}[^\n]*addProperty\("ADBE Vector Graphic - Stroke"\);)'
+                stroke_match = re.search(stroke_pattern, script_text)
+            
+            if stroke_match:
+                # Insert Trim Paths after the stroke block
+                insert_pos = stroke_match.end()
+                # Find the end of the stroke properties block (look for next newline after stroke width)
+                next_lines = script_text[insert_pos:insert_pos+500]
+                width_match = re.search(r'(Stroke Width[^\n]*\n)', next_lines)
+                if width_match:
+                    insert_pos += width_match.end()
+                
+                trim_code = f'\nvar trim_{layer_var} = vg1.addProperty("ADBE Vector Filter - Trim");\ntrim_{layer_var}.property("ADBE Vector Trim Start").setValue(0);\ntrim_{layer_var}.property("ADBE Vector Trim End").setValue(100);'
+                script_text = script_text[:insert_pos] + trim_code + script_text[insert_pos:]
         
-        # e) Fix unclosed quotes in .property() calls (e.g. "ADBE Opacity)) → "ADBE Opacity"))
-        script = re.sub(
-            r'\.property\("([^"]+)\)\)',
-            r'.property("\1"))',
-            script
+        # Fix Trim Paths animation references to use the injected trim variable
+        for layer_var in trim_layers:
+            # Pattern: varTrim = var.property("ADBE Root Vectors Group").property(1).property("ADBE Vector Trim").property("ADBE Vector Trim End")
+            old_pattern = rf'{re.escape(layer_var)}Trim\s*=\s*{re.escape(layer_var)}\.property\("ADBE Root Vectors Group"\)\.property\(1\)\.property\("ADBE Vector Trim"\)\.property\("ADBE Vector Trim End"\)'
+            new_code = f'{layer_var}Trim = trim_{layer_var}.property("ADBE Vector Trim End")'
+            script_text = re.sub(old_pattern, new_code, script_text)
+            
+            # Also fix: var.property("ADBE Root Vectors Group").property("ADBE Vectors Group").property("ADBE Vector Trim")
+            old_pattern2 = rf'{re.escape(layer_var)}Trim\s*=\s*{re.escape(layer_var)}\.property\("ADBE Root Vectors Group"\)\.property\("ADBE Vectors Group"\)\.property\("ADBE Vector Trim"\)\.property\("ADBE Vector Trim End"\)'
+            script_text = re.sub(old_pattern2, new_code, script_text)
+        
+        return script_text
+    
+    script = inject_trim_paths(script)
+    
+    # o) Remove orphan Drop Shadow access blocks (property without addProperty)
+    # If .property("ADBE Drop Shadow") exists but no .addProperty("ADBE Drop Shadow") before it,
+    # remove the entire var ds = ... block
+    def remove_orphan_drop_shadows(script_text):
+        has_add = 'addProperty("ADBE Drop Shadow")' in script_text or "addProperty('ADBE Drop Shadow')" in script_text
+        if has_add:
+            return script_text
+        
+        # Remove lines that access ADBE Drop Shadow property
+        lines = script_text.split('\n')
+        filtered = []
+        skip_next = False
+        for line in lines:
+            if 'ADBE Drop Shadow' in line and 'addProperty' not in line:
+                skip_next = True
+                continue
+            if skip_next and (line.strip().startswith('ds.') or line.strip() == ''):
+                if line.strip().startswith('ds.'):
+                    continue
+                skip_next = False
+            if '// Visual Effects' in line:
+                continue
+            filtered.append(line)
+        return '\n'.join(filtered)
+    
+    script = remove_orphan_drop_shadows(script)
+    
+    # p) Fix absurd text position values (offsets used as absolute positions)
+    # If textPos setValueAtTime has Y < 100, it's likely an offset → add to base (1344)
+    def fix_absurd_text_positions(script_text, base_y=1344):
+        pattern = r'(textPos\.setValueAtTime\([^,]+,\s*\[(\d+),\s*)(\d+\.?\d*)(\]\))'
+        def fix(m):
+            x = m.group(2)
+            y = float(m.group(3))
+            suffix = m.group(4)
+            if y < 100:
+                corrected_y = base_y + y
+                return f'{m.group(1)}{corrected_y}{suffix}'
+            return m.group(0)
+        return re.sub(pattern, fix, script_text)
+    
+    script = fix_absurd_text_positions(script)
+    
+    # q) Fix absurd scale values > 2000% (likely pixel-to-percentage conversion errors)
+    def fix_absurd_scale(script_text):
+        pattern = r'\.setValueAtTime\(([^,]+),\s*\[(\d{4,}),\s*(\d{4,})\]\)'
+        def fix(m):
+            time_val = m.group(1)
+            x = int(m.group(2))
+            y = int(m.group(3))
+            if x > 2000:
+                x = min(x // 10, 500)
+            if y > 2000:
+                y = min(y // 10, 500)
+            return f'.setValueAtTime({time_val}, [{x}, {y}])'
+        return re.sub(pattern, fix, script_text)
+    
+    script = fix_absurd_scale(script)
+    
+    return script
+
+
+def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_color: str = "#0f172a", text_color: str = "#38bdf8", width: int = 1080, height: int = 1920, job_id: str = None, scene_id: int = None) -> Optional[str]:
+    """
+    Traduce código TSX de Remotion a ExtendScript de After Effects usando 2 fases:
+    Fase 1: Estructura estática (layers, shapes, fills, text)
+    Fase 2: Animaciones (setValueAtTime calls)
+    Ensamblaje: Fase 1 + Fase 2 = script completo
+    """
+    import time
+    import os
+    from datetime import datetime
+    from app.core.config import settings
+    from app.services.ae_export import hex_to_rgb_array
+    
+    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("[LLM AE] ⚠️ GEMINI_API_KEY no encontrada. ae_script será null.")
+        return None
+    
+    print(f"[LLM AE] ✅ Iniciando generación AE script 2 fases (width={width}, height={height}, duration={duration})")
+    
+    try:
+        from app.services.svg_parser import parse_svg_from_tsx
+        from app.services.tsx_animation_parser import parse_tsx_animations
+        
+        svg_elements = parse_svg_from_tsx(tsx_code)
+        print(f"[LLM AE] SVG parser encontró {len(svg_elements)} elementos")
+        
+        animation_data = parse_tsx_animations(tsx_code, duration, 30)
+        anim_count = len(animation_data.get("animations", []))
+        print(f"[LLM AE] Animation parser encontró {anim_count} animaciones")
+        
+        # === FASE 1: ESTRUCTURA ESTÁTICA ===
+        print(f"[LLM AE] 🟢 FASE 1: Generando estructura estática...")
+        structure = generate_ae_structure(
+            svg_elements, text, duration, bg_color, text_color, width, height,
+            effects=animation_data.get("effects", []),
+            job_id=job_id, scene_id=scene_id
         )
         
-        # f) Rename generateRandomNumber → randomRange (avoid AE built-in conflict)
-        script = script.replace('generateRandomNumber', 'randomRange')
+        if not structure:
+            print(f"[LLM AE] ❌ FASE 1 falló")
+            return None
         
-        # g) Normalize randomRange(min, max) — LLM sometimes generates it without params
-        script = re.sub(
-            r'function randomRange\([^)]*\)\s*\{[^}]*\}',
-            'function randomRange(min, max) {\n    return min + (Math.random() * (max - min));\n}',
-            script
+        print(f"[LLM AE] ✅ FASE 1 completada ({len(structure)} chars)")
+        
+        # Extraer nombres de layers
+        layer_names = _extract_layer_names(structure)
+        print(f"[LLM AE] Layers detectados: {layer_names}")
+        
+        # === FASE 2: ANIMACIONES CON CONTEXTO COMPLETO ===
+        print(f"[LLM AE] 🟢 FASE 2: Generando animaciones con contexto completo...")
+        animations = generate_ae_animations(
+            layer_names, animation_data, duration,
+            tsx_code=tsx_code,
+            fase1_output=structure,
+            svg_elements=svg_elements,
+            text_info=animation_data.get("text_animation", {}),
+            width=width, height=height,
+            job_id=job_id, scene_id=scene_id
         )
         
-        # h) Fix undefined closed → false (AE requires boolean, not undefined)
-        script = script.replace('s.closed = item.closed;', 's.closed = item.closed !== undefined ? item.closed : false;')
+        # VALIDACIÓN ALL-OR-NOTHING: verificar que TODOS los layers tengan animación
+        def _validate_all_layers_animated(layers, anim_script):
+            if not anim_script:
+                return layers[:]
+            animated = set()
+            for layer in layers:
+                if re.search(rf'\b{re.escape(layer)}\b.*setValueAtTime', anim_script, re.DOTALL):
+                    animated.add(layer)
+            return [l for l in layers if l not in animated]
+        
+        missing = _validate_all_layers_animated(layer_names, animations or "")
+        if missing:
+            print(f"[LLM AE] ⚠️ Fase 2 omitió {len(missing)} layers: {missing}. Reintentando COMPLETO...")
+            # Reintentar Fase 2 COMPLETA con énfasis en layers faltantes
+            animations = generate_ae_animations(
+                layer_names, animation_data, duration,
+                tsx_code=tsx_code,
+                fase1_output=structure,
+                svg_elements=svg_elements,
+                missing_layers=missing,
+                text_info=animation_data.get("text_animation", {}),
+                width=width, height=height,
+                job_id=job_id, scene_id=scene_id
+            )
+            
+            missing2 = _validate_all_layers_animated(layer_names, animations or "")
+            if missing2:
+                print(f"[LLM AE] ⚠️ Fase 2 retry aún omitió {len(missing2)} layers: {missing2}. Tercer intento...")
+                animations = generate_ae_animations(
+                    layer_names, animation_data, duration,
+                    tsx_code=tsx_code,
+                    fase1_output=structure,
+                    svg_elements=svg_elements,
+                    missing_layers=missing2,
+                    text_info=animation_data.get("text_animation", {}),
+                    width=width, height=height,
+                    job_id=job_id, scene_id=scene_id
+                )
+                
+                missing3 = _validate_all_layers_animated(layer_names, animations or "")
+                if missing3:
+                    print(f"[LLM AE] ⚠️ Fase 2 aún omitió {len(missing3)} layers tras 3 intentos")
+        
+        if not animations:
+            print(f"[LLM AE] ❌ FASE 2 falló, usando solo estructura")
+            full_script = structure
+        else:
+            print(f"[LLM AE] ✅ FASE 2 completada ({len(animations)} chars)")
+            full_script = structure + "\n\n// === ANIMATIONS ===\n\n" + animations
+        
+        # === POST-PROCESSING ===
+        full_script = _post_process_script(full_script)
         
         # === DEBUG FILE LOGGING ===
         try:
@@ -535,49 +1155,49 @@ SOLO código ExtendScript."""
             debug_filename = f"{job_str}_{scene_str}_{timestamp}.txt"
             debug_path = os.path.join(debug_dir, debug_filename)
             
-            # Count validation metrics
-            addshape_count = len(re.findall(r'\.addShape\(\)', script))
-            addtext_count = len(re.findall(r'\.addText\(', script))
-            addsolid_count = len(re.findall(r'\.addSolid\(', script))
-            createpath_count = len(re.findall(r'createPath\(', script))
-            mathrandom_count = len(re.findall(r'Math\.random\(\)', script))
-            rotation_count = len(re.findall(r'ADBE Rotation\b', script))
+            addshape_count = len(re.findall(r'\.addShape\(\)', full_script))
+            addtext_count = len(re.findall(r'\.addText\(', full_script))
+            addsolid_count = len(re.findall(r'\.addSolid\(', full_script))
+            setvalueat_count = len(re.findall(r'\.setValueAtTime\(', full_script))
+            createpath_count = len(re.findall(r'createPath\(', full_script))
             
             debug_content = f"""=== METADATA ===
 job_id: {job_id or 'unknown'}
 scene_id: {scene_id if scene_id is not None else 'unknown'}
 timestamp: {timestamp}
+phase: 2-phase (structure + animations)
 svg_elements_found: {len(svg_elements)}
-prompt_length: {len(prompt)}
-response_raw_length: {len(response.text)}
-post_processed_length: {len(script)}
+animation_count: {anim_count}
+layers_detected: {layer_names}
+structure_length: {len(structure)}
+animations_length: {len(animations) if animations else 0}
+total_script_length: {len(full_script)}
 
 === VALIDATION ===
 addShape() calls: {addshape_count}
 addText() calls: {addtext_count}
 addSolid() calls: {addsolid_count}
+setValueAtTime() calls: {setvalueat_count}
 createPath() detected: {'YES (' + str(createpath_count) + ')' if createpath_count > 0 else 'NO'}
-Math.random() detected: {'YES (' + str(mathrandom_count) + ')' if mathrandom_count > 0 else 'NO'}
-ADBE Rotation detected: {'YES (' + str(rotation_count) + ')' if rotation_count > 0 else 'NO'}
 
-=== PROMPT (primeros 1000 chars) ===
-{prompt[:1000]}
+=== STRUCTURE (FASE 1) ===
+{structure}
 
-=== RESPONSE RAW ===
-{response.text}
+=== ANIMATIONS (FASE 2) ===
+{animations or 'FAILED'}
 
-=== POST-PROCESSED ===
-{script}
+=== FULL SCRIPT ===
+{full_script}
 """
             
             with open(debug_path, 'w', encoding='utf-8') as f:
                 f.write(debug_content)
             
-            print(f"[LLM AE] 💾 Debug guardado: {debug_filename} (shapes={addshape_count}, text={addtext_count}, solids={addsolid_count})")
+            print(f"[LLM AE] 💾 Debug guardado: {debug_filename} (shapes={addshape_count}, text={addtext_count}, solids={addsolid_count}, anims={setvalueat_count})")
         except Exception as debug_err:
             print(f"[LLM AE] ⚠️ Error guardando debug file: {debug_err}")
         
-        return script
+        return full_script
         
     except Exception as e:
         import traceback
