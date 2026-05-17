@@ -13,6 +13,42 @@ from sqlalchemy.orm import Session
 
 from app.db.models import JobModel
 from app.core.resolutions import get_resolution
+from app.core.config import settings
+
+
+def _persist_job_spec(job_id: str, spec_dict: dict):
+    """
+    Persist job.result_spec using a separate psycopg2 connection.
+    Bypasses SQLAlchemy ORM entirely to avoid JSON change detection issues.
+    Works in both local (localhost) and Docker (postgres hostname) environments.
+    """
+    import psycopg2
+    from sqlalchemy.engine.url import make_url
+    
+    try:
+        url = make_url(settings.sqlalchemy_database_uri)
+        conn = psycopg2.connect(
+            host=url.host,
+            port=url.port or 5432,
+            user=url.username,
+            password=url.password,
+            database=url.database
+        )
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE jobs SET result_spec = %s WHERE id = %s",
+            (json.dumps(spec_dict), job_id)
+        )
+        conn.commit()
+        print(f"[AE Persist] ✅ result_spec persisted for job {job_id}")
+    except Exception as e:
+        print(f"[AE Persist] ❌ Failed to persist result_spec for job {job_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 
 def hex_to_rgb_array(hex_color: str) -> str:
@@ -86,6 +122,9 @@ def generate_ae_script(scene: Dict, index: int, width: int = 1080, height: int =
             script_lines.extend(generate_ae_shape_generic(elem, width, height))
     
     # Agregar capa de texto
+    duration = scene.get('duration_seconds', 6)
+    text_y = int(height * 0.8)
+
     script_lines.extend([
         "",
         "// ====================================",
@@ -94,34 +133,45 @@ def generate_ae_script(scene: Dict, index: int, width: int = 1080, height: int =
         f'var textLayer = comp.layers.addText("{scene.get("text", "")}");',
         "textLayer.name = \"Texto_Principal\";",
         f"textLayer.inPoint = 0;",
-        f"textLayer.outPoint = {scene.get('duration_seconds', 6)};",
+        f"textLayer.outPoint = {duration};",
         "",
-        "// Color del texto",
-        f'var textProp = textLayer.property("ADBE Text Properties");',
-        f'textProp.property("ADBE Text Fill Color").setValue({hex_to_rgb_array(text_color)});',
+        "// Color del texto (via TextDocument)",
+        "var textDoc = textLayer.property(\"Source Text\").value;",
+        f"textDoc.fillColor = {hex_to_rgb_array(text_color)};",
+        "textDoc.applyFill = true;",
+        "textLayer.property(\"Source Text\").setValue(textDoc);",
         "",
-        "// Animación de texto",
-        "var textProp = textLayer.property(\"ADBE Text Properties\");",
-        "var textOpacity = textLayer.property(\"ADBE Transform Group\").property(\"ADBE Opacity\");",
+        "// Posición: centrado en X, Y según análisis de colisión con animación",
+        f'var textPos = textLayer.property("ADBE Transform Group").property("ADBE Position");',
+        f'textPos.setValue([{width // 2}, {text_y}]);',
+        "",
+        "// Animación de texto: fade-in entrada, fade-out salida",
+        "var textOpac = textLayer.property(\"ADBE Transform Group\").property(\"ADBE Opacity\");",
     ])
-    
+
     if text_animation == 'letter_by_letter':
         script_lines.extend([
-            "textOpacity.setValueAtTime(0, 0);",
-            "textOpacity.setValueAtTime(0.5, 100);",
+            "textOpac.setValueAtTime(0, 0);",
+            "textOpac.setValueAtTime(1.0, 100);",
+            f"textOpac.setValueAtTime({duration - 0.3}, 100);",
+            f"textOpac.setValueAtTime({duration}, 0);",
         ])
     elif text_animation == 'scale_emerge':
         script_lines.extend([
             "var textScale = textLayer.property(\"ADBE Transform Group\").property(\"ADBE Scale\");",
             "textScale.setValueAtTime(0, [0, 0]);",
-            "textScale.setValueAtTime(0.5, [100, 100]);",
-            "textOpacity.setValueAtTime(0, 0);",
-            "textOpacity.setValueAtTime(0.3, 100);",
+            "textScale.setValueAtTime(0.8, [100, 100]);",
+            "textOpac.setValueAtTime(0, 0);",
+            "textOpac.setValueAtTime(0.5, 100);",
+            f"textOpac.setValueAtTime({duration - 0.3}, 100);",
+            f"textOpac.setValueAtTime({duration}, 0);",
         ])
     else:  # fade_in
         script_lines.extend([
-            "textOpacity.setValueAtTime(0, 0);",
-            "textOpacity.setValueAtTime(0.5, 100);",
+            "textOpac.setValueAtTime(0, 0);",
+            "textOpac.setValueAtTime(0.8, 100);",
+            f"textOpac.setValueAtTime({duration - 0.3}, 100);",
+            f"textOpac.setValueAtTime({duration}, 0);",
         ])
     
     # Agregar audio
@@ -158,8 +208,8 @@ def generate_ae_rectangle(elem: Dict, width: int = 1080, height: int = 1920) -> 
         f'var layer_{elem.get("id", "rect")} = comp.layers.addShape();',
         f'layer_{elem.get("id", "rect")}.name = "{elem.get("id", "rect")}";',
         f'var shapeGroup = layer_{elem.get("id", "rect")}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
-        f'var rect = vectorsGroup.addProperty("ADBE Vector Shape - Rect");',
+        f'var vg = shapeGroup.property("ADBE Vectors Group");',
+        f'var rect = vg.addProperty("ADBE Vector Shape - Rect");',
         f'if (rect != null) {{',
         f'    rect.property("ADBE Vector Rect Size").setValue([{size[0]}, {size[1]}]);',
         f'}}',
@@ -172,13 +222,13 @@ def generate_ae_rectangle(elem: Dict, width: int = 1080, height: int = 1920) -> 
     # Color con transiciones - primero crear fill, luego setear color
     color_keyframes = elem.get('color_keyframes', [])
     if color_keyframes:
-        lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
+        lines.append(f'var fill = vg.addProperty("ADBE Vector Graphic - Fill");')
         for kf in color_keyframes:
             time = kf.get('time', 0)
             color = kf.get('color', '#38bdf8')
             lines.append(f'fill.property("ADBE Vector Fill Color").setValueAtTime({time}, {hex_to_rgb_array(color)});')
     else:
-        lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
+        lines.append(f'var fill = vg.addProperty("ADBE Vector Graphic - Fill");')
         lines.append(f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#38bdf8")});')
     
     # Animación de posición
@@ -239,8 +289,8 @@ def generate_ae_circle(elem: Dict, width: int = 1080, height: int = 1920) -> Lis
         f'var layer_{elem.get("id", "circle")} = comp.layers.addShape();',
         f'layer_{elem.get("id", "circle")}.name = "{elem.get("id", "circle")}";',
         f'var shapeGroup = layer_{elem.get("id", "circle")}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
-        f'var ellipse = vectorsGroup.addProperty("ADBE Vector Shape - Ellipse");',
+        f'var vg = shapeGroup.property("ADBE Vectors Group");',
+        f'var ellipse = vg.addProperty("ADBE Vector Shape - Ellipse");',
         f'if (ellipse != null) {{',
         f'    ellipse.property("ADBE Vector Ellipse Size").setValue([{size[0]}, {size[1]}]);',
         f'}}',
@@ -253,13 +303,13 @@ def generate_ae_circle(elem: Dict, width: int = 1080, height: int = 1920) -> Lis
     # Color con transiciones - primero crear fill, luego setear color
     color_keyframes = elem.get('color_keyframes', [])
     if color_keyframes:
-        lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
+        lines.append(f'var fill = vg.addProperty("ADBE Vector Graphic - Fill");')
         for kf in color_keyframes:
             time = kf.get('time', 0)
             color = kf.get('color', '#38bdf8')
             lines.append(f'fill.property("ADBE Vector Fill Color").setValueAtTime({time}, {hex_to_rgb_array(color)});')
     else:
-        lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
+        lines.append(f'var fill = vg.addProperty("ADBE Vector Graphic - Fill");')
         lines.append(f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#38bdf8")});')
     
     # Animación de posición
@@ -327,12 +377,12 @@ def generate_ae_flash(elem: Dict, width: int = 1080, height: int = 1920) -> List
         f'var layer_{elem.get("id", "flash")} = comp.layers.addShape();',
         f'layer_{elem.get("id", "flash")}.name = "{elem.get("id", "flash")}";',
         f'var shapeGroup = layer_{elem.get("id", "flash")}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
-        f'var ellipse = vectorsGroup.addProperty("ADBE Vector Shape - Ellipse");',
+        f'var vg = shapeGroup.property("ADBE Vectors Group");',
+        f'var ellipse = vg.addProperty("ADBE Vector Shape - Ellipse");',
         f'if (ellipse != null) {{',
         f'    ellipse.property("ADBE Vector Ellipse Size").setValue([200, 200]);',
         f'}}',
-        f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");',
+        f'var fill = vg.addProperty("ADBE Vector Graphic - Fill");',
         f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(flash_color)});',
         f'var posProp = layer_{elem.get("id", "flash")}.property("ADBE Transform Group").property("ADBE Position");',
         f'posProp.setValue([{pos[0]}, {pos[1]}]);',
@@ -392,13 +442,13 @@ def generate_ae_calendar(elem: Dict, width: int = 1080, height: int = 1920) -> L
         f'var layer_{elem.get("id", "calendar")} = comp.layers.addShape();',
         f'layer_{elem.get("id", "calendar")}.name = "{elem.get("id", "calendar")}";',
         f'var shapeGroup = layer_{elem.get("id", "calendar")}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
-        f'var rect = vectorsGroup.addProperty("ADBE Vector Shape - Rect");',
+        f'var vg = shapeGroup.property("ADBE Vectors Group");',
+        f'var rect = vg.addProperty("ADBE Vector Shape - Rect");',
         f'if (rect != null) {{',
         f'    rect.property("ADBE Vector Rect Size").setValue([120, 100]);',
         f'    rect.property("ADBE Vector Rect Roundness").setValue([8, 8]);',
         f'}}',
-        f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");',
+        f'var fill = vg.addProperty("ADBE Vector Graphic - Fill");',
         f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#38bdf8")});',
     ]
     
@@ -461,8 +511,8 @@ def generate_ae_shape_generic(elem: Dict, width: int = 1080, height: int = 1920)
         f'var layer_{elem_id} = comp.layers.addShape();',
         f'layer_{elem_id}.name = "{elem_id}";',
         f'var shapeGroup = layer_{elem_id}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
-        f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");',
+        f'var vg = shapeGroup.property("ADBE Vectors Group");',
+        f'var fill = vg.addProperty("ADBE Vector Graphic - Fill");',
         f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#38bdf8")});',
     ]
     
@@ -526,8 +576,8 @@ def generate_ae_line(elem: Dict, width: int = 1080, height: int = 1920) -> List[
         f'var layer_{elem_id} = comp.layers.addShape();',
         f'layer_{elem_id}.name = "{elem_id}";',
         f'var shapeGroup = layer_{elem_id}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
-        f'var line = vectorsGroup.addProperty("ADBE Vector Shape - Rect");',
+        f'var vg = shapeGroup.property("ADBE Vectors Group");',
+        f'var line = vg.addProperty("ADBE Vector Shape - Rect");',
         f'if (line != null) {{',
         f'    line.property("ADBE Vector Rect Size").setValue([{width}, {stroke_width}]);',
         f'    line.property("ADBE Vector Rect Position").setValue([0, {height//2}]);',
@@ -535,7 +585,7 @@ def generate_ae_line(elem: Dict, width: int = 1080, height: int = 1920) -> List[
     ]
     
     # Fill como color de línea
-    lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
+    lines.append(f'var fill = vg.addProperty("ADBE Vector Graphic - Fill");')
     lines.append(f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(stroke_color)});')
     
     # Opacidad
@@ -572,8 +622,8 @@ def generate_ae_particle(elem: Dict, width: int = 1080, height: int = 1920) -> L
         f'var layer_{elem_id} = comp.layers.addShape();',
         f'layer_{elem_id}.name = "{elem_id}";',
         f'var shapeGroup = layer_{elem_id}.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");',
-        f'var vectorsGroup = shapeGroup.property("ADBE Vectors Group");',
-        f'var ellipse = vectorsGroup.addProperty("ADBE Vector Shape - Ellipse");',
+        f'var vg = shapeGroup.property("ADBE Vectors Group");',
+        f'var ellipse = vg.addProperty("ADBE Vector Shape - Ellipse");',
         f'if (ellipse != null) {{',
         f'    ellipse.property("ADBE Vector Ellipse Size").setValue([{size[0]}, {size[1]}]);',
         f'}}',
@@ -581,7 +631,7 @@ def generate_ae_particle(elem: Dict, width: int = 1080, height: int = 1920) -> L
     
     # Color - primero crear fill, luego setear color
     particle_color = elem.get('color', '#38bdf8')
-    lines.append(f'var fill = vectorsGroup.addProperty("ADBE Vector Graphic - Fill");')
+    lines.append(f'var fill = vg.addProperty("ADBE Vector Graphic - Fill");')
     lines.append(f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(particle_color)});')
     
     # Posición
@@ -644,12 +694,12 @@ if (app.project == null) {{
     
     script_parts = []
     for i, scene in enumerate(scenes):
-        # Primero intentar usar ae_script_code directo
         ae_script_code = scene.get('ae_script_code')
+        print(f"[AE Full Script] Scene {i+1}: ae_script_code={'PRESENT' if ae_script_code else 'MISSING'} (len={len(ae_script_code) if ae_script_code else 0})")
         if ae_script_code:
             scene_script = f"// Escena {i + 1} - Generado por AnimaFlow\n{ae_script_code}\n"
         else:
-            # Fallback: generar desde ae_metadata (legacy)
+            print(f"[AE Full Script] Scene {i+1}: Using fallback generate_ae_script()")
             scene_script = generate_ae_script(scene, i, width, height)
         script_parts.append(scene_script)
     
@@ -657,8 +707,6 @@ if (app.project == null) {{
 // ============================================
 // FIN DEL SCRIPT
 // ============================================
-app.beginUndoGroup("AnimaFlow Import Complete");
-app.endUndoGroup();
 """
     
     return script_header + "\n".join(script_parts) + script_footer
@@ -666,7 +714,8 @@ app.endUndoGroup();
 
 def download_audio_files(job: JobModel, audio_dir: str) -> List[str]:
     """
-    Descarga los archivos de audio de Voicebox para el job.
+    Descarga los archivos de audio cacheados localmente para el job.
+    Usa el cache local en storage/audio/ en vez de descargar de Voicebox.
     
     Args:
         job: JobModel con audio URLs
@@ -675,30 +724,40 @@ def download_audio_files(job: JobModel, audio_dir: str) -> List[str]:
     Returns:
         Lista de archivos descargados
     """
-    import requests
-    
     if not job.result_spec:
         return []
     
     scenes = job.result_spec.get('scenes', [])
     downloaded_files = []
     
+    # Local cache directory
+    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../storage/audio"))
+    
     for i, scene in enumerate(scenes):
         audio_url = scene.get('audio_url')
         if audio_url:
             try:
-                response = requests.get(audio_url, timeout=10)
-                if response.status_code == 200:
+                # Try to find cached file locally
+                local_path = os.path.join(cache_dir, f"{job.id}_{i}.mp3")
+                if os.path.exists(local_path):
                     audio_filename = f"escena_{i + 1}.mp3"
                     audio_path = os.path.join(audio_dir, audio_filename)
-                    
-                    with open(audio_path, 'wb') as f:
-                        f.write(response.content)
-                    
+                    shutil.copy(local_path, audio_path)
                     downloaded_files.append(audio_filename)
-                    print(f"[AE Export] Audio descargado: {audio_filename}")
+                    print(f"[AE Export] Audio copied from cache: {audio_filename}")
+                else:
+                    # Fallback: try to download from URL (if it's a remote URL)
+                    import requests
+                    response = requests.get(audio_url, timeout=10)
+                    if response.status_code == 200:
+                        audio_filename = f"escena_{i + 1}.mp3"
+                        audio_path = os.path.join(audio_dir, audio_filename)
+                        with open(audio_path, 'wb') as f:
+                            f.write(response.content)
+                        downloaded_files.append(audio_filename)
+                        print(f"[AE Export] Audio downloaded from URL: {audio_filename}")
             except Exception as e:
-                print(f"[AE Export] Error descargando audio {i + 1}: {e}")
+                print(f"[AE Export] Error getting audio {i + 1}: {e}")
     
     return downloaded_files
 
@@ -803,3 +862,122 @@ Generado por AnimaFlow
         # Limpiar directorio temporal (pero no el zip)
         # El zip se devuelve, así que el caller es responsable de moverlo/copiarlo
         pass
+
+
+def generate_ae_export_async(job_id: str, force: bool = False):
+    """
+    RQ worker function: generates AE scripts for all scenes, then creates zip.
+    Progress stored in result_spec._ae_export_status and _ae_export_progress.
+    Uses separate psycopg2 connection for JSON persistence to bypass SQLAlchemy issues.
+    
+    Args:
+        job_id: Job ID to export
+        force: If True, clears existing ae_script_code and regenerates all scenes
+    """
+    from app.db.session import SessionLocal
+    from app.db.models import JobModel
+    from app.services.pipeline import generate_ae_script_from_tsx
+    
+    db = SessionLocal()
+    try:
+        job = db.query(JobModel).filter(JobModel.id == job_id).first()
+        if not job or not job.result_spec:
+            print(f"[AE Export] Job {job_id} not found or no spec")
+            return
+        
+        scenes = job.result_spec.get('scenes', [])
+        aspect_ratio = job.result_spec.get('aspect_ratio', job.aspect_ratio or "9:16")
+        w, h = get_resolution(aspect_ratio)
+        
+        # Force mode: clear existing scripts to regenerate all scenes
+        if force:
+            cleared = 0
+            for scene in scenes:
+                if scene.pop('ae_script_code', None):
+                    cleared += 1
+            print(f"[AE Export] Force mode: cleared {cleared} existing ae_script_code(s) for regeneration")
+            _persist_job_spec(job_id, job.result_spec)
+        
+        # Initialize export status
+        job.result_spec['_ae_export_status'] = 'generating'
+        job.result_spec['_ae_export_progress'] = {'current': 0, 'total': len(scenes)}
+        _persist_job_spec(job_id, job.result_spec)
+        
+        generated_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../frontend/src/remotion/generated"))
+        
+        for i, scene in enumerate(scenes):
+            # Skip if already generated (preserves existing)
+            if scene.get('ae_script_code'):
+                print(f"[AE Export] Scene {i+1} already has ae_script_code, skipping")
+                job.result_spec['_ae_export_progress'] = {'current': i + 1, 'total': len(scenes)}
+                _persist_job_spec(job_id, job.result_spec)
+                continue
+            
+            # Read TSX from disk
+            tsx_path = os.path.join(generated_dir, f"Scene_{job_id}_{i}.tsx")
+            if not os.path.exists(tsx_path):
+                print(f"[AE Export] TSX not found for scene {i+1}: {tsx_path}")
+                job.result_spec['_ae_export_progress'] = {'current': i + 1, 'total': len(scenes)}
+                _persist_job_spec(job_id, job.result_spec)
+                continue
+            
+            with open(tsx_path, 'r', encoding='utf-8') as f:
+                tsx_code = f.read()
+            
+            print(f"[AE Export] Generating AE script for scene {i+1}/{len(scenes)}...")
+            print(f"[AE Export] TSX file: {tsx_path}, exists: {os.path.exists(tsx_path)}")
+            
+            # Generate AE script
+            print(f"[AE Export] 🚀 Calling LLM generate_ae_script_from_tsx for scene {i+1}...")
+            ae_script = generate_ae_script_from_tsx(
+                tsx_code, scene['text'], scene['duration_seconds'],
+                scene.get('remotion_props', {}).get('backgroundColor', '#0f172a'),
+                scene.get('remotion_props', {}).get('textColor', '#38bdf8'),
+                w, h,
+                job_id=str(job.id), scene_id=i
+            )
+            print(f"[AE Export] LLM result for scene {i+1}: {'OK' if ae_script else 'NULL/FALLIDO'} (length: {len(ae_script) if ae_script else 0} chars)")
+            
+            if ae_script:
+                # Wrap with individual undo group
+                ae_script = f'app.beginUndoGroup("AnimaFlow Scene {i+1}");\n{ae_script}\napp.endUndoGroup();'
+                scene['ae_script_code'] = ae_script
+                _persist_job_spec(job_id, job.result_spec)
+                print(f"[AE Export] AE script persisted to DB for scene {i+1} (len={len(ae_script)})")
+            else:
+                print(f"[AE Export] AE script generation failed for scene {i+1}")
+            
+            # Update progress
+            job.result_spec['_ae_export_progress'] = {'current': i + 1, 'total': len(scenes)}
+            _persist_job_spec(job_id, job.result_spec)
+        
+        # Close ORM transaction and re-query to get fresh data from DB
+        db.commit()
+        job = db.query(JobModel).filter(JobModel.id == job_id).first()
+        print(f"[AE Export] Re-loaded job from DB, scenes count: {len(job.result_spec.get('scenes', []))}")
+        for i, s in enumerate(job.result_spec.get('scenes', [])):
+            has_ae = 'ae_script_code' in s and s['ae_script_code']
+            print(f"[AE Export]   Scene {i+1}: ae_script_code={'YES' if has_ae else 'NO'} (len={len(s.get('ae_script_code', '')) if has_ae else 0})")
+        
+        print(f"[AE Export] Creating export zip for job {job_id}...")
+        zip_path, zip_filename = create_export_zip(job_id, db)
+        
+        if zip_path:
+            job.result_spec['_ae_export_status'] = 'completed'
+            job.result_spec['_ae_export_zip_path'] = zip_path
+            job.result_spec['_ae_export_filename'] = zip_filename
+            print(f"[AE Export] Export completed: {zip_filename}")
+            _persist_job_spec(job_id, job.result_spec)
+        else:
+            job.result_spec['_ae_export_status'] = 'failed'
+            print(f"[AE Export] Failed to create zip")
+            _persist_job_spec(job_id, job.result_spec)
+        
+    except Exception as e:
+        print(f"[AE Export] Error: {e}")
+        job = db.query(JobModel).filter(JobModel.id == job_id).first()
+        if job and job.result_spec:
+            job.result_spec['_ae_export_status'] = f'failed: {str(e)}'
+            _persist_job_spec(job_id, job.result_spec)
+    finally:
+        db.close()

@@ -52,6 +52,7 @@ def generate_script_from_info(info: str) -> str:
 # =============================================================================
 
 VOICEBOX_API_URL = "http://127.0.0.1:17493"
+AUDIO_STORAGE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../storage/audio"))
 
 class VisualSpecResult(BaseModel):
     media_query: str = Field(description="Descripción visual detallada de la escena (en INGLÉS, ideal para generadores de IA).")
@@ -237,7 +238,7 @@ Responde SOLO con JSON válido.
                 break
             except Exception as e:
                 error_str = str(e)
-                is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
+                is_retryable = any(code in error_str for code in ["429", "500", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL"])
                 
                 if is_retryable and attempt < max_retries - 1:
                     wait_time = 3 * (2 ** attempt)
@@ -304,142 +305,138 @@ Responde SOLO con JSON válido.
         ])
 
 
-def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_color: str = "#0f172a", text_color: str = "#38bdf8", width: int = 1080, height: int = 1920) -> Optional[str]:
+def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_color: str = "#0f172a", text_color: str = "#38bdf8", width: int = 1080, height: int = 1920, job_id: str = None, scene_id: int = None) -> Optional[str]:
     """
     Traduce código TSX de Remotion directamente a ExtendScript de After Effects.
     Usa createPath() para paths SVG, addShape() para círculos, addSolid() para fondos.
     """
     import time
+    import os
+    from datetime import datetime
     from app.core.config import settings
     from app.services.ae_export import hex_to_rgb_array
     
     api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("[LLM AE] GEMINI_API_KEY no encontrada. ae_script será null.")
+        print("[LLM AE] ⚠️ GEMINI_API_KEY no encontrada. ae_script será null.")
         return None
     
+    print(f"[LLM AE] ✅ Iniciando generación AE script (width={width}, height={height}, duration={duration})")
+    
     try:
+        from app.services.svg_parser import parse_svg_from_tsx
+        from app.services.tsx_animation_parser import parse_tsx_animations
+        svg_elements = parse_svg_from_tsx(tsx_code)
+        print(f"[LLM AE] SVG parser encontró {len(svg_elements)} elementos")
+        if not svg_elements:
+            print(f"[LLM AE] ⚠️ WARNING: SVG parser no encontró elementos en el TSX")
+        
+        # Extract animation data
+        animation_data = parse_tsx_animations(tsx_code, duration, 30)
+        print(f"[LLM AE] Animation parser encontró {len(animation_data.get('animations', []))} animaciones")
+        
+        svg_context = ""
+        if svg_elements:
+            import json
+            svg_context = f"""
+GEOMETRÍA EXACTA EXTRAÍDA DEL SVG (USA ESTAS COORDENADAS EXACTAS):
+{json.dumps(svg_elements, indent=2)}
+
+Para cada elemento:
+- "path": usa new Shape() con vertices, inTangents, outTangents, closed
+- "circle": usa ellipse.property("ADBE Vector Ellipse Size").setValue([diametro, diametro])
+- "rect": usa rect.property("ADBE Vector Rect Size").setValue([width, height])
+- "line": usa new Shape() con 2 vertices, closed=false
+- "ellipse": usa ellipse.property("ADBE Vector Ellipse Size").setValue([rx*2, ry*2])
+- Los colores fill/stroke son exactos — conviértelos con hex_to_rgb_array()
+"""
+        
+        # Animation context for LLM
+        animation_context = ""
+        if animation_data.get("animations"):
+            import json
+            animation_context = f"""
+ANIMACIONES EXACTAS EXTRAÍDAS DEL TSX (REPLICA ESTOS KEYFRAMES):
+{json.dumps(animation_data, indent=2)}
+
+INSTRUCCIONES:
+- Replica CADA animación con setValueAtTime() usando los tiempos y valores exactos
+- Para spring animations: usa keyframes [0s, 0%], [0.1s, 120%], [0.3s, 100%]
+- Para opacity: fade-in 0→100, fade-out 100→0 en los tiempos indicados
+- Para position: usa los valores de translateY/translateX del TSX
+- Para scale: usa los valores de scale del TSX
+- Mantén el orden de entrada/salida de elementos como en el TSX
+"""
+        
         client = genai.Client(api_key=api_key)
         
-        prompt = f"""
-Eres un experto en After Effects ExtendScript y React/Remotion. Traduce este código TSX a un script de After Effects funcional.
+        prompt = f"""Traduce TSX de Remotion a ExtendScript de After Effects.
 
-CANVAS: {width}x{height} píxeles, {duration} segundos, 30fps.
-COLOR FONDO: {bg_color}
+CANVAS: {width}x{height}, {duration}s, 30fps. FONDO: {bg_color}
+TEXTO DE LA ESCENA: "{text}"
 COLOR TEXTO: {text_color}
+{svg_context}
+{animation_context}
+TSX:
+{tsx_code[:3000]}
 
-CÓDIGO TSX DE REMOTION:
-```tsx
-{tsx_code[:5000]}
-```
+REGLAS:
+1. FONDO: comp.layers.addSolid({hex_to_rgb_array(bg_color)}, "Fondo", {width}, {height}, 1)
+2. **OBLIGATORIO: Crear 1 layer por CADA elemento SVG en GEOMETRÍA EXACTA**. NO omitir ninguno.
+3. PATHS: comp.layers.addShape(); name="Path_N"; ADBE Vector Shape con new Shape() (vertices, inTangents, outTangents, closed)
+4. CÍRCULOS: comp.layers.addShape(); name="Circle_N"; ADBE Vector Shape - Ellipse con setValue([d,d]); animar con ADBE Scale
+5. LÍNEAS: comp.layers.addShape(); name="Line_N"; new Shape() con vertices=[[x1,y1],[x2,y2]], inTangents=[[0,0],[0,0]], outTangents=[[0,0],[0,0]], closed=false (siempre explícito, nunca undefined)
+6. ANIMACIONES: interpolate([s,e],[v1,v2]) → setValueAtTime(s/30,v1); setValueAtTime(e/30,v2). spring() → Scale keyframes [0,0%],[0.1s,120%],[0.3s,100%]
+7. TEXTO: Analiza el TSX para ver cómo se muestra el texto (cuántas líneas, saltos naturales). Replica los mismos saltos de línea en AE usando \n. Si el TSX muestra texto en 2-3 líneas por limitación de ancho, agrega \n en los mismos puntos. Si es una palabra sola centrada, usa una sola línea. Ejemplo: comp.layers.addText("Tus plantas limpian el aire\ny reducen el estrés.");
+8. RANDOM: function randomRange(min, max) {{ return min + (Math.random() * (max - min)); }}. NO usar generateRandomNumber (built-in de AE sin params). NO Math.random() directo. NO expressions. NO ADBE Rotation (usar ADBE Rotate Z)
+9. TEXTO POS: X={width//2}, Y={int(height*0.7)}-{int(height*0.85)}. fontSize=64, Bold. Fade-in 0-0.8s, fade-out últimos 0.3s
 
-Tu tarea: Crear un script de After Effects que reproduzca visualmente esta animación.
+ESTRUCTURA SHAPE LAYER (OBLIGATORIA):
+Shape Layer → ADBE Root Vectors Group → ADBE Vector Group (addProperty) → ADBE Vectors Group (.property) → shapes/fills/strokes
 
-REGLAS CRÍTICAS:
+CÓDIGO:
+var sl = comp.layers.addShape(); sl.name = "S";
+var g = sl.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
+var vg = g.property("ADBE Vectors Group");
+var ps = vg.addProperty("ADBE Vector Shape - Group");
+var s = new Shape(); s.vertices = [[0,0],[100,100]]; s.inTangents = [[0,0],[0,0]]; s.outTangents = [[0,0],[0,0]]; s.closed = true;
+ps.property("ADBE Vector Shape").setValue(s);
+var f = vg.addProperty("ADBE Vector Graphic - Fill"); f.property("ADBE Vector Fill Color").setValue([R,G,B]);
+var st = vg.addProperty("ADBE Vector Graphic - Stroke"); st.property("ADBE Vector Stroke Color").setValue([R,G,B]); st.property("ADBE Vector Stroke Width").setValue(2);
 
-1. FONDO:
-   var bgLayer = comp.layers.addSolid({hex_to_rgb_array(bg_color)}, "Fondo", {width}, {height}, 1);
+MATCH NAMES: Path=`ADBE Vector Shape - Group`, Ellipse=`ADBE Vector Shape - Ellipse`, Rect=`ADBE Vector Shape - Rect`, Fill=`ADBE Vector Graphic - Fill`, Stroke=`ADBE Vector Graphic - Stroke`, Trim=`ADBE Vector Filter - Trim`
+VECTORS GROUP: usar .property("ADBE Vectors Group"), NO addProperty
+LÍNEAS: convertir x1,y1,x2,y2 → vertices=[[x1,y1],[x2,y2]], closed=false
 
-2. PATHS SVG → Shape object (NO usar createPath, no existe en ExtendScript):
-   // Para <path d="M x1 y1 L x2 y2 C cx1 cy1 cx2 cy2 x3 y3 Z" />
-   var shapeGroup = layer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-   var pathProp = shapeGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Group");
-   var myShape = new Shape();
-   myShape.vertices = [[x1,y1], [x2,y2], [x3,y3]];
-   myShape.inTangents = [[0,0], [0,0], [0,0]];
-   myShape.outTangents = [[0,0], [0,0], [0,0]];
-   myShape.closed = true;  // true si el path tiene Z, false si no
-   pathProp.property("ADBE Vector Shape").setValue(myShape);
-   var fill = shapeGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Fill");
-   fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#color")});
+EJEMPLO:
+var comp = app.project.items.addComp("S", {width}, {height}, 1, {duration}, 30);
+comp.layers.addSolid({hex_to_rgb_array(bg_color)}, "BG", {width}, {height}, 1);
+var c = comp.layers.addShape(); c.name = "C1";
+var cg = c.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
+var vg = cg.property("ADBE Vectors Group");
+var e = vg.addProperty("ADBE Vector Shape - Ellipse"); e.property("ADBE Vector Ellipse Size").setValue([100,100]);
+vg.addProperty("ADBE Vector Graphic - Fill").property("ADBE Vector Fill Color").setValue([0.29,0.87,0.50]);
+c.property("ADBE Transform Group").property("ADBE Position").setValue([540,960]);
+c.property("ADBE Transform Group").property("ADBE Scale").setValueAtTime(0,[0,0]); c.property("ADBE Transform Group").property("ADBE Scale").setValueAtTime(0.5,[100,100]);
+// Texto en 2 líneas (replicando layout del TSX):
+var txt = comp.layers.addText("Tus plantas limpian el aire\ny reducen el estrés.");
+var td = txt.property("Source Text").value;
+td.fontSize = 64; td.fauxBold = true;
+td.fillColor = {hex_to_rgb_array(text_color)};
+td.justification = ParagraphJustification.CENTER_JUSTIFY;
+txt.property("Source Text").setValue(td);
+txt.property("ADBE Transform Group").property("ADBE Position").setValue([540,1344]);
+txt.property("ADBE Transform Group").property("ADBE Opacity").setValueAtTime(0,0);
+txt.property("ADBE Transform Group").property("ADBE Opacity").setValueAtTime(0.8,100);
 
-   // Para curvas bezier (C en SVG), ajustar tangentes:
-   // C cx1 cy1 cx2 cy2 x3 y3 → outTangent del punto anterior = [cx1-x1, cy1-y1], inTangent de x3 = [cx2-x3, cy2-y3]
-
-3. CÍRCULOS → Ellipse:
-   var shapeGroup = layer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-   var ellipse = shapeGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Ellipse");
-   ellipse.property("ADBE Vector Ellipse Size").setValue([diameter, diameter]);
-   var fill = shapeGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Fill");
-   fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array("#color")});
-   
-   // IMPORTANTE: NO usar setValueAtTime() en ellipse.property("ADBE Vector Ellipse Size")
-   // Para animar tamaño de elipse, usar AD BE Scale del layer:
-   // layer.property("ADBE Transform Group").property("ADBE Scale").setValueAtTime(t, [scaleX, scaleY]);
-
-4. LÍNEAS → Shape object abierto:
-   var myShape = new Shape();
-   myShape.vertices = [[x1,y1], [x2,y2]];
-   myShape.inTangents = [[0,0], [0,0]];
-   myShape.outTangents = [[0,0], [0,0]];
-   myShape.closed = false;
-   pathProp.property("ADBE Vector Shape").setValue(myShape);
-   var stroke = shapeGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Stroke");
-   stroke.property("ADBE Vector Stroke Color").setValue({hex_to_rgb_array("#color")});
-   stroke.property("ADBE Vector Stroke Width").setValue(2);
-
-5. ANIMACIONES (SOLO en Transform Group del layer):
-   // Posición:
-   var posProp = layer.property("ADBE Transform Group").property("ADBE Position");
-   posProp.setValueAtTime(0, [x, y]);
-   posProp.setValueAtTime(1, [x2, y2]);
-   
-   // Escala (en porcentaje, 100 = normal):
-   var scaleProp = layer.property("ADBE Transform Group").property("ADBE Scale");
-   scaleProp.setValueAtTime(0, [0, 0]);
-   scaleProp.setValueAtTime(1, [100, 100]);
-   
-   // Opacidad:
-   var opacityProp = layer.property("ADBE Transform Group").property("ADBE Opacity");
-   opacityProp.setValueAtTime(0, 0);
-   opacityProp.setValueAtTime(0.5, 100);
-   
-   // Rotación (en grados):
-   var rotProp = layer.property("ADBE Transform Group").property("ADBE Rotation");
-   rotProp.setValueAtTime(0, 0);
-   rotProp.setValueAtTime(1, 360);
-
-6. TEXTO:
-   var textLayer = comp.layers.addText("{text}");
-   textLayer.property("ADBE Text Properties").property("ADBE Text Fill Color").setValue({hex_to_rgb_array(text_color)});
-
-7. COORDENADAS:
-   - El viewBox del TSX es "0 0 {width} {height}"
-   - Las coordenadas del TSX son directamente aplicables al canvas de AE
-   - Si el TSX usa translate(x, y), sumar esas coordenadas a la posición base
-
-8. GLOW:
-   var effects = layer.property("ADBE Effect Parade");
-   var glow = effects.addProperty("ADBE Glo2");
-   glow.property(3).setValue(50);
-   glow.property(4).setValue(1);
-
-9. RANDOM:
-   - NO usar Math.random() en ExtendScript (puede fallar en AE)
-   - Usar generateRandomNumber() en su lugar
-   - Ejemplo: var x = 540 + (generateRandomNumber() - 0.5) * 300;
-
-10. EXPRESIONES:
-    - Evitar usar expresiones complejas en scripts (.jsx)
-    - Si necesitas animación continua (pulse, oscillation), usa setValueAtTime() con keyframes manuales
-    - NO usar: layer.property("ADBE Scale").expression = "..."
-
-IMPORTANTE:
-- NO usar addSolid() para elementos que no sean fondo
-- NO usar createPath() — NO existe en ExtendScript. Usar "new Shape()" con vertices, inTangents, outTangents, closed
-- NO usar setValueAtTime() en ellipse.property("ADBE Vector Ellipse Size") — retorna null. Usar AD BE Scale del layer
-- NO usar Math.random() — usar generateRandomNumber()
-- NO usar expressions en scripts — usar keyframes manuales con setValueAtTime()
-- Mantener el orden de capas: fondo → elementos traseros → elementos delanteros → texto
-- Cada capa debe tener nombre descriptivo
-
-Responde SOLO con el código ExtendScript. Sin markdown, sin explicaciones.
-"""
+SOLO código ExtendScript."""
+        print(f"[LLM AE] Enviando prompt a Gemini (longitud: {len(prompt)} chars)")
         
         max_retries = 3
         response = None
         for attempt in range(max_retries):
             try:
+                print(f"[LLM AE] Llamada a Gemini API (intento {attempt+1}/{max_retries})...")
                 response = client.models.generate_content(
                     model=settings.GEMINI_MODEL,
                     contents=prompt,
@@ -447,10 +444,11 @@ Responde SOLO con el código ExtendScript. Sin markdown, sin explicaciones.
                         temperature=0.7,
                     ),
                 )
+                print(f"[LLM AE] ✅ Respuesta recibida de Gemini (longitud: {len(response.text)} chars)")
                 break
             except Exception as e:
                 error_str = str(e)
-                is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
+                is_retryable = any(code in error_str for code in ["429", "500", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL"])
                 
                 if is_retryable and attempt < max_retries - 1:
                     wait_time = 3 * (2 ** attempt)
@@ -483,10 +481,108 @@ Responde SOLO con el código ExtendScript. Sin markdown, sin explicaciones.
                     code_lines.append(line)
             script = "\n".join(code_lines)
         
+        # Post-processing: fix common AE scripting errors
+        # a) Remove duplicate randomRange() / generateRandomNumber() — keep first, remove rest
+        def remove_duplicate_generate_random(script_text):
+            pattern = r'(function (?:randomRange|generateRandomNumber)\([^)]*\)\s*\{[^}]*\})'
+            matches = list(re.finditer(pattern, script_text))
+            if len(matches) > 1:
+                for m in matches[1:]:
+                    script_text = script_text[:m.start()] + script_text[m.end():]
+            return script_text
+        
+        script = remove_duplicate_generate_random(script)
+        
+        # b) Replace layers.length → layers.numLayers
+        script = re.sub(r'\.layers\.length', '.layers.numLayers', script)
+        
+        # c) Replace ADBE Rotation → ADBE Rotate Z (word boundary to avoid Rotate Z becoming Rotate ZZ)
+        script = re.sub(r'\bADBE Rotation\b', 'ADBE Rotate Z', script)
+        
+        # d) Validate no createPath() slipped through
+        if "createPath(" in script:
+            print(f"[LLM AE] ⚠️ createPath() detected in output, removing...")
+            script = script.replace("createPath(", "// REMOVED: createPath(")
+        
+        # e) Fix unclosed quotes in .property() calls (e.g. "ADBE Opacity)) → "ADBE Opacity"))
+        script = re.sub(
+            r'\.property\("([^"]+)\)\)',
+            r'.property("\1"))',
+            script
+        )
+        
+        # f) Rename generateRandomNumber → randomRange (avoid AE built-in conflict)
+        script = script.replace('generateRandomNumber', 'randomRange')
+        
+        # g) Normalize randomRange(min, max) — LLM sometimes generates it without params
+        script = re.sub(
+            r'function randomRange\([^)]*\)\s*\{[^}]*\}',
+            'function randomRange(min, max) {\n    return min + (Math.random() * (max - min));\n}',
+            script
+        )
+        
+        # h) Fix undefined closed → false (AE requires boolean, not undefined)
+        script = script.replace('s.closed = item.closed;', 's.closed = item.closed !== undefined ? item.closed : false;')
+        
+        # === DEBUG FILE LOGGING ===
+        try:
+            debug_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'storage', 'debug')
+            os.makedirs(debug_dir, exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            scene_str = f"scene_{scene_id}" if scene_id is not None else "scene_X"
+            job_str = job_id if job_id else "job_unknown"
+            debug_filename = f"{job_str}_{scene_str}_{timestamp}.txt"
+            debug_path = os.path.join(debug_dir, debug_filename)
+            
+            # Count validation metrics
+            addshape_count = len(re.findall(r'\.addShape\(\)', script))
+            addtext_count = len(re.findall(r'\.addText\(', script))
+            addsolid_count = len(re.findall(r'\.addSolid\(', script))
+            createpath_count = len(re.findall(r'createPath\(', script))
+            mathrandom_count = len(re.findall(r'Math\.random\(\)', script))
+            rotation_count = len(re.findall(r'ADBE Rotation\b', script))
+            
+            debug_content = f"""=== METADATA ===
+job_id: {job_id or 'unknown'}
+scene_id: {scene_id if scene_id is not None else 'unknown'}
+timestamp: {timestamp}
+svg_elements_found: {len(svg_elements)}
+prompt_length: {len(prompt)}
+response_raw_length: {len(response.text)}
+post_processed_length: {len(script)}
+
+=== VALIDATION ===
+addShape() calls: {addshape_count}
+addText() calls: {addtext_count}
+addSolid() calls: {addsolid_count}
+createPath() detected: {'YES (' + str(createpath_count) + ')' if createpath_count > 0 else 'NO'}
+Math.random() detected: {'YES (' + str(mathrandom_count) + ')' if mathrandom_count > 0 else 'NO'}
+ADBE Rotation detected: {'YES (' + str(rotation_count) + ')' if rotation_count > 0 else 'NO'}
+
+=== PROMPT (primeros 1000 chars) ===
+{prompt[:1000]}
+
+=== RESPONSE RAW ===
+{response.text}
+
+=== POST-PROCESSED ===
+{script}
+"""
+            
+            with open(debug_path, 'w', encoding='utf-8') as f:
+                f.write(debug_content)
+            
+            print(f"[LLM AE] 💾 Debug guardado: {debug_filename} (shapes={addshape_count}, text={addtext_count}, solids={addsolid_count})")
+        except Exception as debug_err:
+            print(f"[LLM AE] ⚠️ Error guardando debug file: {debug_err}")
+        
         return script
         
     except Exception as e:
-        print(f"[LLM AE-TSX] Error generando script AE desde TSX: {e}")
+        import traceback
+        print(f"[LLM AE] ❌ ERROR generando script AE: {type(e).__name__}: {e}")
+        traceback.print_exc()
         return None
 
 
@@ -561,7 +657,7 @@ Responde SOLO con JSON válido.
                 break
             except Exception as e:
                 error_str = str(e)
-                is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
+                is_retryable = any(code in error_str for code in ["429", "500", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL"])
                 
                 if is_retryable and attempt < max_retries - 1:
                     wait_time = 3 * (2 ** attempt)
@@ -670,7 +766,7 @@ Responde SOLO con JSON válido.
                 break
             except Exception as e:
                 error_str = str(e)
-                is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
+                is_retryable = any(code in error_str for code in ["429", "500", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL"])
                 
                 if is_retryable and attempt < max_retries - 1:
                     wait_time = 3 * (2 ** attempt)
@@ -722,7 +818,7 @@ async def _call_gemini_with_retry(client, prompt: str, max_retries: int = 3, mod
         except Exception as e:
             error_str = str(e)
             # Detectar errores retryables: 429 (quota), 503 (unavailable), RESOURCE_EXHAUSTED, UNAVAILABLE
-            is_retryable = any(code in error_str for code in ["429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"])
+            is_retryable = any(code in error_str for code in ["429", "500", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL"])
             
             if is_retryable and attempt < max_retries - 1:
                 wait_time = 3 * (2 ** attempt)  # 3s, 6s, 12s (backoff exponencial optimizado)
@@ -1000,9 +1096,29 @@ async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: B
     for i, chunk in enumerate(chunks):
         print(f"[{job_id}] Enviando escena {i+1} a Voicebox para TTS...")
         duration, audio_url = await generate_tts_with_voicebox(chunk, f"Escena-{i+1}")
+        print(f"[{job_id}] TTS escena {i+1}: duration={duration}, audio_url={audio_url}")
         
         if duration is None:
             duration = max(3.0, len(chunk) / 15.0)
+        
+        # Download audio from Voicebox and cache locally
+        if audio_url:
+            os.makedirs(AUDIO_STORAGE, exist_ok=True)
+            local_path = os.path.join(AUDIO_STORAGE, f"{job_id}_{i}.mp3")
+            try:
+                import requests
+                response = requests.get(audio_url, timeout=10)
+                if response.status_code == 200:
+                    with open(local_path, 'wb') as f:
+                        f.write(response.content)
+                    audio_url = f"http://localhost:8000/api/audio/{job_id}_{i}.mp3"
+                    print(f"[{job_id}] Audio cached locally: {local_path}")
+                else:
+                    print(f"[{job_id}] Failed to download audio from Voicebox: {response.status_code}")
+                    audio_url = None
+            except Exception as e:
+                print(f"[{job_id}] Error downloading audio: {e}")
+                audio_url = None
         
         visual_spec = batch_visuals.scenes[i] if i < len(batch_visuals.scenes) else batch_visuals.scenes[-1]
 
@@ -1012,23 +1128,8 @@ async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: B
         if i < len(chunks) - 1:
             await asyncio.sleep(4)
 
-        # Generar ExtendScript directamente desde el TSX
-        print(f"[{job_id}] Generando ExtendScript AE desde TSX para escena {i+1}...")
-        tsx_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../frontend/src/remotion/generated", f"Scene_{job_id}_{i}.tsx"))
-        tsx_code = ""
-        if os.path.exists(tsx_file_path):
-            with open(tsx_file_path, "r", encoding="utf-8") as f:
-                tsx_code = f.read()
-        
-        ae_script_code = None
-        if tsx_code:
-            ae_script_code = generate_ae_script_from_tsx(
-                tsx_code, chunk, duration,
-                visual_spec.backgroundColor, visual_spec.textColor,
-                w, h
-            )
-        else:
-            print(f"[{job_id}] TSX no encontrado, ae_script será null.")
+        # AE script generation deferred to export step (saves tokens during iteration)
+        print(f"[{job_id}] AE script generation deferred to export step (escena {i+1})")
 
         timeline_scenes.append({
             "start_time_seconds": round(current_start_time, 2),
@@ -1042,7 +1143,7 @@ async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: B
             },
             "sfx": [],
             "audio_url": audio_url,
-            "ae_script_code": ae_script_code
+            "ae_script_code": None
         })
         current_start_time += duration
         
@@ -1081,8 +1182,27 @@ async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new
     if new_text != scene["text"]:
         print(f"[{job_id}] Regenerando TTS para escena {scene_index}...")
         duration, audio_url = await generate_tts_with_voicebox(new_text, f"Escena-{scene_index+1}")
+        print(f"[{job_id}] TTS escena {scene_index+1}: duration={duration}, audio_url={audio_url}")
         if duration is not None:
             scene["duration_seconds"] = round(duration, 2)
+            # Download and cache audio
+            if audio_url:
+                os.makedirs(AUDIO_STORAGE, exist_ok=True)
+                local_path = os.path.join(AUDIO_STORAGE, f"{job_id}_{scene_index}.mp3")
+                try:
+                    import requests
+                    response = requests.get(audio_url, timeout=10)
+                    if response.status_code == 200:
+                        with open(local_path, 'wb') as f:
+                            f.write(response.content)
+                        audio_url = f"http://localhost:8000/api/audio/{job_id}_{scene_index}.mp3"
+                        print(f"[{job_id}] Audio cached locally: {local_path}")
+                    else:
+                        print(f"[{job_id}] Failed to download audio: {response.status_code}")
+                        audio_url = None
+                except Exception as e:
+                    print(f"[{job_id}] Error downloading audio: {e}")
+                    audio_url = None
             scene["audio_url"] = audio_url
     
     scene["text"] = new_text
@@ -1099,22 +1219,8 @@ async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new
     
     scene["type"] = component_type_name
     
-    # Generar ExtendScript directamente desde el TSX
-    print(f"[{job_id}] Generando ExtendScript AE desde TSX para escena {scene_index}...")
-    tsx_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../frontend/src/remotion/generated", f"Scene_{job_id}_{scene_index}.tsx"))
-    tsx_code = ""
-    if os.path.exists(tsx_file_path):
-        with open(tsx_file_path, "r", encoding="utf-8") as f:
-            tsx_code = f.read()
-    
-    if tsx_code:
-        scene["ae_script_code"] = generate_ae_script_from_tsx(
-            tsx_code, new_text, scene["duration_seconds"],
-            visual_spec.backgroundColor, visual_spec.textColor,
-            w, h
-        )
-    else:
-        scene["ae_script_code"] = None
+    # AE script generation deferred to export step
+    scene["ae_script_code"] = None
     
     spec["scenes"][scene_index] = scene
     

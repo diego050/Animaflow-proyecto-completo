@@ -42,6 +42,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState("9:16");
+  const [aeExportStatus, setAeExportStatus] = useState<string>("");
+  const [aeExportProgress, setAeExportProgress] = useState({ current: 0, total: 0 });
 
   const generateScriptIA = async () => {
     if (!scriptTopic.trim()) return;
@@ -109,6 +111,9 @@ export default function App() {
         if (data.status === "completed" && !isRendering) {
           setSpec(data.result_spec);
           if (data.result_spec?.aspect_ratio) setAspectRatio(data.result_spec.aspect_ratio);
+          if (data.result_spec?._ae_export_status === 'completed') {
+            setAeExportStatus('completed');
+          }
           setLoading(false);
           clearInterval(interval);
         } else if (data.status === "completed_video") {
@@ -174,6 +179,8 @@ export default function App() {
             setInputText("");
             setVideoUrl(null);
             setStatus("");
+            setAeExportStatus("");
+            setAeExportProgress({ current: 0, total: 0 });
             setView("editor");
           }}
           onSelectJob={(id, loadedSpec, loadedStatus, loadedVideoUrl, loadedScriptText) => {
@@ -181,6 +188,11 @@ export default function App() {
             if (loadedSpec) {
               setSpec(loadedSpec);
               if (loadedSpec.aspect_ratio) setAspectRatio(loadedSpec.aspect_ratio);
+              if (loadedSpec._ae_export_status === 'completed') {
+                setAeExportStatus('completed');
+              } else {
+                setAeExportStatus('');
+              }
             }
             setStatus(loadedStatus);
             setVideoUrl(loadedVideoUrl);
@@ -290,33 +302,127 @@ export default function App() {
           {jobId && (status.includes("Timeline") || status.includes("completed")) && (
             <div className="mt-6 flex flex-col gap-3 w-full max-w-sm">
               <p className="text-slate-400 text-sm text-center">Exportar proyecto:</p>
-              <button
-                onClick={async () => {
-                  setDownloading("ae");
-                  try {
-                    const res = await fetch(`http://localhost:8000/api/jobs/${jobId}/export/after-effects`);
-                    if (!res.ok) throw new Error("Error al exportar");
-                    const blob = await res.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `animaflow_${jobId}_ae.zip`;
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                  } catch (e) {
-                    alert("Error al descargar After Effects: " + e);
-                  } finally {
-                    setDownloading(null);
+              {aeExportStatus === 'completed' ? (
+                <div className="flex gap-2 w-full">
+                  <button
+                    onClick={async () => {
+                      setDownloading("ae");
+                      try {
+                        const downloadRes = await fetch(`http://localhost:8000/api/jobs/${jobId}/export/after-effects/download`);
+                        if (!downloadRes.ok) throw new Error("Error al descargar");
+                        const blob = await downloadRes.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `animaflow_${jobId}_ae.zip`;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                      } catch (e) {
+                        alert("Error al descargar: " + e);
+                      } finally {
+                        setDownloading(null);
+                      }
+                    }}
+                    disabled={downloading === "ae"}
+                    className={`flex-1 py-3 px-4 rounded-lg font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${
+                      downloading === "ae" ? 'bg-emerald-600 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-500/30'
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    {downloading === "ae" ? "⏳ Descargando..." : "📥 Descargar AE"}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setDownloading("ae");
+                      setAeExportStatus("queued");
+                      setAeExportProgress({ current: 0, total: 0 });
+
+                      const triggerRes = await fetch(`http://localhost:8000/api/jobs/${jobId}/export/after-effects?force=true`, { method: "POST" });
+                      if (!triggerRes.ok) { alert("Error al regenerar"); setDownloading(null); return; }
+
+                      const pollInterval = setInterval(async () => {
+                        const statusRes = await fetch(`http://localhost:8000/api/jobs/${jobId}/export/after-effects/status`);
+                        const statusData = await statusRes.json();
+                        setAeExportStatus(statusData.status);
+                        setAeExportProgress(statusData.progress);
+                        if (statusData.status === 'completed') {
+                          clearInterval(pollInterval);
+                          setDownloading(null);
+                        } else if (statusData.status.startsWith('failed')) {
+                          clearInterval(pollInterval);
+                          alert("Error en export: " + statusData.status);
+                          setDownloading(null);
+                          setAeExportStatus("");
+                        }
+                      }, 2000);
+                    }}
+                    disabled={downloading === "ae"}
+                    className={`flex-1 py-3 px-4 rounded-lg font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${
+                      downloading === "ae" ? 'bg-amber-600 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 shadow-amber-500/30'
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                    </svg>
+                    {downloading === "ae" ? "⏳ Regenerando..." : "🔄 Regenerar"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    setDownloading("ae");
+                    setAeExportStatus("queued");
+                    setAeExportProgress({ current: 0, total: 0 });
+
+                    const triggerRes = await fetch(`http://localhost:8000/api/jobs/${jobId}/export/after-effects`, { method: "POST" });
+                    if (!triggerRes.ok) { alert("Error al iniciar export"); setDownloading(null); return; }
+
+                    const pollInterval = setInterval(async () => {
+                      const statusRes = await fetch(`http://localhost:8000/api/jobs/${jobId}/export/after-effects/status`);
+                      const statusData = await statusRes.json();
+                      setAeExportStatus(statusData.status);
+                      setAeExportProgress(statusData.progress);
+                      if (statusData.status === 'completed') {
+                        clearInterval(pollInterval);
+                        // Auto-download on first generation
+                        const downloadRes = await fetch(`http://localhost:8000/api/jobs/${jobId}/export/after-effects/download`);
+                        if (!downloadRes.ok) { alert("Error al descargar"); setDownloading(null); return; }
+                        const blob = await downloadRes.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = statusData.filename || `animaflow_${jobId}_ae.zip`;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        setDownloading(null);
+                      } else if (statusData.status.startsWith('failed')) {
+                        clearInterval(pollInterval);
+                        alert("Error en export: " + statusData.status);
+                        setDownloading(null);
+                        setAeExportStatus("");
+                      }
+                    }, 2000);
+                  }}
+                  disabled={downloading === "ae"}
+                  className={`w-full py-3 px-6 rounded-lg font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${
+                    downloading === "ae"
+                      ? 'bg-purple-600 opacity-50 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-500/30'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  {downloading === "ae" && aeExportStatus === 'generating'
+                    ? `⏳ Generando AE... (Escena ${aeExportProgress.current}/${aeExportProgress.total})`
+                    : downloading === "ae"
+                      ? "⏳ Iniciando export..."
+                      : "🎬 Generar After Effects (.zip)"
                   }
-                }}
-                disabled={downloading === "ae"}
-                className={`w-full py-3 px-6 rounded-lg font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${downloading === "ae" ? 'bg-purple-600 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-purple-500/30'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000.svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                </svg>
-                {downloading === "ae" ? "⏳ Descargando After Effects..." : "🎬 Descargar After Effects (.zip)"}
-              </button>
+                </button>
+              )}
               <button
                 onClick={async () => {
                   setDownloading("spec");
@@ -339,7 +445,7 @@ export default function App() {
                 disabled={downloading === "spec"}
                 className={`w-full py-3 px-6 rounded-lg font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${downloading === "spec" ? 'bg-slate-600 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-slate-600 to-gray-600 hover:from-slate-500 hover:to-gray-500 shadow-slate-500/30'}`}
               >
-                <svg xmlns="http://www.w3.org/2000.svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                 </svg>
                 {downloading === "spec" ? "⏳ Descargando spec.json..." : "📋 Descargar spec.json"}

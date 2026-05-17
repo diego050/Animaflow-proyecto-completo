@@ -67,3 +67,7 @@ voicebox/
 *.swo
 .DS_Store
 Thumbs.db
+
+# === Debug / LLM Output ===
+/backend/storage/debug/*
+!/backend/storage/debug/.gitkeep

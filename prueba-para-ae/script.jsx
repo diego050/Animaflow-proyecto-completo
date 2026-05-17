@@ -10,292 +10,259 @@ if (app.project == null) {
 }
 
 // Escena 1 - Generado por AnimaFlow
-function generateRandomNumber() {
-    return Math.random();
-}
-
+app.beginUndoGroup("AnimaFlow Scene 1");
 var comp = app.project.items.addComp("Scene", 1080, 1920, 1, 3.3, 30);
 
-// 1. FONDO
-var bgLayer = comp.layers.addSolid([0.059, 0.090, 0.165], "Fondo", 1080, 1920, 1);
-
-// 2. AURA PULSING
-var auraLayer = comp.layers.addShape();
-auraLayer.name = "Aura";
-var auraGroup = auraLayer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-var auraEllipse = auraGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Ellipse");
-auraEllipse.property("ADBE Vector Ellipse Size").setValue([400, 400]);
-var auraFill = auraGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Fill");
-auraFill.property("ADBE Vector Fill Color").setValue([0.133, 0.773, 0.361]);
-auraFill.property("ADBE Vector Fill Opacity").setValue(60);
-
-var auraPos = auraLayer.property("ADBE Transform Group").property("ADBE Position");
-auraPos.setValue([540, 960]);
-var auraScale = auraLayer.property("ADBE Transform Group").property("ADBE Scale");
-var auraOpac = auraLayer.property("ADBE Transform Group").property("ADBE Opacity");
-
-// Aura Animation (Pulse)
-auraOpac.setValueAtTime(0, 20);
-auraOpac.setValueAtTime(1, 80);
-auraOpac.setValueAtTime(2, 20);
-auraOpac.setValueAtTime(3, 80);
-
-auraScale.setValueAtTime(0, [100, 100]);
-auraScale.setValueAtTime(1, [120, 120]);
-auraScale.setValueAtTime(2, [100, 100]);
-auraScale.setValueAtTime(3, [120, 120]);
-
-// 3. PARTICLES
-for (var i = 0; i < 12; i++) {
-    var pLayer = comp.layers.addShape();
-    pLayer.name = "Particle_" + i;
-    var pGroup = pLayer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-    var pEllipse = pGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Ellipse");
-    pEllipse.property("ADBE Vector Ellipse Size").setValue([20, 20]);
-    var pFill = pGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Fill");
-    pFill.property("ADBE Vector Fill Color").setValue([0.294, 0.871, 0.502]);
-
-    var pPos = pLayer.property("ADBE Transform Group").property("ADBE Position");
-    var pOpac = pLayer.property("ADBE Transform Group").property("ADBE Opacity");
-
-    var startT = (20 + (i * 4)) / 30;
-    var endT = startT + (60 / 30);
-    var midT = startT + (20 / 30);
-    var fadeOutT = endT - (20 / 30);
-
-    var xOffset = (i % 2 === 0 ? 40 : -40);
-
-    pPos.setValueAtTime(startT, [540, 960]);
-    pPos.setValueAtTime(endT, [540 + xOffset, 400]);
-
-    pOpac.setValueAtTime(startT, 0);
-    pOpac.setValueAtTime(midT, 100);
-    pOpac.setValueAtTime(fadeOutT, 100);
-    pOpac.setValueAtTime(endT, 0);
+// --- HELPER FUNCTIONS ---
+function hex_to_rgb_array(hex) {
+    hex = hex.replace('#', '');
+    var r = parseInt(hex.substring(0, 2), 16) / 255;
+    var g = parseInt(hex.substring(2, 4), 16) / 255;
+    var b = parseInt(hex.substring(4, 6), 16) / 255;
+    return [r, g, b];
 }
 
-// 4. THE LEAF
-var leafLayer = comp.layers.addShape();
-leafLayer.name = "Leaf";
-leafLayer.property("ADBE Transform Group").property("ADBE Anchor Point").setValue([540, 960]);
-leafLayer.property("ADBE Transform Group").property("ADBE Position").setValue([540, 960]);
+function randomRange(min, max) {
+    return min + (Math.random() * (max - min));
+}
 
-var leafGroup = leafLayer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-var leafPathProp = leafGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Group");
-var leafShape = new Shape();
-leafShape.vertices = [[540, 820], [540, 1180]];
-leafShape.outTangents = [[120, 60], [-120, -130]];
-leafShape.inTangents = [[-120, 60], [120, -130]];
-leafShape.closed = true;
-leafPathProp.property("ADBE Vector Shape").setValue(leafShape);
+// 1. FONDO
+comp.layers.addSolid([0.059, 0.090, 0.165], "Fondo", 1080, 1920, 1);
 
-var leafFill = leafGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Fill");
-leafFill.property("ADBE Vector Fill Color").setValue([0.294, 0.871, 0.502]);
+// --- GEOMETRY DATA ---
+var geometry = [
+    {
+        "type": "path",
+        "name": "Leaf_Shadow",
+        "vertices": [[0.0, 0.0], [240.0, 0.0], [0.0, 0.0]],
+        "inTangents": [[0.0, 0.0], [-60.0, -120.0], [60.0, 120.0]],
+        "outTangents": [[60.0, -120.0], [-60.0, 120.0], [0.0, 0.0]],
+        "closed": false,
+        "fill": "#000000"
+    },
+    {
+        "type": "path",
+        "name": "Leaf_Main",
+        "vertices": [[0.0, 0.0], [240.0, 0.0], [0.0, 0.0]],
+        "inTangents": [[0.0, 0.0], [-60.0, -120.0], [60.0, 120.0]],
+        "outTangents": [[60.0, -120.0], [-60.0, 120.0], [0.0, 0.0]],
+        "closed": false,
+        "fill": "#2ecc71" // Using primary color for gradient approximation
+    },
+    {
+        "type": "path",
+        "name": "Leaf_Vein",
+        "vertices": [[-120.0, 0.0], [120.0, 0.0]],
+        "inTangents": [[0.0, 0.0], [0.0, 0.0]],
+        "outTangents": [[0.0, 0.0], [0.0, 0.0]],
+        "closed": false,
+        "stroke": "#1e8449",
+        "strokeWidth": 1.0
+    },
+    {
+        "type": "circle",
+        "name": "Ripple",
+        "cx": 540.0,
+        "cy": 960.0,
+        "r": 0.0,
+        "stroke": "#a2dff7",
+        "strokeWidth": 1.0
+    },
+    {
+        "type": "circle",
+        "name": "Particle_Base",
+        "cx": 0.0,
+        "cy": 0.0,
+        "r": 3.0,
+        "fill": "#a2dff7"
+    }
+];
 
-var leafStroke = leafGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Stroke");
-leafStroke.property("ADBE Vector Stroke Color").setValue([0.294, 0.871, 0.502]);
-leafStroke.property("ADBE Vector Stroke Width").setValue(4);
+// --- CREATE ELEMENTS ---
 
-// Leaf Vein
-var veinGroup = leafLayer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-var veinPathProp = veinGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Group");
-var veinShape = new Shape();
-veinShape.vertices = [[540, 820], [540, 1180]];
-veinShape.closed = false;
-veinPathProp.property("ADBE Vector Shape").setValue(veinShape);
-var veinStroke = veinGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Stroke");
-veinStroke.property("ADBE Vector Stroke Color").setValue([0.294, 0.871, 0.502]);
-veinStroke.property("ADBE Vector Stroke Width").setValue(6);
+// Leaf Grouping logic: First 3 elements are the leaf
+var leafLayers = [];
 
-// Leaf Animations
-var leafScale = leafLayer.property("ADBE Transform Group").property("ADBE Scale");
-var leafRot = leafLayer.property("ADBE Transform Group").property("ADBE Rotation");
+for (var i = 0; i < geometry.length; i++) {
+    var item = geometry[i];
+    var sl = comp.layers.addShape();
+    sl.name = item.name;
+    
+    var g = sl.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
+    var vg = g.property("ADBE Vectors Group");
+    
+    if (item.type === "path") {
+        var ps = vg.addProperty("ADBE Vector Shape - Group");
+        var s = new Shape();
+        s.vertices = item.vertices;
+        s.inTangents = item.inTangents;
+        s.outTangents = item.outTangents;
+        s.closed = item.closed !== undefined ? item.closed : false;
+        ps.property("ADBE Vector Shape").setValue(s);
+        
+        if (item.fill) {
+            var f = vg.addProperty("ADBE Vector Graphic - Fill");
+            f.property("ADBE Vector Fill Color").setValue(hex_to_rgb_array(item.fill));
+        }
+        if (item.stroke) {
+            var st = vg.addProperty("ADBE Vector Graphic - Stroke");
+            st.property("ADBE Vector Stroke Color").setValue(hex_to_rgb_array(item.stroke));
+            st.property("ADBE Vector Stroke Width").setValue(item.strokeWidth);
+        }
+    } else if (item.type === "circle") {
+        var e = vg.addProperty("ADBE Vector Shape - Ellipse");
+        e.property("ADBE Vector Ellipse Size").setValue([item.r * 2, item.r * 2]);
+        
+        if (item.fill) {
+            var f = vg.addProperty("ADBE Vector Graphic - Fill");
+            f.property("ADBE Vector Fill Color").setValue(hex_to_rgb_array(item.fill));
+        }
+        if (item.stroke) {
+            var st = vg.addProperty("ADBE Vector Graphic - Stroke");
+            st.property("ADBE Vector Stroke Color").setValue(hex_to_rgb_array(item.stroke));
+            st.property("ADBE Vector Stroke Width").setValue(item.strokeWidth);
+        }
+    }
+    
+    // Initial Position
+    if (item.name.indexOf("Leaf") !== -1) {
+        sl.property("ADBE Transform Group").property("ADBE Position").setValue([540, 960]);
+        leafLayers.push(sl);
+    } else if (item.name === "Ripple") {
+        sl.property("ADBE Transform Group").property("ADBE Position").setValue([540, 960]);
+    }
+}
 
-leafScale.setValueAtTime(0, [0, 0]);
-leafScale.setValueAtTime(1, [100, 100]);
+// --- ANIMATIONS ---
 
-leafRot.setValueAtTime(1, -2);
-leafRot.setValueAtTime(2, 2);
-leafRot.setValueAtTime(3, -2);
+// 1. Leaf Animations
+for (var j = 0; j < leafLayers.length; j++) {
+    var layer = leafLayers[j];
+    var pos = layer.property("ADBE Transform Group").property("ADBE Position");
+    var opac = layer.property("ADBE Transform Group").property("ADBE Opacity");
+    var scale = layer.property("ADBE Transform Group").property("ADBE Scale");
+    
+    // Position Y: 1400 -> 960
+    pos.setValueAtTime(0, [540, 1400]);
+    pos.setValueAtTime(2, [540, 960]);
+    
+    // Opacity: 0 -> 100
+    opac.setValueAtTime(0, 0);
+    opac.setValueAtTime(0.667, 100);
+    
+    // Spring Scale: 0 -> 120 -> 100
+    scale.setValueAtTime(0, [0, 0]);
+    scale.setValueAtTime(0.1, [120, 120]);
+    scale.setValueAtTime(0.3, [100, 100]);
+}
 
-// Glow Effect
-var leafEffects = leafLayer.property("ADBE Effect Parade");
-var leafGlow = leafEffects.addProperty("ADBE Glo2");
-leafGlow.property(3).setValue(50);
-leafGlow.property(4).setValue(1);
+// 2. Ripple Animation
+var ripple = comp.layer("Ripple");
+var rScale = ripple.property("ADBE Transform Group").property("ADBE Scale");
+var rOpac = ripple.property("ADBE Transform Group").property("ADBE Opacity");
 
-// 5. TEXT
-var textLayer = comp.layers.addText("Tus plantas limpian el aire y reducen el estrés.");
-textLayer.name = "Text Reveal";
-textLayer.property("ADBE Text Properties").property("ADBE Text Fill Color").setValue([0.294, 0.871, 0.502]);
-var textPos = textLayer.property("ADBE Transform Group").property("ADBE Position");
-textPos.setValue([540, 1500]);
+rScale.setValueAtTime(1, [0, 0]);
+rScale.setValueAtTime(3, [1400, 1400]);
 
-var textOpac = textLayer.property("ADBE Transform Group").property("ADBE Opacity");
-textOpac.setValueAtTime(20/30, 0);
-textOpac.setValueAtTime(50/30, 100);
+rOpac.setValueAtTime(1, 0);
+rOpac.setValueAtTime(2, 30);
+rOpac.setValueAtTime(3, 0);
+
+// 3. Particles Animation (20 particles)
+var particleBase = comp.layer("Particle_Base");
+particleBase.enabled = false; // Use as template
+
+for (var p = 0; p < 20; p++) {
+    var part = comp.layers.addShape();
+    part.name = "Particle_" + p;
+    
+    // Copy geometry from base
+    var g = part.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
+    var vg = g.property("ADBE Vectors Group");
+    var e = vg.addProperty("ADBE Vector Shape - Ellipse");
+    e.property("ADBE Vector Ellipse Size").setValue([6, 6]);
+    vg.addProperty("ADBE Vector Graphic - Fill").property("ADBE Vector Fill Color").setValue(hex_to_rgb_array("#a2dff7"));
+    
+    var delay = p * 0.1;
+    var xOff = randomRange(-100, 100);
+    var pPos = part.property("ADBE Transform Group").property("ADBE Position");
+    var pOpac = part.property("ADBE Transform Group").property("ADBE Opacity");
+    
+    pPos.setValueAtTime(delay, [540 + xOff, 1600]);
+    pPos.setValueAtTime(delay + 2, [540 + xOff, 600]);
+    
+    pOpac.setValueAtTime(delay, 0);
+    pOpac.setValueAtTime(delay + 0.66, 80);
+    pOpac.setValueAtTime(delay + 1.66, 0);
+}
+
+// 4. Premium Text Animation
+var txt = comp.layers.addText("Tus plantas limpian el aire\ny reducen el estrés.");
+var td = txt.property("Source Text").value;
+td.fontSize = 64;
+td.fauxBold = true;
+td.fillColor = hex_to_rgb_array("#2ecc71");
+td.justification = ParagraphJustification.CENTER_JUSTIFY;
+txt.property("Source Text").setValue(td);
+
+var tPos = txt.property("ADBE Transform Group").property("ADBE Position");
+var tOpac = txt.property("ADBE Transform Group").property("ADBE Opacity");
+var tScale = txt.property("ADBE Transform Group").property("ADBE Scale");
+
+tPos.setValue([540, 1500]);
+tPos.setValueAtTime(1.333, [540, 1530]);
+tPos.setValueAtTime(2, [540, 1500]);
+
+tOpac.setValueAtTime(1.333, 0);
+tOpac.setValueAtTime(2, 100);
+
+tScale.setValueAtTime(1.333, [0, 0]);
+tScale.setValueAtTime(1.433, [120, 120]);
+tScale.setValueAtTime(1.633, [100, 100]);
+app.endUndoGroup();
 
 // Escena 2 - Generado por AnimaFlow
-function generateRandomNumber() {
-    return Math.random();
-}
+var comp = app.project.items.addComp("AnimaFlow_Scene_2", 1080, 1920, 1, 3.58, 30);
 
-var proj = app.project;
-var comp = proj.items.addComp("Scene", 1080, 1920, 1, 3.575, 30);
-
-// 1. FONDO
+// ====================================
+// FONDO
+// ====================================
 var bgLayer = comp.layers.addSolid([0.059, 0.090, 0.165], "Fondo", 1080, 1920, 1);
+bgLayer.inPoint = 0;
+bgLayer.outPoint = comp.duration;
 
-// --- CONSTANTS ---
-var centerX = 540;
-var heartY = 960;
-var potY = 1200;
-var mainColor = [0.525, 0.937, 0.675];
-var duration = 3.575;
+// ====================================
+// ELEMENTOS SVG
+// ====================================
 
-// 2. CONNECTION LINE
-var lineLayer = comp.layers.addShape();
-lineLayer.name = "ConnectionLine";
-var lineGroup = lineLayer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-var linePathProp = lineGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Group");
-var lineShape = new Shape();
-lineShape.vertices = [[centerX, heartY], [centerX, potY]];
-lineShape.outTangents = [[50, 120], [0, 0]];
-lineShape.inTangents = [[0, 0], [50, -120]];
-lineShape.closed = false;
-linePathProp.property("ADBE Vector Shape").setValue(lineShape);
-
-var lineStroke = lineGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Stroke");
-lineStroke.property("ADBE Vector Stroke Color").setValue(mainColor);
-lineStroke.property("ADBE Vector Stroke Width").setValue(4);
-
-var lineOpac = lineLayer.property("ADBE Transform Group").property("ADBE Opacity");
-lineOpac.setValueAtTime(0, 0);
-lineOpac.setValueAtTime(1, 50);
-lineOpac.setValueAtTime(duration - 0.3, 50);
-lineOpac.setValueAtTime(duration, 0);
-
-var lineEffects = lineLayer.property("ADBE Effect Parade");
-var lineGlow = lineEffects.addProperty("ADBE Glo2");
-lineGlow.property(3).setValue(50);
-
-// 3. RIPPLE EFFECT
-var rippleLayer = comp.layers.addShape();
-rippleLayer.name = "Ripple";
-var rippleGroup = rippleLayer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-var rippleEllipse = rippleGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Ellipse");
-rippleEllipse.property("ADBE Vector Ellipse Size").setValue([150, 150]);
-
-var rippleStroke = rippleGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Stroke");
-rippleStroke.property("ADBE Vector Stroke Color").setValue(mainColor);
-rippleStroke.property("ADBE Vector Stroke Width").setValue(8);
-var rippleFill = rippleGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Fill");
-rippleFill.property("ADBE Vector Fill Color").setValue([0,0,0]);
-rippleFill.property("ADBE Vector Fill Opacity").setValue(0);
-
-var ripplePos = rippleLayer.property("ADBE Transform Group").property("ADBE Position");
-ripplePos.setValue([centerX, heartY]);
-
-var rippleScale = rippleLayer.property("ADBE Transform Group").property("ADBE Scale");
-rippleScale.setValueAtTime(1, [0, 0]);
-rippleScale.setValueAtTime(2.6, [100, 100]);
-
-var rippleOpac = rippleLayer.property("ADBE Transform Group").property("ADBE Opacity");
-rippleOpac.setValueAtTime(1, 0);
-rippleOpac.setValueAtTime(2, 60);
-rippleOpac.setValueAtTime(2.6, 0);
-
-// 4. HEART SHAPE
-var heartLayer = comp.layers.addShape();
-heartLayer.name = "Heart";
-var heartGroup = heartLayer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-var heartPathProp = heartGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Group");
-var heartShape = new Shape();
-heartShape.vertices = [[centerX, heartY + 30], [centerX - 110, heartY + 70], [centerX, heartY + 150], [centerX + 110, heartY + 70], [centerX, heartY + 30]];
-heartShape.outTangents = [[-50, -50], [-20, 20], [0, 0], [50, -50], [0, 0]];
-heartShape.inTangents = [[0, 0], [-20, -20], [0, 0], [20, 20], [50, -50]];
-heartShape.closed = true;
-heartPathProp.property("ADBE Vector Shape").setValue(heartShape);
-
-var heartFill = heartGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Fill");
-heartFill.property("ADBE Vector Fill Color").setValue(mainColor);
-
-var heartPos = heartLayer.property("ADBE Transform Group").property("ADBE Position");
-heartPos.setValue([0, 0]); // Relative to path
-
-var heartScale = heartLayer.property("ADBE Transform Group").property("ADBE Scale");
-heartScale.setValueAtTime(0, [80, 80]);
-heartScale.setValueAtTime(0.5, [100, 100]);
-heartScale.setValueAtTime(1, [80, 80]);
-heartScale.setValueAtTime(1.5, [100, 100]);
-heartScale.setValueAtTime(2, [80, 80]);
-heartScale.setValueAtTime(2.5, [100, 100]);
-heartScale.setValueAtTime(3, [80, 80]);
-
-var heartOpac = heartLayer.property("ADBE Transform Group").property("ADBE Opacity");
-heartOpac.setValueAtTime(0, 0);
-heartOpac.setValueAtTime(1, 100);
-heartOpac.setValueAtTime(duration - 0.3, 100);
-heartOpac.setValueAtTime(duration, 0);
-
-var heartEffects = heartLayer.property("ADBE Effect Parade");
-var heartGlow = heartEffects.addProperty("ADBE Glo2");
-heartGlow.property(3).setValue(40);
-
-// 5. PARTICLES
-for (var i = 0; i < 12; i++) {
-    var pLayer = comp.layers.addShape();
-    pLayer.name = "Particle_" + i;
-    var pGroup = pLayer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
-    var pEllipse = pGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Shape - Ellipse");
-    pEllipse.property("ADBE Vector Ellipse Size").setValue([10, 10]);
-    var pFill = pGroup.property("ADBE Vectors Group").addProperty("ADBE Vector Graphic - Fill");
-    pFill.property("ADBE Vector Fill Color").setValue(mainColor);
-
-    var angleStart = (i / 12) * Math.PI * 2;
-    var orbitRadiusX = 220;
-    var orbitRadiusY = 110;
-    var centerY = (heartY + potY) / 2;
-
-    var pPos = pLayer.property("ADBE Transform Group").property("ADBE Position");
-    pPos.setValueAtTime(0, [centerX + Math.cos(angleStart) * orbitRadiusX, centerY + Math.sin(angleStart) * orbitRadiusY]);
-    pPos.setValueAtTime(duration, [centerX + Math.cos(angleStart + 1) * orbitRadiusX, centerY + Math.sin(angleStart + 1) * orbitRadiusY]);
-
-    var pOpac = pLayer.property("ADBE Transform Group").property("ADBE Opacity");
-    var startT = i * 0.1;
-    pOpac.setValueAtTime(startT, 0);
-    pOpac.setValueAtTime(startT + 0.3, 100);
-    pOpac.setValueAtTime(startT + 0.6, 0);
-    pOpac.setValueAtTime(duration - 0.3, 0);
-    pOpac.setValueAtTime(duration, 0);
-}
-
-// 6. TEXT
+// ====================================
+// TEXTO
+// ====================================
 var textLayer = comp.layers.addText("Cuidarlas es invertir en tu bienestar y tu entorno.");
-textLayer.name = "MainText";
-var textProp = textLayer.property("ADBE Text Properties");
-textProp.property("ADBE Text Fill Color").setValue(mainColor);
+textLayer.name = "Texto_Principal";
+textLayer.inPoint = 0;
+textLayer.outPoint = 3.58;
 
+// Color del texto (via TextDocument)
+var textDoc = textLayer.property("Source Text").value;
+textDoc.fillColor = [1.000, 0.843, 0.000];
+textDoc.applyFill = true;
+textLayer.property("Source Text").setValue(textDoc);
+
+// Posición: centrado en X, Y según análisis de colisión con animación
 var textPos = textLayer.property("ADBE Transform Group").property("ADBE Position");
-textPos.setValue([centerX, 1400]);
+textPos.setValue([540, 1536]);
 
+// Animación de texto: fade-in entrada, fade-out salida
 var textOpac = textLayer.property("ADBE Transform Group").property("ADBE Opacity");
 textOpac.setValueAtTime(0, 0);
-textOpac.setValueAtTime(1.5, 100);
-textOpac.setValueAtTime(duration - 0.3, 100);
-textOpac.setValueAtTime(duration, 0);
+textOpac.setValueAtTime(0.8, 100);
+textOpac.setValueAtTime(3.2800000000000002, 100);
+textOpac.setValueAtTime(3.58, 0);
 
-// Final Global Exit
-var layers = comp.layers;
-for (var j = 1; j < layers.length; j++) {
-    var l = layers[j];
-    var op = l.property("ADBE Transform Group").property("ADBE Opacity");
-    op.setValueAtTime(duration - 0.3, op.valueAtTime(duration - 0.3));
-    op.setValueAtTime(duration, 0);
-}
-
+// ====================================
+// FIN ESCENA
+// ====================================
 // ============================================
 // FIN DEL SCRIPT
 // ============================================
-app.beginUndoGroup("AnimaFlow Import Complete");
-app.endUndoGroup();
