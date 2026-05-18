@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -11,17 +11,25 @@ import {
   Mic,
   Pencil,
   Wand2,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '../../store/useDashboardStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { ProgressSteps } from '../../components/dashboard/ProgressSteps';
+import type { UserLLMSettings } from '../../types/auth';
+import { AVAILABLE_MODELS } from '../../types/auth';
 
 const ASPECT_RATIOS = [
   { value: '9:16', label: '9:16', description: 'Stories / Reels / TikTok' },
   { value: '4:5', label: '4:5', description: 'Instagram Feed' },
   { value: '1:1', label: '1:1', description: 'Cuadrado' },
   { value: '16:9', label: '16:9', description: 'YouTube / Landscape' },
+  { value: '3:4', label: '3:4', description: 'Pinterest / Portrait' },
 ];
+
+const STEP_LABELS = ['Guión', 'Revisar', 'Procesando', 'Listo'];
 
 export function NewProjectWizard() {
   const navigate = useNavigate();
@@ -42,15 +50,18 @@ export function NewProjectWizard() {
     fetchVoices,
   } = useDashboardStore();
 
+  const { fetchLLMSettings, llmSettings } = useAuthStore();
+
   const [scriptLoading, setScriptLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch voices on mount if not already loaded
+  // Fetch voices and LLM settings on mount
   useEffect(() => {
     if (voices.length === 0) {
       fetchVoices();
     }
+    fetchLLMSettings();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Prefill from ScriptsPage "Usar en proyecto"
@@ -100,7 +111,12 @@ export function NewProjectWizard() {
     setError(null);
     setCreateLoading(true);
     try {
-      const jobId = await createJob(wizardData.script, wizardData.aspectRatio);
+      const jobId = await createJob(
+        wizardData.script,
+        wizardData.aspectRatio,
+        wizardData.voiceId || undefined,
+        wizardData.selectedModel,
+      );
       setWizardData({ generatedJobId: jobId });
       setWizardStep(3);
       startPolling(jobId);
@@ -112,6 +128,8 @@ export function NewProjectWizard() {
   }, [
     wizardData.script,
     wizardData.aspectRatio,
+    wizardData.voiceId,
+    wizardData.selectedModel,
     createJob,
     setWizardData,
     setWizardStep,
@@ -157,31 +175,47 @@ export function NewProjectWizard() {
       </button>
 
       {/* Step indicator */}
-      <div className="flex items-center gap-2 mb-8">
-        {[1, 2, 3, 4].map((step) => (
-          <div key={step} className="flex items-center gap-2 flex-1">
+      <div className="relative flex items-center justify-between mb-8">
+        {/* Background line */}
+        <div className="absolute top-4 left-0 right-0 h-0.5 bg-surface-high" />
+        
+        {/* Progress line (filled portion) */}
+        <div 
+          className="absolute top-4 left-0 h-0.5 bg-mint-precision/40 transition-all"
+          style={{ width: `${((wizardStep - 1) / 3) * 100}%` }}
+        />
+
+        {[
+          { num: 1, label: 'Guión' },
+          { num: 2, label: 'Revisar' },
+          { num: 3, label: 'Procesando' },
+          { num: 4, label: 'Listo' },
+        ].map((item, idx) => (
+          <div key={item.num} className="relative z-10 flex flex-col items-center">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                step < wizardStep
+                item.num < wizardStep
                   ? 'bg-mint-precision text-deep-slate'
-                  : step === wizardStep
+                  : item.num === wizardStep
                     ? 'bg-mint-precision/20 text-mint-precision border-2 border-mint-precision'
                     : 'bg-surface-high text-text-secondary/30'
               }`}
             >
-              {step < wizardStep ? (
+              {item.num < wizardStep ? (
                 <CheckCircle2 size={14} strokeWidth={3} />
               ) : (
-                step
+                item.num
               )}
             </div>
-            {step < 4 && (
-              <div
-                className={`flex-1 h-0.5 ${
-                  step < wizardStep ? 'bg-mint-precision/40' : 'bg-surface-high'
-                }`}
-              />
-            )}
+            <span
+              className={`text-[10px] font-medium whitespace-nowrap mt-1.5 ${
+                item.num === wizardStep
+                  ? 'text-mint-precision'
+                  : 'text-text-secondary/40'
+              }`}
+            >
+              {item.label}
+            </span>
           </div>
         ))}
       </div>
@@ -215,9 +249,16 @@ export function NewProjectWizard() {
               voiceId={wizardData.voiceId}
               voices={voices}
               voicesLoading={voicesLoading}
+              llmSettings={llmSettings}
+              selectedModel={wizardData.selectedModel}
+              customWidth={wizardData.customWidth}
+              customHeight={wizardData.customHeight}
               onInfoChange={(info) => setWizardData({ info })}
               onAspectRatioChange={(aspectRatio) => setWizardData({ aspectRatio })}
               onVoiceChange={(voiceId) => setWizardData({ voiceId })}
+              onModelChange={(selectedModel) => setWizardData({ selectedModel })}
+              onCustomWidthChange={(customWidth) => setWizardData({ customWidth })}
+              onCustomHeightChange={(customHeight) => setWizardData({ customHeight })}
               onGenerate={handleGenerateScript}
               loading={scriptLoading}
             />
@@ -234,6 +275,9 @@ export function NewProjectWizard() {
             <Step2Review
               script={wizardData.script}
               aspectRatio={wizardData.aspectRatio}
+              selectedModel={wizardData.selectedModel}
+              customWidth={wizardData.customWidth}
+              customHeight={wizardData.customHeight}
               onScriptChange={(script) => setWizardData({ script })}
               onCreate={handleCreateProject}
               loading={createLoading}
@@ -290,9 +334,16 @@ function Step1Info({
   voiceId,
   voices,
   voicesLoading,
+  llmSettings,
+  selectedModel,
+  customWidth,
+  customHeight,
   onInfoChange,
   onAspectRatioChange,
   onVoiceChange,
+  onModelChange,
+  onCustomWidthChange,
+  onCustomHeightChange,
   onGenerate,
   loading,
 }: {
@@ -301,9 +352,16 @@ function Step1Info({
   voiceId: string | null;
   voices: { id: string; name: string; isDefault: boolean }[];
   voicesLoading: boolean;
+  llmSettings: UserLLMSettings | null;
+  selectedModel: string | null;
+  customWidth: number;
+  customHeight: number;
   onInfoChange: (value: string) => void;
   onAspectRatioChange: (value: string) => void;
   onVoiceChange: (value: string) => void;
+  onModelChange: (value: string | null) => void;
+  onCustomWidthChange: (value: number) => void;
+  onCustomHeightChange: (value: number) => void;
   onGenerate: () => void;
   loading: boolean;
 }) {
@@ -353,6 +411,13 @@ function Step1Info({
         </button>
       </div>
 
+      {/* Model selector - shown in both modes */}
+      <ModelSelector
+        llmSettings={llmSettings}
+        selectedModel={selectedModel}
+        onChange={onModelChange}
+      />
+
       {/* Mode A: Own script */}
       {mode === 'own-script' && (
         <div className="space-y-5">
@@ -369,7 +434,14 @@ function Step1Info({
           </div>
 
           {/* Aspect ratio */}
-          <AspectRatioSelector value={aspectRatio} onChange={onAspectRatioChange} />
+          <AspectRatioSelector
+            value={aspectRatio}
+            onChange={onAspectRatioChange}
+            customWidth={customWidth}
+            customHeight={customHeight}
+            onCustomWidthChange={onCustomWidthChange}
+            onCustomHeightChange={onCustomHeightChange}
+          />
 
           {/* Continue button */}
           <button
@@ -411,7 +483,14 @@ function Step1Info({
           />
 
           {/* Aspect ratio */}
-          <AspectRatioSelector value={aspectRatio} onChange={onAspectRatioChange} />
+          <AspectRatioSelector
+            value={aspectRatio}
+            onChange={onAspectRatioChange}
+            customWidth={customWidth}
+            customHeight={customHeight}
+            onCustomWidthChange={onCustomWidthChange}
+            onCustomHeightChange={onCustomHeightChange}
+          />
 
           {/* Generate button */}
           <button
@@ -448,21 +527,31 @@ function Step1Info({
 function AspectRatioSelector({
   value,
   onChange,
+  customWidth,
+  customHeight,
+  onCustomWidthChange,
+  onCustomHeightChange,
 }: {
   value: string;
   onChange: (value: string) => void;
+  customWidth: number;
+  customHeight: number;
+  onCustomWidthChange: (value: number) => void;
+  onCustomHeightChange: (value: number) => void;
 }) {
+  const isCustom = value === 'custom';
+
   return (
     <div>
       <label className="block text-text-secondary text-sm font-medium mb-3">
         Relación de aspecto
       </label>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         {ASPECT_RATIOS.map((ratio) => (
           <button
             key={ratio.value}
             onClick={() => onChange(ratio.value)}
-            className={`p-4 rounded-lg border text-left transition-colors ${
+            className={`p-3 rounded-lg border text-left transition-colors ${
               value === ratio.value
                 ? 'border-mint-precision bg-mint-precision/5'
                 : 'border-border-tech bg-surface-container hover:border-outline-variant'
@@ -477,12 +566,72 @@ function AspectRatioSelector({
             >
               {ratio.label}
             </span>
-            <p className="text-xs text-text-secondary/50 mt-1">
+            <p className="text-[10px] text-text-secondary/50 mt-0.5">
               {ratio.description}
             </p>
           </button>
         ))}
+        {/* Custom option */}
+        <button
+          onClick={() => onChange('custom')}
+          className={`p-3 rounded-lg border text-left transition-colors ${
+            isCustom
+              ? 'border-mint-precision bg-mint-precision/5'
+              : 'border-border-tech bg-surface-container hover:border-outline-variant'
+          }`}
+        >
+          <span
+            className={`text-sm font-semibold ${
+              isCustom ? 'text-mint-precision' : 'text-text-primary'
+            }`}
+          >
+            Personalizado
+          </span>
+          <p className="text-[10px] text-text-secondary/50 mt-0.5">
+            Ancho × Alto
+          </p>
+        </button>
       </div>
+
+      {/* Custom dimension inputs */}
+      <AnimatePresence>
+        {isCustom && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-text-secondary text-xs font-medium mb-1.5">
+                  Ancho (px)
+                </label>
+                <input
+                  type="number"
+                  value={customWidth}
+                  onChange={(e) => onCustomWidthChange(Math.max(1, parseInt(e.target.value) || 1))}
+                  min={1}
+                  className="w-full bg-surface-lowest border border-border-tech rounded-lg px-4 py-2.5 text-sm text-text-primary focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-text-secondary text-xs font-medium mb-1.5">
+                  Alto (px)
+                </label>
+                <input
+                  type="number"
+                  value={customHeight}
+                  onChange={(e) => onCustomHeightChange(Math.max(1, parseInt(e.target.value) || 1))}
+                  min={1}
+                  className="w-full bg-surface-lowest border border-border-tech rounded-lg px-4 py-2.5 text-sm text-text-primary focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -532,22 +681,141 @@ function VoiceSelector({
 }
 
 // ---------------------------------------------------------------------------
+// Model Selector (extracted for reuse)
+// ---------------------------------------------------------------------------
+
+function ModelSelector({
+  llmSettings,
+  selectedModel,
+  onChange,
+}: {
+  llmSettings: UserLLMSettings | null;
+  selectedModel: string | null;
+  onChange: (value: string | null) => void;
+}) {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Build the list of available models
+  const availableModels: string[] = llmSettings?.available_models && llmSettings.available_models.length > 0
+    ? llmSettings.available_models
+    : Object.values(AVAILABLE_MODELS).flat();
+
+  const displayModel = selectedModel || llmSettings?.default_model || 'gemini-2.0-flash (predeterminado)';
+  const isDefault = !selectedModel && !!llmSettings?.default_model;
+
+  return (
+    <div>
+      <label className="block text-text-secondary text-sm font-medium mb-2">
+        <Sparkles size={14} className="inline mr-1.5 -mt-0.5" />
+        Modelo a usar
+      </label>
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setShowDropdown(!showDropdown)}
+          className="w-full flex items-center justify-between bg-surface-lowest border border-border-tech rounded-lg px-4 py-2.5 text-sm text-text-primary hover:border-outline-variant transition-colors"
+        >
+          <span className={isDefault ? 'text-text-secondary/70' : 'text-text-primary'}>
+            {displayModel}
+          </span>
+          <ChevronDown size={14} className="text-text-secondary/50 shrink-0 ml-2" />
+        </button>
+        <AnimatePresence>
+          {showDropdown && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="absolute z-10 w-full mt-1 bg-surface-highest border border-border-tech rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto"
+            >
+              {/* Default option */}
+              <button
+                onClick={() => {
+                  onChange(null);
+                  setShowDropdown(false);
+                }}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-text-primary hover:bg-surface-high transition-colors"
+              >
+                <span className="text-text-secondary/70">
+                  {llmSettings?.default_model || 'gemini-2.0-flash'} (predeterminado)
+                </span>
+                {!selectedModel && (
+                  <Check size={14} className="text-mint-precision" />
+                )}
+              </button>
+
+              {/* Available models */}
+              {availableModels.map((model) => (
+                <button
+                  key={model}
+                  onClick={() => {
+                    onChange(model);
+                    setShowDropdown(false);
+                  }}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-text-primary hover:bg-surface-high transition-colors"
+                >
+                  <span>{model}</span>
+                  {selectedModel === model && (
+                    <Check size={14} className="text-mint-precision" />
+                  )}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      <p className="text-xs text-text-secondary/40 mt-1.5">
+        Si no tienes este modelo, puedes agregar uno personalizado en{' '}
+        <span className="text-mint-precision/70 cursor-pointer hover:underline">
+          Configuración → API Keys
+        </span>
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Step 2: Review -> Create
 // ---------------------------------------------------------------------------
 
 function Step2Review({
   script,
   aspectRatio,
+  selectedModel,
+  customWidth,
+  customHeight,
   onScriptChange,
   onCreate,
   loading,
 }: {
   script: string;
   aspectRatio: string;
+  selectedModel: string | null;
+  customWidth: number;
+  customHeight: number;
   onScriptChange: (value: string) => void;
   onCreate: () => void;
   loading: boolean;
 }) {
+  const aspectDisplay = aspectRatio === 'custom'
+    ? `${customWidth}×${customHeight}`
+    : aspectRatio;
+
   return (
     <div className="space-y-6">
       <div>
@@ -579,9 +847,16 @@ function Step2Review({
               El guión se dividirá automáticamente en segmentos de ~7 segundos.
               Cada segmento generará su propia escena con visuales y audio.
             </p>
-            <p className="text-xs text-text-secondary/40 mt-2">
-              Relación de aspecto seleccionada: <span className="text-mint-precision">{aspectRatio}</span>
-            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+              <p className="text-xs text-text-secondary/40">
+                Relación de aspecto: <span className="text-mint-precision">{aspectDisplay}</span>
+              </p>
+              {selectedModel && (
+                <p className="text-xs text-text-secondary/40">
+                  Modelo: <span className="text-mint-precision">{selectedModel}</span>
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

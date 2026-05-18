@@ -11,19 +11,48 @@ from app.db.models import JobModel
 from app.schemas.spec import Spec
 from google import genai
 from google.genai import types
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+
+LLM_TIMEOUT = 300  # 5 minutes max per LLM call
+
+def _call_llm_sync(client, model: str, contents: str, config=None, label: str = "LLM"):
+    """
+    Ejecuta una llamada síncrona a Gemini con timeout de 5 minutos.
+    Si excede el timeout, lanza TimeoutError con info del label.
+    """
+    def _do_call():
+        if config is not None:
+            return client.models.generate_content(model=model, contents=contents, config=config)
+        return client.models.generate_content(model=model, contents=contents)
+
+    print(f"[{label}] 🚀 Llamando a Gemini (model={model}, timeout={LLM_TIMEOUT}s)...")
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_do_call)
+        try:
+            response = future.result(timeout=LLM_TIMEOUT)
+            print(f"[{label}] ✅ Respuesta recibida ({len(response.text) if response.text else 0} chars)")
+            return response
+        except FuturesTimeout:
+            print(f"[{label}] ⏰ TIMEOUT después de {LLM_TIMEOUT}s — la llamada se colgó")
+            future.cancel()
+            raise TimeoutError(f"[{label}] LLM call timed out after {LLM_TIMEOUT}s")
 
 # =============================================================================
 # SCRIPT GENERATION WITH GEMINI
 # =============================================================================
 
-def generate_script_from_info(info: str) -> str:
+def generate_script_from_info(info: str, user_id: Optional[str] = None) -> str:
     """Usa Gemini para generar un guion narrativo basado en la información del usuario."""
     from app.core.config import settings
-    
-    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
-    
+    from app.services.llm_resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    model = creds.model
+
     if not api_key:
-        return "El motor IA generativo está apagado. Configura GEMINI_API_KEY."
+        return "El motor IA generativo está apagado. Configura GEMINI_API_KEY o agrega tu API key."
     
     try:
         client = genai.Client(api_key=api_key)
@@ -37,9 +66,11 @@ def generate_script_from_info(info: str) -> str:
         NO incluyas indicaciones de escena (como "Corte a", "Música", "Voz en off", "Narrador:"). 
         SOLO escribe el texto puro que la persona o IA leerá.
         """
-        response = client.models.generate_content(
-            model='gemini-3.1-flash-lite-preview',
+        response = _call_llm_sync(
+            client,
+            model=model,
             contents=prompt,
+            label="LLM Script",
         )
         return response.text.strip()
     except Exception as e:
@@ -155,13 +186,16 @@ async def generate_tts_with_voicebox(text: str, scene_id: str) -> tuple[Optional
 # VISUAL SPEC GENERATION WITH GEMINI
 # =============================================================================
 
-def generate_batch_visuals_with_llm(chunks: list[str], aspect_ratio: str = "9:16") -> BatchVisualSpec:
+def generate_batch_visuals_with_llm(chunks: list[str], aspect_ratio: str = "9:16", user_id: Optional[str] = None) -> BatchVisualSpec:
     """Usa Gemini para generar un arreglo de escenas visuales para cada bloque de texto."""
     import time
     from app.core.config import settings
     from app.core.resolutions import get_resolution
-    
-    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    from app.services.llm_resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    model = creds.model
     
     if not api_key:
         print("[LLM API] GEMINI_API_KEY no encontrada. Fallback a escenas genéricas.")
@@ -226,7 +260,8 @@ Responde SOLO con JSON válido.
         response = None
         for attempt in range(max_retries):
             try:
-                response = client.models.generate_content(
+                response = _call_llm_sync(
+                    client,
                     model=settings.GEMINI_MODEL,
                     contents=prompt,
                     config=types.GenerateContentConfig(
@@ -234,6 +269,7 @@ Responde SOLO con JSON válido.
                         response_schema=BatchVisualSpec,
                         temperature=0.7,
                     ),
+                    label="LLM Visuals",
                 )
                 break
             except Exception as e:
@@ -248,15 +284,17 @@ Responde SOLO con JSON válido.
                 raise
         
         if response is None:
-            print(f"[LLM API] ⚠️ WARNING: Modelo principal {settings.GEMINI_MODEL} saturado para batch visuals. Usando fallback {settings.GEMINI_FALLBACK_MODEL}")
-            response = client.models.generate_content(
-                model=settings.GEMINI_FALLBACK_MODEL,
+            print(f"[LLM API] ⚠️ WARNING: Modelo principal {model} saturado para batch visuals. Usando fallback.")
+            response = _call_llm_sync(
+                client,
+                model=model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema=BatchVisualSpec,
                     temperature=0.7,
                 ),
+                label="LLM Visuals",
             )
         
         # Parsear JSON con limpieza
@@ -305,7 +343,7 @@ Responde SOLO con JSON válido.
         ])
 
 
-def generate_ae_structure(svg_elements: list, text: str, duration: float, bg_color: str, text_color: str, width: int, height: int, effects: list = None, job_id: str = None, scene_id: int = None) -> Optional[str]:
+def generate_ae_structure(svg_elements: list, text: str, duration: float, bg_color: str, text_color: str, width: int, height: int, effects: list = None, enriched_summary: str = None, job_id: str = None, scene_id: int = None, user_id: Optional[str] = None) -> Optional[str]:
     """
     FASE 1: Genera la ESTRUCTURA ESTÁTICA del script AE (sin animaciones).
     Crea composición, layers, shapes, fills, strokes, gradients, text layer.
@@ -314,8 +352,11 @@ def generate_ae_structure(svg_elements: list, text: str, duration: float, bg_col
     import time
     from app.core.config import settings
     from app.services.ae_export import hex_to_rgb_array
-    
-    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    from app.services.llm_resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    model = creds.model
     if not api_key:
         print("[LLM AE-Structure] GEMINI_API_KEY no encontrada.")
         return None
@@ -342,12 +383,21 @@ EFECTOS VISUALES:
 {json.dumps(effects, indent=2)}
 """
         
+        enriched_context = ""
+        if enriched_summary:
+            enriched_context = f"""
+=== DATOS EXACTOS DEL TSX (PRIORIDAD MÁXIMA — usar estos valores, NO inventar) ===
+{enriched_summary}
+=== FIN DATOS EXACTOS ===
+"""
+        
         client = genai.Client(api_key=api_key)
         
         prompt = f"""Genera la ESTRUCTURA ESTÁTICA de un script de After Effects (SIN animaciones).
 
 CANVAS: {width}x{height}, {duration}s, 30fps. FONDO: {bg_color}
 
+{enriched_context}
 {svg_context}
 {effects_context}
 
@@ -443,10 +493,12 @@ SOLO código ExtendScript estático. Sin comentarios largos. Sin funciones helpe
         response = None
         for attempt in range(max_retries):
             try:
-                response = client.models.generate_content(
+                response = _call_llm_sync(
+                    client,
                     model=settings.GEMINI_MODEL,
                     contents=prompt,
                     config=types.GenerateContentConfig(temperature=0.3),
+                    label="LLM AE-Structure",
                 )
                 break
             except Exception as e:
@@ -460,10 +512,12 @@ SOLO código ExtendScript estático. Sin comentarios largos. Sin funciones helpe
                 raise
         
         if response is None:
-            response = client.models.generate_content(
-                model=settings.GEMINI_FALLBACK_MODEL,
+            response = _call_llm_sync(
+                client,
+                model=model,
                 contents=prompt,
                 config=types.GenerateContentConfig(temperature=0.3),
+                label="LLM AE-Structure",
             )
         
         script = response.text.strip()
@@ -486,15 +540,18 @@ SOLO código ExtendScript estático. Sin comentarios largos. Sin funciones helpe
         return None
 
 
-def generate_ae_animations(layer_names: list, animation_data: dict, duration: float, tsx_code: str = None, fase1_output: str = None, svg_elements: list = None, missing_layers: list = None, text_info: dict = None, width: int = 1080, height: int = 1920, job_id: str = None, scene_id: int = None) -> Optional[str]:
+def generate_ae_animations(layer_names: list, animation_data: dict, duration: float, tsx_code: str = None, fase1_output: str = None, svg_elements: list = None, missing_layers: list = None, text_info: dict = None, width: int = 1080, height: int = 1920, job_id: str = None, scene_id: int = None, user_id: Optional[str] = None) -> Optional[str]:
     """
     FASE 2: Genera SOLO las animaciones (setValueAtTime calls) para un script AE.
     Recibe contexto COMPLETO: TSX original, output de Fase 1, geometría SVG.
     """
     import time
     from app.core.config import settings
-    
-    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    from app.services.llm_resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    model = creds.model
     if not api_key:
         print("[LLM AE-Animations] GEMINI_API_KEY no encontrada.")
         return None
@@ -628,10 +685,12 @@ SOLO código ExtendScript de animaciones. Sin comentarios largos. Sin crear laye
         response = None
         for attempt in range(max_retries):
             try:
-                response = client.models.generate_content(
+                response = _call_llm_sync(
+                    client,
                     model=settings.GEMINI_MODEL,
                     contents=prompt,
                     config=types.GenerateContentConfig(temperature=0.2),
+                    label="LLM AE-Animations",
                 )
                 break
             except Exception as e:
@@ -645,10 +704,12 @@ SOLO código ExtendScript de animaciones. Sin comentarios largos. Sin crear laye
                 raise
         
         if response is None:
-            response = client.models.generate_content(
-                model=settings.GEMINI_FALLBACK_MODEL,
+            response = _call_llm_sync(
+                client,
+                model=model,
                 contents=prompt,
                 config=types.GenerateContentConfig(temperature=0.2),
+                label="LLM AE-Animations",
             )
         
         script = response.text.strip()
@@ -1030,7 +1091,7 @@ def _post_process_script(script: str) -> str:
     return script
 
 
-def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_color: str = "#0f172a", text_color: str = "#38bdf8", width: int = 1080, height: int = 1920, job_id: str = None, scene_id: int = None) -> Optional[str]:
+def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_color: str = "#0f172a", text_color: str = "#38bdf8", width: int = 1080, height: int = 1920, job_id: str = None, scene_id: int = None, user_id: Optional[str] = None) -> Optional[str]:
     """
     Traduce código TSX de Remotion a ExtendScript de After Effects usando 2 fases:
     Fase 1: Estructura estática (layers, shapes, fills, text)
@@ -1042,8 +1103,11 @@ def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_co
     from datetime import datetime
     from app.core.config import settings
     from app.services.ae_export import hex_to_rgb_array
-    
-    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    from app.services.llm_resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    model = creds.model
     if not api_key:
         print("[LLM AE] ⚠️ GEMINI_API_KEY no encontrada. ae_script será null.")
         return None
@@ -1053,6 +1117,7 @@ def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_co
     try:
         from app.services.svg_parser import parse_svg_from_tsx
         from app.services.tsx_animation_parser import parse_tsx_animations
+        from app.services.tsx_enriched_analyzer import analyze_tsx_for_ae, generate_element_summary
         
         svg_elements = parse_svg_from_tsx(tsx_code)
         print(f"[LLM AE] SVG parser encontró {len(svg_elements)} elementos")
@@ -1061,11 +1126,21 @@ def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_co
         anim_count = len(animation_data.get("animations", []))
         print(f"[LLM AE] Animation parser encontró {anim_count} animaciones")
         
+        # === ENRICHED ANALYSIS (Option C: deterministic data) ===
+        enriched = analyze_tsx_for_ae(tsx_code, width, height, 30)
+        element_summary = generate_element_summary(enriched)
+        enriched_elements = enriched.get("elements", [])
+        map_expansions = enriched.get("map_expansions", [])
+        print(f"[LLM AE] Enriched analyzer: {len(enriched_elements)} elementos, {len(map_expansions)} map expansions")
+        if element_summary:
+            print(f"[LLM AE] Element summary:\n{element_summary[:500]}")
+        
         # === FASE 1: ESTRUCTURA ESTÁTICA ===
         print(f"[LLM AE] 🟢 FASE 1: Generando estructura estática...")
         structure = generate_ae_structure(
             svg_elements, text, duration, bg_color, text_color, width, height,
             effects=animation_data.get("effects", []),
+            enriched_summary=element_summary,
             job_id=job_id, scene_id=scene_id
         )
         
@@ -1206,15 +1281,18 @@ createPath() detected: {'YES (' + str(createpath_count) + ')' if createpath_coun
         return None
 
 
-def generate_ae_metadata_from_tsx(tsx_code: str, text: str, duration: float, width: int = 1080, height: int = 1920) -> Optional[Dict[str, Any]]:
+def generate_ae_metadata_from_tsx(tsx_code: str, text: str, duration: float, width: int = 1080, height: int = 1920, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Genera ae_metadata analizando el código TSX generado por Remotion.
     Esto asegura que AE y Remotion tengan los mismos elementos visuales.
     """
     import time
     from app.core.config import settings
-    
-    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    from app.services.llm_resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    model = creds.model
     if not api_key:
         print("[LLM AE] GEMINI_API_KEY no encontrada. ae_metadata será null.")
         return None
@@ -1266,13 +1344,15 @@ Responde SOLO con JSON válido.
         response = None
         for attempt in range(max_retries):
             try:
-                response = client.models.generate_content(
+                response = _call_llm_sync(
+                    client,
                     model=settings.GEMINI_MODEL,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         temperature=0.7,
                     ),
+                    label="LLM AE-Metadata-TSX",
                 )
                 break
             except Exception as e:
@@ -1288,13 +1368,15 @@ Responde SOLO con JSON válido.
         
         if response is None:
             print(f"[LLM AE-TSX] Modelo principal saturado. Usando fallback.")
-            response = client.models.generate_content(
+            response = _call_llm_sync(
+                client,
                 model=settings.GEMINI_FALLBACK_MODEL,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     temperature=0.7,
                 ),
+                label="LLM AE-Metadata-TSX",
             )
         
         raw_text = response.text.strip()
@@ -1317,15 +1399,18 @@ Responde SOLO con JSON válido.
         return None
 
 
-def generate_ae_metadata_with_llm(text: str, media_query: str, duration: float, width: int = 1080, height: int = 1920) -> Optional[Dict[str, Any]]:
+def generate_ae_metadata_with_llm(text: str, media_query: str, duration: float, width: int = 1080, height: int = 1920, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Genera ae_metadata para After Effects en llamada separada.
     width y height se pasan para que el LLM genere posiciones dentro del canvas.
     """
     import time
     from app.core.config import settings
-    
-    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    from app.services.llm_resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    model = creds.model
     if not api_key:
         print("[LLM AE] GEMINI_API_KEY no encontrada. ae_metadata será null.")
         return None
@@ -1375,13 +1460,15 @@ Responde SOLO con JSON válido.
         response = None
         for attempt in range(max_retries):
             try:
-                response = client.models.generate_content(
+                response = _call_llm_sync(
+                    client,
                     model=settings.GEMINI_MODEL,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         temperature=0.7,
                     ),
+                    label="LLM AE-Metadata",
                 )
                 break
             except Exception as e:
@@ -1398,13 +1485,15 @@ Responde SOLO con JSON válido.
         # Fallback si el modelo principal falló
         if response is None:
             print(f"[LLM AE] ⚠️ WARNING: Modelo principal saturado. Usando fallback.")
-            response = client.models.generate_content(
+            response = _call_llm_sync(
+                client,
                 model=settings.GEMINI_FALLBACK_MODEL,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     temperature=0.7,
                 ),
+                label="LLM AE-Metadata",
             )
         
         return json.loads(response.text)
@@ -1450,12 +1539,15 @@ async def _call_gemini_with_retry(client, prompt: str, max_retries: int = 3, mod
             raise
 
 
-async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecResult, text: str, duration: float, job_id: str, aspect_ratio: str = "9:16") -> str:
+async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecResult, text: str, duration: float, job_id: str, aspect_ratio: str = "9:16", user_id: Optional[str] = None) -> str:
     """Usa Gemini para generar el código React/Remotion dinámico para una escena."""
     from app.core.config import settings
     from app.core.resolutions import get_resolution
-    
-    api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv("GEMINI_API_KEY")
+    from app.services.llm_resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    model = creds.model
     
     if not api_key:
         print("[LLM API] GEMINI_API_KEY no encontrada. Fallback a componente predeterminado.")
@@ -1583,15 +1675,15 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
         
         prompt = prompt_header + prompt_code
         
-        # Intentar con modelo principal (gemma-4-31b-it) con retry automático
+        # Intentar con modelo principal con retry automático
         response = None
         try:
-            response = await _call_gemini_with_retry(client, prompt, max_retries=3)
+            response = await _call_gemini_with_retry(client, prompt, max_retries=3, model=model)
         except Exception as e:
             # Fallback a modelo secundario si el principal falla
-            print(f"[LLM API] ⚠️ WARNING: Modelo principal {settings.GEMINI_MODEL} saturado. Usando fallback {settings.GEMINI_FALLBACK_MODEL}")
+            print(f"[LLM API] ⚠️ WARNING: Modelo principal {model} saturado. Usando fallback.")
             try:
-                response = await _call_gemini_with_retry(client, prompt, max_retries=1, model=settings.GEMINI_FALLBACK_MODEL)
+                response = await _call_gemini_with_retry(client, prompt, max_retries=1, model=model)
             except Exception as e2:
                 print(f"[LLM API] ⚠️ WARNING: Fallback también falló ({str(e2)[:60]}). Usando componente por defecto FadeText.")
                 return "FadeText"
@@ -1707,7 +1799,7 @@ async def generate_remotion_component(scene_index: int, visual_spec: VisualSpecR
 # SCENE PROCESSING
 # =============================================================================
 
-async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: BatchVisualSpec, aspect_ratio: str = "9:16") -> list[dict]:
+async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: BatchVisualSpec, aspect_ratio: str = "9:16", user_id: Optional[str] = None) -> list[dict]:
     from app.core.resolutions import get_resolution
     w, h = get_resolution(aspect_ratio)
     timeline_scenes = []
@@ -1743,7 +1835,7 @@ async def _process_chunks_async(job_id: str, chunks: list[str], batch_visuals: B
         visual_spec = batch_visuals.scenes[i] if i < len(batch_visuals.scenes) else batch_visuals.scenes[-1]
 
         print(f"[{job_id}] Generando código TSX de Remotion para escena {i+1}...")
-        component_type_name = await generate_remotion_component(i, visual_spec, chunk, duration, job_id, aspect_ratio)
+        component_type_name = await generate_remotion_component(i, visual_spec, chunk, duration, job_id, aspect_ratio, user_id)
 
         if i < len(chunks) - 1:
             await asyncio.sleep(4)
@@ -1793,7 +1885,7 @@ def write_index_ts(job_id: str, timeline_scenes: list[dict]):
     except Exception as e:
         print(f"[{job_id}] Error escribiendo index.ts: {e}")
 
-async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new_media_query: str, new_text: str) -> dict:
+async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new_media_query: str, new_text: str, user_id: Optional[str] = None) -> dict:
     from app.core.resolutions import get_resolution
     scene = spec["scenes"][scene_index]
     aspect_ratio = spec.get("aspect_ratio", "9:16")
@@ -1835,7 +1927,7 @@ async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new
     )
     
     print(f"[{job_id}] Regenerando TSX para escena {scene_index}...")
-    component_type_name = await generate_remotion_component(scene_index, visual_spec, new_text, scene["duration_seconds"], job_id, aspect_ratio)
+    component_type_name = await generate_remotion_component(scene_index, visual_spec, new_text, scene["duration_seconds"], job_id, aspect_ratio, user_id)
     
     scene["type"] = component_type_name
     
@@ -1848,15 +1940,15 @@ async def _regenerate_scene_async(job_id: str, spec: dict, scene_index: int, new
     
     return spec
 
-def regenerate_single_scene_sync(job_id: str, spec: dict, scene_index: int, new_media_query: str, new_text: str) -> dict:
-    return asyncio.run(_regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text))
+def regenerate_single_scene_sync(job_id: str, spec: dict, scene_index: int, new_media_query: str, new_text: str, user_id: Optional[str] = None) -> dict:
+    return asyncio.run(_regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text, user_id))
 
 
 # =============================================================================
 # MAIN PIPELINE FUNCTIONS
 # =============================================================================
 
-def run_pipeline(job_id: str, script_text: str, aspect_ratio: str = "9:16"):
+def run_pipeline(job_id: str, script_text: str, aspect_ratio: str = "9:16", user_id: Optional[str] = None):
     """Ejecuta el pipeline completo de generación de video."""
     db: Session = SessionLocal()
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
@@ -1885,13 +1977,13 @@ def run_pipeline(job_id: str, script_text: str, aspect_ratio: str = "9:16"):
         db.commit()
         
         print(f"[{job_id}] Generando prompts visuales en Batch con Gemini...")
-        batch_visuals = generate_batch_visuals_with_llm(chunks, aspect_ratio)
+        batch_visuals = generate_batch_visuals_with_llm(chunks, aspect_ratio, user_id)
 
         # Estado 3: Procesando escenas (TTS + TSX)
         job.status = "processing_scenes"
         db.commit()
         
-        timeline_scenes = asyncio.run(_process_chunks_async(job_id, chunks, batch_visuals, aspect_ratio))
+        timeline_scenes = asyncio.run(_process_chunks_async(job_id, chunks, batch_visuals, aspect_ratio, user_id))
 
         # Guardamos el timeline completo y lo validamos con Pydantic
         from app.schemas.spec import TimelineSpec

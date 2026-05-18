@@ -19,6 +19,7 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '../../store/useDashboardStore';
@@ -58,7 +59,7 @@ function createFilteredSpec(spec: TimelineSpec, sceneIndex: number): TimelineSpe
 export function ProjectDetail() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-  const { selectedJob, selectedJobLoading, selectJob, triggerRender, triggerAEExport, startPolling, stopPolling } =
+  const { selectedJob, selectedJobLoading, selectJob, triggerRender, triggerAEExport, regenerateAEExport, startPolling, stopPolling } =
     useDashboardStore();
   const [activeTab, setActiveTab] = useState<TabKey>('script');
   const [exportLoading, setExportLoading] = useState(false);
@@ -99,11 +100,43 @@ export function ProjectDetail() {
     setExportLoading(true);
     try {
       await triggerAEExport(jobId);
-      // Open download in new tab
-      window.open(
-        `http://localhost:8000/api/jobs/${jobId}/export/after-effects/download`,
-        '_blank',
-      );
+      const token = localStorage.getItem('animaflow_token');
+      let attempts = 0;
+      const maxAttempts = 120;
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const statusRes = await fetch(
+          `http://localhost:8000/api/jobs/${jobId}/export/after-effects/status`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          if (statusData.status === 'completed') {
+            const downloadRes = await fetch(
+              `http://localhost:8000/api/jobs/${jobId}/export/after-effects/download`,
+              { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!downloadRes.ok) {
+              throw new Error('Download failed');
+            }
+            const blob = await downloadRes.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = statusData.filename || `ae_export_${jobId.slice(0, 8)}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            return;
+          }
+          if (statusData.status === 'failed') {
+            throw new Error('AE export failed');
+          }
+        }
+        attempts++;
+      }
+      throw new Error('Export timed out');
     } catch {
       alert('Error al exportar para After Effects.');
     } finally {
@@ -111,12 +144,79 @@ export function ProjectDetail() {
     }
   }, [jobId, triggerAEExport]);
 
-  const handleSpecDownload = useCallback(() => {
+  const handleRegenerateAE = useCallback(async () => {
     if (!jobId) return;
-    window.open(
+    setExportLoading(true);
+    try {
+      await regenerateAEExport(jobId);
+      const token = localStorage.getItem('animaflow_token');
+      let attempts = 0;
+      const maxAttempts = 120;
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const statusRes = await fetch(
+          `http://localhost:8000/api/jobs/${jobId}/export/after-effects/status`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          if (statusData.status === 'completed') {
+            const downloadRes = await fetch(
+              `http://localhost:8000/api/jobs/${jobId}/export/after-effects/download`,
+              { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            if (!downloadRes.ok) {
+              throw new Error('Download failed');
+            }
+            const blob = await downloadRes.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = statusData.filename || `ae_export_${jobId.slice(0, 8)}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            return;
+          }
+          if (statusData.status === 'failed') {
+            throw new Error('AE export failed');
+          }
+        }
+        attempts++;
+      }
+      throw new Error('Export timed out');
+    } catch {
+      alert('Error al regenerar After Effects.');
+    } finally {
+      setExportLoading(false);
+    }
+  }, [jobId, regenerateAEExport]);
+
+  const handleSpecDownload = useCallback(async () => {
+    if (!jobId) return;
+    const token = localStorage.getItem('animaflow_token');
+    const response = await fetch(
       `http://localhost:8000/api/jobs/${jobId}/export/spec-json`,
-      '_blank',
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
     );
+    if (!response.ok) {
+      alert('Error al descargar spec.json');
+      return;
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `spec_${jobId.slice(0, 8)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   }, [jobId]);
 
   if (!jobId) {
@@ -275,6 +375,7 @@ export function ProjectDetail() {
             exportLoading={exportLoading}
             onRender={handleRender}
             onAEExport={handleAEExport}
+            onRegenerateAE={handleRegenerateAE}
             onSpecDownload={handleSpecDownload}
           />
         )}
@@ -655,6 +756,7 @@ interface ExportTabProps {
   exportLoading: boolean;
   onRender: () => void;
   onAEExport: () => void;
+  onRegenerateAE: () => void;
   onSpecDownload: () => void;
 }
 
@@ -665,6 +767,7 @@ function ExportTab({
   exportLoading,
   onRender,
   onAEExport,
+  onRegenerateAE,
   onSpecDownload,
 }: ExportTabProps) {
   const [exportMode, setExportMode] = useState<ExportMode>('all');
@@ -971,7 +1074,7 @@ function ExportTab({
       </div>
 
       {/* Quick actions (legacy individual buttons, kept for direct access) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <button
           onClick={onRender}
           disabled={!isReadyToRender || renderLoading}
@@ -991,6 +1094,14 @@ function ExportTab({
         >
           <Package size={14} />
           After Effects
+        </button>
+        <button
+          onClick={onRegenerateAE}
+          disabled={exportLoading}
+          className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium border border-border-tech text-text-secondary hover:text-text-primary hover:bg-surface-high transition-all"
+        >
+          <RefreshCw size={14} />
+          Regenerar AE
         </button>
         <button
           onClick={onSpecDownload}

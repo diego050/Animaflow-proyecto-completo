@@ -5,6 +5,10 @@ import type {
   RegisterRequest,
   AuthResponse,
   UpdateUserRequest,
+  ApiKeyEntry,
+  ApiKeyCreateRequest,
+  UserLLMSettings,
+  UserLLMSettingsUpdate,
 } from '../types/auth';
 import { api } from '../api/client';
 
@@ -15,12 +19,25 @@ interface AuthState {
   error: string | null;
   isAuthenticated: boolean;
 
+  // API Keys
+  apiKeys: ApiKeyEntry[];
+  apiKeysLoading: boolean;
+  llmSettings: UserLLMSettings | null;
+  llmSettingsLoading: boolean;
+
   login: (credentials: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
   fetchMe: () => Promise<void>;
   updateProfile: (data: UpdateUserRequest) => Promise<void>;
   clearError: () => void;
+
+  // API Key actions
+  fetchApiKeys: () => Promise<void>;
+  createApiKey: (data: ApiKeyCreateRequest) => Promise<void>;
+  deleteApiKey: (id: string) => Promise<void>;
+  fetchLLMSettings: () => Promise<void>;
+  updateLLMSettings: (data: UserLLMSettingsUpdate) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -29,6 +46,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   error: null,
   isAuthenticated: !!localStorage.getItem('animaflow_token'),
+
+  // API Keys initial state
+  apiKeys: [],
+  apiKeysLoading: false,
+  llmSettings: null,
+  llmSettingsLoading: false,
 
   login: async (credentials) => {
     set({ isLoading: true, error: null });
@@ -101,4 +124,49 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  // -----------------------------------------------------------------------
+  // API Keys
+  // -----------------------------------------------------------------------
+  fetchApiKeys: async () => {
+    set({ apiKeysLoading: true });
+    try {
+      const keys = await api.get<ApiKeyEntry[]>('/api/api-keys/');
+      set({ apiKeys: keys, apiKeysLoading: false });
+    } catch {
+      set({ apiKeysLoading: false });
+    }
+  },
+
+  createApiKey: async (data: ApiKeyCreateRequest) => {
+    await api.post<ApiKeyEntry>('/api/api-keys/', data);
+    // Refresh keys after creation
+    await get().fetchApiKeys();
+  },
+
+  deleteApiKey: async (id: string) => {
+    await api.delete(`/api/api-keys/${id}`);
+    // Remove from local state immediately for responsive UI
+    set((state) => ({
+      apiKeys: state.apiKeys.filter((k) => k.id !== id),
+    }));
+  },
+
+  // -----------------------------------------------------------------------
+  // LLM Settings
+  // -----------------------------------------------------------------------
+  fetchLLMSettings: async () => {
+    set({ llmSettingsLoading: true });
+    try {
+      const settings = await api.get<UserLLMSettings>('/api/api-keys/me/settings');
+      set({ llmSettings: settings, llmSettingsLoading: false });
+    } catch {
+      set({ llmSettingsLoading: false });
+    }
+  },
+
+  updateLLMSettings: async (data: UserLLMSettingsUpdate) => {
+    const updated = await api.put<UserLLMSettings>('/api/api-keys/me/settings', data);
+    set({ llmSettings: updated });
+  },
 }));

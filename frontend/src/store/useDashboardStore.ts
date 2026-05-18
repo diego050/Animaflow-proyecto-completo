@@ -21,6 +21,9 @@ interface WizardData {
   aspectRatio: string;
   voiceId: string | null;
   generatedJobId: string | null;
+  selectedModel: string | null;
+  customWidth: number;
+  customHeight: number;
 }
 
 interface DashboardState {
@@ -55,11 +58,12 @@ interface DashboardState {
   // Actions — Projects
   fetchJobs: () => Promise<void>;
   selectJob: (jobId: string) => Promise<void>;
-  createJob: (scriptText: string, aspectRatio: string, voiceId?: string) => Promise<string>;
+  createJob: (scriptText: string, aspectRatio: string, voiceId?: string, model?: string | null) => Promise<string>;
   generateScript: (info: string) => Promise<string>;
   deleteJob: (jobId: string) => Promise<void>;
   triggerRender: (jobId: string) => Promise<void>;
   triggerAEExport: (jobId: string) => Promise<void>;
+  regenerateAEExport: (jobId: string) => Promise<void>;
   regenerateScene: (
     jobId: string,
     sceneIndex: number,
@@ -160,6 +164,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     aspectRatio: '9:16',
     voiceId: null,
     generatedJobId: null,
+    selectedModel: null,
+    customWidth: 1080,
+    customHeight: 1920,
   },
   pollingJobId: null,
 
@@ -216,13 +223,17 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // -----------------------------------------------------------------------
   // Create a new job
   // -----------------------------------------------------------------------
-  createJob: async (scriptText: string, aspectRatio: string, _voiceId?: string) => {
+  createJob: async (scriptText: string, aspectRatio: string, _voiceId?: string, model?: string | null) => {
     // TODO: voiceId will be sent to backend when TTS voice selection is implemented
     void _voiceId;
-    const data = await api.post<{ job_id: string; status: string }>('/api/jobs/', {
+    const body: Record<string, unknown> = {
       script_text: scriptText,
       aspect_ratio: aspectRatio,
-    });
+    };
+    if (model) {
+      body.model = model;
+    }
+    const data = await api.post<{ job_id: string; status: string }>('/api/jobs/', body);
     // Refresh job list
     await get().fetchJobs();
     return data.job_id;
@@ -267,6 +278,14 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // -----------------------------------------------------------------------
   triggerAEExport: async (jobId: string) => {
     await api.post(`/api/jobs/${jobId}/export/after-effects`);
+    await get().refreshSelectedJob();
+  },
+
+  // -----------------------------------------------------------------------
+  // Regenerate After Effects export (force=true)
+  // -----------------------------------------------------------------------
+  regenerateAEExport: async (jobId: string) => {
+    await api.post(`/api/jobs/${jobId}/export/after-effects?force=true`);
     await get().refreshSelectedJob();
   },
 
@@ -364,6 +383,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         aspectRatio: settings.defaultAspectRatio || '9:16',
         voiceId: settings.defaultVoiceId || null,
         generatedJobId: null,
+        selectedModel: null,
+        customWidth: 1080,
+        customHeight: 1920,
       },
     });
   },

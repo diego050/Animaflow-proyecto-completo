@@ -1,0 +1,160 @@
+python worker.py
+14:02:02 Worker e1206db945514607b033702ff5e9a882: started with PID 27688, version 2.8.0
+14:02:02 Worker e1206db945514607b033702ff5e9a882: subscribing to channel rq:pubsub:e1206db945514607b033702ff5e9a882
+14:02:02 *** Listening on default...
+14:02:02 Worker e1206db945514607b033702ff5e9a882: cleaning registries for queue: default
+14:03:10 default: app.services.ae_export.generate_ae_export_async('fac4ceee-d353-4ba9-a612-fb7ee65f1013', True) (89fa88a2-fe1b-4b07-adbb-2ef6e2d76374)
+[AE Export] Force mode: cleared 2 existing ae_script_code(s) for regeneration
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] Generating AE script for scene 1/2...
+[AE Export] TSX file: C:\Users\Usuario\Documents\GitHub\Animaflow-proyecto-completo\frontend\src\remotion\generated\Scene_fac4ceee-d353-4ba9-a612-fb7ee65f1013_0.tsx, exists: True
+[AE Export] 🚀 Calling LLM generate_ae_script_from_tsx for scene 1...
+[LLM AE] ✅ Iniciando generación AE script 2 fases (width=1080, height=1920, duration=3.3)
+[LLM AE] SVG parser encontró 8 elementos
+[LLM AE] Animation parser encontró 7 animaciones
+[LLM AE] Enriched analyzer: 11 elementos, 1 map expansions
+[LLM AE] Element summary:
+MANIFEST DE ELEMENTOS (datos exactos del TSX, NO inventar):
+
+## GroupElement
+  Posición base: [540.0, 960.0]
+  Position Y animada: t=0.0s->1400.0, t=2.0s->960.0
+## Circle_animated
+  Posición: [540, 960]
+  Tamaño AE: [2800.0, 2800.0] (radio max=1400.0)
+  Animar SCALE de [0%,0%] a [100%,100%] (NO cambiar el size)
+## TextBlock
+  Posición: [540, 1632] (bottom: 15%)
+## Particle_0
+  Posición: [568, 960]
+  Tamaño: [4.2, 4.2]
+  Delay: 0.0s
+  positionY: t=0.0s->1600.0, t=2.0s->600.0
+  opacity: t=0.0s->0.
+[LLM AE] 🟢 FASE 1: Generando estructura estática...
+[LLM AE-Structure] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Structure] ✅ Respuesta recibida (7151 chars)
+[LLM AE] ✅ FASE 1 completada (7133 chars)
+[LLM AE] Layers detectados: ['sl1', 'sl2', 'sl3', 'sl4', 'sl5', 'sl6', 'slP', 'textLayer']
+[LLM AE] 🟢 FASE 2: Generando animaciones con contexto completo...
+[LLM AE-Animations] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Animations] Retry en 3s (intento 1/3)
+[LLM AE-Animations] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Animations] Retry en 6s (intento 2/3)
+[LLM AE-Animations] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Animations] ERROR: ServerError: 500 INTERNAL. {'error': {'code': 500, 'message': 'Internal error encountered.', 'status': 'INTERNAL'}}
+[LLM AE] ⚠️ Fase 2 omitió 8 layers: ['sl1', 'sl2', 'sl3', 'sl4', 'sl5', 'sl6', 'slP', 'textLayer']. Reintentando COMPLETO...
+[LLM AE-Animations] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Animations] Retry en 3s (intento 1/3)
+[LLM AE-Animations] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Animations] ✅ Respuesta recibida (3563 chars)
+[LLM AE] ✅ FASE 2 completada (3563 chars)
+[LLM AE] 💾 Debug guardado: fac4ceee-d353-4ba9-a612-fb7ee65f1013_scene_0_20260518_140820.txt (shapes=7, text=1, solids=1, anims=48)
+[AE Export] LLM result for scene 1: OK (length: 10721 chars)
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] AE script persisted to DB for scene 1 (len=10782)
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] Generating AE script for scene 2/2...
+[AE Export] TSX file: C:\Users\Usuario\Documents\GitHub\Animaflow-proyecto-completo\frontend\src\remotion\generated\Scene_fac4ceee-d353-4ba9-a612-fb7ee65f1013_1.tsx, exists: True
+[AE Export] 🚀 Calling LLM generate_ae_script_from_tsx for scene 2...
+[LLM AE] ✅ Iniciando generación AE script 2 fases (width=1080, height=1920, duration=3.58)
+[LLM AE] SVG parser encontró 12 elementos
+[LLM AE] Animation parser encontró 9 animaciones
+[LLM AE] Enriched analyzer: 5 elementos, 0 map expansions
+[LLM AE] Element summary:
+MANIFEST DE ELEMENTOS (datos exactos del TSX, NO inventar):
+
+## GroupElement
+  Posición base: [540, 1100.0]
+  Position Y animada: t=0.0s->1200.0, t=1.0s->1100.0
+## GroupElement
+  Posición base: [540, 1100.0]
+  Position Y animada: t=0.0s->1200.0, t=1.0s->1100.0
+## GroupElement
+  Posición base: [540, 1200.0]
+  Position Y animada: t=0.0s->1400.0, t=1.0s->1200.0
+## GroupElement
+  Posición base: [540, 960]
+## TextBlock
+  Posición: [540, 1574] (bottom: 18%)
+
+[LLM AE] 🟢 FASE 1: Generando estructura estática...
+[LLM AE-Structure] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Structure] Retry en 3s (intento 1/3)
+[LLM AE-Structure] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Structure] ✅ Respuesta recibida (10227 chars)
+[LLM AE] ✅ FASE 1 completada (10209 chars)
+[LLM AE] Layers detectados: ['sl1', 'sl2', 'sl3', 'sl4', 'sl5', 'sl6', 'sl7', 'sl8', 'sl9', 'sl10', 'textLayer']
+[LLM AE] 🟢 FASE 2: Generando animaciones con contexto completo...
+[LLM AE-Animations] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Animations] ERROR: JobTimeoutException: Task exceeded maximum timeout value (600 seconds)
+[LLM AE] ⚠️ Fase 2 omitió 11 layers: ['sl1', 'sl2', 'sl3', 'sl4', 'sl5', 'sl6', 'sl7', 'sl8', 'sl9', 'sl10', 'textLayer']. Reintentando COMPLETO...
+[LLM AE-Animations] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Animations] Retry en 3s (intento 1/3)
+[LLM AE-Animations] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Animations] Retry en 6s (intento 2/3)
+[LLM AE-Animations] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Animations] ERROR: ServerError: 500 INTERNAL. {'error': {'code': 500, 'message': 'Internal error encountered.', 'status': 'INTERNAL'}}
+[LLM AE] ⚠️ Fase 2 retry aún omitió 11 layers: ['sl1', 'sl2', 'sl3', 'sl4', 'sl5', 'sl6', 'sl7', 'sl8', 'sl9', 'sl10', 'textLayer']. Tercer intento...
+[LLM AE-Animations] 🚀 Llamando a Gemini (model=gemma-4-31b-it, timeout=300s)...
+[LLM AE-Animations] ✅ Respuesta recibida (4682 chars)
+[LLM AE] ✅ FASE 2 completada (4682 chars)
+[LLM AE] 💾 Debug guardado: fac4ceee-d353-4ba9-a612-fb7ee65f1013_scene_1_20260518_141546.txt (shapes=10, text=1, solids=1, anims=69)
+[AE Export] LLM result for scene 2: OK (length: 14916 chars)
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] AE script persisted to DB for scene 2 (len=14977)
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] Re-loaded job from DB, scenes count: 2
+[AE Export]   Scene 1: ae_script_code=YES (len=10782)
+[AE Export]   Scene 2: ae_script_code=YES (len=14977)
+[AE Export] Creating export zip for job fac4ceee-d353-4ba9-a612-fb7ee65f1013...
+[AE Full Script] Scene 1: ae_script_code=PRESENT (len=10782)
+[AE Full Script] Scene 2: ae_script_code=PRESENT (len=14977)
+[AE Export] Audio downloaded from URL: escena_1.mp3
+[AE Export] Audio downloaded from URL: escena_2.mp3
+[AE Export] Export completed: animaflow_fac4ceee-d353-4ba9-a612-fb7ee65f1013.zip
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+14:15:46 Successfully completed app.services.ae_export.generate_ae_export_async('fac4ceee-d353-4ba9-a612-fb7ee65f1013', True) job in 0:12:35.552351s on worker e1206db945514607b033702ff5e9a882
+14:15:46 default: Job OK (89fa88a2-fe1b-4b07-adbb-2ef6e2d76374)
+14:15:46 Result is kept for 500 seconds
+14:15:46 Worker e1206db945514607b033702ff5e9a882: cleaning registries for queue: default
+14:17:03 default: app.services.ae_export.generate_ae_export_async('fac4ceee-d353-4ba9-a612-fb7ee65f1013', False) (2f8e2c7e-3389-48ea-8133-19b63db03144)
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] Scene 1 already has ae_script_code, skipping
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] Scene 2 already has ae_script_code, skipping
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] Re-loaded job from DB, scenes count: 2
+[AE Export]   Scene 1: ae_script_code=YES (len=10782)
+[AE Export]   Scene 2: ae_script_code=YES (len=14977)
+[AE Export] Creating export zip for job fac4ceee-d353-4ba9-a612-fb7ee65f1013...
+[AE Full Script] Scene 1: ae_script_code=PRESENT (len=10782)
+[AE Full Script] Scene 2: ae_script_code=PRESENT (len=14977)
+[AE Export] Audio downloaded from URL: escena_1.mp3
+[AE Export] Audio downloaded from URL: escena_2.mp3
+[AE Export] Export completed: animaflow_fac4ceee-d353-4ba9-a612-fb7ee65f1013.zip
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+14:17:03 Successfully completed app.services.ae_export.generate_ae_export_async('fac4ceee-d353-4ba9-a612-fb7ee65f1013', False) job in 0:00:00.333287s on worker e1206db945514607b033702ff5e9a882
+14:17:03 default: Job OK (2f8e2c7e-3389-48ea-8133-19b63db03144)
+14:17:03 Result is kept for 500 seconds
+14:19:16 default: app.services.ae_export.generate_ae_export_async('fac4ceee-d353-4ba9-a612-fb7ee65f1013', False) (5defa45b-159f-4877-8b5f-c5d9788e83e1)
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] Scene 1 already has ae_script_code, skipping
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] Scene 2 already has ae_script_code, skipping
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+[AE Export] Re-loaded job from DB, scenes count: 2
+[AE Export]   Scene 1: ae_script_code=YES (len=10782)
+[AE Export]   Scene 2: ae_script_code=YES (len=14977)
+[AE Export] Creating export zip for job fac4ceee-d353-4ba9-a612-fb7ee65f1013...
+[AE Full Script] Scene 1: ae_script_code=PRESENT (len=10782)
+[AE Full Script] Scene 2: ae_script_code=PRESENT (len=14977)
+[AE Export] Audio downloaded from URL: escena_1.mp3
+[AE Export] Audio downloaded from URL: escena_2.mp3
+[AE Export] Export completed: animaflow_fac4ceee-d353-4ba9-a612-fb7ee65f1013.zip
+[AE Persist] ✅ result_spec persisted for job fac4ceee-d353-4ba9-a612-fb7ee65f1013
+14:19:16 Successfully completed app.services.ae_export.generate_ae_export_async('fac4ceee-d353-4ba9-a612-fb7ee65f1013', False) job in 0:00:00.341734s on worker e1206db945514607b033702ff5e9a882
+14:19:16 default: Job OK (5defa45b-159f-4877-8b5f-c5d9788e83e1)
+14:19:16 Result is kept for 500 seconds
+14:26:01 Worker e1206db945514607b033702ff5e9a882: cleaning registries for queue: default

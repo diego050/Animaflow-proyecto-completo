@@ -32,7 +32,14 @@ async def create_job(
     db.refresh(new_job)
 
     # Enviar la tarea pesada a Redis para que el Worker la procese en background
-    queue.enqueue(run_pipeline, new_job.id, new_job.script_text, job_timeout="10m")
+    queue.enqueue(
+        run_pipeline,
+        new_job.id,
+        new_job.script_text,
+        job_in.aspect_ratio,
+        current_user.id,
+        job_timeout="10m",
+    )
 
     return JobResponse(job_id=new_job.id, status=new_job.status)
 
@@ -134,7 +141,7 @@ async def generate_script(
 ):
     from app.services.pipeline import generate_script_from_info
 
-    script = generate_script_from_info(req.info)
+    script = generate_script_from_info(req.info, current_user.id)
     return ScriptGenerateResponse(script_text=script)
 
 
@@ -187,7 +194,7 @@ async def trigger_scene_regenerate(
     try:
         # Usamos await directo porque FastAPI ya corre en un event loop
         updated_spec = await _regenerate_scene_async(
-            job.id, job.result_spec, scene_index, req.media_query, req.text
+            job.id, job.result_spec, scene_index, req.media_query, req.text, current_user.id
         )
 
         # Clonamos el diccionario para asegurar que SQLAlchemy detecte el cambio en el JSON

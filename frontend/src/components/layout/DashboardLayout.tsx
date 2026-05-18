@@ -70,7 +70,7 @@ export function DashboardLayout() {
 
       {/* Sidebar */}
       <motion.aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-surface-lowest border-r border-border-tech flex flex-col
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface-lowest border-r border-border-tech flex flex-col
           lg:translate-x-0 transition-transform duration-300`}
         initial={false}
         animate={{ x: sidebarOpen ? 0 : 0 }}
@@ -97,7 +97,7 @@ export function DashboardLayout() {
       </motion.aside>
 
       {/* Main area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
         {/* Topbar */}
         <header className="sticky top-0 z-30 h-16 bg-surface-lowest/80 backdrop-blur-md border-b border-border-tech flex items-center justify-between px-4 lg:px-6">
           <div className="flex items-center gap-3">

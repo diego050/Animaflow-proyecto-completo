@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy.orm import relationship
 from app.db.session import Base
 import uuid
 import datetime
@@ -28,6 +29,14 @@ class User(Base):
         default=lambda: datetime.datetime.utcnow(),
         onupdate=lambda: datetime.datetime.utcnow(),
     )
+
+    # LLM provider settings
+    default_provider = Column(String(50), nullable=True, default="gemini")
+    default_model = Column(String(100), nullable=True, default="gemini-2.0-flash")
+    available_models = Column(JSON, nullable=True, default=list)
+
+    # Relationships
+    api_keys = relationship("ApiKey", back_populates="user", lazy="select")
 
 
 class JobModel(Base):
@@ -76,3 +85,24 @@ class Voice(Base):
         default=lambda: datetime.datetime.utcnow(),
         onupdate=lambda: datetime.datetime.utcnow(),
     )
+
+
+class ApiKey(Base):
+    """
+    API key model for user-managed LLM provider keys.
+
+    Each user can store their own API keys for different providers
+    (gemini, openai, anthropic, grok). One active key per provider per user.
+    """
+
+    __tablename__ = "api_keys"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    provider = Column(String(50), nullable=False)  # gemini, openai, anthropic, grok
+    api_key = Column(Text, nullable=False)  # encrypted in production
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.utcnow())
+
+    # Relationships
+    user = relationship("User", back_populates="api_keys")
