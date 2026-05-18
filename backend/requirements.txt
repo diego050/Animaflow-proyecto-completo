@@ -2,6 +2,7 @@
 uvicorn
 pydantic
 pydantic-settings
+email-validator
 SQLAlchemy
 alembic
 psycopg2-binary
@@ -9,7 +10,7 @@ rq
 redis
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt==4.0.1
 python-multipart
 httpx
-
 google-genai

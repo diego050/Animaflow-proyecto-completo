@@ -15,8 +15,11 @@
     "@remotion/cli": "^4.0.459",
     "@remotion/player": "^4.0.459",
     "@tailwindcss/postcss": "^4.3.0",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.16.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-router-dom": "^7.15.1",
     "remotion": "^4.0.459",
     "zustand": "^5.0.13"
   },

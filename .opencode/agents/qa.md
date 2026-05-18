@@ -3,12 +3,12 @@ description: "QA Lead for AnimaFlow. Ensures pipeline reliability, spec.json con
 mode: subagent
 temperature: 0.2
 tools:
-  write: false
-  edit: false
-  bash: false
+  write: true
+  edit: true
+  bash: true
 permission:
-  edit: deny
-  bash: deny
+  edit: allow
+  bash: allow
 ---
 
 # QA Agent

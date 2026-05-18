@@ -97,7 +97,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ jobId, spec, onSpecUpd
                   
                   <div className="bg-slate-950 p-2 rounded border border-slate-800">
                     <p className="text-emerald-400 font-mono text-xs whitespace-normal break-words">
-                      🎨 {scene.media_query}
+                       {scene.media_query}
                     </p>
                   </div>
                   

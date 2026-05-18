@@ -1,0 +1,285 @@
+import { useState, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import {
+  FolderOpen,
+  Plus,
+  Mic,
+  FileText,
+  Video,
+  Download,
+  Settings,
+  Menu,
+  X,
+  ChevronRight,
+  LogOut,
+  User,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuthStore } from '../../store/useAuthStore';
+
+const navItems = [
+  { to: '/dashboard', label: 'Proyectos', icon: FolderOpen, disabled: false },
+  { to: '/dashboard/new', label: 'Nuevo Proyecto', icon: Plus, disabled: false },
+  { to: '/dashboard/voices', label: 'Voces', icon: Mic, disabled: false },
+  { to: '/dashboard/scripts', label: 'Guiones', icon: FileText, disabled: false },
+  { to: '/dashboard/videos', label: 'Videos', icon: Video, disabled: true },
+  { to: '/dashboard/downloads', label: 'Descargas', icon: Download, disabled: false },
+  { to: '/dashboard/settings', label: 'Configuración', icon: Settings, disabled: false },
+];
+
+export function DashboardLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user, logout, fetchMe } = useAuthStore();
+
+  // Fetch user data on mount
+  useEffect(() => {
+    fetchMe();
+  }, [fetchMe]);
+
+  const handleLogout = () => {
+    setUserMenuOpen(false);
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  const handleProfileClick = () => {
+    setUserMenuOpen(false);
+    navigate('/dashboard/settings');
+  };
+
+  const userInitials = user?.name
+    ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    : user?.email?.[0]?.toUpperCase() || 'U';
+
+  return (
+    <div className="min-h-screen bg-deep-slate text-text-primary font-body flex">
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar */}
+      <motion.aside
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-surface-lowest border-r border-border-tech flex flex-col
+          lg:translate-x-0 transition-transform duration-300`}
+        initial={false}
+        animate={{ x: sidebarOpen ? 0 : 0 }}
+      >
+        {/* Logo */}
+        <div className="h-16 flex items-center px-6 border-b border-border-tech">
+          <span className="text-text-primary font-display font-bold text-xl tracking-tight">
+            Anima<span className="text-mint-precision">Flow</span>
+          </span>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="ml-auto lg:hidden text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Nav items */}
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          {navItems.map((item) => (
+            <NavItem key={item.to} item={item} onClick={() => setSidebarOpen(false)} />
+          ))}
+        </nav>
+      </motion.aside>
+
+      {/* Main area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Topbar */}
+        <header className="sticky top-0 z-30 h-16 bg-surface-lowest/80 backdrop-blur-md border-b border-border-tech flex items-center justify-between px-4 lg:px-6">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <Menu size={20} />
+            </button>
+            <Breadcrumb />
+          </div>
+
+          {/* User menu */}
+          <div className="relative">
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-mint-precision/20 text-mint-precision flex items-center justify-center text-xs font-semibold">
+                {userInitials}
+              </div>
+              <span className="hidden md:inline text-sm font-medium max-w-32 truncate">
+                {user?.name || user?.email || 'Usuario'}
+              </span>
+            </button>
+
+            <AnimatePresence>
+              {userMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="absolute right-0 top-12 w-56 bg-surface-container border border-border-tech rounded-lg shadow-xl py-1"
+                >
+                  {/* User info header */}
+                  <div className="px-4 py-3 border-b border-border-tech">
+                    <p className="text-sm font-semibold text-text-primary truncate">
+                      {user?.name || 'Usuario'}
+                    </p>
+                    <p className="text-xs text-text-secondary/60 truncate">
+                      {user?.email || ''}
+                    </p>
+                    {user?.role && (
+                      <span className="inline-block mt-1 text-[10px] font-medium uppercase tracking-wider text-mint-precision/70 bg-mint-precision/10 px-1.5 py-0.5 rounded">
+                        {user.role}
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleProfileClick}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-high transition-colors"
+                  >
+                    <User size={16} />
+                    Perfil
+                  </button>
+                  <div className="my-1 border-t border-border-tech" />
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-error hover:text-error/80 hover:bg-surface-high transition-colors"
+                  >
+                    <LogOut size={16} />
+                    Cerrar sesión
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// NavItem component
+// ---------------------------------------------------------------------------
+
+function NavItem({
+  item,
+  onClick,
+}: {
+  item: {
+    to: string;
+    label: string;
+    icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+    disabled: boolean;
+  };
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+
+  if (item.disabled) {
+    return (
+      <div
+        className="group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary/40 cursor-not-allowed"
+        title="Próximamente"
+      >
+        <Icon size={18} strokeWidth={1.5} />
+        <span className="text-sm font-medium">{item.label}</span>
+        <span className="ml-auto text-[10px] text-text-secondary/30 bg-surface-high px-1.5 py-0.5 rounded">
+          Pronto
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <NavLink
+      to={item.to}
+      end={item.to !== '/dashboard'}
+      onClick={onClick}
+      className={({ isActive }) =>
+        `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+          isActive
+            ? 'bg-mint-precision/10 text-mint-precision'
+            : 'text-text-secondary hover:text-text-primary hover:bg-surface-high'
+        }`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
+          <span>{item.label}</span>
+        </>
+      )}
+    </NavLink>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Breadcrumb component
+// ---------------------------------------------------------------------------
+
+function Breadcrumb() {
+  const location = window.location.pathname;
+  const segments = location.split('/').filter(Boolean);
+  const dashboardIndex = segments.indexOf('dashboard');
+
+  if (dashboardIndex === -1) return null;
+
+  const relevantSegments = segments.slice(dashboardIndex);
+
+  const labelMap: Record<string, string> = {
+    dashboard: 'Dashboard',
+    new: 'Nuevo Proyecto',
+    voices: 'Voces',
+    scripts: 'Guiones',
+    videos: 'Videos',
+    downloads: 'Descargas',
+    settings: 'Configuración',
+  };
+
+  return (
+    <nav className="flex items-center gap-1 text-sm">
+      {relevantSegments.map((segment, i) => {
+        const isLast = i === relevantSegments.length - 1;
+        const label =
+          segment.startsWith('project') || segment.startsWith(':')
+            ? 'Proyecto'
+            : labelMap[segment] || segment;
+
+        return (
+          <span key={i} className="flex items-center gap-1">
+            {i > 0 && <ChevronRight size={14} className="text-text-secondary/40" />}
+            <span
+              className={
+                isLast
+                  ? 'text-text-primary font-medium'
+                  : 'text-text-secondary/60'
+              }
+            >
+              {label}
+            </span>
+          </span>
+        );
+      })}
+    </nav>
+  );
+}

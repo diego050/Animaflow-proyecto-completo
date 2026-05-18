@@ -3,12 +3,12 @@ description: "Lead architect for AnimaFlow. Designs the spec.json schema, async 
 mode: subagent
 temperature: 0.2
 tools:
-  write: false
-  edit: false
-  bash: false
+  write: true
+  edit: true
+  bash: true
 permission:
-  edit: deny
-  bash: deny
+  edit: allow
+  bash: allow
 ---
 
 # Architecture Agent
