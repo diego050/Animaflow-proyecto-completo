@@ -127,3 +127,5 @@ npm run dev  # http://localhost:5173
 | [ADR-006](adr/006-authentication-strategy.md) | Authentication Strategy | ✅ Implementado |
 | [ADR-007](adr/007-user-job-relationship.md) | User-Job Relationship | ✅ Implementado |
 | [ADR-008](adr/008-voice-management-approach.md) | Voice Management Approach | ✅ Implementado |
+| [ADR-009](adr/009-after-effects-deterministic-fidelity.md) | Deterministic AE Script Generator | ✅ Implementado |
+

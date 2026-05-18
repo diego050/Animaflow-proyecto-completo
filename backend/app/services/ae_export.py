@@ -53,16 +53,30 @@ def _persist_job_spec(job_id: str, spec_dict: dict):
 
 def hex_to_rgb_array(hex_color: str) -> str:
     """Convierte color HEX a array RGB normalizado [r, g, b] para AE."""
-    hex_color = hex_color.lstrip('#').rstrip('}').strip()
-    if len(hex_color) != 6:
-        return "[0.220, 0.741, 0.973]"
+    if not hex_color:
+        return "[0.5, 0.5, 0.5]"
+        
+    color = hex_color.lower().strip()
+    if color == 'black': return "[0.000, 0.000, 0.000]"
+    if color == 'white': return "[1.000, 1.000, 1.000]"
+    if color == 'none' or color == 'transparent': return "[0.000, 0.000, 0.000]"
+    
+    hex_clean = color.lstrip('#').rstrip('}').strip()
+    
+    # Handle shorthand #000
+    if len(hex_clean) == 3:
+        hex_clean = hex_clean[0]*2 + hex_clean[1]*2 + hex_clean[2]*2
+        
+    if len(hex_clean) != 6:
+        return "[0.500, 0.500, 0.500]"
+        
     try:
-        r = int(hex_color[0:2], 16) / 255.0
-        g = int(hex_color[2:4], 16) / 255.0
-        b = int(hex_color[4:6], 16) / 255.0
+        r = int(hex_clean[0:2], 16) / 255.0
+        g = int(hex_clean[2:4], 16) / 255.0
+        b = int(hex_clean[4:6], 16) / 255.0
         return f"[{r:.3f}, {g:.3f}, {b:.3f}]"
     except ValueError:
-        return "[0.220, 0.741, 0.973]"
+        return "[0.500, 0.500, 0.500]"
 
 
 def generate_ae_script(scene: Dict, index: int, width: int = 1080, height: int = 1920) -> str:
@@ -887,7 +901,9 @@ def generate_ae_export_async(job_id: str, force: bool = False):
     """
     from app.db.session import SessionLocal
     from app.db.models import JobModel
-    from app.services.pipeline import generate_ae_script_from_tsx
+    from app.services.svg_parser import parse_svg_from_tsx
+    from app.services.tsx_enriched_analyzer import analyze_tsx_for_ae
+    from app.services.ae_deterministic_generator import generate_deterministic_script
     
     db = SessionLocal()
     try:
@@ -938,16 +954,37 @@ def generate_ae_export_async(job_id: str, force: bool = False):
             print(f"[AE Export] Generating AE script for scene {i+1}/{len(scenes)}...")
             print(f"[AE Export] TSX file: {tsx_path}, exists: {os.path.exists(tsx_path)}")
             
-            # Generate AE script
-            print(f"[AE Export] 🚀 Calling LLM generate_ae_script_from_tsx for scene {i+1}...")
-            ae_script = generate_ae_script_from_tsx(
-                tsx_code, scene['text'], scene['duration_seconds'],
-                scene.get('remotion_props', {}).get('backgroundColor', '#0f172a'),
-                scene.get('remotion_props', {}).get('textColor', '#38bdf8'),
-                w, h,
-                job_id=str(job.id), scene_id=i
-            )
-            print(f"[AE Export] LLM result for scene {i+1}: {'OK' if ae_script else 'NULL/FALLIDO'} (length: {len(ae_script) if ae_script else 0} chars)")
+            # Generate AE script using Deterministic engine!
+            print(f"[AE Export] 🚀 Calling Deterministic Generator for scene {i+1}...")
+            
+            try:
+                # 1. Parse SVG geometries
+                svg_elements = parse_svg_from_tsx(tsx_code)
+                
+                # 2. Extract Remotion animations and metadata
+                enriched_data = analyze_tsx_for_ae(tsx_code, w, h, 30)
+                
+                # 3. Generate .jsx
+                bg_color = scene.get('remotion_props', {}).get('backgroundColor', '#0f172a')
+                txt_color = scene.get('remotion_props', {}).get('textColor', '#38bdf8')
+                
+                ae_script = generate_deterministic_script(
+                    svg_elements=svg_elements,
+                    enriched=enriched_data,
+                    text=scene['text'],
+                    duration=scene['duration_seconds'],
+                    bg_color=bg_color,
+                    text_color=txt_color,
+                    width=w,
+                    height=h,
+                    fps=30
+                )
+                print(f"[AE Export] Deterministic result for scene {i+1}: OK (length: {len(ae_script)} chars)")
+            except Exception as script_e:
+                print(f"[AE Export] Deterministic generation failed for scene {i+1}: {script_e}")
+                import traceback
+                traceback.print_exc()
+                ae_script = None
             
             if ae_script:
                 # Wrap with individual undo group

@@ -25,6 +25,7 @@ def parse_svg_from_tsx(tsx_code: str) -> List[Dict[str, Any]]:
     
     # First, expand dynamic .map() elements into concrete SVG tags
     expanded_block = _expand_map_elements(tsx_code, svg_block)
+    expanded_block = _propagate_group_attributes(expanded_block)
     
     elements.extend(_parse_paths(expanded_block))
     elements.extend(_parse_circles(expanded_block))
@@ -37,7 +38,85 @@ def parse_svg_from_tsx(tsx_code: str) -> List[Dict[str, Any]]:
     elements.extend(_parse_gradients(tsx_code))
     elements.extend(_parse_filters(tsx_code))
     
-    return elements
+    # Sort shape elements by their appearance order in the TSX (Z-index)
+    shape_elements = [e for e in elements if "_start_idx" in e]
+    other_elements = [e for e in elements if "_start_idx" not in e]
+    
+    shape_elements.sort(key=lambda x: x["_start_idx"])
+    
+    # Resolve filter links
+    filters_map = {f["id"]: f for f in other_elements if "id" in f and f.get("type") in ["glow", "dropShadow"]}
+    
+    # Clean up internal sorting keys and attach filters
+    for e in shape_elements:
+        del e["_start_idx"]
+        
+        if "filter_url" in e:
+            # extract "glow" from "url(#glow)"
+            url_match = re.search(r'url\(#([^)]+)\)', e["filter_url"])
+            if url_match:
+                filter_id = url_match.group(1)
+                if filter_id in filters_map:
+                    e["filter"] = filters_map[filter_id]
+            del e["filter_url"]
+    
+    return other_elements + shape_elements
+
+
+def _propagate_group_attributes(svg_block: str) -> str:
+    """
+    Find <g> blocks and propagate attributes like stroke, fill, filter, stroke-width
+    down to child element tags if they do not have them defined locally.
+    """
+    g_pattern = r'<g\b([^>]*)>(.*?)</g>'
+    
+    def replace_group(match):
+        g_attrs = match.group(1)
+        g_content = match.group(2)
+        
+        g_stroke = _parse_attr(g_attrs, 'stroke')
+        g_fill = _parse_attr(g_attrs, 'fill')
+        g_filter = _parse_attr(g_attrs, 'filter')
+        g_stroke_width = _parse_attr(g_attrs, 'stroke-width') or _parse_attr(g_attrs, 'strokeWidth')
+        
+        child_tags = ['path', 'circle', 'rect', 'ellipse', 'line', 'polygon', 'polyline']
+        
+        updated_content = g_content
+        for tag in child_tags:
+            tag_pattern = rf'<{tag}\b([^>/]*)(/?)>'
+            
+            def replace_child(tag_match):
+                child_attrs = tag_match.group(1)
+                is_self_closing = tag_match.group(2) == '/'
+                
+                new_attrs = child_attrs
+                if g_stroke and 'stroke=' not in child_attrs:
+                    new_attrs += f' stroke="{g_stroke}"'
+                if g_fill and 'fill=' not in child_attrs:
+                    new_attrs += f' fill="{g_fill}"'
+                if g_filter and 'filter=' not in child_attrs:
+                    new_attrs += f' filter="{g_filter}"'
+                if g_stroke_width and 'stroke-width=' not in child_attrs and 'strokeWidth=' not in child_attrs:
+                    new_attrs += f' stroke-width="{g_stroke_width}"'
+                    
+                if is_self_closing:
+                    return f'<{tag}{new_attrs} />'
+                else:
+                    return f'<{tag}{new_attrs}>'
+                    
+            updated_content = re.sub(tag_pattern, replace_child, updated_content, flags=re.DOTALL)
+            
+        return f'<g{g_attrs}>{updated_content}</g>'
+        
+    prev_block = ""
+    current_block = svg_block
+    for _ in range(3):
+        prev_block = current_block
+        current_block = re.sub(g_pattern, replace_group, current_block, flags=re.DOTALL)
+        if current_block == prev_block:
+            break
+            
+    return current_block
 
 
 def _expand_map_elements(tsx_code: str, svg_block: str) -> str:
@@ -64,19 +143,22 @@ def _expand_map_elements(tsx_code: str, svg_block: str) -> str:
             if elem_type == 'circle':
                 count = int(match.group(1))
                 attrs_str = match.group(2)
-                # Generate N circles with placeholder positions
+                replacement = ""
                 for i in range(count):
-                    circle_tag = f'<circle cx="540" cy="{960 + i * 30}" r="3" fill="#a2dff7" />'
-                    expanded += '\n' + circle_tag
+                    replacement += f'<circle cx="540" cy="{960 + i * 30}" r="3" fill="#a2dff7" />\n'
+                if match.group(0) in expanded:
+                    expanded = expanded.replace(match.group(0), replacement)
             
             elif elem_type == 'rotated_line':
                 angles_str = match.group(1)
                 attrs_base = match.group(4)
                 attrs_after = match.group(5)
                 angles = [float(a.strip()) for a in angles_str.split(',')]
+                replacement = ""
                 for angle in angles:
-                    line_tag = f'<line x1="0" y1="-45" x2="0" y2="-65" stroke="#4ade80" strokeWidth="6" transform="rotate({angle})" />'
-                    expanded += '\n' + line_tag
+                    replacement += f'<line x1="0" y1="-45" x2="0" y2="-65" stroke="#4ade80" strokeWidth="6" transform="rotate({angle})" />\n'
+                if match.group(0) in expanded:
+                    expanded = expanded.replace(match.group(0), replacement)
     
     return expanded
 
@@ -132,27 +214,39 @@ def _parse_filters(tsx_code: str) -> List[Dict[str, Any]]:
         content = match.group(2)
         
         # Glow: feGaussianBlur
-        blur_match = re.search(r'<feGaussianBlur\s+stdDeviation="([^"]+)"', content)
-        if blur_match:
+        if 'feGaussianBlur' in content:
+            # Match stdDeviation with either quotes or curly braces
+            blur_match = re.search(r'stdDeviation=["\'{]?([a-zA-Z0-9_.-]+)["\'}]?', content)
+            std_dev = 8.0
+            if blur_match:
+                try:
+                    std_dev = float(blur_match.group(1))
+                except ValueError:
+                    std_dev = 8.0
             elements.append({
                 "type": "glow",
                 "id": filter_id,
-                "stdDeviation": float(blur_match.group(1)),
+                "stdDeviation": std_dev,
             })
-        
+            
         # Drop shadow: feDropShadow
-        shadow_match = re.search(r'<feDropShadow\s+dx="([^"]+)"\s+dy="([^"]+)"\s+stdDeviation="([^"]+)"\s+floodColor="([^"]+)"\s+floodOpacity="([^"]+)"', content)
-        if shadow_match:
+        if 'feDropShadow' in content:
+            dx_match = re.search(r'\bdx=["\'{]?([a-zA-Z0-9_.-]+)["\'}]?', content)
+            dy_match = re.search(r'\bdy=["\'{]?([a-zA-Z0-9_.-]+)["\'}]?', content)
+            std_match = re.search(r'\bstdDeviation=["\'{]?([a-zA-Z0-9_.-]+)["\'}]?', content)
+            color_match = re.search(r'\bfloodColor=["\'{]?([^"\'}]+)["\'}]?', content)
+            opacity_match = re.search(r'\bfloodOpacity=["\'{]?([a-zA-Z0-9_.-]+)["\'}]?', content)
+            
             elements.append({
                 "type": "dropShadow",
                 "id": filter_id,
-                "dx": float(shadow_match.group(1)),
-                "dy": float(shadow_match.group(2)),
-                "stdDeviation": float(shadow_match.group(3)),
-                "floodColor": shadow_match.group(4),
-                "floodOpacity": float(shadow_match.group(5)),
+                "dx": _parse_number(dx_match.group(1) if dx_match else None, 2.0),
+                "dy": _parse_number(dy_match.group(1) if dy_match else None, 2.0),
+                "stdDeviation": _parse_number(std_match.group(1) if std_match else None, 4.0),
+                "floodColor": color_match.group(1) if color_match else "#000000",
+                "floodOpacity": _parse_number(opacity_match.group(1) if opacity_match else None, 0.5),
             })
-    
+            
     return elements
 
 
@@ -219,6 +313,7 @@ def _parse_paths(svg_block: str) -> List[Dict[str, Any]]:
         fill = _parse_color(_parse_attr(attrs_str, 'fill'))
         stroke = _parse_color(_parse_attr(attrs_str, 'stroke'))
         stroke_width = _parse_number(_parse_attr(attrs_str, 'stroke-width'), 1.0)
+        filter_url = _parse_attr(attrs_str, 'filter')
         
         element = {
             "type": "path",
@@ -232,6 +327,15 @@ def _parse_paths(svg_block: str) -> List[Dict[str, Any]]:
         if stroke:
             element["stroke"] = stroke
             element["strokeWidth"] = stroke_width
+        if filter_url:
+            element["filter_url"] = filter_url
+            
+        translate_match = re.search(r'translate\(\s*(-?\d+\.?\d*)[px]*\s*,\s*(-?\d+\.?\d*)[px]*\s*\)', attrs_str)
+        if translate_match:
+            element["offsetX"] = float(translate_match.group(1))
+            element["offsetY"] = float(translate_match.group(2))
+            
+        element["_start_idx"] = match.start()
         
         elements.append(element)
     
@@ -354,6 +458,7 @@ def _parse_circles(svg_block: str) -> List[Dict[str, Any]]:
         fill = _parse_color(_parse_attr(attrs_str, 'fill'))
         stroke = _parse_color(_parse_attr(attrs_str, 'stroke'))
         stroke_width = _parse_number(_parse_attr(attrs_str, 'stroke-width'), 1.0)
+        filter_url = _parse_attr(attrs_str, 'filter')
         
         element = {
             "type": "circle",
@@ -366,6 +471,10 @@ def _parse_circles(svg_block: str) -> List[Dict[str, Any]]:
         if stroke:
             element["stroke"] = stroke
             element["strokeWidth"] = stroke_width
+        if filter_url:
+            element["filter_url"] = filter_url
+            
+        element["_start_idx"] = match.start()
         
         elements.append(element)
     
@@ -407,6 +516,8 @@ def _parse_rects(svg_block: str) -> List[Dict[str, Any]]:
         if stroke:
             element["stroke"] = stroke
             element["strokeWidth"] = stroke_width
+            
+        element["_start_idx"] = match.start()
         
         elements.append(element)
     
@@ -441,6 +552,8 @@ def _parse_lines(svg_block: str) -> List[Dict[str, Any]]:
         if stroke:
             element["stroke"] = stroke
             element["strokeWidth"] = stroke_width
+            
+        element["_start_idx"] = match.start()
         
         elements.append(element)
     
@@ -478,6 +591,8 @@ def _parse_ellipses(svg_block: str) -> List[Dict[str, Any]]:
         if stroke:
             element["stroke"] = stroke
             element["strokeWidth"] = stroke_width
+            
+        element["_start_idx"] = match.start()
         
         elements.append(element)
     
@@ -530,6 +645,8 @@ def _parse_polygons(svg_block: str) -> List[Dict[str, Any]]:
             if stroke:
                 element["stroke"] = stroke
                 element["strokeWidth"] = stroke_width
+                
+            element["_start_idx"] = match.start()
             
             elements.append(element)
     

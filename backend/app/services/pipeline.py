@@ -1093,133 +1093,53 @@ def _post_process_script(script: str) -> str:
 
 def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_color: str = "#0f172a", text_color: str = "#38bdf8", width: int = 1080, height: int = 1920, job_id: str = None, scene_id: int = None, user_id: Optional[str] = None) -> Optional[str]:
     """
-    Traduce código TSX de Remotion a ExtendScript de After Effects usando 2 fases:
-    Fase 1: Estructura estática (layers, shapes, fills, text)
-    Fase 2: Animaciones (setValueAtTime calls)
-    Ensamblaje: Fase 1 + Fase 2 = script completo
+    Traduce codigo TSX de Remotion a ExtendScript de After Effects.
+    Usa generador DETERMINISTICO (sin LLM) para maxima fidelidad y confiabilidad.
     """
-    import time
     import os
     from datetime import datetime
-    from app.core.config import settings
-    from app.services.ae_export import hex_to_rgb_array
-    from app.services.llm_resolver import resolve_llm_credentials
-
-    creds = resolve_llm_credentials(user_id)
-    api_key = creds.api_key
-    model = creds.model
-    if not api_key:
-        print("[LLM AE] ⚠️ GEMINI_API_KEY no encontrada. ae_script será null.")
-        return None
     
-    print(f"[LLM AE] ✅ Iniciando generación AE script 2 fases (width={width}, height={height}, duration={duration})")
+    print(f"[AE Deterministic] Iniciando generacion (width={width}, height={height}, duration={duration})")
     
     try:
         from app.services.svg_parser import parse_svg_from_tsx
-        from app.services.tsx_animation_parser import parse_tsx_animations
-        from app.services.tsx_enriched_analyzer import analyze_tsx_for_ae, generate_element_summary
+        from app.services.tsx_enriched_analyzer import analyze_tsx_for_ae
+        from app.services.ae_deterministic_generator import generate_deterministic_script
         
+        # 1. Parse SVG elements (shape geometry, colors, effects)
         svg_elements = parse_svg_from_tsx(tsx_code)
-        print(f"[LLM AE] SVG parser encontró {len(svg_elements)} elementos")
+        print(f"[AE Deterministic] SVG parser: {len(svg_elements)} elementos")
         
-        animation_data = parse_tsx_animations(tsx_code, duration, 30)
-        anim_count = len(animation_data.get("animations", []))
-        print(f"[LLM AE] Animation parser encontró {anim_count} animaciones")
-        
-        # === ENRICHED ANALYSIS (Option C: deterministic data) ===
+        # 2. Enriched analysis (positions, animations, particles, text)
         enriched = analyze_tsx_for_ae(tsx_code, width, height, 30)
-        element_summary = generate_element_summary(enriched)
-        enriched_elements = enriched.get("elements", [])
-        map_expansions = enriched.get("map_expansions", [])
-        print(f"[LLM AE] Enriched analyzer: {len(enriched_elements)} elementos, {len(map_expansions)} map expansions")
-        if element_summary:
-            print(f"[LLM AE] Element summary:\n{element_summary[:500]}")
+        elem_count = len(enriched.get("elements", []))
+        anim_count = len(enriched.get("animations", []))
+        map_count = len(enriched.get("map_expansions", []))
+        print(f"[AE Deterministic] Enriched: {elem_count} elementos, {anim_count} animaciones, {map_count} map expansions")
         
-        # === FASE 1: ESTRUCTURA ESTÁTICA ===
-        print(f"[LLM AE] 🟢 FASE 1: Generando estructura estática...")
-        structure = generate_ae_structure(
-            svg_elements, text, duration, bg_color, text_color, width, height,
-            effects=animation_data.get("effects", []),
-            enriched_summary=element_summary,
-            job_id=job_id, scene_id=scene_id
+        # 3. Generate deterministic script (NO LLM)
+        full_script = generate_deterministic_script(
+            svg_elements=svg_elements,
+            enriched=enriched,
+            text=text,
+            duration=duration,
+            bg_color=bg_color,
+            text_color=text_color,
+            width=width,
+            height=height,
+            fps=30,
         )
         
-        if not structure:
-            print(f"[LLM AE] ❌ FASE 1 falló")
+        if not full_script:
+            print(f"[AE Deterministic] ERROR: generador retorno vacio")
             return None
         
-        print(f"[LLM AE] ✅ FASE 1 completada ({len(structure)} chars)")
+        print(f"[AE Deterministic] Script generado: {len(full_script)} chars")
         
-        # Extraer nombres de layers
-        layer_names = _extract_layer_names(structure)
-        print(f"[LLM AE] Layers detectados: {layer_names}")
-        
-        # === FASE 2: ANIMACIONES CON CONTEXTO COMPLETO ===
-        print(f"[LLM AE] 🟢 FASE 2: Generando animaciones con contexto completo...")
-        animations = generate_ae_animations(
-            layer_names, animation_data, duration,
-            tsx_code=tsx_code,
-            fase1_output=structure,
-            svg_elements=svg_elements,
-            text_info=animation_data.get("text_animation", {}),
-            width=width, height=height,
-            job_id=job_id, scene_id=scene_id
-        )
-        
-        # VALIDACIÓN ALL-OR-NOTHING: verificar que TODOS los layers tengan animación
-        def _validate_all_layers_animated(layers, anim_script):
-            if not anim_script:
-                return layers[:]
-            animated = set()
-            for layer in layers:
-                if re.search(rf'\b{re.escape(layer)}\b.*setValueAtTime', anim_script, re.DOTALL):
-                    animated.add(layer)
-            return [l for l in layers if l not in animated]
-        
-        missing = _validate_all_layers_animated(layer_names, animations or "")
-        if missing:
-            print(f"[LLM AE] ⚠️ Fase 2 omitió {len(missing)} layers: {missing}. Reintentando COMPLETO...")
-            # Reintentar Fase 2 COMPLETA con énfasis en layers faltantes
-            animations = generate_ae_animations(
-                layer_names, animation_data, duration,
-                tsx_code=tsx_code,
-                fase1_output=structure,
-                svg_elements=svg_elements,
-                missing_layers=missing,
-                text_info=animation_data.get("text_animation", {}),
-                width=width, height=height,
-                job_id=job_id, scene_id=scene_id
-            )
-            
-            missing2 = _validate_all_layers_animated(layer_names, animations or "")
-            if missing2:
-                print(f"[LLM AE] ⚠️ Fase 2 retry aún omitió {len(missing2)} layers: {missing2}. Tercer intento...")
-                animations = generate_ae_animations(
-                    layer_names, animation_data, duration,
-                    tsx_code=tsx_code,
-                    fase1_output=structure,
-                    svg_elements=svg_elements,
-                    missing_layers=missing2,
-                    text_info=animation_data.get("text_animation", {}),
-                    width=width, height=height,
-                    job_id=job_id, scene_id=scene_id
-                )
-                
-                missing3 = _validate_all_layers_animated(layer_names, animations or "")
-                if missing3:
-                    print(f"[LLM AE] ⚠️ Fase 2 aún omitió {len(missing3)} layers tras 3 intentos")
-        
-        if not animations:
-            print(f"[LLM AE] ❌ FASE 2 falló, usando solo estructura")
-            full_script = structure
-        else:
-            print(f"[LLM AE] ✅ FASE 2 completada ({len(animations)} chars)")
-            full_script = structure + "\n\n// === ANIMATIONS ===\n\n" + animations
-        
-        # === POST-PROCESSING ===
+        # 4. Post-processing (matchName fixes, safety checks)
         full_script = _post_process_script(full_script)
         
-        # === DEBUG FILE LOGGING ===
+        # 5. Debug file logging
         try:
             debug_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'storage', 'debug')
             os.makedirs(debug_dir, exist_ok=True)
@@ -1234,18 +1154,16 @@ def generate_ae_script_from_tsx(tsx_code: str, text: str, duration: float, bg_co
             addtext_count = len(re.findall(r'\.addText\(', full_script))
             addsolid_count = len(re.findall(r'\.addSolid\(', full_script))
             setvalueat_count = len(re.findall(r'\.setValueAtTime\(', full_script))
-            createpath_count = len(re.findall(r'createPath\(', full_script))
             
             debug_content = f"""=== METADATA ===
 job_id: {job_id or 'unknown'}
 scene_id: {scene_id if scene_id is not None else 'unknown'}
 timestamp: {timestamp}
-phase: 2-phase (structure + animations)
+phase: DETERMINISTIC (no LLM)
 svg_elements_found: {len(svg_elements)}
-animation_count: {anim_count}
-layers_detected: {layer_names}
-structure_length: {len(structure)}
-animations_length: {len(animations) if animations else 0}
+enriched_elements: {elem_count}
+enriched_animations: {anim_count}
+map_expansions: {map_count}
 total_script_length: {len(full_script)}
 
 === VALIDATION ===
@@ -1253,13 +1171,6 @@ addShape() calls: {addshape_count}
 addText() calls: {addtext_count}
 addSolid() calls: {addsolid_count}
 setValueAtTime() calls: {setvalueat_count}
-createPath() detected: {'YES (' + str(createpath_count) + ')' if createpath_count > 0 else 'NO'}
-
-=== STRUCTURE (FASE 1) ===
-{structure}
-
-=== ANIMATIONS (FASE 2) ===
-{animations or 'FAILED'}
 
 === FULL SCRIPT ===
 {full_script}
@@ -1268,15 +1179,15 @@ createPath() detected: {'YES (' + str(createpath_count) + ')' if createpath_coun
             with open(debug_path, 'w', encoding='utf-8') as f:
                 f.write(debug_content)
             
-            print(f"[LLM AE] 💾 Debug guardado: {debug_filename} (shapes={addshape_count}, text={addtext_count}, solids={addsolid_count}, anims={setvalueat_count})")
+            print(f"[AE Deterministic] Debug: {debug_filename} (shapes={addshape_count}, text={addtext_count}, anims={setvalueat_count})")
         except Exception as debug_err:
-            print(f"[LLM AE] ⚠️ Error guardando debug file: {debug_err}")
+            print(f"[AE Deterministic] Warning debug file: {debug_err}")
         
         return full_script
         
     except Exception as e:
         import traceback
-        print(f"[LLM AE] ❌ ERROR generando script AE: {type(e).__name__}: {e}")
+        print(f"[AE Deterministic] ERROR: {type(e).__name__}: {e}")
         traceback.print_exc()
         return None
 
