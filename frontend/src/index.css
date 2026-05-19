@@ -1,1 +1,90 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
+
+@theme {
+  --color-surface: #0F172A;
+  --color-surface-dim: #0B1120;
+  --color-surface-bright: #334155;
+  --color-surface-lowest: #0B1120;
+  --color-surface-low: #0B1120;
+  --color-surface-container: #151D2F;
+  --color-surface-high: #1E293B;
+  --color-surface-highest: #273548;
+  --color-on-surface: #E4E2E3;
+  --color-on-surface-variant: #94A3B8;
+  --color-inverse-surface: #E4E2E3;
+  --color-inverse-on-surface: #303032;
+  --color-outline: #8e9197;
+  --color-outline-variant: #43474c;
+  --color-surface-tint: #b5c8df;
+  --color-primary: #00FFAB;
+  --color-on-primary: #0F172A;
+  --color-primary-container: #2c3e50;
+  --color-on-primary-container: #96a9be;
+  --color-inverse-primary: #4e6073;
+  --color-secondary: #ffb77d;
+  --color-on-secondary: #4d2600;
+  --color-secondary-container: #fd8b00;
+  --color-tertiary: #e3c19b;
+  --color-on-tertiary: #412c11;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-mint: #00FFAB;
+  --color-deep-slate: #0F172A;
+  --color-panel: #1E293B;
+  --color-border-tech: #334155;
+  --color-grid-dot: #334155;
+  --color-mint-precision: #00FFAB;
+  --color-cadmium-orange: #FF8C00;
+  --color-steel-blue: #2C3E50;
+  --color-text-primary: #E4E2E3;
+  --color-text-secondary: #94A3B8;
+
+  --font-display: "Inter Tight", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "Space Grotesk", monospace;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-deep-slate);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@utility bg-grid {
+  background-image: radial-gradient(circle at center, rgba(51, 65, 85, 0.4) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.bg-grid-dots {
+  background-image: radial-gradient(circle, var(--color-grid-dot) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface-low);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline-variant);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outline);
+}
+
+::selection {
+  background-color: var(--color-mint);
+  color: var(--color-surface);
+}

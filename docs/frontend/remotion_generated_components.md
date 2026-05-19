@@ -107,3 +107,74 @@ const Component = componentModule?.SceneComponent ?? FadeText;
 | Fondo negro puro | LLM no usó gradient | Verificar que el prompt_header contiene la restricción de fondo |
 | Texto no aparece | frame de entrada demasiado alto | El LLM puso `interpolate(frame, [80, 100], ...)` — revisar el TSX |
 | `SceneComponent is not exported` | `index.ts` desactualizado | El backend debe haber corrido `write_index_ts()` tras generar todos los TSX |
+
+---
+
+## Errores Comunes y Soluciones (Sesión 5 - 13 Mayo 2026)
+
+### Errores Críticos Resueltos
+
+| Error | Causa | Solución |
+|-------|-------|----------|
+| `easing is not a function` | Gemini genera `easing` en minúscula | Post-procesamiento corrige a `Easing` automáticamente |
+| `inputRange/outputRange mismatch` | Diferente longitud de arrays | `fix_interpolate_mismatch()` corrige automáticamente |
+| `r: A negative value is not valid` | `spring()` retorna negativos | `wrap_radius_with_math_max()` envuelve con `Math.max(0, ...)` |
+| `Failed to resolve import` | `index.ts` referencia archivos eliminados | Limpiar `Scene_*.tsx` y regenerar job |
+
+### Importancia de Limpiar Archivos Generados
+
+Cuando se elimina un job o se regenera, es crucial:
+1. Eliminar todos los `Scene_*.tsx` antiguos
+2. Resetear `index.ts` a estado vacío
+3. Generar un nuevo job (el backend reescribe todo)
+
+**Comandos para limpiar:**
+```bash
+# Eliminar archivos TSX antiguos
+rm frontend/src/remotion/generated/Scene_*.tsx
+
+# Resetear index.ts
+echo "export const generatedModules: Record<string, any> = {};" > frontend/src/remotion/generated/index.ts
+```
+
+**O en PowerShell (Windows):**
+```powershell
+Remove-Item frontend/src/remotion/generated/Scene_*.tsx -Force
+Set-Content frontend/src/remotion/generated/index.ts "export const generatedModules: Record<string, any> = {};"
+```
+
+### Cómo el Post-Procesamiento Previene Errores
+
+El backend aplica 6 reglas de validación automática antes de guardar el TSX:
+
+1. **Corrección de Easing:** `easing.` → `Easing.` (regex)
+2. **Import de Easing:** Asegura que `Easing` está en el import de remotion
+3. **Import de React:** Asegura que `React` está importado
+4. **Warning de Radio:** Detecta `r={}` sin `Math.max` y loguea warning
+5. **Fix de Interpolate:** Corrige mismatches entre inputRange y outputRange
+6. **Wrap de Radio:** Envuelve TODOS los `r={}` con `Math.max(0, ...)`
+
+**Resultado:** 0 errores de runtime conocidos en TSX generado.
+
+### Ejemplo de Corrección Automática
+
+**Antes (generado por Gemini):**
+```tsx
+import { useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';
+
+<circle r={100 * springScale} />
+interpolate(frame, [0, 20], [0, 1, 0])  // ← MISMATCH: 2 inputs, 3 outputs
+```
+
+**Después (post-procesamiento):**
+```tsx
+import React from 'react';
+import { useCurrentFrame, useVideoConfig, spring, interpolate, Easing } from 'remotion';
+
+<circle r={Math.max(0, 100 * springScale)} />
+interpolate(frame, [0, 10, 20], [0, 1, 0])  // ← CORREGIDO: 3 inputs, 3 outputs
+```
+
+### Documentación Relacionada
+- **ADR-005:** `docs/adr/005-tsx-generation-fixes.md` (decisiones arquitectónicas)
+- **Backend:** `docs/backend/estado_actual.md` (implementación de post-procesamiento)

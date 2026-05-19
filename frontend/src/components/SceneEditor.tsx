@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useToastStore } from '../store/useToastStore';
 import type { TimelineSpec } from '../types/spec';
 
 interface SceneEditorProps {
@@ -12,6 +13,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ jobId, spec, onSpecUpd
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [editMedia, setEditMedia] = useState("");
+  const { addToast } = useToastStore();
 
   const startEdit = (index: number, currentText: string, currentMedia: string) => {
     setEditingIndex(index);
@@ -41,11 +43,12 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ jobId, spec, onSpecUpd
       const data = await res.json();
       if (data.status && !data.status.includes("failed") && data.result_spec) {
         onSpecUpdated(data.result_spec);
+        addToast('success', 'Escena regenerada correctamente');
       } else {
-        alert("Error regenerando la escena");
+        addToast('error', 'Error regenerando la escena');
       }
     } catch (e) {
-      alert("Error de conexión");
+      addToast('error', 'Error de conexión al regenerar la escena');
     } finally {
       setLoadingIndex(null);
     }
@@ -97,7 +100,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ jobId, spec, onSpecUpd
                   
                   <div className="bg-slate-950 p-2 rounded border border-slate-800">
                     <p className="text-emerald-400 font-mono text-xs whitespace-normal break-words">
-                      🎨 {scene.media_query}
+                       {scene.media_query}
                     </p>
                   </div>
                   
