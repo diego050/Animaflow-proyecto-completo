@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Plus, Loader2, Upload, X, AlertCircle, Mic, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDashboardStore } from '../../store/useDashboardStore';
+import { useVoicesStore } from '../../store/useVoicesStore';
 import { VoiceRow } from '../../components/dashboard/VoiceCard';
 import { VoiceInspector } from '../../components/dashboard/VoiceInspector';
 import { Modal } from '../../components/dashboard/Modal';
@@ -20,7 +20,7 @@ export function VoicesPage() {
     updateVoice,
     uploadVoiceSample,
     previewVoice,
-  } = useDashboardStore();
+  } = useVoicesStore();
 
   const [search, setSearch] = useState('');
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
@@ -66,11 +66,13 @@ export function VoicesPage() {
     );
   }, [voices, search]);
 
-  // Auto-select first voice if none selected
+  // Auto-select first voice on mount or when voices list changes
+  const hasAutoSelected = useRef(false);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!selectedVoiceId && filteredVoices.length > 0) {
+    if (!hasAutoSelected.current && filteredVoices.length > 0) {
       setSelectedVoiceId(filteredVoices[0].id);
+      hasAutoSelected.current = true;
     }
     // Clear selection if selected voice was deleted
     if (selectedVoiceId && !filteredVoices.find((v) => v.id === selectedVoiceId)) {
@@ -335,7 +337,7 @@ export function VoicesPage() {
           </button>
         </motion.div>
       ) : (
-        <div className="flex gap-0 -mx-6 lg:-mx-8 overflow-hidden">
+        <div className="flex gap-6">
           {/* Left: Table */}
           <div className="flex-1 min-w-0">
             <div className="bg-surface-container border border-border-tech rounded-xl overflow-hidden">
@@ -383,16 +385,17 @@ export function VoicesPage() {
           </div>
 
           {/* Right: Inspector */}
-          <AnimatePresence>
+          <AnimatePresence mode="wait">
             {selectedVoice && (
               <motion.div
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 320, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
+                key={selectedVoice.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.2 }}
-                className="hidden lg:block shrink-0 ml-4"
+                className="hidden lg:block shrink-0 w-80"
               >
-                <div className="w-80 bg-surface-container border border-border-tech rounded-xl overflow-hidden h-[500px]">
+                <div className="bg-surface-container border border-border-tech rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 280px)', minHeight: 400 }}>
                   <VoiceInspector
                     voice={selectedVoice}
                     onClose={() => setSelectedVoiceId(null)}

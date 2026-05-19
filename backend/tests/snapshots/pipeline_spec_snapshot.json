@@ -1,0 +1,50 @@
+{
+  "scenes": [
+    {
+      "start_time_seconds": 0.0,
+      "duration_seconds": 2.3,
+      "text": "El chocolate no es un capricho.",
+      "type": "FadeText",
+      "media_query": "A plant leaf growing from bottom center with organic curves and glowing particles",
+      "remotion_props": {
+        "backgroundColor": "#0f172a",
+        "textColor": "#38bdf8"
+      },
+      "sfx": [],
+      "audio_url": "http://localhost:8000/api/audio/2c0bb700-f452-4f04-9fd0-1cc0a9549a55_0.mp3",
+      "ae_metadata": null,
+      "ae_script_code": null
+    },
+    {
+      "start_time_seconds": 2.3,
+      "duration_seconds": 5.1,
+      "text": "Es una experiencia sensorial que combina textura, aroma y sabor en cada bocado.",
+      "type": "FadeText",
+      "media_query": "A heart shape forming from connected dots with warm golden light",
+      "remotion_props": {
+        "backgroundColor": "#0f172a",
+        "textColor": "#38bdf8"
+      },
+      "sfx": [],
+      "audio_url": "http://localhost:8000/api/audio/2c0bb700-f452-4f04-9fd0-1cc0a9549a55_1.mp3",
+      "ae_metadata": null,
+      "ae_script_code": null
+    },
+    {
+      "start_time_seconds": 7.4,
+      "duration_seconds": 4.47,
+      "text": "Descubre por qu\u00e9 el cacao fino de origen est\u00e1 revolucionando la industria.",
+      "type": "FadeText",
+      "media_query": "Water drops falling into a pool creating expanding ripple circles",
+      "remotion_props": {
+        "backgroundColor": "#0f172a",
+        "textColor": "#38bdf8"
+      },
+      "sfx": [],
+      "audio_url": "http://localhost:8000/api/audio/2c0bb700-f452-4f04-9fd0-1cc0a9549a55_2.mp3",
+      "ae_metadata": null,
+      "ae_script_code": null
+    }
+  ],
+  "aspect_ratio": "9:16"
+}

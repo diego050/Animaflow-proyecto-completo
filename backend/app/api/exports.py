@@ -9,11 +9,8 @@ from redis import Redis
 
 from app.db.session import get_db
 from app.db.models import User
-from app.services.ae_export import (
-    create_export_zip,
-    generate_ae_export_async,
-    _persist_job_spec,
-)
+from app.modules.ae_export.zip_exporter import create_export_zip
+from app.modules.ae_export.worker import generate_ae_export_async, _persist_job_spec
 from app.db.models import JobModel
 from app.core.config import settings
 from app.core.security import get_current_active_user
@@ -24,6 +21,7 @@ router = APIRouter(prefix="/api/jobs", tags=["exports"])
 
 redis_conn = Redis.from_url(settings.REDIS_URL)
 queue = Queue("default", connection=redis_conn)
+render_queue = Queue("render", connection=redis_conn)
 
 
 @router.post("/{job_id}/export/after-effects")
@@ -46,8 +44,8 @@ async def trigger_ae_export(
     if not job.result_spec:
         raise HTTPException(status_code=400, detail="El job no tiene spec.json generado")
 
-    # Enqueue export job (always, to allow regeneration)
-    queue.enqueue(generate_ae_export_async, job_id, force, job_timeout="10m")
+    # Enqueue export job en la cola de render (tarea pesada)
+    render_queue.enqueue(generate_ae_export_async, job_id, force, job_timeout="10m")
 
     job.result_spec["_ae_export_status"] = "queued"
     job.result_spec["_ae_export_progress"] = {

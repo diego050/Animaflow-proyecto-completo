@@ -49,7 +49,9 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor,
             }
           }
         } catch (e) {
-          console.error("Error loading generated scene:", e);
+          // Remotion composition: toast system not available here.
+          // Log to console for debugging; fallback UI handles user-facing feedback.
+          console.warn("Error loading generated scene:", e);
           setError(true);
         }
       } else {

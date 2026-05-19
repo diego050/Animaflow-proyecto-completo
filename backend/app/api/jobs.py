@@ -8,11 +8,12 @@ from app.db.session import get_db
 from app.db.models import JobModel, User
 from app.core.config import settings
 from app.core.security import get_current_active_user
-from app.services.pipeline import run_pipeline
+from app.modules.pipeline.orchestrator import run_pipeline
 
 router = APIRouter()
 redis_conn = Redis.from_url(settings.REDIS_URL)
 queue = Queue("default", connection=redis_conn)
+render_queue = Queue("render", connection=redis_conn)
 
 
 @router.post("/", response_model=JobResponse, status_code=201)
@@ -107,10 +108,10 @@ async def trigger_render(
     if job.status == "rendering":
         raise HTTPException(status_code=400, detail="El job ya se está renderizando")
 
-    # Encolar la tarea de render
-    from app.services.pipeline import render_video_pipeline
+    # Encolar la tarea de render en la cola dedicada para tareas pesadas
+    from app.modules.remotion.renderer import render_video_pipeline
 
-    queue.enqueue(render_video_pipeline, job.id, job_timeout="10m")  # Puede tardar minutos
+    render_queue.enqueue(render_video_pipeline, job.id, job_timeout="10m")  # Puede tardar minutos
 
     job.status = "queued_render"
     db.commit()
@@ -139,7 +140,7 @@ async def generate_script(
     req: ScriptGenerateRequest,
     current_user: User = Depends(get_current_active_user),
 ):
-    from app.services.pipeline import generate_script_from_info
+    from app.modules.llm.script_generator import generate_script_from_info
 
     script = generate_script_from_info(req.info, current_user.id)
     return ScriptGenerateResponse(script_text=script)
@@ -189,7 +190,7 @@ async def trigger_scene_regenerate(
     if scene_index < 0 or scene_index >= len(job.result_spec.get("scenes", [])):
         raise HTTPException(status_code=400, detail="Índice de escena inválido")
 
-    from app.services.pipeline import _regenerate_scene_async
+    from app.modules.pipeline.scene_manager import _regenerate_scene_async
 
     try:
         # Usamos await directo porque FastAPI ya corre en un event loop

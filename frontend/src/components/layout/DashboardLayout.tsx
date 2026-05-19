@@ -6,6 +6,7 @@ import {
   Mic,
   FileText,
   Video,
+  Image,
   Download,
   Settings,
   Menu,
@@ -13,6 +14,7 @@ import {
   ChevronRight,
   LogOut,
   User,
+  Shield,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -22,7 +24,8 @@ const navItems = [
   { to: '/dashboard/new', label: 'Nuevo Proyecto', icon: Plus, disabled: false },
   { to: '/dashboard/voices', label: 'Voces', icon: Mic, disabled: false },
   { to: '/dashboard/scripts', label: 'Guiones', icon: FileText, disabled: false },
-  { to: '/dashboard/videos', label: 'Videos', icon: Video, disabled: true },
+  { to: '/dashboard/videos', label: 'Videos', icon: Video, disabled: false },
+  { to: '/dashboard/images', label: 'Imágenes', icon: Image, disabled: false },
   { to: '/dashboard/downloads', label: 'Descargas', icon: Download, disabled: false },
   { to: '/dashboard/settings', label: 'Configuración', icon: Settings, disabled: false },
 ];
@@ -30,8 +33,17 @@ const navItems = [
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const navigate = useNavigate();
   const { user, logout, fetchMe } = useAuthStore();
+
+  // Detect desktop breakpoint for sidebar visibility
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Fetch user data on mount
   useEffect(() => {
@@ -62,6 +74,7 @@ export function DashboardLayout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             onClick={() => setSidebarOpen(false)}
             className="fixed inset-0 bg-black/60 z-40 lg:hidden"
           />
@@ -70,10 +83,10 @@ export function DashboardLayout() {
 
       {/* Sidebar */}
       <motion.aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface-lowest border-r border-border-tech flex flex-col
-          lg:translate-x-0 transition-transform duration-300`}
-        initial={false}
-        animate={{ x: sidebarOpen ? 0 : 0 }}
+        className="fixed inset-y-0 left-0 z-50 w-64 bg-surface-lowest border-r border-border-tech flex flex-col"
+        initial={{ x: isDesktop ? 0 : -256 }}
+        animate={{ x: sidebarOpen || isDesktop ? 0 : -256 }}
+        transition={{ type: 'tween', duration: 0.25, ease: 'easeInOut' }}
       >
         {/* Logo */}
         <div className="h-16 flex items-center px-6 border-b border-border-tech">
@@ -154,6 +167,18 @@ export function DashboardLayout() {
                     <User size={16} />
                     Perfil
                   </button>
+                  {user?.role === 'admin' && (
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate('/admin');
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-high transition-colors"
+                    >
+                      <Shield size={16} />
+                      Panel de Administración
+                    </button>
+                  )}
                   <div className="my-1 border-t border-border-tech" />
                   <button
                     onClick={handleLogout}
@@ -169,7 +194,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 lg:py-6">
           <Outlet />
         </main>
       </div>
@@ -213,7 +238,7 @@ function NavItem({
   return (
     <NavLink
       to={item.to}
-      end={item.to !== '/dashboard'}
+      end
       onClick={onClick}
       className={({ isActive }) =>
         `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -244,6 +269,13 @@ function Breadcrumb() {
 
   if (dashboardIndex === -1) return null;
 
+  // Hide breadcrumb on project detail pages — the editable project title
+  // in the page content already provides sufficient context.
+  const isProjectDetail = segments.some(
+    (seg) => seg.startsWith('project') || seg.startsWith('projects')
+  );
+  if (isProjectDetail) return null;
+
   const relevantSegments = segments.slice(dashboardIndex);
 
   const labelMap: Record<string, string> = {
@@ -252,12 +284,13 @@ function Breadcrumb() {
     voices: 'Voces',
     scripts: 'Guiones',
     videos: 'Videos',
+    images: 'Imágenes',
     downloads: 'Descargas',
     settings: 'Configuración',
   };
 
   return (
-    <nav className="flex items-center gap-1 text-sm">
+    <nav className="flex items-center gap-1 text-sm min-w-0 max-w-[calc(100vw-12rem)]">
       {relevantSegments.map((segment, i) => {
         const isLast = i === relevantSegments.length - 1;
         const label =
@@ -266,14 +299,15 @@ function Breadcrumb() {
             : labelMap[segment] || segment;
 
         return (
-          <span key={i} className="flex items-center gap-1">
-            {i > 0 && <ChevronRight size={14} className="text-text-secondary/40" />}
+          <span key={i} className="flex items-center gap-1 min-w-0">
+            {i > 0 && <ChevronRight size={14} className="text-text-secondary/40 shrink-0" />}
             <span
               className={
                 isLast
-                  ? 'text-text-primary font-medium'
+                  ? 'text-text-primary font-medium truncate max-w-[80px] sm:max-w-none'
                   : 'text-text-secondary/60'
               }
+              title={label}
             >
               {label}
             </span>

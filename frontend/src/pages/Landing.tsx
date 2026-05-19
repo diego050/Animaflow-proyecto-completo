@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { Lock, Clock, Download, Zap, Edit3, Shield, Users, Sparkles, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useToastStore } from '../store/useToastStore';
 
 export function Landing() {
   const [formData, setFormData] = useState({ nombre: '', email: '', telefono: '', rol: '' });
   const [status, setStatus] = useState('idle'); // idle | submitting | success | error
+  const { addToast } = useToastStore();
 
   const location = useLocation();
 
@@ -37,7 +39,8 @@ export function Landing() {
       setStatus('success');
       setFormData({ nombre: '', email: '', telefono: '', rol: '' });
     } catch (error) {
-      console.error(error);
+      const message = error instanceof Error ? error.message : 'Error al enviar formulario';
+      addToast('error', message);
       setStatus('error');
     }
   };

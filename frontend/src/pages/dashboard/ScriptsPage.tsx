@@ -2,15 +2,17 @@ import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, FileText, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDashboardStore } from '../../store/useDashboardStore';
+import { useJobsStore } from '../../store/useJobsStore';
+import { useMediaStore } from '../../store/useMediaStore';
 import { ScriptCard } from '../../components/dashboard/ScriptCard';
 import { Modal } from '../../components/dashboard/Modal';
 import type { Script } from '../../types/job';
 
 export function ScriptsPage() {
   const navigate = useNavigate();
-  const { scripts, scriptsLoading, fetchScripts, addScript, updateScript, deleteScript, fetchJobs, jobs } =
-    useDashboardStore();
+  const { scripts, scriptsLoading, fetchScripts, addScript, updateScript, deleteScript } =
+    useMediaStore();
+  const { fetchJobs, jobs } = useJobsStore();
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<Script | null>(null);
@@ -97,11 +99,9 @@ export function ScriptsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-display font-bold text-text-primary">
-          <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-display font-bold text-text-primary flex items-center gap-2">
             <FileText size={24} className="text-mint-precision" />
             <span>Mis Guiones</span>
-          </div>
           </h1>
           <p className="text-text-secondary text-sm mt-1">
             Biblioteca de guiones guardados y plantillas reutilizables.
@@ -164,7 +164,7 @@ export function ScriptsPage() {
           )}
         </motion.div>
       ) : (
-        <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl" layout>
+        <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" layout>
           <AnimatePresence>
             {filteredScripts.map((script) => (
               <ScriptCard

@@ -27,6 +27,9 @@ venv.bak/
 .coverage
 htmlcov/
 .env
+*.egg
+*.egg-info/
+*.log
 
 # === Node / Frontend ===
 node_modules/

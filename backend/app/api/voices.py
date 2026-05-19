@@ -8,7 +8,7 @@ from app.db.models import Voice, User
 from app.schemas.voice import VoiceCreate, VoiceUpdate, VoiceResponse, VoicePreviewRequest
 from app.core.security import get_current_active_user
 from app.core.config import settings
-from app.services.pipeline import generate_tts_with_voicebox
+from app.modules.tts.service import generate_tts_with_voicebox
 
 import os
 import uuid
@@ -115,7 +115,7 @@ async def upload_voice_sample(
     return voice
 
 
-@router.get("/{voice_id}/preview", response_model=dict)
+@router.post("/{voice_id}/preview", response_model=dict)
 async def preview_voice(
     voice_id: str,
     preview_data: VoicePreviewRequest,

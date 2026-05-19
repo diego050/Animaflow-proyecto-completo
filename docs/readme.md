@@ -2,7 +2,7 @@
 
 Índice maestro para navegación técnica y comprensión de arquitectura (Humanos & IA).
 
-> **Última actualización:** Mayo 2026 | **Sprints cubiertos:** 1–6
+> **Última actualización:** Mayo 2026 | **Sprints cubiertos:** 1–7+
 
 ---
 
@@ -63,6 +63,8 @@ npm run dev  # http://localhost:5173
 | [1–2](sprints/sprint-1-2-report.md) | May 2026 | Dashboard Foundation + Project Wizard | ✅ Completado |
 | [3–4](sprints/sprint-3-4-report.md) | May 2026 | Voices, Scripts, Downloads + Settings & Profile | ✅ Completado |
 | [5–6](sprints/sprint-5-6-report.md) | May 2026 | Authentication System + Voice Endpoints + User-Job FK | ✅ Completado |
+| [7](sprints/sprint-7-report.md) | May 2026 | Backend Modularization + Production Hardening | ✅ Completado |
+| [7+](sprints/sprint-7-plus-report.md) | May 2026 | Frontend Refactor + Audit Resolution + Toast System | ✅ Completado |
 
 ---
 
@@ -92,6 +94,8 @@ npm run dev  # http://localhost:5173
 | [`backend/estado_actual.md`](backend/estado_actual.md) | Estado actual de la API |
 | [`backend/pipeline_narrative_animation.md`](backend/pipeline_narrative_animation.md) | Pipeline de animación narrativa |
 | [`backend/ae_export_fixes_sesion6.md`](backend/ae_export_fixes_sesion6.md) | Fixes de exportación AE |
+| [`backend/modularization.md`](backend/modularization.md) | Guía de modularización del backend (7 dominios) |
+| [`backend/hardening.md`](backend/hardening.md) | Checklist de hardening para producción (P0-P2) |
 
 ---
 
@@ -103,6 +107,8 @@ npm run dev  # http://localhost:5173
 | [`frontend/auth-integration.md`](frontend/auth-integration.md) | Integración de autenticación |
 | [`frontend/estado_actual.md`](frontend/estado_actual.md) | Estado actual del frontend |
 | [`frontend/remotion_generated_components.md`](frontend/remotion_generated_components.md) | Componentes Remotion generados |
+| [`frontend/frontend-audit.md`](frontend/frontend-audit.md) | Resultado del audit y acciones tomadas |
+| [`frontend/component-structure.md`](frontend/component-structure.md) | Estructura de componentes extraídos (ProjectDetail, Settings, Wizard) |
 
 ---
 
@@ -112,6 +118,7 @@ npm run dev  # http://localhost:5173
 |---|---|
 | [`qa/testing-guide.md`](qa/testing-guide.md) | Guía de testing completa |
 | [`qa/estrategia.md`](qa/estrategia.md) | Estrategia de testing |
+| [`qa/test-results.md`](qa/test-results.md) | Resultados de tests (32 tests pasando) |
 
 ---
 
@@ -128,4 +135,5 @@ npm run dev  # http://localhost:5173
 | [ADR-007](adr/007-user-job-relationship.md) | User-Job Relationship | ✅ Implementado |
 | [ADR-008](adr/008-voice-management-approach.md) | Voice Management Approach | ✅ Implementado |
 | [ADR-009](adr/009-after-effects-deterministic-fidelity.md) | Deterministic AE Script Generator | ✅ Implementado |
+| [ADR-010](adr/010-backend-modularization.md) | Backend Modularization — Monolith to Modular Monolith | ✅ Implementado |
 

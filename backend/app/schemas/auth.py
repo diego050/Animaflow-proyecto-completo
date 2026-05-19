@@ -2,15 +2,17 @@
 Auth schemas for AnimaFlow - Pydantic v2 models mirroring frontend TS interfaces.
 """
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime
+
+UserRole = Literal["founder", "agency", "pilot", "admin"]
 
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     name: str
-    role: str = "pilot"
+    role: UserRole = "pilot"
 
 
 class UserLogin(BaseModel):
@@ -28,7 +30,7 @@ class UserResponse(BaseModel):
     id: str
     email: str
     name: str
-    role: str
+    role: UserRole
     is_active: bool
     created_at: datetime
 

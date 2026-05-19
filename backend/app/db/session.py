@@ -12,3 +12,13 @@ def get_db():
         yield db
     finally:
         db.close()
+
+from contextlib import contextmanager
+
+@contextmanager
+def get_db_context():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

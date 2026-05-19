@@ -206,3 +206,21 @@ python -c "from app.db.seed import seed; seed()"
 ### Mobile responsive
 - [ ] Sidebar collapses on mobile
 - [ ] All pages usable on 375px width
+
+---
+
+## Tests de Autenticación
+
+Los tests de autenticación cubren:
+- Registro de usuarios (éxito y duplicados)
+- Login (éxito, password incorrecto, usuario inactivo)
+- Protección de rutas (sin token, token inválido, token expirado)
+- Perfil de usuario (/me)
+
+## Tests de Shape Renderers
+
+Los tests de renderers verifican:
+- El registry contiene todos los shapes esperados
+- Cada renderer genera ExtendScript válido (no vacío)
+- Cada renderer retorna el tipo correcto (string/list)
+- Renderers con efectos y keyframes funcionan

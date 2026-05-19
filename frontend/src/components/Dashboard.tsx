@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useToastStore } from '../store/useToastStore';
 import type { TimelineSpec } from '../types/spec';
 
 interface JobSummary {
@@ -17,6 +18,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }) => {
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const { addToast } = useToastStore();
 
   useEffect(() => {
     fetchJobs();
@@ -29,7 +31,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
       const data = await res.json();
       setJobs(data);
     } catch (e) {
-      console.error("Error cargando historial de trabajos:", e);
+      const message = e instanceof Error ? e.message : 'Error cargando historial de trabajos';
+      addToast('error', message);
     } finally {
       setLoading(false);
     }
@@ -41,7 +44,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
       const data = await res.json();
       onSelectJob(data.job_id, data.result_spec || null, data.status, data.video_url || null, scriptText);
     } catch (e) {
-      alert("Error al abrir el proyecto.");
+      addToast('error', 'Error al abrir el proyecto.');
     }
   };
 
@@ -55,7 +58,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
       });
       fetchJobs(); // Recargar la lista
     } catch (e) {
-      alert("Error al eliminar el proyecto.");
+      addToast('error', 'Error al eliminar el proyecto.');
     }
   };
 

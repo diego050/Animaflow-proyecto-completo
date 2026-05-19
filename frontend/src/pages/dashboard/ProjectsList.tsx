@@ -2,7 +2,8 @@ import { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useDashboardStore } from '../../store/useDashboardStore';
+import { useJobsStore } from '../../store/useJobsStore';
+import { useToastStore } from '../../store/useToastStore';
 import { ProjectCard } from '../../components/dashboard/ProjectCard';
 
 export function ProjectsList() {
@@ -13,7 +14,8 @@ export function ProjectsList() {
     jobsError,
     fetchJobs,
     deleteJob,
-  } = useDashboardStore();
+  } = useJobsStore();
+  const { addToast } = useToastStore();
 
   useEffect(() => {
     fetchJobs();
@@ -32,8 +34,9 @@ export function ProjectsList() {
       if (!confirm('¿Seguro que deseas eliminar este proyecto?')) return;
       try {
         await deleteJob(jobId);
+        addToast('success', 'Proyecto eliminado correctamente');
       } catch {
-        alert('Error al eliminar el proyecto.');
+        addToast('error', 'Error al eliminar el proyecto.');
       }
     },
     [deleteJob],

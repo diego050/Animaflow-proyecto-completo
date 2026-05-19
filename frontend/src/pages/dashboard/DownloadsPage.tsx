@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Download, Eye, Play, FileJson, FileArchive, Film, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDashboardStore } from '../../store/useDashboardStore';
+import { useJobsStore } from '../../store/useJobsStore';
+import { useMediaStore } from '../../store/useMediaStore';
+import { useToastStore } from '../../store/useToastStore';
 import { JsonViewer } from '../../components/dashboard/JsonViewer';
 import { isCompletedStatus } from '../../types/job';
 import type { JobSummary } from '../../types/job';
@@ -14,8 +16,9 @@ interface DownloadGroup {
 }
 
 export function DownloadsPage() {
-  const { jobs, jobsLoading, fetchJobs, downloadAEExport, downloadSpecJson } =
-    useDashboardStore();
+  const { jobs, jobsLoading, fetchJobs } = useJobsStore();
+  const { downloadAEExport, downloadSpecJson } = useMediaStore();
+  const { addToast } = useToastStore();
   const [search, setSearch] = useState('');
   const [jsonViewerOpen, setJsonViewerOpen] = useState(false);
   const [viewingSpec, setViewingSpec] = useState<Record<string, unknown> | null>(null);
@@ -48,8 +51,9 @@ export function DownloadsPage() {
       setDownloadingId(jobId);
       try {
         await downloadAEExport(jobId);
+        addToast('success', 'Exportación iniciada. Se descargará automáticamente.');
       } catch {
-        alert('Error al descargar la exportación para After Effects.');
+        addToast('error', 'Error al descargar la exportación para After Effects.');
       } finally {
         setDownloadingId(null);
       }
@@ -62,8 +66,9 @@ export function DownloadsPage() {
       setDownloadingId(jobId);
       try {
         await downloadSpecJson(jobId);
+        addToast('success', 'Descarga de spec.json iniciada');
       } catch {
-        alert('Error al descargar el spec.json.');
+        addToast('error', 'Error al descargar el spec.json.');
       } finally {
         setDownloadingId(null);
       }
@@ -79,7 +84,7 @@ export function DownloadsPage() {
       setViewingSpec(data);
       setJsonViewerOpen(true);
     } catch {
-      alert('Error al cargar el spec.json.');
+      addToast('error', 'Error al cargar el spec.json.');
     }
   }, []);
 
