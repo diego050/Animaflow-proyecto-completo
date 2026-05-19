@@ -51,6 +51,7 @@ jobs:
       - name: Install backend dependencies
         run: |
           cd backend
+          pip install setuptools==68.2.2
           pip install -r requirements.txt
 
       - name: Run database migrations

@@ -17,6 +17,6 @@ google-genai==1.66.0
 cryptography==46.0.5
 slowapi==0.1.9
 setuptools>=68.0
-openai-whisper==20231117
+openai-whisper
 piper-tts==1.2.0
 ffmpeg-python==0.2.0

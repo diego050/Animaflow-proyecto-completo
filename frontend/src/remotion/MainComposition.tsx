@@ -1,7 +1,7 @@
 ﻿import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig, Sequence, Audio } from "remotion";
 import React, { useState, useEffect } from "react";
 import type { TimelineSpec } from "../types/spec";
-import { generatedModules } from './generated/index';
+import { generatedModules } from './generated/index.ts';
 
 const FallbackScene = ({ text, fallbackBg, fallbackColor, isLoading }: any) => {
   const frame = useCurrentFrame();
