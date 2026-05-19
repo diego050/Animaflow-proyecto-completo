@@ -30,7 +30,7 @@ export function ProjectDetail() {
 
   useEffect(() => {
     if (selectedJob) {
-      const name = (selectedJob as Record<string, unknown>).name as string | undefined;
+      const name = (selectedJob as { name?: string }).name;
       if (name) {
         setProjectName(name);
       }

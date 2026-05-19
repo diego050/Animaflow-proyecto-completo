@@ -44,7 +44,7 @@ interface AdminState {
   deleteJob: (jobId: string) => Promise<void>;
 }
 
-export const useAdminStore = create<AdminState>((set, get) => ({
+export const useAdminStore = create<AdminState>((set, _get) => ({
   stats: null,
   statsLoading: false,
   users: [],

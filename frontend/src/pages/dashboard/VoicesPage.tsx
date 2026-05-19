@@ -150,7 +150,7 @@ export function VoicesPage() {
 
   const handleUpdate = useCallback(
     async (id: string, data: { name: string; gender: string; language: string }) => {
-      return updateVoice(id, data);
+      return updateVoice(id, data as { name: string; gender: 'male' | 'female' | 'neutral'; language: string });
     },
     [updateVoice],
   );

@@ -1,5 +1,4 @@
 import {
-  Clock,
   CheckCircle2,
   AlertTriangle,
   Loader2,
@@ -39,7 +38,7 @@ const CATEGORY_STYLES: Record<StatusCategory, string> = {
     'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
-const CATEGORY_ICONS: Record<StatusCategory, React.ComponentType<{ size?: number }>> = {
+const CATEGORY_ICONS: Record<StatusCategory, React.ComponentType<{ size?: number; className?: string }>> = {
   processing: Loader2,
   ready: Play,
   rendering: Loader2,

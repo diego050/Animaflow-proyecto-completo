@@ -6,7 +6,7 @@ export interface WizardStepProcessingProps {
   progress?: number;
 }
 
-export function WizardStepProcessing({ status, progress }: WizardStepProcessingProps) {
+export function WizardStepProcessing({ status }: WizardStepProcessingProps) {
   const isFailed = status === 'failed' || status === 'failed_render';
 
   return (

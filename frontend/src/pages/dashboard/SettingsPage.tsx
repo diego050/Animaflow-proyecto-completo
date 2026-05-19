@@ -21,7 +21,7 @@ function ComingSoonTab({
   title,
   description,
 }: {
-  icon: React.ComponentType<{ size?: number }>;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
   title: string;
   description: string;
 }) {

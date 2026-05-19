@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Upload,
-  Image as ImageIcon,
   Trash2,
   Loader2,
   AlertCircle,
