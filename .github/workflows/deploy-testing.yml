@@ -1,0 +1,37 @@
+name: Deploy to Testing
+
+on:
+  push:
+    branches: [Testing]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: testing
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to testing VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.TESTING_HOST }}
+          username: ${{ secrets.TESTING_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/animaflow
+            git fetch origin
+            git reset --hard origin/Testing
+            
+            # Backend
+            cd backend
+            source venv/bin/activate
+            pip install -r requirements.txt
+            alembic upgrade head
+            
+            # Restart services
+            cd ..
+            docker-compose -f docker-compose.prod.yml restart api
+            docker-compose -f docker-compose.prod.yml restart worker-default
+            docker-compose -f docker-compose.prod.yml restart worker-render
+            
+            echo "Testing deployment complete"
