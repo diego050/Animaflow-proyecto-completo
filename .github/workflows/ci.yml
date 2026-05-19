@@ -45,6 +45,9 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
 
+      - name: Upgrade pip toolchain
+        run: pip install --upgrade pip setuptools wheel
+
       - name: Install backend dependencies
         run: |
           cd backend
