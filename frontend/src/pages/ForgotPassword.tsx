@@ -3,10 +3,13 @@ import { Mail, ArrowLeft } from 'lucide-react';
 import { AuthPageLayout } from '../components/auth/AuthPageLayout';
 import { AuthInput } from '../components/auth/AuthInput';
 import { AuthButton } from '../components/auth/AuthButton';
+import { SEOHead } from '../components/SEOHead';
 
 export function ForgotPassword() {
   return (
-    <AuthPageLayout title="Recupera tu contrasena" subtitle="Ingresa tu email y te enviaremos un link para restablecerla">
+    <>
+      <SEOHead title="Recuperar contraseña | AnimaFlow" noindex />
+      <AuthPageLayout title="Recupera tu contrasena" subtitle="Ingresa tu email y te enviaremos un link para restablecerla">
       <div className="space-y-6">
         <AuthInput label="Email" type="email" placeholder="tu@email.com" icon={Mail} autoComplete="email" />
         <AuthButton type="button" onClick={() => window.location.href = '/login'}>Enviar link</AuthButton>
@@ -15,5 +18,6 @@ export function ForgotPassword() {
         </p>
       </div>
     </AuthPageLayout>
+    </>
   );
 }

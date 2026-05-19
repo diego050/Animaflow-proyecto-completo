@@ -2,37 +2,62 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export { API_BASE };
 
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 30000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const url = `${API_BASE}${endpoint}`;
   const token = localStorage.getItem('animaflow_token');
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers as Record<string, string>),
-  };
+  try {
+    const response = await fetchWithTimeout(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('animaflow_token');
-      window.location.href = '/login';
-      throw new Error('Session expired');
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem('animaflow_token');
+        window.location.href = '/login';
+        throw new Error('Session expired');
+      }
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || `API error: ${response.status}`);
     }
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `API error: ${res.status}`);
+
+    // Handle no-content responses
+    if (response.status === 204) return {} as T;
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw error;
   }
-
-  // Handle no-content responses
-  if (res.status === 204) return {} as T;
-
-  return res.json();
 }
 
 export async function apiUpload<T>(
@@ -40,6 +65,7 @@ export async function apiUpload<T>(
   file: File,
   additionalFields?: Record<string, string>,
 ): Promise<T> {
+  const url = `${API_BASE}${endpoint}`;
   const token = localStorage.getItem('animaflow_token');
 
   const formData = new FormData();
@@ -55,24 +81,31 @@ export async function apiUpload<T>(
     // Don't set Content-Type — browser sets it with multipart boundary
   };
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    method: 'POST',
-    headers,
-    body: formData,
-  });
+  try {
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
 
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('animaflow_token');
-      window.location.href = '/login';
-      throw new Error('Session expired');
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem('animaflow_token');
+        window.location.href = '/login';
+        throw new Error('Session expired');
+      }
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || `API error: ${response.status}`);
     }
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `API error: ${res.status}`);
-  }
 
-  if (res.status === 204) return {} as T;
-  return res.json();
+    if (response.status === 204) return {} as T;
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw error;
+  }
 }
 
 // Export convenience methods

@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import type { TimelineSpec } from '../../types/job';
+import { SceneDownloadMenu } from './SceneDownloadMenu';
 
 type ExportMode = 'all' | 'selected';
 
@@ -24,6 +25,7 @@ interface ExportFormats {
 
 interface ExportPanelProps {
   spec: TimelineSpec | null;
+  jobId: string;
   isReadyToRender: boolean;
   renderLoading: boolean;
   exportLoading: boolean;
@@ -35,6 +37,7 @@ interface ExportPanelProps {
 
 export function ExportPanel({
   spec,
+  jobId,
   isReadyToRender,
   renderLoading,
   exportLoading,
@@ -336,6 +339,32 @@ export function ExportPanel({
             </>
           )}
         </button>
+
+        {/* Scene-level downloads */}
+        {spec && spec.scenes.length > 0 && (
+          <div className="mt-6 border-t border-border-tech/50 pt-4">
+            <h4 className="text-sm font-semibold text-text-primary mb-3">Descargar por escena</h4>
+            <p className="text-xs text-text-secondary/60 mb-3">
+              Descarga assets individuales de cada escena (audio, spec, video)
+            </p>
+
+            <div className="space-y-2">
+              {spec.scenes.map((scene, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-surface-lowest">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-mint-precision bg-mint-precision/10 px-1.5 py-0.5 rounded">
+                      {idx + 1}
+                    </span>
+                    <span className="text-xs text-text-secondary truncate max-w-[150px]">
+                      {scene.text.slice(0, 30)}...
+                    </span>
+                  </div>
+                  <SceneDownloadMenu jobId={jobId} sceneIndex={idx} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Quick actions (legacy individual buttons, kept for direct access) */}

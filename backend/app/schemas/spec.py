@@ -26,6 +26,11 @@ class AEMetadata(BaseModel):
     text_animation: str
     connections: Optional[List[Dict[str, Any]]] = None
 
+class WordTimestamp(BaseModel):
+    word: str
+    start: float
+    end: float
+
 class Spec(BaseModel):
     start_time_seconds: float
     duration_seconds: float
@@ -35,6 +40,7 @@ class Spec(BaseModel):
     remotion_props: Optional[Dict[str, Any]] = None
     sfx: List[SFX]
     audio_url: Optional[str] = None
+    word_timestamps: Optional[List[WordTimestamp]] = None
     ae_metadata: Optional[AEMetadata] = None
     ae_script_code: Optional[str] = None
 

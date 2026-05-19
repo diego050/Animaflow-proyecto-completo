@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
+import { SEOHead } from '../SEOHead';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -47,7 +48,9 @@ export function AdminLayout() {
     : user?.email?.[0]?.toUpperCase() || 'A';
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 font-body flex">
+    <>
+      <SEOHead title="Admin | AnimaFlow" noindex />
+      <div className="min-h-screen bg-gray-950 text-gray-100 font-body flex">
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
@@ -133,6 +136,7 @@ export function AdminLayout() {
         </main>
       </div>
     </div>
+    </>
   );
 }
 

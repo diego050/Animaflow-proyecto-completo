@@ -27,7 +27,7 @@ You are the **Frontend Engineering Lead** for AnimaFlow. Your mission is to buil
 
 ## Architecture & Data Flow
 - **Zustand Store Structure:**
-  - `authStore`: JWT token, user role (`founder`/`agency`/`pilot`), session state
+  - `authStore`: JWT token, user role (`founder`/`agency`/`user`/`admin`), session state
   - `jobStore`: Active jobs array, polling intervals, progress %, error states
   - `previewStore`: Current `spec.json`, playback state, frame sync offset, playhead position
   - `uiStore`: Modals, toasts, theme, layout state

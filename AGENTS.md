@@ -10,7 +10,7 @@ AnimaFlow is a SaaS platform that converts text/audio into editable, frame-accur
 - **Backend:** FastAPI (Python 3.11+), Pydantic v2, SQLAlchemy 2.0 + Alembic (PostgreSQL)
 - **Async Workers:** RQ + Redis (background rendering, TTS, LLM correction, prompt generation)
 - **Infra:** Docker Compose (Postgres, Redis), VPS/Hostinger deploy
-- **Auth:** JWT native (FastAPI + python-jose/PyJWT), role-based (founder, agency, pilot)
+- **Auth:** JWT native (FastAPI + python-jose/PyJWT), role-based (founder, agency, user, admin)
 
 ## Project Structure
 ```

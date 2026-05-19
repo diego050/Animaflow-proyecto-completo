@@ -10,6 +10,8 @@ export interface WizardData {
   selectedModel: string | null;
   customWidth: number;
   customHeight: number;
+  templateId: string;
+  customPrompt: string;
 }
 
 export interface WizardState {
@@ -32,6 +34,8 @@ export const useWizardStore = create<WizardState>((set) => ({
     selectedModel: null,
     customWidth: 1080,
     customHeight: 1920,
+    templateId: 'viral_shorts',
+    customPrompt: '',
   },
 
   setWizardStep: (step: number) => set({ wizardStep: step }),
@@ -54,6 +58,8 @@ export const useWizardStore = create<WizardState>((set) => ({
         selectedModel: null,
         customWidth: 1080,
         customHeight: 1920,
+        templateId: 'viral_shorts',
+        customPrompt: '',
       },
     });
   },

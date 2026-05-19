@@ -62,7 +62,7 @@ After migration period, make `user_id` NOT NULL to enforce ownership for all new
 - **No cascade delete:** Deleting a user doesn't delete their jobs (intentional for audit)
 
 ### Mitigations
-- Seed script creates a pilot user for testing
+- Admin creation script (`scripts/create_admin.py`) for initial setup
 - Jobs list returns only jobs where `user_id == current_user.id`
 - Orphaned jobs (NULL user_id) are excluded from all queries
 - TODO comment in model reminds to make non-nullable after migration

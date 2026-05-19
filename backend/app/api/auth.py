@@ -1,7 +1,7 @@
 """
 Auth API router for AnimaFlow - register, login, profile management.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -13,18 +13,20 @@ from app.core.security import (
     create_access_token,
     get_current_active_user,
 )
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=Token, status_code=201)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
     """
     Register a new user and return an access token.
 
     TODO: Future - add email verification flow before activating account.
     """
-    existing = db.query(User).filter(User.email == user_data.email).first()
+    existing = db.query(User).filter(User.email == user_data.email, User.is_deleted == False).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -47,13 +49,14 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(credentials: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, credentials: UserLogin, db: Session = Depends(get_db)):
     """
     Authenticate a user and return an access token.
 
     Note: Error message is intentionally generic to avoid email enumeration.
     """
-    user = db.query(User).filter(User.email == credentials.email).first()
+    user = db.query(User).filter(User.email == credentials.email, User.is_deleted == False).first()
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -90,11 +93,8 @@ def update_me(
     if update_data.name:
         current_user.name = update_data.name
 
-    if update_data.email:
-        existing = db.query(User).filter(User.email == update_data.email).first()
-        if existing and existing.id != current_user.id:
-            raise HTTPException(status_code=400, detail="Email already in use")
-        current_user.email = update_data.email
+    if update_data.email and update_data.email != current_user.email:
+        raise HTTPException(status_code=400, detail="Email changes are not supported in MVP")
 
     if update_data.new_password:
         if not update_data.current_password or not verify_password(

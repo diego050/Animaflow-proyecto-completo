@@ -1,8 +1,14 @@
 import { Link } from 'react-router-dom';
+import { SEOHead } from '../components/SEOHead';
 
 export function PrivacyPolicy() {
   return (
     <div className="bg-deep-slate text-text-secondary font-body min-h-screen relative selection:bg-mint-precision selection:text-deep-slate">
+      <SEOHead
+        title="Política de Privacidad | AnimaFlow"
+        description="Conoce cómo AnimaFlow protege tus datos personales. Política de privacidad transparente y segura para creadores de video."
+        url="https://animaflow.com/privacy"
+      />
       <nav className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 md:px-8 h-16 max-w-7xl mx-auto left-1/2 -translate-x-1/2 border-b border-border-tech bg-deep-slate/80 backdrop-blur-md">
         <Link to="/" className="text-text-primary font-display font-bold text-2xl tracking-tight hover:text-mint-precision transition-colors">AnimaFlow</Link>
         <Link to="/" className="text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">← Volver al Inicio</Link>

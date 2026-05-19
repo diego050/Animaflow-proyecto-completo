@@ -35,6 +35,7 @@ interface AdminState {
   fetchSystemHealth: () => Promise<void>;
   fetchSettings: () => Promise<void>;
   updateSettings: (data: AdminSettingsUpdate) => Promise<void>;
+  createUser: (data: { email: string; password: string; name: string; role: string }) => Promise<void>;
   toggleUserStatus: (userId: string, isActive: boolean) => Promise<void>;
   changeUserRole: (userId: string, role: string) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -80,6 +81,21 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       set({ users: data.users, usersTotal: data.total, usersLoading: false });
     } catch {
       set({ usersLoading: false });
+    }
+  },
+
+  createUser: async (data) => {
+    set({ usersLoading: true });
+    try {
+      const newUser = await api.post<AdminUserDetail>('/api/admin/users', data);
+      set((state) => ({
+        users: [newUser, ...state.users],
+        usersTotal: state.usersTotal + 1,
+        usersLoading: false,
+      }));
+    } catch (err) {
+      set({ usersLoading: false });
+      throw err;
     }
   },
 

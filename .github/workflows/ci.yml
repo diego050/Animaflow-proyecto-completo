@@ -1,0 +1,135 @@
+name: CI — Test & Build
+
+on:
+  pull_request:
+    branches: [Develop, Testing, main]
+  push:
+    branches: [Develop]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: animaflow_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/animaflow_test
+        run: |
+          cd backend
+          alembic upgrade head
+
+      - name: Run backend tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/animaflow_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-not-for-production
+          ENCRYPTION_KEY: test-encryption-key-not-for-production
+        run: |
+          cd backend
+          pytest tests/ -v --tb=short
+
+      - name: Check Python syntax
+        run: |
+          cd backend
+          find . -name "*.py" -not -path "./venv/*" | xargs python -m py_compile
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: TypeScript check
+        run: |
+          cd frontend
+          npx tsc --noEmit
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install linting tools
+        run: |
+          pip install ruff black
+
+      - name: Lint Python code
+        run: |
+          cd backend
+          ruff check . || true  # Don't fail, just report
+          black --check . || true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Lint frontend
+        run: |
+          cd frontend
+          npm run lint || true  # Don't fail if no lint script

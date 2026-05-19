@@ -4,11 +4,14 @@ import { SceneEditorCard } from './SceneEditorCard';
 
 interface SceneTimelineProps {
   spec: TimelineSpec;
+  jobId: string;
   onRegenerateScene: (index: number, mediaQuery: string, text: string) => Promise<void>;
   onPreviewScene: (index: number) => void;
+  selectedScenes?: Set<number>;
+  onToggleSceneSelection?: (index: number) => void;
 }
 
-export function SceneTimeline({ spec, onRegenerateScene, onPreviewScene }: SceneTimelineProps) {
+export function SceneTimeline({ spec, jobId, onRegenerateScene, onPreviewScene, selectedScenes, onToggleSceneSelection }: SceneTimelineProps) {
   const totalDuration = spec.scenes.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0);
 
   return (
@@ -45,8 +48,11 @@ export function SceneTimeline({ spec, onRegenerateScene, onPreviewScene }: Scene
             key={idx}
             scene={scene}
             index={idx}
+            jobId={jobId}
             onRegenerate={onRegenerateScene}
             onPreview={onPreviewScene}
+            isSelected={selectedScenes?.has(idx)}
+            onToggleSelection={onToggleSceneSelection}
           />
         ))}
       </div>

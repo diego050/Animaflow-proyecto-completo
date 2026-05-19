@@ -8,15 +8,16 @@ health checks, and configurable settings for administrators.
 from typing import Optional
 import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from sqlalchemy.orm import Session
-from rq import Queue
+from rq import Queue, Retry
 from redis import Redis
 
 from app.db.session import get_db
 from app.db.models import User, JobModel
-from app.core.security import require_admin
+from app.core.security import require_admin, get_password_hash
 from app.core.config import settings
+from app.core.limiter import limiter
 
 router = APIRouter()
 redis_conn = Redis.from_url(settings.REDIS_URL)
@@ -27,7 +28,9 @@ queue = Queue("default", connection=redis_conn)
 # Stats
 # ---------------------------------------------------------------------------
 @router.get("/stats")
+@limiter.limit("30/minute")
 def get_admin_stats(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -61,7 +64,9 @@ def get_admin_stats(
 # Users
 # ---------------------------------------------------------------------------
 @router.get("/users")
+@limiter.limit("30/minute")
 def list_admin_users(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -82,7 +87,9 @@ def list_admin_users(
 
 
 @router.put("/users/{user_id}/toggle")
+@limiter.limit("30/minute")
 def toggle_user(
+    request: Request,
     user_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -97,14 +104,16 @@ def toggle_user(
 
 
 @router.put("/users/{user_id}/role")
+@limiter.limit("30/minute")
 def change_user_role(
+    request: Request,
     user_id: str,
     role: str = Body(..., embed=True),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """Change user role."""
-    if role not in ["founder", "agency", "pilot", "admin"]:
+    if role not in ["founder", "agency", "user", "admin"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -115,7 +124,9 @@ def change_user_role(
 
 
 @router.delete("/users/{user_id}")
+@limiter.limit("30/minute")
 def delete_user(
+    request: Request,
     user_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -129,11 +140,59 @@ def delete_user(
     return {"message": "User deleted"}
 
 
+@router.post("/users")
+@limiter.limit("30/minute")
+def create_user(
+    request: Request,
+    data: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Create a new user from admin panel."""
+    email = data.get("email")
+    password = data.get("password")
+    name = data.get("name", "User")
+    role = data.get("role", "user")
+
+    # Validate
+    if not email or not password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email and password required")
+
+    if role not in ["founder", "agency", "user", "admin"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
+
+    # Check if exists
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already exists")
+
+    # Create user
+    user = User(
+        email=email,
+        hashed_password=get_password_hash(password),
+        name=name,
+        role=role,
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Jobs
 # ---------------------------------------------------------------------------
 @router.get("/jobs")
+@limiter.limit("30/minute")
 def list_admin_jobs(
+    request: Request,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -157,7 +216,9 @@ def list_admin_jobs(
 
 
 @router.post("/jobs/{job_id}/retry")
+@limiter.limit("30/minute")
 def retry_job(
+    request: Request,
     job_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -185,13 +246,16 @@ def retry_job(
         job.aspect_ratio,
         job.user_id,
         job_timeout="10m",
+        retry=Retry(max=3),
     )
 
     return {"message": "Job queued for retry", "job_id": job_id}
 
 
 @router.post("/jobs/{job_id}/cancel")
+@limiter.limit("30/minute")
 def cancel_job(
+    request: Request,
     job_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -211,7 +275,9 @@ def cancel_job(
 
 
 @router.delete("/jobs/{job_id}")
+@limiter.limit("30/minute")
 def delete_job(
+    request: Request,
     job_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -229,7 +295,9 @@ def delete_job(
 # System Health
 # ---------------------------------------------------------------------------
 @router.get("/system/health")
+@limiter.limit("30/minute")
 def system_health(
+    request: Request,
     current_user: User = Depends(require_admin),
 ):
     """Return system health status."""
@@ -258,7 +326,9 @@ def system_health(
 # Settings
 # ---------------------------------------------------------------------------
 @router.get("/settings")
+@limiter.limit("30/minute")
 def get_admin_settings(
+    request: Request,
     current_user: User = Depends(require_admin),
 ):
     """Return admin-configurable settings."""
@@ -271,7 +341,9 @@ def get_admin_settings(
 
 
 @router.put("/settings")
+@limiter.limit("30/minute")
 def update_admin_settings(
+    request: Request,
     settings_payload: dict = Body(...),
     current_user: User = Depends(require_admin),
 ):

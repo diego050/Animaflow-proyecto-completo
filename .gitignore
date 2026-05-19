@@ -57,6 +57,10 @@ yarn-error.log*
 # Ignoramos la carpeta de Voicebox (archivos temporales de audio/modelos)
 voicebox/
 
+# Ignoramos storage/ (datos de usuario, modelos, caché)
+/storage/*
+!/storage/.gitkeep
+
 # Ignoramos los componentes dinámicos generados por el pipeline
 
 # para que no contaminen tu repositorio de Git con archivos de pruebas

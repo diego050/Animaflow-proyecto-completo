@@ -4,6 +4,8 @@ import { Lock, Clock, Download, Zap, Edit3, Shield, Users, Sparkles, CheckCircle
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
+import { SEOHead } from '../components/SEOHead';
+import { OrganizationStructuredData, SoftwareApplicationStructuredData } from '../components/StructuredData';
 
 export function Landing() {
   const [formData, setFormData] = useState({ nombre: '', email: '', telefono: '', rol: '' });
@@ -46,7 +48,15 @@ export function Landing() {
   };
 
   return (
-    <div className="bg-deep-slate text-text-secondary font-body min-h-screen relative selection:bg-mint-precision selection:text-deep-slate overflow-x-hidden">
+    <>
+      <SEOHead
+        title="AnimaFlow - De texto a video profesional con IA"
+        description="Crea videos profesionales desde texto en minutos. Exporta en MP4 + After Effects. Frame-accurate, sin saber animar. Únete a la beta gratis."
+        url="https://animaflow.com/"
+      />
+      <OrganizationStructuredData />
+      <SoftwareApplicationStructuredData />
+      <div className="bg-deep-slate text-text-secondary font-body min-h-screen relative selection:bg-mint-precision selection:text-deep-slate overflow-x-hidden">
       
       {/* Background Grid Pattern */}
       <div className="fixed inset-0 pointer-events-none bg-grid opacity-30 z-0"></div>
@@ -559,5 +569,6 @@ export function Landing() {
         </div>
       </footer>
     </div>
+    </>
   );
 }

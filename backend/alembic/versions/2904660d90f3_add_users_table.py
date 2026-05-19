@@ -26,8 +26,8 @@ def upgrade() -> None:
         sa.Column("hashed_password", sa.String(255), nullable=False),
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column(
-            "role", sa.String(50), nullable=False, server_default="pilot"
-        ),  # founder, agency, pilot
+            "role", sa.String(50), nullable=False, server_default="user"
+        ),  # founder, agency, user, admin
         sa.Column(
             "is_active", sa.Boolean(), nullable=False, server_default=sa.true()
         ),

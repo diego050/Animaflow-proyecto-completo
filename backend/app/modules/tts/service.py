@@ -1,115 +1,76 @@
 import os
-import json
-import httpx
-from typing import Optional, Tuple
+from typing import Optional, Dict, List
+from .providers.elevenlabs import ElevenLabsProvider
+from .providers.google_tts import GoogleTTSProvider
+from .providers.local_piper import PiperProvider
+from .providers.gemini_tts import GeminiTTSProvider
+from .whisper_timestamps import extract_timestamps, get_audio_duration
 from app.core.logging import get_logger
 
-logger = get_logger("tts")
+logger = get_logger("tts.service")
 
-VOICEBOX_API_URL = os.getenv("VOICEBOX_API_URL", "http://127.0.0.1:17493")
 AUDIO_STORAGE = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../../../storage/audio")
 )
 
+PROVIDERS = {
+    "elevenlabs": ElevenLabsProvider(),
+    "google_tts": GoogleTTSProvider(),
+    "local_piper": PiperProvider(),
+    "gemini_tts": GeminiTTSProvider(),
+}
 
-async def get_or_create_kokoro_profile() -> str | None:
-    """Obtiene o crea el perfil preset de Kokoro para AnimaFlow."""
-    try:
-        async with httpx.AsyncClient() as client:
-            res = await client.get(f"{VOICEBOX_API_URL}/profiles", timeout=10.0)
-            res.raise_for_status()
-            profiles = res.json()
-            existing = next(
-                (p["id"] for p in profiles if p["name"] == "animaflow-kokoro-es"),
-                None,
-            )
-            if existing:
-                return existing
+async def generate_tts_with_timestamps(
+    text: str,
+    provider_name: str = "local_piper",
+    voice_id: str = "default",
+    api_key: Optional[str] = None,
+    language: str = "es"
+) -> Dict:
+    """Generate TTS audio and extract word-level timestamps.
 
-            payload = {
-                "name": "animaflow-kokoro-es",
-                "language": "es",
-                "voice_type": "preset",
-                "preset_engine": "kokoro",
-                "preset_voice_id": "em_alex",
-            }
-            res = await client.post(
-                f"{VOICEBOX_API_URL}/profiles", json=payload, timeout=10.0
-            )
-            if not res.is_success:
-                logger.error(
-                    "Error creando perfil Kokoro %d: %s", res.status_code, res.text
-                )
-                return None
-            profile_id = res.json()["id"]
-            logger.info("Perfil Kokoro creado: %s", profile_id)
-            return profile_id
-    except (httpx.HTTPError, httpx.TimeoutException, json.JSONDecodeError) as e:
-        logger.error("No se pudo obtener/crear perfil Kokoro: %s", e)
-        return None
-    except Exception as e:
-        # Fallback: return None on any unexpected error
-        logger.exception("No se pudo obtener/crear perfil Kokoro: %s", e)
-        return None
-
-
-async def generate_tts_with_voicebox(
-    text: str, scene_id: str
-) -> Tuple[Optional[float], Optional[str]]:
-    """Llama a la API local de Voicebox y retorna la duración en segundos y la URL del audio."""
-    try:
-        profile_id = await get_or_create_kokoro_profile()
-        if not profile_id:
-            logger.warning("Sin perfil Kokoro disponible para %s.", scene_id)
-            return None, None
-
-        payload = {
-            "text": text,
-            "profile_id": profile_id,
-            "language": "es",
-            "engine": "kokoro",
+    Returns:
+        {
+            "audio_path": str,
+            "word_timestamps": [{"word": str, "start": float, "end": float}],
+            "duration_seconds": float
         }
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{VOICEBOX_API_URL}/generate",
-                json=payload,
-                timeout=30.0,
-            )
-            if not response.is_success:
-                logger.error(
-                    "Error %d en %s: %s", response.status_code, scene_id, response.text
-                )
-                return None, None
+    """
+    if provider_name not in PROVIDERS:
+        logger.warning("Unknown TTS provider: %s. Falling back to local_piper.", provider_name)
+        provider_name = "local_piper"
 
-            data = response.json()
-            generation_id = data.get("id")
-            if not generation_id:
-                return None, None
+    provider = PROVIDERS[provider_name]
 
-            status_url = f"{VOICEBOX_API_URL}/generate/{generation_id}/status"
-            async with client.stream("GET", status_url, timeout=120.0) as stream:
-                async for line in stream.aiter_lines():
-                    if line.startswith("data: "):
-                        try:
-                            msg = json.loads(line[6:])
-                            status = msg.get("status")
-                            if status == "completed":
-                                duration = msg.get("duration")
-                                audio_url = f"{VOICEBOX_API_URL}/audio/{generation_id}"
-                                return duration, audio_url
-                            elif status == "failed":
-                                logger.error(
-                                    "Generación fallida %s: %s", scene_id, msg.get('error')
-                                )
-                                return None, None
-                        except json.JSONDecodeError:
-                            continue
+    if provider.requires_api_key and not api_key:
+        raise ValueError(f"Provider '{provider_name}' requires an API key")
 
-        return None, None
-    except (httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.error("Error o no disponible: %s", e)
-        return None, None
-    except Exception as e:
-        # Fallback: return None on any unexpected error
-        logger.exception("Error o no disponible: %s", e)
-        return None, None
+    logger.info("Generating TTS with provider: %s", provider_name)
+
+    # 1. Generate audio
+    audio_path = await provider.generate_audio(text, voice_id, api_key)
+
+    # 2. Extract timestamps with Whisper
+    logger.info("Extracting timestamps with Whisper...")
+    word_timestamps = extract_timestamps(audio_path, language=language)
+
+    duration = get_audio_duration(audio_path)
+
+    logger.info("TTS complete: %s (%.2fs, %d words)", audio_path, duration, len(word_timestamps))
+
+    return {
+        "audio_path": audio_path,
+        "word_timestamps": word_timestamps,
+        "duration_seconds": duration
+    }
+
+def get_available_providers() -> List[Dict]:
+    """Get list of available TTS providers for user selection."""
+    return [
+        {
+            "id": name,
+            "name": provider.name,
+            "requires_api_key": provider.requires_api_key,
+        }
+        for name, provider in PROVIDERS.items()
+    ]

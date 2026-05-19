@@ -18,12 +18,16 @@ interface WizardStepInfoProps {
   selectedModel: string | null;
   customWidth: number;
   customHeight: number;
+  templateId: string;
+  customPrompt: string;
   onInfoChange: (value: string) => void;
   onAspectRatioChange: (value: string) => void;
   onVoiceChange: (value: string) => void;
   onModelChange: (value: string | null) => void;
   onCustomWidthChange: (value: number) => void;
   onCustomHeightChange: (value: number) => void;
+  onTemplateChange: (value: string) => void;
+  onCustomPromptChange: (value: string) => void;
   onGenerate: () => void;
   loading: boolean;
 }
@@ -38,12 +42,16 @@ export function WizardStepInfo({
   selectedModel,
   customWidth,
   customHeight,
+  templateId,
+  customPrompt,
   onInfoChange,
   onAspectRatioChange,
   onVoiceChange,
   onModelChange,
   onCustomWidthChange,
   onCustomHeightChange,
+  onTemplateChange,
+  onCustomPromptChange,
   onGenerate,
   loading,
 }: WizardStepInfoProps) {
@@ -104,7 +112,11 @@ export function WizardStepInfo({
       <WizardStepScript
         mode={mode}
         info={info}
+        templateId={templateId}
+        customPrompt={customPrompt}
         onInfoChange={onInfoChange}
+        onTemplateChange={onTemplateChange}
+        onCustomPromptChange={onCustomPromptChange}
         onContinue={handleContinueWithOwnScript}
         onGenerate={onGenerate}
         loading={loading}

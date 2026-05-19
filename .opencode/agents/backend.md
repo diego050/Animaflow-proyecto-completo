@@ -100,7 +100,7 @@ rq worker --url redis://localhost:6379 render_worker
 
 ## Security & Auth
 - **JWT Native:** Use `python-jose` or `PyJWT`. Validate `exp`, `sub`, and `role` claims on protected routes.
-- **Roles:** `founder`, `agency`, `pilot`. Enforce via FastAPI dependency: `get_current_user(required_roles=[...])`.
+- **Roles:** `founder`, `agency`, `user`, `admin`. Enforce via FastAPI dependency: `get_current_user(required_roles=[...])`.
 - **Secrets:** Load from `.env`. Never hardcode API keys (TTS, LLM, Storage).
 - **Rate Limiting:** Implement token bucket or sliding window on costly endpoints (`/api/jobs/create`) to prevent LLM/TTS abuse.
 - **CORS:** Restrict to known frontend origins. Block wildcard `*` in production.

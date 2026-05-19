@@ -18,8 +18,8 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
     role = Column(
-        String(50), nullable=False, default="pilot"
-    )  # founder, agency, pilot, admin
+        String(50), nullable=False, default="user"
+    )  # founder, agency, user, admin
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(
         DateTime, nullable=False, default=lambda: datetime.datetime.utcnow()
@@ -31,6 +31,9 @@ class User(Base):
         onupdate=lambda: datetime.datetime.utcnow(),
     )
 
+    is_deleted = Column(Boolean, nullable=False, default=False)
+    deleted_at = Column(DateTime, nullable=True)
+
     # LLM provider settings
     default_provider = Column(String(50), nullable=True, default="gemini")
     default_model = Column(String(100), nullable=True, default="gemini-2.0-flash")
@@ -39,6 +42,8 @@ class User(Base):
     # Relationships
     api_keys = relationship("ApiKey", back_populates="user", lazy="select")
     assets = relationship("Asset", back_populates="user", lazy="select")
+    jobs = relationship("JobModel", back_populates="user", lazy="select")
+    voices = relationship("Voice", back_populates="user", lazy="select")
 
 
 class JobModel(Base):
@@ -59,6 +64,13 @@ class JobModel(Base):
     result_spec = Column(JSON, nullable=True)
     video_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # Reformatting support
+    parent_job_id = Column(String(36), ForeignKey("jobs.id"), nullable=True, index=True)
+    tts_provider = Column(String(50), nullable=True, default="local_piper")
+    tts_voice_id = Column(String(100), nullable=True, default="es_ES-carlfm-x_low")
+
+    user = relationship("User", back_populates="jobs")
 
 
 class Voice(Base):
@@ -87,6 +99,8 @@ class Voice(Base):
         default=lambda: datetime.datetime.utcnow(),
         onupdate=lambda: datetime.datetime.utcnow(),
     )
+
+    user = relationship("User", back_populates="voices")
 
 
 class ApiKey(Base):

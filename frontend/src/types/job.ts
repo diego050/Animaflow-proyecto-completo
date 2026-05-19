@@ -19,6 +19,9 @@ export interface JobDetail {
 export interface JobCreateRequest {
   script_text: string;
   aspect_ratio: string;
+  tts_provider?: string;
+  tts_voice_id?: string;
+  tts_api_key?: string | null;
 }
 
 export interface JobCreateResponse {
@@ -28,6 +31,8 @@ export interface JobCreateResponse {
 
 export interface ScriptGenerateRequest {
   info: string;
+  template_id?: string;
+  custom_prompt?: string | null;
 }
 
 export interface ScriptGenerateResponse {
@@ -58,6 +63,13 @@ export interface SceneSpec {
   remotion_props: Record<string, unknown>;
   sfx: SFXCue[];
   audio_url?: string;
+  word_timestamps?: WordTimestamp[];
+}
+
+export interface WordTimestamp {
+  word: string;
+  start: number;
+  end: number;
 }
 
 export interface SFXCue {
@@ -165,4 +177,16 @@ export interface UserSettings {
   theme: string;
   name: string;
   email: string;
+  ttsProvider?: string;
+  ttsVoiceId?: string;
+  ttsApiKey?: string;
 }
+
+export const AVAILABLE_TTS_PROVIDERS = [
+  { id: 'local_piper', name: 'Voz Local (Piper) - Gratis, más lento', requiresKey: false },
+  { id: 'elevenlabs', name: 'ElevenLabs - Mejor calidad', requiresKey: true },
+  { id: 'google_tts', name: 'Google Cloud TTS - Económico', requiresKey: true },
+  { id: 'gemini_tts', name: 'Gemini TTS - Experimental', requiresKey: true },
+] as const;
+
+export type TTSProviderId = (typeof AVAILABLE_TTS_PROVIDERS)[number]['id'];

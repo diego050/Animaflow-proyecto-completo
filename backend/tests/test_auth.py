@@ -56,7 +56,7 @@ def test_user(db):
         email="test@example.com",
         hashed_password=get_password_hash("testpass123"),
         name="Test User",
-        role="pilot",
+        role="user",
         is_active=True,
     )
     db.add(user)

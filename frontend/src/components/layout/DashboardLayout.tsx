@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
+import { SEOHead } from '../SEOHead';
 
 const navItems = [
   { to: '/dashboard', label: 'Proyectos', icon: FolderOpen, disabled: false },
@@ -66,7 +67,9 @@ export function DashboardLayout() {
     : user?.email?.[0]?.toUpperCase() || 'U';
 
   return (
-    <div className="min-h-screen bg-deep-slate text-text-primary font-body flex">
+    <>
+      <SEOHead title="Dashboard | AnimaFlow" noindex />
+      <div className="min-h-screen bg-deep-slate text-text-primary font-body flex">
       {/* Mobile overlay */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -199,6 +202,7 @@ export function DashboardLayout() {
         </main>
       </div>
     </div>
+    </>
   );
 }
 

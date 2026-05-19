@@ -7,6 +7,15 @@ import { AuthButton } from '../components/auth/AuthButton';
 import { AuthDivider } from '../components/auth/AuthDivider';
 import { SocialButton } from '../components/auth/SocialButton';
 import { useAuthStore } from '../store/useAuthStore';
+import { SEOHead } from '../components/SEOHead';
+
+const validatePassword = (password: string): string | null => {
+  if (password.length < 8) return 'Mínimo 8 caracteres';
+  if (!/[A-Z]/.test(password)) return 'Al menos una mayúscula';
+  if (!/[a-z]/.test(password)) return 'Al menos una minúscula';
+  if (!/[0-9]/.test(password)) return 'Al menos un número';
+  return null;
+};
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -43,7 +52,9 @@ export function LoginPage() {
   );
 
   return (
-    <AuthPageLayout title="Bienvenido de vuelta" subtitle="Ingresa tus credenciales para acceder a tu pipeline">
+    <>
+      <SEOHead title="Iniciar sesión | AnimaFlow" noindex />
+      <AuthPageLayout title="Bienvenido de vuelta" subtitle="Ingresa tus credenciales para acceder a tu pipeline">
       <div className="space-y-6">
         <div className="flex gap-3">
           <SocialButton
@@ -121,5 +132,6 @@ export function LoginPage() {
         </p>
       </div>
     </AuthPageLayout>
+    </>
   );
 }

@@ -16,7 +16,7 @@ AnimaFlow es una plataforma SaaS que convierte texto/audio en proyectos de video
 - **Frontend:** React 18 + TypeScript, Vite, TailwindCSS, Zustand, Remotion
 - **Backend:** FastAPI (Python 3.11+), Pydantic v2, SQLAlchemy 2.0 + Alembic (PostgreSQL)
 - **Async Workers:** RQ + Redis (TTS, LLM, renderizado)
-- **Auth:** JWT nativo (FastAPI + python-jose), roles (founder, agency, pilot)
+- **Auth:** JWT nativo (FastAPI + python-jose), roles (founder, agency, user, admin)
 
 ---
 
@@ -36,9 +36,11 @@ cd frontend && npm install
 npm run dev  # http://localhost:5173
 ```
 
-**Credenciales de prueba (Sprint 5+):**
-- Email: `pilot@animaflow.com`
-- Password: `pilot123`
+**Crear usuario admin (después del deploy):**
+```bash
+cd backend
+python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
+```
 
 ---
 

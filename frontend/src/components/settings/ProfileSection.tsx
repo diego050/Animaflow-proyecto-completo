@@ -112,10 +112,13 @@ export function ProfileSection() {
         <input
           type="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="juan@email.com"
-          className="w-full bg-surface-lowest border border-border-tech rounded-lg px-4 py-2.5 text-sm text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors"
+          disabled
+          title="El email no se puede cambiar durante la fase MVP"
+          className="w-full bg-surface-lowest border border-border-tech rounded-lg px-4 py-2.5 text-sm text-text-primary placeholder:text-text-secondary/30 opacity-50 cursor-not-allowed outline-none transition-colors"
         />
+        <p className="text-xs text-text-secondary/60 mt-1">
+          El cambio de email está deshabilitado en la versión MVP.
+        </p>
       </div>
 
       {/* Password section */}

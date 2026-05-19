@@ -36,7 +36,7 @@
   - `PUT /api/auth/me` — Update profile (name, email, password)
 - **Route protection** — All job/export/audio routes protected with `get_current_active_user`
 - **Alembic migration** — `add_users_table` migration
-- **Seed script** — Pilot user for testing
+- **Admin creation script** — `scripts/create_admin.py` for initial admin setup
 
 **Frontend:**
 - **Auth store** (`frontend/src/store/useAuthStore.ts`)
@@ -170,13 +170,11 @@ alembic upgrade head
 2. `add_user_id_to_jobs` — Adds nullable FK to jobs
 3. `create_voices_table` — Creates voices table with user FK
 
-### Seed Data
+### Admin Setup
 
 ```bash
-# Create pilot user for testing
-python -c "from app.db.seed import seed; seed()"
+# Create admin user after deployment
+python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 ```
 
-**Default credentials:**
-- Email: `pilot@animaflow.com`
-- Password: `pilot123`
+**Then log in at `/login` with the created credentials.**

@@ -1,29 +1,40 @@
 import { useRef, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { StatusBadge } from '../../components/dashboard/StatusBadge';
+import { ReformatButton } from './ReformatButton';
 
 interface ProjectHeaderProps {
   jobId: string;
   projectName: string;
   status: string;
+  aspectRatio?: string;
+  sceneCount?: number;
+  selectedScenes?: number[];
+  currentSceneIndex?: number;
   isEditing: boolean;
   onStartEdit: () => void;
   onSaveName: () => void;
   onCancelEdit: () => void;
   onNameChange: (name: string) => void;
   onNavigateBack: () => void;
+  onReformat?: () => void;
 }
 
 export function ProjectHeader({
   jobId,
   projectName,
   status,
+  aspectRatio,
+  sceneCount,
+  selectedScenes,
+  currentSceneIndex,
   isEditing,
   onStartEdit,
   onSaveName,
   onCancelEdit,
   onNameChange,
   onNavigateBack,
+  onReformat,
 }: ProjectHeaderProps) {
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,6 +77,16 @@ export function ProjectHeader({
         )}
         <div className="flex items-center gap-3 mt-1 flex-wrap">
           <StatusBadge status={status} size="md" />
+          {aspectRatio && onReformat && (
+            <ReformatButton
+              currentRatio={aspectRatio}
+              jobId={jobId}
+              sceneCount={sceneCount ?? 0}
+              selectedScenes={selectedScenes}
+              currentSceneIndex={currentSceneIndex}
+              onReformat={onReformat}
+            />
+          )}
           <span className="text-xs text-text-secondary/50 font-mono truncate">
             {jobId}
           </span>

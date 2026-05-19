@@ -28,7 +28,7 @@ Create a new user account and return an access token.
   "email": "user@example.com",
   "password": "securepassword",
   "name": "User Name",
-  "role": "pilot"
+  "role": "user"
 }
 ```
 
@@ -41,7 +41,7 @@ Create a new user account and return an access token.
     "id": "uuid-string",
     "email": "user@example.com",
     "name": "User Name",
-    "role": "pilot",
+    "role": "user",
     "is_active": true,
     "created_at": "2026-05-18T00:00:00",
     "updated_at": "2026-05-18T00:00:00"

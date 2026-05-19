@@ -14,7 +14,7 @@
 │     email           VARCHAR(255) UK  │◄── unique, indexed
 │     hashed_password VARCHAR(255)     │
 │     name            VARCHAR(255)     │
-│     role            VARCHAR(50)      │  ◄── founder | agency | pilot
+│     role            VARCHAR(50)      │  ◄── founder | agency | user | admin
 │     is_active       BOOLEAN          │
 │     created_at      DATETIME         │
 │     updated_at      DATETIME         │
@@ -68,7 +68,7 @@
 | `email` | VARCHAR(255) | UNIQUE, NOT NULL, INDEX | Login email |
 | `hashed_password` | VARCHAR(255) | NOT NULL | Bcrypt hash |
 | `name` | VARCHAR(255) | NOT NULL | Display name |
-| `role` | VARCHAR(50) | NOT NULL, default `pilot` | founder, agency, pilot |
+| `role` | VARCHAR(50) | NOT NULL, default `user` | founder, agency, user, admin |
 | `is_active` | BOOLEAN | NOT NULL, default `true` | Account status |
 | `created_at` | DATETIME | NOT NULL | Creation timestamp |
 | `updated_at` | DATETIME | NOT NULL | Last update timestamp |

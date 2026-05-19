@@ -1,7 +1,7 @@
 # modules/tts/__init__.py
 from .service import (
-    VOICEBOX_API_URL,
     AUDIO_STORAGE,
-    get_or_create_kokoro_profile,
-    generate_tts_with_voicebox,
+    generate_tts_with_timestamps,
+    get_available_providers,
 )
+from .whisper_timestamps import extract_timestamps, get_audio_duration

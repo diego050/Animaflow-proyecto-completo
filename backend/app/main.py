@@ -2,10 +2,20 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import JSONResponse
 from app.api import jobs, exports, audio, auth, voices, api_keys, assets, admin
 from app.core.config import settings
+from app.core.limiter import limiter, RateLimitExceeded
 
 app = FastAPI(title="AnimaFlow API", description="API for AnimaFlow Video Pipeline", version="1.0.0")
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request, exc):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded"}
+    )
 
 # Configuración de CORS para permitir peticiones desde el frontend (React/Vite)
 origins = settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS else ["http://localhost:3000"]

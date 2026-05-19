@@ -43,7 +43,7 @@ You are the **Technical Orchestrator** for **AnimaFlow**, a SaaS platform that c
   - SFX Extraction: Keyword-based sound effect cues with timestamps
 - **Core Pipeline:** `spec.json` schema (TypeScript/Python aligned), Remotion compositions, 30fps frame-accurate sync
 - **Infra:** Docker Compose (Postgres, Redis), VPS/Hostinger deploy, GA4 + Hotjar analytics
-- **Auth:** JWT native (FastAPI + python-jose/PyJWT), role-based (founder, agency, pilot)
+- **Auth:** JWT native (FastAPI + python-jose/PyJWT), role-based (founder, agency, user, admin)
 
 ## Project Structure
 ```

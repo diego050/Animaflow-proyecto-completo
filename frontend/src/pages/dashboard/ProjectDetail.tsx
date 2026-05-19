@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, FileText } from 'lucide-react';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { useJobsStore } from '../../store/useJobsStore';
 import { useToastStore } from '../../store/useToastStore';
 import { isTerminalStatus, isProcessingStatus, isRenderStatus } from '../../types/job';
@@ -14,13 +15,14 @@ import { ExportPanel } from '../../components/project/ExportPanel';
 export function ProjectDetail() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-  const { selectedJob, selectedJobLoading, selectJob, triggerRender, triggerAEExport, regenerateAEExport, startPolling, stopPolling } =
+  const { selectedJob, selectedJobLoading, selectJob, fetchJobs, triggerRender, triggerAEExport, regenerateAEExport, startPolling, stopPolling } =
     useJobsStore();
   const { addToast } = useToastStore();
   const [activeTab, setActiveTab] = useState<TabKey>('script');
   const [exportLoading, setExportLoading] = useState(false);
   const [renderLoading, setRenderLoading] = useState(false);
   const [focusSceneIndex, setFocusSceneIndex] = useState<number | null>(null);
+  const [selectedSceneIndices, setSelectedSceneIndices] = useState<Set<number>>(new Set());
 
   const defaultName = `Proyecto ${jobId?.slice(0, 8) ?? ''}`;
   const [projectName, setProjectName] = useState(defaultName);
@@ -73,6 +75,22 @@ export function ProjectDetail() {
       stopPolling();
     };
   }, [selectedJob, startPolling, stopPolling]);
+
+  useEffect(() => {
+    setSelectedSceneIndices(new Set());
+  }, [jobId]);
+
+  const handleToggleSceneSelection = useCallback((index: number) => {
+    setSelectedSceneIndices(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  }, []);
 
   const handleRender = useCallback(async () => {
     if (!jobId) return;
@@ -256,12 +274,19 @@ export function ProjectDetail() {
         jobId={selectedJob.job_id}
         projectName={projectName}
         status={selectedJob.status}
+        aspectRatio={selectedJob.result_spec?.aspect_ratio}
+        sceneCount={spec?.scenes.length ?? 0}
+        selectedScenes={Array.from(selectedSceneIndices)}
+        currentSceneIndex={focusSceneIndex ?? undefined}
         isEditing={isEditingName}
         onStartEdit={() => setIsEditingName(true)}
         onSaveName={handleSaveName}
         onCancelEdit={handleCancelEdit}
         onNameChange={setProjectName}
         onNavigateBack={() => navigate('/dashboard')}
+        onReformat={() => {
+          fetchJobs();
+        }}
       />
 
       <ProjectStatusBanner
@@ -281,6 +306,7 @@ export function ProjectDetail() {
         {activeTab === 'script' && spec && (
           <SceneTimeline
             spec={spec}
+            jobId={jobId}
             onRegenerateScene={async (index, mediaQuery, text) => {
               await useJobsStore.getState().regenerateScene(jobId, index, mediaQuery, text);
             }}
@@ -288,6 +314,8 @@ export function ProjectDetail() {
               setFocusSceneIndex(idx);
               setActiveTab('preview');
             }}
+            selectedScenes={selectedSceneIndices}
+            onToggleSceneSelection={handleToggleSceneSelection}
           />
         )}
         {activeTab === 'script' && !spec && (
@@ -302,16 +330,19 @@ export function ProjectDetail() {
           </div>
         )}
         {activeTab === 'preview' && spec && (
-          <PreviewPlayer
-            spec={spec}
-            aspectRatio={spec.aspect_ratio}
-            focusSceneIndex={focusSceneIndex}
-            onClearFocus={() => setFocusSceneIndex(null)}
-          />
+          <ErrorBoundary>
+            <PreviewPlayer
+              spec={spec}
+              aspectRatio={spec.aspect_ratio}
+              focusSceneIndex={focusSceneIndex}
+              onClearFocus={() => setFocusSceneIndex(null)}
+            />
+          </ErrorBoundary>
         )}
         {activeTab === 'export' && (
           <ExportPanel
             spec={spec}
+            jobId={jobId || ''}
             isReadyToRender={isReadyToRender}
             renderLoading={renderLoading}
             exportLoading={exportLoading}

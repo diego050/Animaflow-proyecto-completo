@@ -57,7 +57,7 @@ export function AdminUsersPage() {
   const roles: Array<{ value: string; label: string; color: string }> = [
     { value: 'founder', label: 'Founder', color: 'text-amber-400 bg-amber-400/10' },
     { value: 'agency', label: 'Agency', color: 'text-blue-400 bg-blue-400/10' },
-    { value: 'pilot', label: 'Pilot', color: 'text-emerald-400 bg-emerald-400/10' },
+    { value: 'user', label: 'User', color: 'text-emerald-400 bg-emerald-400/10' },
     { value: 'admin', label: 'Admin', color: 'text-violet-400 bg-violet-400/10' },
   ];
 

@@ -7,6 +7,7 @@ import type {
 import { isTerminalStatus } from '../types/job';
 import { api } from '../api/client';
 import { useToastStore } from './useToastStore';
+import { useSettingsStore } from './useSettingsStore';
 
 export interface JobsState {
   jobs: JobSummary[];
@@ -24,7 +25,11 @@ export interface JobsState {
     voiceId?: string,
     model?: string | null,
   ) => Promise<string>;
-  generateScript: (info: string) => Promise<string>;
+  generateScript: (
+    info: string,
+    templateId?: string,
+    customPrompt?: string | null,
+  ) => Promise<string>;
   deleteJob: (jobId: string) => Promise<void>;
   triggerRender: (jobId: string) => Promise<void>;
   triggerAEExport: (jobId: string) => Promise<void>;
@@ -35,6 +40,15 @@ export interface JobsState {
     mediaQuery: string,
     text: string,
   ) => Promise<TimelineSpec | null>;
+  reformatJob: (
+    jobId: string,
+    payload: {
+      aspect_ratio: string;
+      scene_selection: 'all' | 'selected' | 'current';
+      scene_indices?: number[];
+      current_scene_index?: number;
+    },
+  ) => Promise<void>;
   startPolling: (jobId: string) => void;
   stopPolling: () => void;
   refreshSelectedJob: () => Promise<void>;
@@ -88,12 +102,18 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     model?: string | null,
   ) => {
     void _voiceId;
+    const settings = useSettingsStore.getState().settings;
     const body: Record<string, unknown> = {
       script_text: scriptText,
       aspect_ratio: aspectRatio,
+      tts_provider: settings.ttsProvider || 'local_piper',
+      tts_voice_id: settings.ttsVoiceId || 'es_ES-carlfm-x_low',
     };
     if (model) {
       body.model = model;
+    }
+    if (settings.ttsApiKey) {
+      body.tts_api_key = settings.ttsApiKey;
     }
     const data = await api.post<{ job_id: string; status: string }>(
       '/api/jobs/',
@@ -103,10 +123,21 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     return data.job_id;
   },
 
-  generateScript: async (info: string) => {
+  generateScript: async (
+    info: string,
+    templateId?: string,
+    customPrompt?: string | null,
+  ) => {
+    const body: Record<string, unknown> = { info };
+    if (templateId) {
+      body.template_id = templateId;
+    }
+    if (customPrompt) {
+      body.custom_prompt = customPrompt;
+    }
     const data = await api.post<{ script_text: string }>(
       '/api/jobs/generate-script',
-      { info },
+      body,
     );
     return data.script_text;
   },
@@ -157,6 +188,28 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       }));
     }
     return data.result_spec;
+  },
+
+  reformatJob: async (
+    jobId: string,
+    payload: {
+      aspect_ratio: string;
+      scene_selection: 'all' | 'selected' | 'current';
+      scene_indices?: number[];
+      current_scene_index?: number;
+    },
+  ) => {
+    try {
+      await api.post(`/api/jobs/${jobId}/reformat`, payload);
+      useToastStore
+        .getState()
+        .addToast('success', `Proyecto reformateado a ${payload.aspect_ratio}`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Error al reformatear';
+      useToastStore.getState().addToast('error', message);
+      throw err;
+    }
   },
 
   startPolling: (jobId: string) => {

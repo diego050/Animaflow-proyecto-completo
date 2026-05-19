@@ -15,7 +15,7 @@ export interface AdminUserDetail {
   id: string;
   email: string;
   name: string;
-  role: 'founder' | 'agency' | 'pilot' | 'admin';
+  role: 'founder' | 'agency' | 'user' | 'admin';
   is_active: boolean;
   created_at: string;
   last_login: string | null;

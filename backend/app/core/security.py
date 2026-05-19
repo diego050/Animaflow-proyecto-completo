@@ -62,7 +62,7 @@ def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
     if user is None or not user.is_active:
         raise credentials_exception
     return user

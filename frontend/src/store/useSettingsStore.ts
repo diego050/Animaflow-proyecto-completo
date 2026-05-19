@@ -15,6 +15,9 @@ const DEFAULT_SETTINGS: UserSettings = {
   theme: 'dark',
   name: '',
   email: '',
+  ttsProvider: 'local_piper',
+  ttsVoiceId: 'es_ES-carlfm-x_low',
+  ttsApiKey: '',
 };
 
 function loadSettingsFromStorage(): UserSettings {

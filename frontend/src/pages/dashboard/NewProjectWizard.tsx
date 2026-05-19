@@ -58,7 +58,11 @@ export function NewProjectWizard() {
     setError(null);
     setScriptLoading(true);
     try {
-      const script = await generateScript(wizardData.info);
+      const script = await generateScript(
+        wizardData.info,
+        wizardData.templateId,
+        wizardData.customPrompt || null,
+      );
       setWizardData({ script });
       setWizardStep(2);
     } catch {
@@ -66,7 +70,14 @@ export function NewProjectWizard() {
     } finally {
       setScriptLoading(false);
     }
-  }, [wizardData.info, generateScript, setWizardData, setWizardStep]);
+  }, [
+    wizardData.info,
+    wizardData.templateId,
+    wizardData.customPrompt,
+    generateScript,
+    setWizardData,
+    setWizardStep,
+  ]);
 
   const handleCreateProject = useCallback(async () => {
     if (!wizardData.script.trim()) {
@@ -154,6 +165,8 @@ export function NewProjectWizard() {
               selectedModel={wizardData.selectedModel}
               customWidth={wizardData.customWidth}
               customHeight={wizardData.customHeight}
+              templateId={wizardData.templateId}
+              customPrompt={wizardData.customPrompt}
               onInfoChange={(info) => setWizardData({ info })}
               onAspectRatioChange={(aspectRatio) =>
                 setWizardData({ aspectRatio })
@@ -167,6 +180,10 @@ export function NewProjectWizard() {
               }
               onCustomHeightChange={(customHeight) =>
                 setWizardData({ customHeight })
+              }
+              onTemplateChange={(templateId) => setWizardData({ templateId })}
+              onCustomPromptChange={(customPrompt) =>
+                setWizardData({ customPrompt })
               }
               onGenerate={handleGenerateScript}
               loading={scriptLoading}

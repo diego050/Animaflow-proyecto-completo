@@ -1,4 +1,6 @@
-import { Mic } from 'lucide-react';
+import { Mic, Volume2 } from 'lucide-react';
+import { useSettingsStore } from '../../store/useSettingsStore';
+import { AVAILABLE_TTS_PROVIDERS } from '../../types/job';
 
 export function WizardStepVoice({
   voiceId,
@@ -11,8 +13,13 @@ export function WizardStepVoice({
   voicesLoading: boolean;
   onChange: (value: string) => void;
 }) {
+  const { settings } = useSettingsStore();
+  const currentTTS = AVAILABLE_TTS_PROVIDERS.find(
+    (p) => p.id === settings.ttsProvider
+  );
+
   return (
-    <div>
+    <div className="space-y-3">
       <label className="block text-text-secondary text-sm font-medium mb-2">
         <Mic size={14} className="inline mr-1.5 -mt-0.5" />
         Voz para narración
@@ -36,6 +43,19 @@ export function WizardStepVoice({
           ))
         )}
       </select>
+
+      {/* TTS Provider hint */}
+      <div className="flex items-start gap-2 text-xs text-text-secondary/60 bg-surface-high/50 rounded-lg p-2.5">
+        <Volume2 size={14} className="shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium text-text-secondary/80">
+            Motor TTS activo: {currentTTS?.name || 'Voz Local (Piper)'}
+          </p>
+          <p className="mt-0.5">
+            Cambia el proveedor de voz en Configuración {'>'} Voz.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

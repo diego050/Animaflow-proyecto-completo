@@ -34,7 +34,7 @@ All endpoints protected by `require_admin` dependency.
 
 ### 2. Role Mismatch Fix
 
-**Problem:** Frontend accepted `admin` role, backend only had `founder|agency|pilot`.
+**Problem:** Frontend accepted `admin` role, backend only had `founder|agency|user`.
 
 **Fixed:**
 - `backend/app/db/models.py` — Updated role comment to include `admin`

@@ -36,7 +36,7 @@ def resolve_llm_credentials(
         LLMCredentials with resolved api_key, model, and provider.
     """
     from app.core.config import settings
-    from app.db.session import SessionLocal
+    from app.db.session import SessionLocal, get_db_context
     from app.db.models import User, ApiKey
 
     # Default fallback to global Gemini config
@@ -51,8 +51,7 @@ def resolve_llm_credentials(
             provider=fallback_provider,
         )
 
-    db = SessionLocal()
-    try:
+    with get_db_context() as db:
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             return LLMCredentials(
@@ -83,5 +82,3 @@ def resolve_llm_credentials(
             model=model,
             provider=provider,
         )
-    finally:
-        db.close()

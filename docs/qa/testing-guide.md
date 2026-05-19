@@ -42,15 +42,13 @@ npm run dev
 
 ## Test Credentials
 
-| Role | Email | Password |
-|---|---|---|
-| Pilot | `pilot@animaflow.com` | `pilot123` |
-
-**Note:** Run seed script if pilot user doesn't exist:
+Para testing local, crea un usuario admin con el script:
 ```bash
 cd backend
-python -c "from app.db.seed import seed; seed()"
+python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 ```
+
+Luego usa esas credenciales para login, o registra nuevos usuarios vía `/register`.
 
 ---
 
@@ -148,7 +146,7 @@ python -c "from app.db.seed import seed; seed()"
 - [ ] Backend running on port 8000
 - [ ] Frontend running on port 5173
 - [ ] Database migrations applied (`alembic upgrade head`)
-- [ ] Seed script run (pilot user exists)
+- [ ] Admin user created (via create_admin.py script)
 
 ### Authentication
 - [ ] A1: Register new user

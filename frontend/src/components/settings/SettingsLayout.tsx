@@ -1,7 +1,7 @@
 import { Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-export type TabKey = 'profile' | 'preferences' | 'api' | 'billing';
+export type TabKey = 'profile' | 'preferences' | 'tts' | 'api' | 'billing';
 
 interface TabDef {
   key: TabKey;

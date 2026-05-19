@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { User, Palette, Key, CreditCard } from 'lucide-react';
+import { User, Palette, Key, CreditCard, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SettingsLayout, type TabKey } from '../../components/settings/SettingsLayout';
 import { ProfileSection } from '../../components/settings/ProfileSection';
 import { PreferencesSection } from '../../components/settings/PreferencesSection';
 import { ApiKeysSection } from '../../components/settings/ApiKeysSection';
 import { LLMSettingsSection } from '../../components/settings/LLMSettingsSection';
+import { TTSProviderSection } from '../../components/settings/TTSProviderSection';
 
 const TABS = [
   { key: 'profile' as const, label: 'Perfil', icon: User },
   { key: 'preferences' as const, label: 'Preferencias', icon: Palette },
+  { key: 'tts' as const, label: 'Voz', icon: Volume2 },
   { key: 'api' as const, label: 'API Keys', icon: Key },
   { key: 'billing' as const, label: 'Facturación', icon: CreditCard },
 ];
@@ -65,6 +67,18 @@ export function SettingsPage() {
             transition={{ duration: 0.15 }}
           >
             <PreferencesSection />
+          </motion.div>
+        )}
+
+        {activeTab === 'tts' && (
+          <motion.div
+            key="tts"
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.15 }}
+          >
+            <TTSProviderSection />
           </motion.div>
         )}
 

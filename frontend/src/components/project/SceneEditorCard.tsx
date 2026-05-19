@@ -3,15 +3,19 @@ import { motion } from 'framer-motion';
 import { Play, Pencil, Check, X as XIcon, Loader2 } from 'lucide-react';
 import { useToastStore } from '../../store/useToastStore';
 import type { SceneSpec } from '../../types/job';
+import { SceneDownloadMenu } from './SceneDownloadMenu';
 
 interface SceneEditorCardProps {
   scene: SceneSpec;
   index: number;
+  jobId: string;
   onRegenerate: (index: number, mediaQuery: string, text: string) => Promise<void>;
   onPreview: (index: number) => void;
+  isSelected?: boolean;
+  onToggleSelection?: (index: number) => void;
 }
 
-export function SceneEditorCard({ scene, index, onRegenerate, onPreview }: SceneEditorCardProps) {
+export function SceneEditorCard({ scene, index, jobId, onRegenerate, onPreview, isSelected, onToggleSelection }: SceneEditorCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
   const [editMedia, setEditMedia] = useState('');
@@ -61,9 +65,19 @@ export function SceneEditorCard({ scene, index, onRegenerate, onPreview }: Scene
       <div className="p-5">
         {/* Scene header row */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-bold text-mint-precision bg-mint-precision/10 px-2.5 py-1 rounded-full">
-            Escena {index + 1}
-          </span>
+          <div className="flex items-center gap-2">
+            {onToggleSelection && (
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onToggleSelection(index)}
+                className="accent-mint-precision w-3.5 h-3.5 cursor-pointer"
+              />
+            )}
+            <span className="text-xs font-bold text-mint-precision bg-mint-precision/10 px-2.5 py-1 rounded-full">
+              Escena {index + 1}
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-text-secondary/50 font-mono">
               {scene.duration_seconds}s
@@ -154,13 +168,16 @@ export function SceneEditorCard({ scene, index, onRegenerate, onPreview }: Scene
                 </div>
               </div>
             )}
-            <button
-              onClick={handleStartEdit}
-              className="mt-3 flex items-center gap-1.5 text-xs font-medium text-text-secondary/60 hover:text-mint-precision transition-colors"
-            >
-              <Pencil size={12} />
-              Editar escena
-            </button>
+            <div className="mt-3 flex items-center justify-between">
+              <button
+                onClick={handleStartEdit}
+                className="flex items-center gap-1.5 text-xs font-medium text-text-secondary/60 hover:text-mint-precision transition-colors"
+              >
+                <Pencil size={12} />
+                Editar escena
+              </button>
+              <SceneDownloadMenu jobId={jobId} sceneIndex={index} />
+            </div>
           </>
         )}
       </div>
