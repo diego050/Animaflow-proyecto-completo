@@ -18,6 +18,7 @@ jobs:
           username: ${{ secrets.TESTING_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -euo pipefail
             cd /opt/animaflow
             git fetch origin
             git reset --hard origin/Testing
