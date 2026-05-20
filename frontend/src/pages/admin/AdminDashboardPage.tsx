@@ -6,7 +6,6 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  Clock,
   HardDrive,
   TrendingUp,
 } from 'lucide-react';

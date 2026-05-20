@@ -16,6 +16,7 @@ export function TTSProviderSection() {
 
   // Sync local state when store changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedProvider((settings.ttsProvider as TTSProviderId) || 'local_piper');
     setVoiceId(settings.ttsVoiceId || 'es_ES-carlfm-x_low');
     setApiKey(settings.ttsApiKey || '');

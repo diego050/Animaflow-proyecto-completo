@@ -47,7 +47,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ jobId, spec, onSpecUpd
       } else {
         addToast('error', 'Error regenerando la escena');
       }
-    } catch (e) {
+    } catch {
       addToast('error', 'Error de conexión al regenerar la escena');
     } finally {
       setLoadingIndex(null);

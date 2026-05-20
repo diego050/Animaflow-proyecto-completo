@@ -40,6 +40,7 @@ export function LLMSettingsSection() {
 
   useEffect(() => {
     if (llmSettings) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedProvider(llmSettings.default_provider || '');
       setSelectedModel(llmSettings.default_model || '');
       const allModels = getAllModels();

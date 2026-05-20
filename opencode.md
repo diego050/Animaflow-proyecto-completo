@@ -33,4 +33,3 @@ Ver `skills-lock.json` para el registro de skills instaladas.
 ## Reglas del Proyecto
 
 Ver `AGENTS.md` en la raíz para las reglas globales del proyecto.
-

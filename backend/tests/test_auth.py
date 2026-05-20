@@ -72,7 +72,7 @@ class TestAuth:
             "/api/auth/register",
             json={
                 "email": "newuser@example.com",
-                "password": "newpass123",
+                "password": "Newpass123",
                 "name": "New User",
             },
         )
@@ -87,7 +87,7 @@ class TestAuth:
             "/api/auth/register",
             json={
                 "email": "test@example.com",  # same as test_user
-                "password": "testpass123",
+                "password": "Testpass123",
                 "name": "Test User",
             },
         )
