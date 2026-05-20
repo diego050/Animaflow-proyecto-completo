@@ -47,7 +47,7 @@ export function ProjectDetail() {
     }
     try {
       const token = localStorage.getItem('animaflow_token');
-      await fetch(`http://localhost:8000/api/jobs/${jobId}`, {
+      await fetch(`/api/jobs/${jobId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: trimmed }),
@@ -118,14 +118,14 @@ export function ProjectDetail() {
       while (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 5000));
         const statusRes = await fetch(
-          `http://localhost:8000/api/jobs/${jobId}/export/after-effects/status`,
+          `/api/jobs/${jobId}/export/after-effects/status`,
           { headers: { 'Authorization': `Bearer ${token}` } }
         );
         if (statusRes.ok) {
           const statusData = await statusRes.json();
           if (statusData.status === 'completed') {
             const downloadRes = await fetch(
-              `http://localhost:8000/api/jobs/${jobId}/export/after-effects/download`,
+              `/api/jobs/${jobId}/export/after-effects/download`,
               { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!downloadRes.ok) {
@@ -167,14 +167,14 @@ export function ProjectDetail() {
       while (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 5000));
         const statusRes = await fetch(
-          `http://localhost:8000/api/jobs/${jobId}/export/after-effects/status`,
+          `/api/jobs/${jobId}/export/after-effects/status`,
           { headers: { 'Authorization': `Bearer ${token}` } }
         );
         if (statusRes.ok) {
           const statusData = await statusRes.json();
           if (statusData.status === 'completed') {
             const downloadRes = await fetch(
-              `http://localhost:8000/api/jobs/${jobId}/export/after-effects/download`,
+              `/api/jobs/${jobId}/export/after-effects/download`,
               { headers: { 'Authorization': `Bearer ${token}` } }
             );
             if (!downloadRes.ok) {
@@ -209,7 +209,7 @@ export function ProjectDetail() {
     if (!jobId) return;
     const token = localStorage.getItem('animaflow_token');
     const response = await fetch(
-      `http://localhost:8000/api/jobs/${jobId}/export/spec-json`,
+      `/api/jobs/${jobId}/export/spec-json`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,

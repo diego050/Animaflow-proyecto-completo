@@ -35,7 +35,7 @@ export const SceneEditor: React.FC<SceneEditorProps> = ({ jobId, spec, onSpecUpd
     setLoadingIndex(index);
     setEditingIndex(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/jobs/${jobId}/scenes/${index}/regenerate`, {
+      const res = await fetch(`/api/jobs/${jobId}/scenes/${index}/regenerate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ media_query: editMedia, text: editText })
