@@ -23,7 +23,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
   const fetchJobs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/jobs');
+      const res = await fetch('/api/jobs');
       const data = await res.json();
       setJobs(data);
     } catch (e) {
@@ -41,7 +41,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
 
   const handleOpenJob = async (jobId: string, _summaryStatus: string, scriptText: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/jobs/${jobId}`);
+      const res = await fetch(`/api/jobs/${jobId}`);
       const data = await res.json();
       onSelectJob(data.job_id, data.result_spec || null, data.status, data.video_url || null, scriptText);
     } catch {
@@ -54,7 +54,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
     if (!confirm("¿Seguro que deseas eliminar este proyecto de la base de datos?")) return;
 
     try {
-      await fetch(`http://localhost:8000/api/jobs/${jobId}`, {
+      await fetch(`/api/jobs/${jobId}`, {
         method: "DELETE"
       });
       fetchJobs(); // Recargar la lista

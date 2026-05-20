@@ -78,7 +78,7 @@ export function DownloadsPage() {
 
   const handleViewSpec = useCallback(async (jobId: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/jobs/${jobId}/export/spec-json`);
+      const res = await fetch(`/api/jobs/${jobId}/export/spec-json`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setViewingSpec(data);
