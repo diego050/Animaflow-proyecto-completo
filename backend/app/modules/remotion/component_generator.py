@@ -222,11 +222,8 @@ async def generate_remotion_component(
         code = re.sub(r"Math\.max\(0,\s*\{([^}]+)\)", r"Math.max(0, \1)", code)
 
         # Guardar archivo físicamente
-        generated_dir = os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__), "../../../frontend/src/remotion/generated"
-            )
-        )
+        from app.core.config import settings
+        generated_dir = os.path.join(settings.frontend_path, "src", "remotion", "generated")
         os.makedirs(generated_dir, exist_ok=True)
 
         file_name = f"Scene_{job_id}_{scene_index}.tsx"

@@ -25,11 +25,10 @@ def render_video_pipeline(job_id: str):
             spec_json = json.dumps({"spec": job.result_spec})
 
             # Directorios
-            backend_dir = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "../../..")
-            )
-            frontend_dir = os.path.join(backend_dir, "frontend")
-            output_dir = os.path.join(backend_dir, "storage", "videos")
+            from app.core.config import settings
+            from app.core.storage_paths import get_storage_dir
+            frontend_dir = settings.frontend_path
+            output_dir = get_storage_dir("videos")
             os.makedirs(output_dir, exist_ok=True)
 
             output_file = os.path.join(output_dir, f"{job_id}.mp4")

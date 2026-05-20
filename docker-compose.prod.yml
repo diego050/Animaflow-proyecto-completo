@@ -18,6 +18,7 @@ services:
       - STORAGE_BASE_DIR=/app
     volumes:
       - animaflow_storage:/app/storage
+      - remotion_generated:/app/frontend/src/remotion/generated
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -35,13 +36,15 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - animaflow_net
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - api
     restart: unless-stopped
@@ -50,6 +53,8 @@ services:
         limits:
           cpus: '0.5'
           memory: 256M
+    networks:
+      - animaflow_net
 
   worker-default:
     build:
@@ -67,6 +72,7 @@ services:
       - STORAGE_BASE_DIR=/app
     volumes:
       - animaflow_storage:/app/storage
+      - remotion_generated:/app/frontend/src/remotion/generated
     restart: unless-stopped
     deploy:
       replicas: 2
@@ -79,11 +85,13 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - animaflow_net
 
   worker-render:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile.render
     command: python -m worker --queues render
     depends_on:
       - postgres
@@ -96,18 +104,21 @@ services:
       - STORAGE_BASE_DIR=/app
     volumes:
       - animaflow_storage:/app/storage
+      - remotion_generated:/app/frontend/src/remotion/generated
     restart: unless-stopped
     deploy:
       replicas: 1
       resources:
         limits:
           cpus: '2.0'
-          memory: 2G
+          memory: 4G
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - animaflow_net
 
   postgres:
     image: postgres:15-alpine
@@ -119,13 +130,17 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
+    networks:
+      - animaflow_net
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    networks:
+      - animaflow_net
 
   # SonarQube — Code quality analysis (disabled by default, use: docker compose --profile security up sonarqube -d)
   sonarqube:
@@ -155,10 +170,17 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - animaflow_net
 
 volumes:
   postgres_data:
   animaflow_storage:
+  remotion_generated:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:
+
+networks:
+  animaflow_net:
+    driver: bridge
