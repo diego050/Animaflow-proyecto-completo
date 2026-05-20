@@ -1,4 +1,5 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Request, Body
+﻿from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from sqlalchemy.orm import Session
 from rq import Queue, Retry
 from redis import Redis
