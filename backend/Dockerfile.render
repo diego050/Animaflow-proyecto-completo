@@ -31,6 +31,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Instalar dependencias Python del backend
 COPY backend/requirements.txt ./requirements.txt
+
+# Install torch CPU-only first (prevents openai-whisper from downloading CUDA libs)
+RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código del backend
