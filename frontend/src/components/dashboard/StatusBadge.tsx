@@ -78,6 +78,4 @@ export function StatusBadge({ status, size = 'sm', showIcon = true }: StatusBadg
   );
 }
 
-export function getStatusCategory(status: string): StatusCategory {
-  return STATUS_MAP[status]?.category ?? 'processing';
-}
+

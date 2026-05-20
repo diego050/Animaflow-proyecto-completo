@@ -34,35 +34,36 @@ export function ImagesPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchAssets();
-  }, []);
-
-  const fetchAssets = async () => {
+  const fetchAssets = useCallback(async () => {
     try {
       setLoading(true);
       const data = await apiFetch<Asset[]>('/api/assets/');
       setAssets(data);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Error cargando imágenes');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleUpload = async (file: File) => {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchAssets();
+  }, [fetchAssets]);
+
+  const handleUpload = useCallback(async (file: File) => {
     try {
       setUploading(true);
       setError(null);
       await apiUpload('/api/assets/upload', file);
       await fetchAssets();
-    } catch (err: any) {
-      setError(err.message || 'Error subiendo imagen');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error subiendo imagen');
     } finally {
       setUploading(false);
     }
-  };
+  }, [fetchAssets]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -76,14 +77,14 @@ export function ImagesPage() {
     if (file && file.type.startsWith('image/')) {
       handleUpload(file);
     }
-  }, []);
+  }, [handleUpload]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta imagen?')) return;
     try {
       await apiFetch(`/api/assets/${id}`, { method: 'DELETE' });
       setAssets((prev) => prev.filter((a) => a.id !== id));
-    } catch (err) {
+    } catch {
       setError('Error eliminando imagen');
     }
   };

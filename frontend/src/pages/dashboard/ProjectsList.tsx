@@ -39,7 +39,7 @@ export function ProjectsList() {
         addToast('error', 'Error al eliminar el proyecto.');
       }
     },
-    [deleteJob],
+    [deleteJob, addToast],
   );
 
   if (jobsLoading && jobs.length === 0) {

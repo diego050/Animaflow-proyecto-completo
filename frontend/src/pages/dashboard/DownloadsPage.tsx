@@ -58,7 +58,7 @@ export function DownloadsPage() {
         setDownloadingId(null);
       }
     },
-    [downloadAEExport],
+    [downloadAEExport, addToast],
   );
 
   const handleDownloadSpec = useCallback(
@@ -73,7 +73,7 @@ export function DownloadsPage() {
         setDownloadingId(null);
       }
     },
-    [downloadSpecJson],
+    [downloadSpecJson, addToast],
   );
 
   const handleViewSpec = useCallback(async (jobId: string) => {
@@ -86,7 +86,7 @@ export function DownloadsPage() {
     } catch {
       addToast('error', 'Error al cargar el spec.json.');
     }
-  }, []);
+  }, [addToast]);
 
   const handleDownloadMp4 = useCallback((job: JobSummary) => {
     if (job.video_url) {

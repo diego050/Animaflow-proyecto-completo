@@ -3,7 +3,14 @@ import React, { useState, useEffect } from "react";
 import type { TimelineSpec } from "../types/spec";
 import { generatedModules } from './generated/index.ts';
 
-const FallbackScene = ({ text, fallbackBg, fallbackColor, isLoading }: any) => {
+interface FallbackSceneProps {
+  text: string;
+  fallbackBg: string;
+  fallbackColor: string;
+  isLoading: boolean;
+}
+
+const FallbackScene = ({ text, fallbackBg, fallbackColor, isLoading }: FallbackSceneProps) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const opacity = interpolate(frame, [0, 1 * fps], [0, 1], {
@@ -20,8 +27,22 @@ const FallbackScene = ({ text, fallbackBg, fallbackColor, isLoading }: any) => {
   );
 };
 
-const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, mediaQuery: _mediaQuery }: any) => {
-  const [Component, setComponent] = useState<React.FC<any> | null>(null);
+interface DynamicSceneProps {
+  type: string;
+  text: string;
+  durationInFrames: number;
+  fallbackBg: string;
+  fallbackColor: string;
+}
+
+interface GeneratedModule {
+  SceneComponent?: React.FC<Record<string, unknown>>;
+  default?: React.FC<Record<string, unknown>>;
+  [key: string]: unknown;
+}
+
+const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor }: DynamicSceneProps) => {
+  const [Component, setComponent] = useState<React.FC<Record<string, unknown>> | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -33,7 +54,7 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor,
 
       if (generatedModules[type]) {
         try {
-          const mod: any = generatedModules[type];
+          const mod = generatedModules[type] as GeneratedModule;
           // El contrato dice que la IA exportará `SceneComponent`
           if (mod.SceneComponent) {
             setComponent(() => mod.SceneComponent);
@@ -41,7 +62,7 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor,
             setComponent(() => mod.default);
           } else {
              // Si el LLM nombra distinto al componente, agarramos el primer export
-            const firstExport = Object.values(mod)[0] as React.FC<any>;
+            const firstExport = Object.values(mod)[0] as React.FC<Record<string, unknown>> | undefined;
             if (firstExport) {
                 setComponent(() => firstExport);
             } else {
@@ -82,13 +103,12 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
 
         return (
           <Sequence key={index} from={fromFrame} durationInFrames={durationInFrames}>
-            <DynamicScene 
-               type={scene.type} 
-               text={scene.text} 
+            <DynamicScene
+               type={scene.type}
+               text={scene.text}
                durationInFrames={durationInFrames}
                fallbackBg={scene.remotion_props?.backgroundColor || "#000"}
                fallbackColor={scene.remotion_props?.textColor || "#fff"}
-               mediaQuery={scene.media_query}
             />
             {scene.audio_url && <Audio src={scene.audio_url} />}
           </Sequence>
