@@ -15,6 +15,9 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/animaflow
       - REDIS_URL=redis://redis:6379/0
+      - STORAGE_BASE_DIR=/app
+    volumes:
+      - animaflow_storage:/app/storage
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -46,6 +49,9 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/animaflow
       - REDIS_URL=redis://redis:6379/0
+      - STORAGE_BASE_DIR=/app
+    volumes:
+      - animaflow_storage:/app/storage
     restart: unless-stopped
     deploy:
       replicas: 2
@@ -72,6 +78,9 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/animaflow
       - REDIS_URL=redis://redis:6379/0
+      - STORAGE_BASE_DIR=/app
+    volumes:
+      - animaflow_storage:/app/storage
     restart: unless-stopped
     deploy:
       replicas: 1
@@ -134,6 +143,7 @@ services:
 
 volumes:
   postgres_data:
+  animaflow_storage:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:

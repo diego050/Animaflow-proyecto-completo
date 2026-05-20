@@ -6,6 +6,7 @@ from starlette.responses import JSONResponse
 from app.api import jobs, exports, audio, auth, voices, api_keys, assets, admin
 from app.core.config import settings
 from app.core.limiter import limiter, RateLimitExceeded
+from app.core.storage_paths import get_storage_dir
 
 app = FastAPI(title="AnimaFlow API", description="API for AnimaFlow Video Pipeline", version="1.0.0")
 app.state.limiter = limiter
@@ -38,8 +39,7 @@ app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 # Serve video files from storage/videos directory
-VIDEO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../storage/videos"))
-os.makedirs(VIDEO_DIR, exist_ok=True)
+VIDEO_DIR = get_storage_dir("videos")
 app.mount("/videos", StaticFiles(directory=VIDEO_DIR), name="videos")
 
 @app.on_event("startup")
