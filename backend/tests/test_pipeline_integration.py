@@ -57,34 +57,25 @@ def mock_external_services(tmp_path):
     )
 
     with patch(
-        "app.modules.llm.visual_spec.generate_batch_visuals_with_llm",
+        "app.modules.pipeline.orchestrator.generate_batch_visuals_with_llm",
         return_value=batch_visuals,
     ) as mock_batch, patch(
-        "app.modules.tts.service.generate_tts_with_timestamps",
+        "app.modules.pipeline.orchestrator.generate_tts_with_timestamps",
         new_callable=AsyncMock,
         return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 5.0, "word_timestamps": []},
     ) as mock_tts, patch(
-        "app.modules.remotion.component_generator.generate_remotion_component",
+        "app.modules.pipeline.orchestrator.generate_remotion_component",
         new_callable=AsyncMock,
         return_value="Scene_test",
     ) as mock_remotion, patch(
-        "requests.get"
-    ) as mock_requests_get, patch(
-        "app.modules.remotion.index_writer.write_index_ts"
+        "app.modules.pipeline.orchestrator.write_index_ts"
     ) as mock_index, patch(
-        "app.modules.tts.service.AUDIO_STORAGE", audio_storage
+        "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
     ):
-        # Mock requests.get for audio download inside _process_chunks_async
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.content = b"fake_audio_data"
-        mock_requests_get.return_value = mock_response
-
         yield {
             "batch": mock_batch,
             "tts": mock_tts,
             "remotion": mock_remotion,
-            "requests_get": mock_requests_get,
             "index": mock_index,
         }
 
@@ -197,27 +188,21 @@ class TestPipelineIdempotency:
         )
 
         with patch(
-            "app.modules.llm.visual_spec.generate_batch_visuals_with_llm",
+            "app.modules.pipeline.orchestrator.generate_batch_visuals_with_llm",
             return_value=batch_visuals,
         ), patch(
-            "app.modules.tts.service.generate_tts_with_timestamps",
+            "app.modules.pipeline.orchestrator.generate_tts_with_timestamps",
             new_callable=AsyncMock,
             return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 3.0, "word_timestamps": []},
         ), patch(
-            "app.modules.remotion.component_generator.generate_remotion_component",
+            "app.modules.pipeline.orchestrator.generate_remotion_component",
             new_callable=AsyncMock,
             return_value="Scene_test",
         ), patch(
-            "requests.get"
-        ) as mock_requests_get, patch(
-            "app.modules.remotion.index_writer.write_index_ts"
+            "app.modules.pipeline.orchestrator.write_index_ts"
         ), patch(
-            "app.modules.tts.service.AUDIO_STORAGE", audio_storage
+            "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
         ):
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.content = b"fake_audio_data"
-            mock_requests_get.return_value = mock_response
             yield
 
     def test_rerun_pipeline_same_output(
