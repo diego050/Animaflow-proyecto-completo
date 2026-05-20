@@ -6,11 +6,8 @@ logger = get_logger("remotion")
 
 def write_index_ts(job_id: str, timeline_scenes: list[dict]):
     """Escribe index.ts para exportar módulos explícitamente (compatible con Remotion Webpack CLI)."""
-    generated_dir = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "../../../frontend/src/remotion/generated"
-        )
-    )
+    from app.core.config import settings
+    generated_dir = os.path.join(settings.frontend_path, "src", "remotion", "generated")
     index_path = os.path.join(generated_dir, "index.ts")
 
     imports = []

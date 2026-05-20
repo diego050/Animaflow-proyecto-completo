@@ -29,7 +29,7 @@ jobs:
             
             # Rebuild and restart services with Docker
             docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --build api worker-default worker-render
+            docker compose -f docker-compose.prod.yml up -d --build api worker-default worker-render frontend
             
             # Run database migrations in the running container
             docker compose -f docker-compose.prod.yml exec -T api alembic upgrade head

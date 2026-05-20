@@ -10,6 +10,9 @@ COPY . .
 # Create storage directories
 RUN mkdir -p /app/storage/assets /app/storage/audio /app/storage/videos /app/storage/models
 
+# Create mount point for shared frontend generated components volume
+RUN mkdir -p /app/frontend/src/remotion/generated && chown -R appuser:appuser /app/frontend
+
 # Add non-root user
 RUN useradd -m -u 1000 appuser
 

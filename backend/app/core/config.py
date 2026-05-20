@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # Storage
     STORAGE_PATH: str = "./storage"
 
+    # Frontend path (for Remotion component generation)
+    FRONTEND_DIR: Optional[str] = None
+
     # Auth / JWT
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
@@ -64,6 +67,39 @@ class Settings(BaseSettings):
         if env == "production" and not v:
             raise ValueError("ENCRYPTION_KEY must be set in production")
         return v
+
+    @property
+    def frontend_path(self) -> str:
+        """Resolve absolute path to the frontend directory.
+        
+        Priority:
+        1. FRONTEND_DIR environment variable
+        2. Auto-detection from this file's location
+        """
+        import os
+        if self.FRONTEND_DIR:
+            path = os.path.abspath(self.FRONTEND_DIR)
+            if os.path.isdir(path):
+                return path
+            raise ValueError(f"FRONTEND_DIR points to non-existent directory: {path}")
+        
+        core_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Local dev: backend/app/core -> backend -> repo root -> frontend
+        local_candidate = os.path.abspath(os.path.join(core_dir, "..", "..", "..", "frontend"))
+        if os.path.isdir(os.path.join(local_candidate, "src")):
+            return local_candidate
+        
+        # Docker fallback: backend copied to /app, frontend mounted at /app/frontend
+        docker_candidate = os.path.abspath(os.path.join(core_dir, "..", "..", "frontend"))
+        if os.path.isdir(docker_candidate):
+            return docker_candidate
+        
+        raise RuntimeError(
+            "Cannot resolve frontend directory. "
+            f"Tried: {local_candidate} and {docker_candidate}. "
+            "Set FRONTEND_DIR environment variable."
+        )
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
