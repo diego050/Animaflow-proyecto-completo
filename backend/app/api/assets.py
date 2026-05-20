@@ -8,11 +8,11 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.db.models import Asset, User
 from app.core.security import get_current_active_user
+from app.core.storage_paths import get_storage_dir
 
 router = APIRouter()
 
-ASSETS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../storage/assets"))
-os.makedirs(ASSETS_DIR, exist_ok=True)
+ASSETS_DIR = get_storage_dir("assets")
 
 ALLOWED_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/svg+xml", "image/webp", "image/gif"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB

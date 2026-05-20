@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.db.models import JobModel
 from app.core.resolutions import get_resolution
 from app.core.logging import get_logger
+from app.core.storage_paths import get_storage_dir
 
 logger = get_logger("ae_export")
 
@@ -25,12 +26,12 @@ def download_audio_files(job: JobModel, audio_dir: str) -> List[str]:
     """
     if not job.result_spec:
         return []
-    
+
     scenes = job.result_spec.get('scenes', [])
     downloaded_files = []
-    
+
     # Local cache directory
-    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../storage/audio"))
+    cache_dir = get_storage_dir("audio")
     
     for i, scene in enumerate(scenes):
         audio_url = scene.get('audio_url')

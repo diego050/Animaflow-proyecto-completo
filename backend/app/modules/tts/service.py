@@ -1,4 +1,3 @@
-import os
 from typing import Optional, Dict, List
 from .providers.elevenlabs import ElevenLabsProvider
 from .providers.google_tts import GoogleTTSProvider
@@ -6,12 +5,11 @@ from .providers.local_piper import PiperProvider
 from .providers.gemini_tts import GeminiTTSProvider
 from .whisper_timestamps import extract_timestamps, get_audio_duration
 from app.core.logging import get_logger
+from app.core.storage_paths import get_storage_dir
 
 logger = get_logger("tts.service")
 
-AUDIO_STORAGE = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../../storage/audio")
-)
+AUDIO_STORAGE = get_storage_dir("audio")
 
 PROVIDERS = {
     "elevenlabs": ElevenLabsProvider(),
