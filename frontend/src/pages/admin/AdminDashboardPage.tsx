@@ -19,7 +19,17 @@ export function AdminDashboardPage() {
     fetchSystemHealth();
   }, [fetchStats, fetchSystemHealth]);
 
-  const [businessMetrics, setBusinessMetrics] = useState<any>(null);
+interface BusinessMetrics {
+  users_registered_this_week: number;
+  activation_rate: number;
+  avg_time_to_first_export_hours: number;
+  weekly_retention_rate: number;
+  churn_rate: number;
+  reactivated_users: number;
+  mrr: number;
+}
+
+  const [businessMetrics, setBusinessMetrics] = useState<BusinessMetrics | null>(null);
 
   useEffect(() => {
     api.get('/api/admin/metrics').then((data) => {
