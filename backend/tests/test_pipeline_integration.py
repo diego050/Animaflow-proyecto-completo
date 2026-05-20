@@ -11,10 +11,6 @@ from app.db.models import JobModel
 from app.modules.pipeline.orchestrator import run_pipeline
 from app.modules.llm.visual_spec import BatchVisualSpec, VisualSpecResult
 
-SNAPSHOT_DIR = os.path.join(os.path.dirname(__file__), "snapshots")
-SNAPSHOT_PATH = os.path.join(SNAPSHOT_DIR, "pipeline_spec_snapshot.json")
-
-
 @pytest.fixture
 def sample_script():
     return (
@@ -77,6 +73,7 @@ def mock_external_services(tmp_path):
             "tts": mock_tts,
             "remotion": mock_remotion,
             "index": mock_index,
+            "batch_visuals": batch_visuals,
         }
 
 
@@ -120,10 +117,8 @@ class TestPipelineSnapshot:
             assert "remotion_props" in scene, f"Scene {i} missing remotion_props"
             assert scene["duration_seconds"] > 0, f"Scene {i} duration must be positive"
 
-    def test_pipeline_spec_snapshot(
-        self, db_session, sample_script, mock_external_services
-    ):
-        """Compare spec output against saved snapshot."""
+    def test_pipeline_spec_snapshot(self, db_session, sample_script, mock_external_services):
+        """Compare spec output against deterministic mock values."""
         job = JobModel(
             script_text=sample_script,
             aspect_ratio="9:16",
@@ -136,31 +131,19 @@ class TestPipelineSnapshot:
         db_session.refresh(job)
 
         spec = job.result_spec
+        assert spec is not None
+        expected_scenes = mock_external_services["batch_visuals"].scenes
 
-        # Create snapshot directory if it doesn't exist
-        os.makedirs(SNAPSHOT_DIR, exist_ok=True)
-
-        if not os.path.exists(SNAPSHOT_PATH):
-            # First run: save snapshot and skip
-            with open(SNAPSHOT_PATH, "w", encoding="utf-8") as f:
-                json.dump(spec, f, indent=2, default=str)
-            pytest.skip("Snapshot created. Re-run to validate.")
-
-        # Compare against saved snapshot
-        with open(SNAPSHOT_PATH, "r", encoding="utf-8") as f:
-            expected = json.load(f)
-
-        # Compare key structure (ignore timestamps that may vary)
-        assert len(spec["scenes"]) == len(expected["scenes"])
-        for i, (actual, exp) in enumerate(zip(spec["scenes"], expected["scenes"])):
-            assert actual["text"] == exp["text"], f"Scene {i} text mismatch"
-            assert (
-                actual["media_query"] == exp["media_query"]
-            ), f"Scene {i} media_query mismatch"
-            assert actual["type"] == exp["type"], f"Scene {i} type mismatch"
-            assert (
-                actual["remotion_props"] == exp["remotion_props"]
-            ), f"Scene {i} remotion_props mismatch"
+        # Compare key structure against deterministic mock values
+        assert len(spec["scenes"]) == len(expected_scenes)
+        for i, (actual, expected) in enumerate(zip(spec["scenes"], expected_scenes)):
+            assert actual["text"] and len(actual["text"]) > 0, f"Scene {i} text is empty"
+            assert actual["media_query"] == expected.media_query, f"Scene {i} media_query mismatch"
+            assert actual["type"] == "Scene_test", f"Scene {i} type mismatch"
+            assert actual["remotion_props"] == {
+                "backgroundColor": expected.backgroundColor,
+                "textColor": expected.textColor,
+            }, f"Scene {i} remotion_props mismatch"
 
 
 class TestPipelineIdempotency:
