@@ -54,6 +54,20 @@ jobs:
           pip install setuptools==68.2.2
           pip install -r requirements.txt
 
+      - name: OWASP Dependency-Check (Backend)
+        continue-on-error: true
+        run: |
+          cd backend
+          pip install pip-audit
+          pip-audit --requirement requirements.txt --desc
+
+      - name: Bandit Security Scan (Python)
+        continue-on-error: true
+        run: |
+          cd backend
+          pip install bandit
+          bandit -r app/ -ll --exclude ./tests/
+
       - name: Run database migrations
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/animaflow_test
@@ -92,6 +106,12 @@ jobs:
         run: |
           cd frontend
           npm ci
+
+      - name: OWASP Dependency-Check (Frontend)
+        continue-on-error: true
+        run: |
+          cd frontend
+          npm audit --audit-level=moderate
 
       - name: TypeScript check
         run: |

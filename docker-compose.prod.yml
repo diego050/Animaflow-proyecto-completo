@@ -103,5 +103,37 @@ services:
     ports:
       - "6379:6379"
 
+  # SonarQube — Code quality analysis (disabled by default, use: docker compose --profile security up sonarqube -d)
+  sonarqube:
+    image: sonarqube:community
+    profiles: ["security"]
+    restart: "no"
+    ports:
+      - "127.0.0.1:9000:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://postgres:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD:-sonar}
+      SONAR_WEB_JAVAOPTS: "-Xmx1g"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    depends_on:
+      - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1.5G
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   postgres_data:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:
