@@ -27,7 +27,7 @@ export function AdminSystemPage() {
     );
   }
 
-  const uptime = formatUptime(systemHealth.uptime_seconds);
+  const uptime = formatUptime(systemHealth?.uptime_seconds);
   const lastHeartbeat = systemHealth.last_worker_heartbeat
     ? new Date(systemHealth.last_worker_heartbeat).toLocaleString('es-ES')
     : 'Nunca';
@@ -45,7 +45,7 @@ export function AdminSystemPage() {
           icon={Server}
           connected={systemHealth.redis_connected}
           metrics={[
-            { label: 'Cola de jobs', value: String(systemHealth.redis_queue_length) },
+            { label: 'Cola de jobs', value: String(systemHealth?.redis_queue_length ?? 0) },
           ]}
         />
 
@@ -54,7 +54,7 @@ export function AdminSystemPage() {
           icon={Database}
           connected={systemHealth.database_connected}
           metrics={[
-            { label: 'Pool usado', value: `${systemHealth.database_pool_used}/${systemHealth.database_pool_size}` },
+            { label: 'Pool usado', value: `${systemHealth?.database_pool_used ?? 0}/${systemHealth?.database_pool_size ?? 0}` },
           ]}
         />
 
@@ -63,8 +63,8 @@ export function AdminSystemPage() {
           icon={Activity}
           connected={systemHealth.workers_active > 0}
           metrics={[
-            { label: 'Activos', value: String(systemHealth.workers_active) },
-            { label: 'Idle', value: String(systemHealth.workers_idle) },
+            { label: 'Activos', value: String(systemHealth?.workers_active ?? 0) },
+            { label: 'Idle', value: String(systemHealth?.workers_idle ?? 0) },
             { label: 'Último heartbeat', value: lastHeartbeat },
           ]}
         />
@@ -84,38 +84,38 @@ export function AdminSystemPage() {
         <div className="space-y-3">
           <DiagnosticItem
             label="Conexión a Redis"
-            status={systemHealth.redis_connected}
-            detail={systemHealth.redis_connected ? 'Conectado correctamente' : 'No se puede conectar a Redis'}
+            status={systemHealth?.redis_connected ?? false}
+            detail={systemHealth?.redis_connected ?? false ? 'Conectado correctamente' : 'No se puede conectar a Redis'}
           />
           <DiagnosticItem
             label="Conexión a PostgreSQL"
-            status={systemHealth.database_connected}
-            detail={systemHealth.database_connected ? 'Base de datos operativa' : 'Base de datos no disponible'}
+            status={systemHealth?.database_connected ?? false}
+            detail={systemHealth?.database_connected ?? false ? 'Base de datos operativa' : 'Base de datos no disponible'}
           />
           <DiagnosticItem
             label="Workers activos"
-            status={systemHealth.workers_active > 0}
+            status={(systemHealth?.workers_active ?? 0) > 0}
             detail={
-              systemHealth.workers_active > 0
-                ? `${systemHealth.workers_active} workers procesando jobs`
+              (systemHealth?.workers_active ?? 0) > 0
+                ? `${systemHealth?.workers_active ?? 0} workers procesando jobs`
                 : 'No hay workers activos'
             }
           />
           <DiagnosticItem
             label="Cola de Redis"
-            status={systemHealth.redis_queue_length < 50}
+            status={(systemHealth?.redis_queue_length ?? 0) < 50}
             detail={
-              systemHealth.redis_queue_length < 50
-                ? `${systemHealth.redis_queue_length} jobs en cola (normal)`
-                : `${systemHealth.redis_queue_length} jobs en cola (posible bottleneck)`
+              (systemHealth?.redis_queue_length ?? 0) < 50
+                ? `${systemHealth?.redis_queue_length ?? 0} jobs en cola (normal)`
+                : `${systemHealth?.redis_queue_length ?? 0} jobs en cola (posible bottleneck)`
             }
-            warning={systemHealth.redis_queue_length >= 50}
+            warning={(systemHealth?.redis_queue_length ?? 0) >= 50}
           />
           <DiagnosticItem
             label="Pool de conexiones DB"
-            status={systemHealth.database_pool_used < systemHealth.database_pool_size * 0.8}
-            detail={`${systemHealth.database_pool_used} de ${systemHealth.database_pool_size} conexiones usadas`}
-            warning={systemHealth.database_pool_used >= systemHealth.database_pool_size * 0.8}
+            status={(systemHealth?.database_pool_used ?? 0) < (systemHealth?.database_pool_size ?? 1) * 0.8}
+            detail={`${systemHealth?.database_pool_used ?? 0} de ${systemHealth?.database_pool_size ?? 0} conexiones usadas`}
+            warning={(systemHealth?.database_pool_used ?? 0) >= (systemHealth?.database_pool_size ?? 1) * 0.8}
           />
         </div>
       </div>
@@ -190,7 +190,8 @@ function DiagnosticItem({
   );
 }
 
-function formatUptime(seconds: number): string {
+function formatUptime(seconds: number | undefined): string {
+  if (seconds === undefined || seconds === null || isNaN(seconds)) return '0m';
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
   const mins = Math.floor((seconds % 3600) / 60);

@@ -66,7 +66,7 @@ export function AdminUsersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-display font-bold text-gray-100">Gestión de Usuarios</h1>
-          <p className="text-gray-400 mt-1">{usersTotal} usuarios registrados</p>
+          <p className="text-gray-400 mt-1">{usersTotal ?? 0} usuarios registrados</p>
         </div>
       </div>
 
@@ -93,7 +93,7 @@ export function AdminUsersPage() {
         <div className="flex items-center justify-center h-48">
           <Loader2 size={32} className="animate-spin text-violet-400" />
         </div>
-      ) : users.length === 0 ? (
+      ) : !users || users.length === 0 ? (
         <div className="text-center text-gray-500 py-12 bg-gray-900 border border-gray-800 rounded-xl">
           No se encontraron usuarios.
         </div>
@@ -112,7 +112,7 @@ export function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => {
+                {users?.map((user) => {
                   const roleConfig = roles.find((r) => r.value === user.role);
                   return (
                     <tr key={user.id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors">
