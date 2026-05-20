@@ -347,9 +347,14 @@ def system_health(
         from sqlalchemy import text
         db.execute(text("SELECT 1"))
         database_connected = True
-        # SQLAlchemy pool info
-        database_pool_size = 10  # Default pool size
-        database_pool_used = 0
+        # Get actual pool info from SQLAlchemy engine
+        if db.bind and hasattr(db.bind, 'pool'):
+            pool = db.bind.pool
+            database_pool_size = pool.size() + pool.overflow()
+            database_pool_used = pool.checkedout()
+        else:
+            database_pool_size = 10
+            database_pool_used = 0
     except Exception:
         pass
 

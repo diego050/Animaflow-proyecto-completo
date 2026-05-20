@@ -165,7 +165,7 @@ export function AdminJobsPage() {
                       <td className="px-4 py-3 text-gray-500 text-xs hidden lg:table-cell">
                         {new Date(job.created_at).toLocaleDateString('es-ES')}
                       </td>
-                      <td className="px-4 py-3 relative">
+                      <td className="px-4 py-3">
                         <button
                           onClick={() => setMenuOpen(menuOpen === job.job_id ? null : job.job_id)}
                           className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition-colors"
@@ -179,7 +179,14 @@ export function AdminJobsPage() {
                               initial={{ opacity: 0, y: -8 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -8 }}
-                              className="absolute right-0 top-10 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 z-10"
+                              className="fixed w-48 rounded-lg shadow-xl py-1 z-50"
+                              style={{
+                                backgroundColor: '#1E293B',
+                                border: '1px solid #334155',
+                                right: '20px',
+                                top: 'auto',
+                                marginTop: '8px'
+                              }}
                             >
                               <button
                                 onClick={() => setDetailJob(job.job_id)}
