@@ -32,7 +32,7 @@ interface BusinessMetrics {
   const [businessMetrics, setBusinessMetrics] = useState<BusinessMetrics | null>(null);
 
   useEffect(() => {
-    api.get('/api/admin/metrics').then((data) => {
+    api.get<BusinessMetrics>('/api/admin/metrics').then((data) => {
       setBusinessMetrics(data);
     }).catch(() => {});
   }, []);

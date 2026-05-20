@@ -138,7 +138,9 @@ function ServiceCard({
     <div className="rounded-xl p-5" style={{ backgroundColor: '#1E293B', border: '1px solid #334155' }}>
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 rounded-lg" style={{ backgroundColor: connected ? 'rgba(0,255,171,0.1)' : 'rgba(255,140,0,0.1)' }}>
-          <Icon size={20} style={{ color: connected ? '#00FFAB' : '#FF8C00' }} />
+          <span style={{ color: connected ? '#00FFAB' : '#FF8C00', display: 'inline-flex' }}>
+            <Icon size={20} />
+          </span>
         </div>
         <div>
           <h3 className="font-semibold" style={{ color: '#e4e2e3' }}>{title}</h3>
