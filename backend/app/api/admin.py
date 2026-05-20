@@ -375,6 +375,7 @@ def system_health(
         "redis_queue_length": redis_queue_length,
         "workers_active": workers_active,
         "workers_idle": workers_idle,
+        "workers_connected": (workers_active + workers_idle) > 0,
         "database_connected": database_connected,
         "database_pool_size": database_pool_size,
         "database_pool_used": database_pool_used,

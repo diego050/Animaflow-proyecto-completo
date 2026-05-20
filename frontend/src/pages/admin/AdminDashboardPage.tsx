@@ -30,14 +30,14 @@ export function AdminDashboardPage() {
   if (statsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 size={32} className="animate-spin text-violet-400" />
+        <Loader2 size={32} className="animate-spin" style={{ color: '#00FFAB' }} />
       </div>
     );
   }
 
   if (!stats) {
     return (
-      <div className="text-center text-gray-400 py-12">
+      <div className="text-center py-12" style={{ color: '#c4c6cd' }}>
         No se pudieron cargar las estadísticas.
       </div>
     );
@@ -49,56 +49,56 @@ export function AdminDashboardPage() {
       value: stats.total_users ?? 0,
       sub: `${stats.active_users ?? 0} activos`,
       icon: Users,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10',
+      color: 'text-[#b5c8df]',
+      bg: 'bg-[#b5c8df]/10',
     },
     {
       label: 'Jobs Totales',
       value: stats.total_jobs ?? 0,
       sub: `${stats.pending_jobs ?? 0} pendientes`,
       icon: Briefcase,
-      color: 'text-violet-400',
-      bg: 'bg-violet-500/10',
+      color: 'text-[#00FFAB]',
+      bg: 'bg-[#2C3E50]/10',
     },
     {
       label: 'Completados',
       value: stats.completed_jobs ?? 0,
       sub: `${(stats.success_rate ?? 0).toFixed(1)}% éxito`,
       icon: CheckCircle,
-      color: 'text-emerald-400',
-      bg: 'bg-emerald-500/10',
+      color: 'text-[#00FFAB]',
+      bg: 'bg-[#00FFAB]/10',
     },
     {
       label: 'Fallidos',
       value: stats.failed_jobs ?? 0,
       sub: `${stats.rendering_jobs ?? 0} renderizando`,
       icon: XCircle,
-      color: 'text-red-400',
-      bg: 'bg-red-500/10',
+      color: 'text-[#FF8C00]',
+      bg: 'bg-[#FF8C00]/10',
     },
     {
       label: 'Almacenamiento',
       value: `${(stats.total_storage_mb ?? 0).toFixed(0)} MB`,
       sub: `Prom: ${(stats.avg_render_time_seconds ?? 0).toFixed(0)}s render`,
       icon: HardDrive,
-      color: 'text-amber-400',
-      bg: 'bg-amber-500/10',
+      color: 'text-[#FF8C00]',
+      bg: 'bg-[#FF8C00]/10',
     },
     {
       label: 'Tasa de Éxito',
       value: `${(stats.success_rate ?? 0).toFixed(1)}%`,
       sub: 'Últimos 30 días',
       icon: TrendingUp,
-      color: 'text-cyan-400',
-      bg: 'bg-cyan-500/10',
+      color: 'text-[#b5c8df]',
+      bg: 'bg-[#b5c8df]/10',
     },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-display font-bold text-gray-100">Panel de Administración</h1>
-        <p className="text-gray-400 mt-1">Vista general del sistema AnimaFlow</p>
+        <h1 className="text-2xl font-display font-bold" style={{ color: '#e4e2e3' }}>Panel de Administración</h1>
+        <p className="mt-1" style={{ color: '#c4c6cd' }}>Vista general del sistema AnimaFlow</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -107,13 +107,14 @@ export function AdminDashboardPage() {
           return (
             <div
               key={card.label}
-              className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors"
+              className="rounded-xl p-5 transition-colors"
+              style={{ backgroundColor: '#1E293B', border: '1px solid #334155' }}
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">{card.label}</p>
-                  <p className="text-3xl font-bold text-gray-100 mt-2">{card.value}</p>
-                  <p className="text-xs text-gray-500 mt-1">{card.sub}</p>
+                  <p className="text-sm" style={{ color: '#8e9197' }}>{card.label}</p>
+                  <p className="text-3xl font-bold mt-2" style={{ color: '#e4e2e3' }}>{card.value}</p>
+                  <p className="text-xs mt-1" style={{ color: '#8e9197' }}>{card.sub}</p>
                 </div>
                 <div className={`p-2.5 rounded-lg ${card.bg}`}>
                   <Icon size={20} className={card.color} />
@@ -163,10 +164,10 @@ export function AdminDashboardPage() {
       )}
 
       {systemHealth && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-gray-100 mb-4">Estado del Sistema</h2>
+        <div className="rounded-xl p-6" style={{ backgroundColor: '#1E293B', border: '1px solid #334155' }}>
+          <h2 className="text-lg font-semibold mb-4" style={{ color: '#e4e2e3' }}>Estado del Sistema</h2>
           {systemHealthLoading ? (
-            <Loader2 size={24} className="animate-spin text-violet-400" />
+            <Loader2 size={24} className="animate-spin" style={{ color: '#00FFAB' }} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <HealthItem
@@ -181,7 +182,7 @@ export function AdminDashboardPage() {
               />
               <HealthItem
                 label="Workers"
-                status={systemHealth.workers_active > 0}
+                status={systemHealth?.workers_connected ?? false}
                 detail={`${systemHealth.workers_active} activos, ${systemHealth.workers_idle} idle`}
               />
               <HealthItem
@@ -207,14 +208,14 @@ function HealthItem({
   detail: string;
 }) {
   return (
-    <div className="flex items-center gap-3 bg-gray-800/50 rounded-lg p-3">
+    <div className="flex items-center gap-3 rounded-lg p-3" style={{ backgroundColor: 'rgba(30,41,59,0.5)' }}>
       <div
         className="w-2.5 h-2.5 rounded-full"
         style={{ backgroundColor: status ? '#00FFAB' : '#FF8C00' }}
       />
       <div>
-        <p className="text-sm font-medium text-gray-300">{label}</p>
-        <p className="text-xs text-gray-500">{detail}</p>
+        <p className="text-sm font-medium" style={{ color: '#c4c6cd' }}>{label}</p>
+        <p className="text-xs" style={{ color: '#8e9197' }}>{detail}</p>
       </div>
     </div>
   );
