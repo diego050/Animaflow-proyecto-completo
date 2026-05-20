@@ -1,6 +1,6 @@
 ﻿import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Lock, Clock, Download, Zap, Edit3, Shield, Users, Sparkles, CheckCircle } from 'lucide-react';
+import { Download, Zap, Edit3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
@@ -25,7 +25,7 @@ export function Landing() {
     }
   }, [location]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStatus('submitting');
     

@@ -6,6 +6,9 @@ on:
   push:
     branches: [Develop]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test-backend:
     runs-on: ubuntu-latest
@@ -40,15 +43,34 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Cache pip dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
 
+      - name: Upgrade pip toolchain
+        run: pip install --upgrade pip setuptools wheel
+
       - name: Install backend dependencies
         run: |
           cd backend
+          pip install setuptools==68.2.2
           pip install -r requirements.txt
+
+      - name: OWASP Dependency-Check (Backend)
+        continue-on-error: true
+        # pip-audit reports all vulnerabilities; it does not support severity filtering like npm audit
+        run: |
+          cd backend
+          pip install pip-audit
+          pip-audit --requirement requirements.txt --desc
+
+      - name: Bandit Security Scan (Python)
+        continue-on-error: true
+        run: |
+          cd backend
+          pip install bandit
+          bandit -r app/ -ll --exclude ./tests/
 
       - name: Run database migrations
         env:
@@ -88,6 +110,12 @@ jobs:
         run: |
           cd frontend
           npm ci
+
+      - name: OWASP Dependency-Check (Frontend)
+        continue-on-error: true
+        run: |
+          cd frontend
+          npm audit --audit-level=high
 
       - name: TypeScript check
         run: |

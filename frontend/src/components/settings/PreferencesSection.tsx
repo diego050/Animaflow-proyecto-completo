@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Save } from 'lucide-react';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { useVoicesStore } from '../../store/useVoicesStore';

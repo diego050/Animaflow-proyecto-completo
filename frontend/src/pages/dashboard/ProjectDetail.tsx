@@ -30,8 +30,9 @@ export function ProjectDetail() {
 
   useEffect(() => {
     if (selectedJob) {
-      const name = (selectedJob as Record<string, unknown>).name as string | undefined;
+      const name = (selectedJob as { name?: string }).name;
       if (name) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setProjectName(name);
       }
     }
@@ -77,6 +78,7 @@ export function ProjectDetail() {
   }, [selectedJob, startPolling, stopPolling]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedSceneIndices(new Set());
   }, [jobId]);
 
@@ -103,7 +105,7 @@ export function ProjectDetail() {
     } finally {
       setRenderLoading(false);
     }
-  }, [jobId, triggerRender]);
+  }, [jobId, triggerRender, addToast]);
 
   const handleAEExport = useCallback(async () => {
     if (!jobId) return;
@@ -152,7 +154,7 @@ export function ProjectDetail() {
     } finally {
       setExportLoading(false);
     }
-  }, [jobId, triggerAEExport]);
+  }, [jobId, triggerAEExport, addToast]);
 
   const handleRegenerateAE = useCallback(async () => {
     if (!jobId) return;
@@ -201,7 +203,7 @@ export function ProjectDetail() {
     } finally {
       setExportLoading(false);
     }
-  }, [jobId, regenerateAEExport]);
+  }, [jobId, regenerateAEExport, addToast]);
 
   const handleSpecDownload = useCallback(async () => {
     if (!jobId) return;
@@ -227,7 +229,7 @@ export function ProjectDetail() {
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
-  }, [jobId]);
+  }, [jobId, addToast]);
 
   if (!jobId) {
     return (

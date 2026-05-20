@@ -16,7 +16,6 @@ import { ScriptsPage } from './pages/dashboard/ScriptsPage';
 import { DownloadsPage } from './pages/dashboard/DownloadsPage';
 import { VideosPage } from './pages/dashboard/VideosPage';
 import { ImagesPage } from './pages/dashboard/ImagesPage';
-import { ComingSoon } from './pages/dashboard/ComingSoon';
 import { AdminSystemPage } from './pages/admin/AdminSystemPage';
 import { AdminSettingsPage } from './pages/admin/AdminSettingsPage';
 import { ToastContainer } from './components/ToastContainer';

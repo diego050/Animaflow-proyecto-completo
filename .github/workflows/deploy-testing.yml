@@ -22,16 +22,19 @@ jobs:
             git fetch origin
             git reset --hard origin/Testing
             
-            # Backend
-            cd backend
-            source venv/bin/activate
-            pip install -r requirements.txt
-            alembic upgrade head
+            # Copy environment file if it exists
+            if [ -f /opt/animaflow/.env ]; then
+              cp /opt/animaflow/.env /opt/animaflow/backend/.env
+            fi
             
-            # Restart services
-            cd ..
-            docker-compose -f docker-compose.prod.yml restart api
-            docker-compose -f docker-compose.prod.yml restart worker-default
-            docker-compose -f docker-compose.prod.yml restart worker-render
+            # Rebuild and restart services with Docker
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --build api worker-default worker-render
+            
+            # Run database migrations in the running container
+            docker compose -f docker-compose.prod.yml exec -T api alembic upgrade head
+            
+            # Clean up old images
+            docker system prune -f
             
             echo "Testing deployment complete"

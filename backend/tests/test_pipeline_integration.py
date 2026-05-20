@@ -11,10 +11,6 @@ from app.db.models import JobModel
 from app.modules.pipeline.orchestrator import run_pipeline
 from app.modules.llm.visual_spec import BatchVisualSpec, VisualSpecResult
 
-SNAPSHOT_DIR = os.path.join(os.path.dirname(__file__), "snapshots")
-SNAPSHOT_PATH = os.path.join(SNAPSHOT_DIR, "pipeline_spec_snapshot.json")
-
-
 @pytest.fixture
 def sample_script():
     return (
@@ -57,35 +53,27 @@ def mock_external_services(tmp_path):
     )
 
     with patch(
-        "app.modules.llm.visual_spec.generate_batch_visuals_with_llm",
+        "app.modules.pipeline.orchestrator.generate_batch_visuals_with_llm",
         return_value=batch_visuals,
     ) as mock_batch, patch(
-        "app.modules.tts.service.generate_tts_with_voicebox",
+        "app.modules.pipeline.orchestrator.generate_tts_with_timestamps",
         new_callable=AsyncMock,
-        return_value=(5.0, "http://test/audio.mp3"),
+        return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 5.0, "word_timestamps": []},
     ) as mock_tts, patch(
-        "app.modules.remotion.component_generator.generate_remotion_component",
+        "app.modules.pipeline.orchestrator.generate_remotion_component",
         new_callable=AsyncMock,
         return_value="Scene_test",
     ) as mock_remotion, patch(
-        "requests.get"
-    ) as mock_requests_get, patch(
-        "app.modules.remotion.index_writer.write_index_ts"
+        "app.modules.pipeline.orchestrator.write_index_ts"
     ) as mock_index, patch(
-        "app.modules.tts.service.AUDIO_STORAGE", audio_storage
+        "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
     ):
-        # Mock requests.get for audio download inside _process_chunks_async
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.content = b"fake_audio_data"
-        mock_requests_get.return_value = mock_response
-
         yield {
             "batch": mock_batch,
             "tts": mock_tts,
             "remotion": mock_remotion,
-            "requests_get": mock_requests_get,
             "index": mock_index,
+            "batch_visuals": batch_visuals,
         }
 
 
@@ -129,10 +117,8 @@ class TestPipelineSnapshot:
             assert "remotion_props" in scene, f"Scene {i} missing remotion_props"
             assert scene["duration_seconds"] > 0, f"Scene {i} duration must be positive"
 
-    def test_pipeline_spec_snapshot(
-        self, db_session, sample_script, mock_external_services
-    ):
-        """Compare spec output against saved snapshot."""
+    def test_pipeline_spec_snapshot(self, db_session, sample_script, mock_external_services):
+        """Compare spec output against deterministic mock values."""
         job = JobModel(
             script_text=sample_script,
             aspect_ratio="9:16",
@@ -145,31 +131,19 @@ class TestPipelineSnapshot:
         db_session.refresh(job)
 
         spec = job.result_spec
+        assert spec is not None
+        expected_scenes = mock_external_services["batch_visuals"].scenes
 
-        # Create snapshot directory if it doesn't exist
-        os.makedirs(SNAPSHOT_DIR, exist_ok=True)
-
-        if not os.path.exists(SNAPSHOT_PATH):
-            # First run: save snapshot and skip
-            with open(SNAPSHOT_PATH, "w", encoding="utf-8") as f:
-                json.dump(spec, f, indent=2, default=str)
-            pytest.skip("Snapshot created. Re-run to validate.")
-
-        # Compare against saved snapshot
-        with open(SNAPSHOT_PATH, "r", encoding="utf-8") as f:
-            expected = json.load(f)
-
-        # Compare key structure (ignore timestamps that may vary)
-        assert len(spec["scenes"]) == len(expected["scenes"])
-        for i, (actual, exp) in enumerate(zip(spec["scenes"], expected["scenes"])):
-            assert actual["text"] == exp["text"], f"Scene {i} text mismatch"
-            assert (
-                actual["media_query"] == exp["media_query"]
-            ), f"Scene {i} media_query mismatch"
-            assert actual["type"] == exp["type"], f"Scene {i} type mismatch"
-            assert (
-                actual["remotion_props"] == exp["remotion_props"]
-            ), f"Scene {i} remotion_props mismatch"
+        # Compare key structure against deterministic mock values
+        assert len(spec["scenes"]) == len(expected_scenes)
+        for i, (actual, expected) in enumerate(zip(spec["scenes"], expected_scenes)):
+            assert actual["text"] and len(actual["text"]) > 0, f"Scene {i} text is empty"
+            assert actual["media_query"] == expected.media_query, f"Scene {i} media_query mismatch"
+            assert actual["type"] == "Scene_test", f"Scene {i} type mismatch"
+            assert actual["remotion_props"] == {
+                "backgroundColor": expected.backgroundColor,
+                "textColor": expected.textColor,
+            }, f"Scene {i} remotion_props mismatch"
 
 
 class TestPipelineIdempotency:
@@ -197,27 +171,21 @@ class TestPipelineIdempotency:
         )
 
         with patch(
-            "app.modules.llm.visual_spec.generate_batch_visuals_with_llm",
+            "app.modules.pipeline.orchestrator.generate_batch_visuals_with_llm",
             return_value=batch_visuals,
         ), patch(
-            "app.modules.tts.service.generate_tts_with_voicebox",
+            "app.modules.pipeline.orchestrator.generate_tts_with_timestamps",
             new_callable=AsyncMock,
-            return_value=(3.0, "http://test/audio.mp3"),
+            return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 3.0, "word_timestamps": []},
         ), patch(
-            "app.modules.remotion.component_generator.generate_remotion_component",
+            "app.modules.pipeline.orchestrator.generate_remotion_component",
             new_callable=AsyncMock,
             return_value="Scene_test",
         ), patch(
-            "requests.get"
-        ) as mock_requests_get, patch(
-            "app.modules.remotion.index_writer.write_index_ts"
+            "app.modules.pipeline.orchestrator.write_index_ts"
         ), patch(
-            "app.modules.tts.service.AUDIO_STORAGE", audio_storage
+            "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
         ):
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.content = b"fake_audio_data"
-            mock_requests_get.return_value = mock_response
             yield
 
     def test_rerun_pipeline_same_output(

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Download, Music, FileCode, Film, MoreVertical } from 'lucide-react';
+import { Music, FileCode, Film, MoreVertical } from 'lucide-react';
 import { API_BASE } from '../../api/client';
 import { useToastStore } from '../../store/useToastStore';
 

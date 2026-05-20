@@ -60,7 +60,7 @@ export interface SceneSpec {
   text: string;
   type: string;
   media_query: string;
-  remotion_props: Record<string, unknown>;
+  remotion_props: Record<string, string>;
   sfx: SFXCue[];
   audio_url?: string;
   word_timestamps?: WordTimestamp[];

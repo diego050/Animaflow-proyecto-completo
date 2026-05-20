@@ -57,7 +57,7 @@ export function PreviewPlayer({ spec, aspectRatio, focusSceneIndex, onClearFocus
               Volver a todas las escenas
             </button>
             <p className="text-text-secondary/50 text-xs mt-1.5">
-              Preview: Escena {focusSceneIndex + 1} · {focusedScene.duration_seconds}s
+              Preview: Escena {focusSceneIndex! + 1} · {focusedScene.duration_seconds}s
             </p>
           </motion.div>
         )}

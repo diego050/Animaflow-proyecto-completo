@@ -54,7 +54,7 @@ export async function apiFetch<T>(
     return response.json();
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timed out. Please try again.');
+      throw new Error('Request timed out. Please try again.', { cause: error });
     }
     throw error;
   }
@@ -102,7 +102,7 @@ export async function apiUpload<T>(
     return response.json();
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timed out. Please try again.');
+      throw new Error('Request timed out. Please try again.', { cause: error });
     }
     throw error;
   }

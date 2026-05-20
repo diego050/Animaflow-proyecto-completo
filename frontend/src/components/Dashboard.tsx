@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useToastStore } from '../store/useToastStore';
 import type { TimelineSpec } from '../types/spec';
 
@@ -20,11 +20,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
   const [loading, setLoading] = useState(true);
   const { addToast } = useToastStore();
 
-  useEffect(() => {
-    fetchJobs();
-  }, []);
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('http://localhost:8000/api/jobs');
@@ -36,14 +32,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchJobs();
+  }, [fetchJobs]);
 
   const handleOpenJob = async (jobId: string, _summaryStatus: string, scriptText: string) => {
     try {
       const res = await fetch(`http://localhost:8000/api/jobs/${jobId}`);
       const data = await res.json();
       onSelectJob(data.job_id, data.result_spec || null, data.status, data.video_url || null, scriptText);
-    } catch (e) {
+    } catch {
       addToast('error', 'Error al abrir el proyecto.');
     }
   };
@@ -51,13 +52,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
   const handleDelete = async (e: React.MouseEvent, jobId: string) => {
     e.stopPropagation(); // Evitar abrir el proyecto al hacer clic en borrar
     if (!confirm("¿Seguro que deseas eliminar este proyecto de la base de datos?")) return;
-    
+
     try {
       await fetch(`http://localhost:8000/api/jobs/${jobId}`, {
         method: "DELETE"
       });
       fetchJobs(); // Recargar la lista
-    } catch (e) {
+    } catch {
       addToast('error', 'Error al eliminar el proyecto.');
     }
   };

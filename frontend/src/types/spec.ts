@@ -16,7 +16,7 @@ export interface Spec {
   text: string;
   type: string;
   media_query: string;
-  remotion_props: Record<string, any>;
+  remotion_props: Record<string, string>;
   sfx: SFX[];
   audio_url?: string;
   word_timestamps?: WordTimestamp[];

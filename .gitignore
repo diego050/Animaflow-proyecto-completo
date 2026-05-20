@@ -78,3 +78,8 @@ Thumbs.db
 # === Debug / LLM Output ===
 /backend/storage/debug/*
 !/backend/storage/debug/.gitkeep
+
+# === Security Reports ===
+security_reports/*.html
+security_reports/*.md
+!security_reports/.gitkeep

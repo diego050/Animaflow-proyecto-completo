@@ -15,6 +15,7 @@ export function AdminSettingsPage() {
 
   useEffect(() => {
     if (settings) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm({
         max_concurrent_renders: settings.max_concurrent_renders,
         default_aspect_ratio: settings.default_aspect_ratio,
@@ -40,6 +41,7 @@ export function AdminSettingsPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
+      // no-op: error handled by global state / toast
     } finally {
       setSaving(false);
     }
