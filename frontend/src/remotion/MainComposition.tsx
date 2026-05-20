@@ -74,7 +74,7 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor 
               (v): v is SceneComponent => typeof v === 'function'
             );
             if (firstExport) {
-                setComponent(() => firstExport);
+                setComponent(firstExport);
             } else {
                 setError(true);
             }
