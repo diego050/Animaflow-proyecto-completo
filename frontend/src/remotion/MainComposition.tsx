@@ -80,8 +80,8 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
                type={scene.type}
                text={scene.text}
                durationInFrames={durationInFrames}
-               fallbackBg={scene.remotion_props?.backgroundColor || "#000"}
-               fallbackColor={scene.remotion_props?.textColor || "#fff"}
+                fallbackBg={String(scene.remotion_props?.backgroundColor || "#000")}
+                fallbackColor={String(scene.remotion_props?.textColor || "#fff")}
             />
             {scene.audio_url && <Audio src={scene.audio_url} />}
           </Sequence>

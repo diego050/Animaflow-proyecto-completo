@@ -1,5 +1,5 @@
 // Job-related TypeScript interfaces matching backend Pydantic schemas 1:1
-import type { TimelineSpec, Spec as SceneSpec, WordTimestamp, SFX as SFXCue } from './spec';
+import type { TimelineSpec } from './spec';
 
 export interface JobSummary {
   job_id: string;
