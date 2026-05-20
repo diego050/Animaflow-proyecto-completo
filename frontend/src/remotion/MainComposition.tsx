@@ -35,14 +35,22 @@ interface DynamicSceneProps {
   fallbackColor: string;
 }
 
+interface SceneProps {
+  text: string;
+  durationInFrames: number;
+  [key: string]: unknown;
+}
+
+type SceneComponent = React.ComponentType<SceneProps>;
+
 interface GeneratedModule {
-  SceneComponent?: React.FC<any>;
-  default?: React.FC<any>;
-  [key: string]: any;
+  SceneComponent?: SceneComponent;
+  default?: SceneComponent;
+  [key: string]: unknown;
 }
 
 const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor }: DynamicSceneProps) => {
-  const [Component, setComponent] = useState<React.FC<any> | null>(null);
+  const [Component, setComponent] = useState<SceneComponent | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -57,13 +65,13 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor 
           const mod = generatedModules[type] as GeneratedModule;
           // El contrato dice que la IA exportará `SceneComponent`
           if (mod.SceneComponent) {
-            setComponent(() => mod.SceneComponent as React.FC<any>);
+            setComponent(() => mod.SceneComponent);
           } else if (mod.default) {
-            setComponent(() => mod.default as React.FC<any>);
+            setComponent(() => mod.default);
           } else {
              // Si el LLM nombra distinto al componente, agarramos el primer export
             const firstExport = Object.values(mod).find(
-              (v): v is React.FC<any> => typeof v === 'function'
+              (v): v is SceneComponent => typeof v === 'function'
             );
             if (firstExport) {
                 setComponent(() => firstExport);
