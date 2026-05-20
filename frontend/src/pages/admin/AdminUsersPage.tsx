@@ -13,12 +13,18 @@ export function AdminUsersPage() {
     toggleUserStatus,
     deleteUser,
     changeUserRole,
+    createUser,
   } = useAdminStore();
 
   const [search, setSearch] = useState('');
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [roleModal, setRoleModal] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState('');
+  const [createModal, setCreateModal] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState('user');
 
   useEffect(() => {
     fetchUsers(1, search);
@@ -54,6 +60,26 @@ export function AdminUsersPage() {
     }
   };
 
+  const handleCreateUser = async () => {
+    if (!newUserEmail || !newUserPassword) return;
+    try {
+      await createUser({
+        email: newUserEmail,
+        password: newUserPassword,
+        name: newUserName || 'User',
+        role: newUserRole,
+      });
+      setCreateModal(false);
+      setNewUserName('');
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserRole('user');
+      fetchUsers(1, search);
+    } catch {
+      // error handled by store
+    }
+  };
+
   const roles: Array<{ value: string; label: string; color: string }> = [
     { value: 'founder', label: 'Founder', color: 'text-amber-400 bg-amber-400/10' },
     { value: 'agency', label: 'Agency', color: 'text-blue-400 bg-blue-400/10' },
@@ -68,6 +94,13 @@ export function AdminUsersPage() {
           <h1 className="text-2xl font-display font-bold text-gray-100">Gestión de Usuarios</h1>
           <p className="text-gray-400 mt-1">{usersTotal ?? 0} usuarios registrados</p>
         </div>
+        <button
+          onClick={() => setCreateModal(true)}
+          className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          style={{ backgroundColor: '#00FFAB', color: '#0F172A' }}
+        >
+          + Crear Usuario
+        </button>
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-2">
@@ -139,7 +172,7 @@ export function AdminUsersPage() {
                       <td className="px-4 py-3 text-gray-500 text-xs hidden lg:table-cell">
                         {new Date(user.created_at).toLocaleDateString('es-ES')}
                       </td>
-                      <td className="px-4 py-3 relative">
+                      <td className="px-4 py-3">
                         <button
                           onClick={() => setMenuOpen(menuOpen === user.id ? null : user.id)}
                           className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition-colors"
@@ -153,7 +186,14 @@ export function AdminUsersPage() {
                               initial={{ opacity: 0, y: -8 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -8 }}
-                              className="absolute right-0 top-10 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 z-10"
+                              className="fixed w-48 rounded-lg shadow-xl py-1 z-50"
+                              style={{
+                                backgroundColor: '#1E293B',
+                                border: '1px solid #334155',
+                                right: '20px',
+                                top: 'auto',
+                                marginTop: '8px'
+                              }}
                             >
                               <button
                                 onClick={() => openRoleModal(user.id, user.role)}
@@ -213,6 +253,74 @@ export function AdminUsersPage() {
           )}
         </div>
       )}
+
+      <AnimatePresence>
+        {createModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="rounded-xl p-6 w-full max-w-sm mx-4"
+              style={{ backgroundColor: '#1E293B', border: '1px solid #334155' }}
+            >
+              <h3 className="text-lg font-semibold mb-4" style={{ color: '#e4e2e3' }}>Crear Usuario</h3>
+              <div className="space-y-3 mb-6">
+                <input
+                  type="text"
+                  placeholder="Nombre"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                  style={{ backgroundColor: '#0F172A', border: '1px solid #334155', color: '#e4e2e3' }}
+                />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                  style={{ backgroundColor: '#0F172A', border: '1px solid #334155', color: '#e4e2e3' }}
+                />
+                <input
+                  type="password"
+                  placeholder="Contraseña"
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                  style={{ backgroundColor: '#0F172A', border: '1px solid #334155', color: '#e4e2e3' }}
+                />
+                <select
+                  value={newUserRole}
+                  onChange={(e) => setNewUserRole(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                  style={{ backgroundColor: '#0F172A', border: '1px solid #334155', color: '#e4e2e3' }}
+                >
+                  {roles.map((role) => (
+                    <option key={role.value} value={role.value}>{role.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setCreateModal(false)}
+                  className="px-4 py-2 text-sm font-medium transition-colors"
+                  style={{ color: '#c4c6cd' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateUser}
+                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                  style={{ backgroundColor: '#00FFAB', color: '#0F172A' }}
+                >
+                  Crear
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {roleModal && (
