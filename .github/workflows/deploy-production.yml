@@ -38,6 +38,15 @@ jobs:
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --build api worker-default worker-render frontend
             
+            # Wait for Postgres to be ready
+            echo "Waiting for Postgres to be ready..."
+            sleep 10
+            until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U postgres; do
+              echo "Postgres is not ready yet. Retrying in 3s..."
+              sleep 3
+            done
+            echo "Postgres is ready!"
+            
             # Run database migrations in the running container
             docker compose -f docker-compose.prod.yml exec -T api alembic upgrade head
             
