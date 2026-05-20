@@ -60,9 +60,9 @@ def mock_external_services(tmp_path):
         "app.modules.llm.visual_spec.generate_batch_visuals_with_llm",
         return_value=batch_visuals,
     ) as mock_batch, patch(
-        "app.modules.tts.service.generate_tts_with_voicebox",
+        "app.modules.tts.service.generate_tts_with_timestamps",
         new_callable=AsyncMock,
-        return_value=(5.0, "http://test/audio.mp3"),
+        return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 5.0, "word_timestamps": []},
     ) as mock_tts, patch(
         "app.modules.remotion.component_generator.generate_remotion_component",
         new_callable=AsyncMock,
@@ -200,9 +200,9 @@ class TestPipelineIdempotency:
             "app.modules.llm.visual_spec.generate_batch_visuals_with_llm",
             return_value=batch_visuals,
         ), patch(
-            "app.modules.tts.service.generate_tts_with_voicebox",
+            "app.modules.tts.service.generate_tts_with_timestamps",
             new_callable=AsyncMock,
-            return_value=(3.0, "http://test/audio.mp3"),
+            return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 3.0, "word_timestamps": []},
         ), patch(
             "app.modules.remotion.component_generator.generate_remotion_component",
             new_callable=AsyncMock,

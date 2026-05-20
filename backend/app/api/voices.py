@@ -8,7 +8,7 @@ from app.db.models import Voice, User
 from app.schemas.voice import VoiceCreate, VoiceUpdate, VoiceResponse, VoicePreviewRequest
 from app.core.security import get_current_active_user
 from app.core.config import settings
-from app.modules.tts.service import generate_tts_with_voicebox
+from app.modules.tts.service import generate_tts_with_timestamps
 
 import os
 import uuid
@@ -132,11 +132,12 @@ async def preview_voice(
 
     # Generate TTS preview
     try:
-        duration, audio_url = await generate_tts_with_voicebox(
+        result = await generate_tts_with_timestamps(
             text=preview_data.text,
-            scene_id=f"preview_{voice_id}",
+            provider_name="local_piper",  # default for preview
+            voice_id="default"
         )
-        return {"audio_url": audio_url, "duration": duration}
+        return {"audio_url": result["audio_path"], "duration": result["duration_seconds"]}
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"TTS generation failed: {str(e)}"
