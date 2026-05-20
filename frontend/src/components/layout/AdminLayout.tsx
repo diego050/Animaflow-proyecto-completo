@@ -50,7 +50,7 @@ export function AdminLayout() {
   return (
     <>
       <SEOHead title="Admin | AnimaFlow" noindex />
-      <div className="min-h-screen bg-gray-950 text-gray-100 font-body flex">
+      <div className="min-h-screen font-body flex" style={{ backgroundColor: '#0F172A', color: '#e4e2e3' }}>
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
@@ -65,21 +65,22 @@ export function AdminLayout() {
       </AnimatePresence>
 
       <motion.aside
-        className="fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 border-r border-gray-800 flex flex-col"
+        className="fixed inset-y-0 left-0 z-50 w-64 flex flex-col"
+        style={{ backgroundColor: '#1E293B', borderRight: '1px solid #334155' }}
         initial={{ x: isDesktop ? 0 : -256 }}
         animate={{ x: sidebarOpen || isDesktop ? 0 : -256 }}
         transition={{ type: 'tween', duration: 0.25, ease: 'easeInOut' }}
       >
-        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-800">
+        <div className="h-16 flex items-center justify-between px-6" style={{ borderBottom: '1px solid #334155' }}>
           <div className="flex items-center gap-2">
-            <Shield size={18} className="text-violet-400" />
+            <Shield size={18} style={{ color: '#00FFAB' }} />
             <span className="font-display font-bold text-lg tracking-tight">
               Admin Panel
             </span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-gray-400 hover:text-gray-100 transition-colors"
+            className="lg:hidden text-[#c4c6cd] hover:text-[#e4e2e3] transition-colors"
           >
             <X size={20} />
           </button>
@@ -91,10 +92,10 @@ export function AdminLayout() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-800">
+        <div className="p-4" style={{ borderTop: '1px solid #334155' }}>
           <button
             onClick={() => navigate('/dashboard')}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-100 hover:bg-gray-800 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[#c4c6cd] hover:text-[#e4e2e3] hover:bg-[#334155] transition-colors"
           >
             <ArrowLeft size={16} />
             Volver al Dashboard
@@ -103,11 +104,11 @@ export function AdminLayout() {
       </motion.aside>
 
       <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
-        <header className="sticky top-0 z-30 h-16 bg-gray-900/80 backdrop-blur-md border-b border-gray-800 flex items-center justify-between px-4 lg:px-6">
+        <header className="sticky top-0 z-30 h-16 backdrop-blur-md flex items-center justify-between px-4 lg:px-6" style={{ backgroundColor: 'rgba(30,41,59,0.8)', borderBottom: '1px solid #334155' }}>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-gray-400 hover:text-gray-100 transition-colors"
+              className="lg:hidden text-[#c4c6cd] hover:text-[#e4e2e3] transition-colors"
             >
               <Menu size={20} />
             </button>
@@ -115,7 +116,7 @@ export function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center text-xs font-semibold">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold" style={{ backgroundColor: 'rgba(44,62,80,0.2)', color: '#00FFAB' }}>
               {userInitials}
             </div>
             <span className="hidden md:inline text-sm font-medium max-w-32 truncate">
@@ -123,7 +124,7 @@ export function AdminLayout() {
             </span>
             <button
               onClick={handleLogout}
-              className="ml-2 text-gray-400 hover:text-red-400 transition-colors"
+              className="ml-2 text-[#c4c6cd] hover:text-[#FF8C00] transition-colors"
               title="Cerrar sesión"
             >
               <LogOut size={18} />
@@ -157,8 +158,8 @@ function AdminNavItem({
       className={({ isActive }) =>
         `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
           isActive
-            ? 'bg-violet-500/15 text-violet-400'
-            : 'text-gray-400 hover:text-gray-100 hover:bg-gray-800'
+            ? 'bg-[#2C3E50]/20 text-[#00FFAB]'
+            : 'text-[#c4c6cd] hover:text-[#e4e2e3] hover:bg-[#334155]'
         }`
       }
     >
@@ -197,13 +198,10 @@ function AdminBreadcrumb() {
 
         return (
           <span key={i} className="flex items-center gap-1 min-w-0">
-            {i > 0 && <ChevronRight size={14} className="text-gray-500 shrink-0" />}
+            {i > 0 && <ChevronRight size={14} className="shrink-0" style={{ color: '#8e9197' }} />}
             <span
-              className={
-                isLast
-                  ? 'text-gray-100 font-medium'
-                  : 'text-gray-500'
-              }
+              className={isLast ? 'font-medium' : ''}
+              style={{ color: isLast ? '#e4e2e3' : '#8e9197' }}
             >
               {label}
             </span>
