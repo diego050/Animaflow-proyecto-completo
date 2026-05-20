@@ -3,7 +3,14 @@ from sqlalchemy.orm import Session
 from rq import Queue, Retry
 from redis import Redis
 
-from app.schemas.job import JobCreate, JobResponse, SceneRegenerateRequest
+from app.schemas.job import (
+    JobCreate,
+    JobResponse,
+    JobListResponse,
+    ScriptGenerateRequest,
+    ScriptGenerateResponse,
+    SceneRegenerateRequest,
+)
 from app.db.session import get_db
 from app.db.models import JobModel, User
 from app.core.config import settings
