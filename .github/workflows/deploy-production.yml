@@ -18,26 +18,44 @@ jobs:
           username: ${{ secrets.PRODUCTION_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -euo pipefail
             cd /opt/animaflow
             git fetch origin
             git reset --hard origin/main
             
+            # Copy environment file if it exists
+            if [ -f /opt/animaflow/.env ]; then
+              cp /opt/animaflow/.env /opt/animaflow/backend/.env
+            fi
+            
+            # Ensure backup directory exists
+            mkdir -p /opt/animaflow/backups
+            
             # Backup database before migration
-            docker-compose exec -T postgres pg_dump -U postgres animaflow > backup_$(date +%Y%m%d_%H%M%S).sql
+            docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U postgres animaflow > /opt/animaflow/backups/backup_$(date +%Y%m%d_%H%M%S).sql
             
-            # Backend
-            cd backend
-            source venv/bin/activate
-            pip install -r requirements.txt
-            alembic upgrade head
+            # Rebuild and restart all services
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --build api worker-default worker-render frontend
             
-            # Restart services with zero downtime
-            cd ..
-            docker-compose -f docker-compose.prod.yml up -d --build
+            # Wait for Postgres to be ready
+            echo "Waiting for Postgres to be ready..."
+            sleep 10
+            until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U postgres; do
+              echo "Postgres is not ready yet. Retrying in 3s..."
+              sleep 3
+            done
+            echo "Postgres is ready!"
+            
+            # Run database migrations in the running container
+            docker compose -f docker-compose.prod.yml exec -T api alembic upgrade head
             
             # Health check
             sleep 10
             curl -f http://localhost:8000/health || exit 1
+            
+            # Clean up old images
+            docker system prune -f
             
             echo "Production deployment complete"
 

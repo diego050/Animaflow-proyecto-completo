@@ -1,13 +1,17 @@
 import asyncio
 import os
+import shutil
 from typing import Optional
 from app.db.session import SessionLocal
 from app.db.models import JobModel
 from app.core.logging import get_logger
+from app.core.storage_paths import get_storage_dir
 
 logger = get_logger("pipeline")
 
-from ..tts.service import generate_tts_with_timestamps, AUDIO_STORAGE
+AUDIO_STORAGE = get_storage_dir("audio")
+
+from ..tts.service import generate_tts_with_timestamps
 from ..llm.visual_spec import VisualSpecResult
 from ..remotion.component_generator import generate_remotion_component
 from ..remotion.index_writer import write_index_ts
@@ -38,7 +42,14 @@ async def _regenerate_scene_async(
         duration = result.get("duration_seconds")
         if duration is not None:
             scene["duration_seconds"] = round(duration, 2)
-            scene["audio_url"] = result.get("audio_path")
+            # Convert disk path to web-accessible URL
+            audio_path = result.get("audio_path")
+            if audio_path:
+                filename = os.path.basename(audio_path)
+                standard_path = os.path.join(AUDIO_STORAGE, filename)
+                if os.path.abspath(audio_path) != os.path.abspath(standard_path):
+                    shutil.copy(audio_path, standard_path)
+                scene["audio_url"] = f"/api/audio/{filename}"
 
     scene["text"] = new_text
     scene["media_query"] = new_media_query
