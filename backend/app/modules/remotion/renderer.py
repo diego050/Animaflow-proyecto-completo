@@ -21,9 +21,6 @@ def render_video_pipeline(job_id: str):
             job.status = "rendering"
             db.commit()
 
-            # Remotion necesita un JSON string como --props
-            spec_json = json.dumps({"spec": job.result_spec})
-
             # Directorios
             from app.core.config import settings
             from app.core.storage_paths import get_storage_dir
@@ -32,6 +29,13 @@ def render_video_pipeline(job_id: str):
             os.makedirs(output_dir, exist_ok=True)
 
             output_file = os.path.join(output_dir, f"{job_id}.mp4")
+
+            # Escribir spec a archivo temporal para evitar ARG_MAX y problemas de escape
+            import tempfile
+            spec_data = {"spec": job.result_spec}
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+                json.dump(spec_data, tmp)
+                spec_file = tmp.name
 
             # Comando para Remotion CLI
             logger.info("Iniciando Renderizado MP4 con Remotion CLI...", extra={"job_id": job_id})
@@ -43,17 +47,24 @@ def render_video_pipeline(job_id: str):
                 "src/remotion/Root.tsx",
                 "AnimaFlow-Main",
                 output_file,
-                f"--props={spec_json}",
+                f"--props={spec_file}",
             ]
 
-            result = subprocess.run(
-                cmd,
-                cwd=frontend_dir,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                env=os.environ.copy(),
-            )
+            try:
+                result = subprocess.run(
+                    cmd,
+                    cwd=frontend_dir,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    env=os.environ.copy(),
+                    timeout=600,  # 10 minutos máximo
+                )
+            finally:
+                try:
+                    os.unlink(spec_file)
+                except OSError:
+                    pass
 
             if result.returncode != 0:
                 logger.error("Error en Render: %s", result.stderr, extra={"job_id": job_id})
@@ -61,16 +72,18 @@ def render_video_pipeline(job_id: str):
 
             logger.info("Render exitoso -> %s", output_file, extra={"job_id": job_id})
 
-            job.status = "completed_video"
+            job.status = "completed"
             # Video served via FastAPI StaticFiles mount at /videos/
             job.video_url = f"/videos/{job_id}.mp4"
             db.commit()
         except (subprocess.SubprocessError, OSError) as e:
             logger.error("Excepción renderizando: %s", e, extra={"job_id": job_id})
-            job.status = f"failed_render: {str(e)}"
+            job.status = "failed"
+            job.error_message = str(e)
             db.commit()
         except Exception as e:
             # Fallback: mark render as failed on any unexpected error
             logger.exception("Excepción renderizando: %s", e, extra={"job_id": job_id})
-            job.status = f"failed_render: {str(e)}"
+            job.status = "failed"
+            job.error_message = str(e)
             db.commit()

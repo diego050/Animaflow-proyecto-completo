@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from rq import Queue, Retry
 from redis import Redis
 
-from app.schemas.job import JobCreate, JobResponse
+from app.schemas.job import JobCreate, JobResponse, SceneRegenerateRequest
 from app.db.session import get_db
 from app.db.models import JobModel, User
 from app.core.config import settings
@@ -254,17 +254,6 @@ async def trigger_render(
     )
 
 
-from typing import List
-from app.schemas.job import (
-    JobCreate,
-    JobResponse,
-    SceneRegenerateRequest,
-    JobListResponse,
-    ScriptGenerateRequest,
-    ScriptGenerateResponse,
-)
-
-
 @router.post("/generate-script", response_model=ScriptGenerateResponse)
 async def generate_script(
     req: ScriptGenerateRequest,
@@ -325,26 +314,21 @@ async def trigger_scene_regenerate(
     if scene_index < 0 or scene_index >= len(job.result_spec.get("scenes", [])):
         raise HTTPException(status_code=400, detail="Índice de escena inválido")
 
+    # Encolar en RQ para no bloquear el request handler
     from app.modules.pipeline.scene_manager import _regenerate_scene_async
+    queue.enqueue(
+        _regenerate_scene_async,
+        job.id,
+        job.result_spec,
+        scene_index,
+        req.media_query,
+        req.text,
+        current_user.id,
+        job_timeout="5m",
+    )
 
-    try:
-        # Usamos await directo porque FastAPI ya corre en un event loop
-        updated_spec = await _regenerate_scene_async(
-            job.id, job.result_spec, scene_index, req.media_query, req.text, current_user.id
-        )
-
-        # Clonamos el diccionario para asegurar que SQLAlchemy detecte el cambio en el JSON
-        job.result_spec = dict(updated_spec)
-
-        # En SQLAlchemy, cuando mutas campos JSON, a veces necesitas flag_modified
-        from sqlalchemy.orm.attributes import flag_modified
-
-        flag_modified(job, "result_spec")
-
-        db.commit()
-    except Exception as e:
-        print(f"Error regenerando: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    job.status = "queued_scene_regen"
+    db.commit()
 
     return JobResponse(
         job_id=job.id,

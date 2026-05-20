@@ -1,28 +1,188 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "start_time_seconds": { "type": "number" },
-    "duration_seconds": { "type": "number" },
-    "text": { "type": "string" },
-    "type": { "type": "string" },
-    "media_query": { "type": "string", "maxLength": 500 },
-    "remotion_props": {
-      "type": "object",
-      "additionalProperties": true
-    },
-    "sfx": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "keyword": { "type": "string" },
-          "time_in_seconds": { "type": "number" },
-          "file": { "type": "string" }
+  "$defs": {
+    "SFX": {
+      "properties": {
+        "keyword": {
+          "title": "Keyword",
+          "type": "string"
         },
-        "required": ["keyword", "time_in_seconds", "file"]
-      }
+        "time_in_seconds": {
+          "title": "Time In Seconds",
+          "type": "number"
+        },
+        "file": {
+          "title": "File",
+          "type": "string"
+        }
+      },
+      "required": [
+        "keyword",
+        "time_in_seconds",
+        "file"
+      ],
+      "title": "SFX",
+      "type": "object"
+    },
+    "Spec": {
+      "properties": {
+        "start_time_seconds": {
+          "title": "Start Time Seconds",
+          "type": "number"
+        },
+        "duration_seconds": {
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "media_query": {
+          "maxLength": 1500,
+          "title": "Media Query",
+          "type": "string"
+        },
+        "animation_spec": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Animation Spec"
+        },
+        "remotion_props": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remotion Props"
+        },
+        "sfx": {
+          "items": {
+            "$ref": "#/$defs/SFX"
+          },
+          "title": "Sfx",
+          "type": "array"
+        },
+        "audio_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audio Url"
+        },
+        "word_timestamps": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WordTimestamp"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Word Timestamps"
+        },
+        "ae_metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ae Metadata"
+        },
+        "ae_script_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ae Script Code"
+        }
+      },
+      "required": [
+        "start_time_seconds",
+        "duration_seconds",
+        "text",
+        "type",
+        "media_query"
+      ],
+      "title": "Spec",
+      "type": "object"
+    },
+    "WordTimestamp": {
+      "properties": {
+        "word": {
+          "title": "Word",
+          "type": "string"
+        },
+        "start": {
+          "title": "Start",
+          "type": "number"
+        },
+        "end": {
+          "title": "End",
+          "type": "number"
+        }
+      },
+      "required": [
+        "word",
+        "start",
+        "end"
+      ],
+      "title": "WordTimestamp",
+      "type": "object"
     }
   },
-  "required": ["start_time_seconds", "duration_seconds", "text", "type", "media_query", "remotion_props", "sfx"]
+  "properties": {
+    "scenes": {
+      "items": {
+        "$ref": "#/$defs/Spec"
+      },
+      "title": "Scenes",
+      "type": "array"
+    },
+    "aspect_ratio": {
+      "default": "9:16",
+      "title": "Aspect Ratio",
+      "type": "string"
+    }
+  },
+  "required": [
+    "scenes"
+  ],
+  "title": "TimelineSpec",
+  "type": "object"
 }

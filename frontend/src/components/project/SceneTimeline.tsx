@@ -1,5 +1,5 @@
 import { Layers, Clock, Monitor } from 'lucide-react';
-import type { TimelineSpec } from '../../types/job';
+import type { TimelineSpec } from '../../types/spec';
 import { SceneEditorCard } from './SceneEditorCard';
 
 interface SceneTimelineProps {

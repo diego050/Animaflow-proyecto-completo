@@ -6,26 +6,18 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       - postgres
       - redis
     env_file:
       - ./backend/.env
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/animaflow
-      - REDIS_URL=redis://redis:6379/0
       - STORAGE_BASE_DIR=/app
     volumes:
       - animaflow_storage:/app/storage
       - remotion_generated:/app/frontend/src/remotion/generated
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     deploy:
       resources:
         limits:
@@ -67,8 +59,6 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/animaflow
-      - REDIS_URL=redis://redis:6379/0
       - STORAGE_BASE_DIR=/app
     volumes:
       - animaflow_storage:/app/storage
@@ -92,6 +82,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile.render
+    user: "1000:1000"
     command: python -m worker --queues render
     depends_on:
       - postgres
@@ -99,8 +90,6 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/animaflow
-      - REDIS_URL=redis://redis:6379/0
       - STORAGE_BASE_DIR=/app
     volumes:
       - animaflow_storage:/app/storage
@@ -122,10 +111,8 @@ services:
 
   postgres:
     image: postgres:15-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=animaflow
+    env_file:
+      - ./backend/.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -136,6 +123,9 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
     restart: unless-stopped
     ports:
       - "127.0.0.1:6379:6379"
@@ -177,6 +167,7 @@ volumes:
   postgres_data:
   animaflow_storage:
   remotion_generated:
+  redis_data:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:

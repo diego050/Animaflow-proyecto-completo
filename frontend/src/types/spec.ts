@@ -16,10 +16,13 @@ export interface Spec {
   text: string;
   type: string;
   media_query: string;
-  remotion_props: Record<string, string>;
+  animation_spec?: Record<string, unknown>;
+  remotion_props?: Record<string, unknown>;
   sfx: SFX[];
   audio_url?: string;
   word_timestamps?: WordTimestamp[];
+  ae_metadata?: Record<string, unknown>;
+  ae_script_code?: string;
 }
 
 export interface TimelineSpec {

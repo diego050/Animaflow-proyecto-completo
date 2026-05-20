@@ -8,6 +8,7 @@ from app.db.session import SessionLocal, get_db_context
 from app.db.models import JobModel, ApiKey
 from app.schemas.spec import TimelineSpec
 from app.core.logging import get_logger
+from sqlalchemy.orm.attributes import flag_modified
 
 logger = get_logger("pipeline")
 
@@ -240,6 +241,7 @@ def run_pipeline(
 
                 spec_obj = TimelineSpec(**spec)
                 job.result_spec = spec_obj.model_dump()
+                flag_modified(job, "result_spec")
                 job.status = "completed"
                 db.commit()
                 logger.info(
@@ -299,6 +301,7 @@ def run_pipeline(
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
             spec_obj = TimelineSpec(**final_spec)
             job.result_spec = spec_obj.model_dump()
+            flag_modified(job, "result_spec")
 
             # Estado 4: Completado
             job.status = "completed"
@@ -307,5 +310,6 @@ def run_pipeline(
         except Exception as e:
             # Fallback: mark job as failed on any unexpected pipeline error
             logger.exception("Pipeline failed unexpectedly: %s", e, extra={"job_id": job_id})
-            job.status = f"failed: {str(e)}"
+            job.status = "failed"
+            job.error_message = str(e)
             db.commit()

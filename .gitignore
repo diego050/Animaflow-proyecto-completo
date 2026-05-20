@@ -1,6 +1,8 @@
 # === Python / Backend ===
 __pycache__/
 *.py[cod]
+*.pyc
+*.pyo
 *$py.class
 *.so
 .Python
@@ -83,3 +85,6 @@ Thumbs.db
 security_reports/*.html
 security_reports/*.md
 !security_reports/.gitkeep
+
+# === Temporary / Generated ===
+docs/temp/

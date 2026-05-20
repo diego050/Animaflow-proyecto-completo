@@ -1,5 +1,6 @@
-from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey, Text, Integer
+from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey, Text, Integer, CheckConstraint
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.mutable import MutableDict
 from app.db.session import Base
 from app.core.encryption import encrypt_value, decrypt_value
 import uuid
@@ -12,6 +13,12 @@ class User(Base):
     """
 
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('founder', 'agency', 'user', 'admin')",
+            name="ck_user_role"
+        ),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, nullable=False, index=True)
@@ -22,13 +29,13 @@ class User(Base):
     )  # founder, agency, user, admin
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(
-        DateTime, nullable=False, default=lambda: datetime.datetime.utcnow()
+        DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc)
     )
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=lambda: datetime.datetime.utcnow(),
-        onupdate=lambda: datetime.datetime.utcnow(),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
     )
 
     is_deleted = Column(Boolean, nullable=False, default=False)
@@ -56,14 +63,23 @@ class JobModel(Base):
 
     __tablename__ = "jobs"
 
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'segmenting', 'visuals_generating', 'processing_scenes', "
+            "'queued_render', 'rendering', 'completed', 'failed', 'queued_scene_regen')",
+            name="ck_job_status"
+        ),
+    )
+
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     status = Column(String, default="pending")
+    error_message = Column(Text, nullable=True)
     script_text = Column(String, nullable=False)
     aspect_ratio = Column(String, default="9:16")
-    result_spec = Column(JSON, nullable=True)
+    result_spec = Column(MutableDict.as_mutable(JSON), nullable=True)
     video_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
 
     # Reformatting support
     parent_job_id = Column(String(36), ForeignKey("jobs.id"), nullable=True, index=True)
@@ -92,12 +108,12 @@ class Voice(Base):
     is_default = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
     audio_sample_path = Column(String(500), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.utcnow())
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=lambda: datetime.datetime.utcnow(),
-        onupdate=lambda: datetime.datetime.utcnow(),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
     )
 
     user = relationship("User", back_populates="voices")
@@ -119,7 +135,7 @@ class ApiKey(Base):
     provider = Column(String(50), nullable=False)  # gemini, openai, anthropic, grok
     _api_key_encrypted = Column("api_key", Text, nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.utcnow())
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     # Relationships
     user = relationship("User", back_populates="api_keys")
@@ -146,7 +162,7 @@ class Asset(Base):
     original_name = Column(String(255), nullable=False)  # original upload name
     file_type = Column(String(50), nullable=False)  # image/png, image/jpeg, image/svg+xml
     file_size = Column(Integer, nullable=False)  # in bytes
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.utcnow())
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     # Relationship
     user = relationship("User", back_populates="assets")

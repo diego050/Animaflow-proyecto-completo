@@ -1,7 +1,6 @@
 ﻿import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig, Sequence, Audio } from "remotion";
-import React, { useState, useEffect } from "react";
+import React from "react";
 import type { TimelineSpec } from "../types/spec";
-import { generatedModules } from './generated/index.ts';
 
 interface FallbackSceneProps {
   text: string;
@@ -43,62 +42,26 @@ interface SceneProps {
 
 type SceneComponent = React.ComponentType<SceneProps>;
 
-interface GeneratedModule {
-  SceneComponent?: SceneComponent;
-  default?: SceneComponent;
-  [key: string]: unknown;
-}
+// Mapa estático de componentes de escena conocidos.
+// A medida que se generen/validen nuevos tipos de escena, añadirlos aquí.
+const sceneComponents: Record<string, SceneComponent> = {
+  // Ejemplos: 'FadeText': FadeTextScene, 'Typewriter': TypewriterScene,
+};
 
 const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor }: DynamicSceneProps) => {
-  const [Component, setComponent] = useState<SceneComponent | null>(null);
-  const [error, setError] = useState(false);
+  const Component = sceneComponents[type];
 
-  useEffect(() => {
-    const loadComponent = async () => {
-      // FadeText/Fade Text son placeholders del LLM, usar fallback directamente
-      if (type === "FadeText" || type === "Fade Text") {
-        return; // No setError, simplemente no carga componente → fallback se activa
-      }
-
-      if (generatedModules[type]) {
-        try {
-          const mod = generatedModules[type] as GeneratedModule;
-          // El contrato dice que la IA exportará `SceneComponent`
-          if (mod.SceneComponent) {
-            setComponent(mod.SceneComponent);
-          } else if (mod.default) {
-            setComponent(mod.default);
-          } else {
-             // Si el LLM nombra distinto al componente, agarramos el primer export
-            const firstExport = Object.values(mod).find(
-              (v): v is SceneComponent => typeof v === 'function'
-            );
-            if (firstExport) {
-                setComponent(firstExport);
-            } else {
-                setError(true);
-            }
-          }
-        } catch (e) {
-          // Remotion composition: toast system not available here.
-          // Log to console for debugging; fallback UI handles user-facing feedback.
-          console.warn("Error loading generated scene:", e);
-          setError(true);
-        }
-      } else {
-        console.warn(`Scene ${type} not found in generated folder.`);
-        setError(true);
-      }
-    };
-    loadComponent();
-  }, [type]);
-
-  if (error || !Component) {
-    // Fallback de seguridad
-    return <FallbackScene text={text} fallbackBg={fallbackBg} fallbackColor={fallbackColor} isLoading={!error && !Component} />;
+  if (!Component) {
+    return (
+      <FallbackScene
+        text={text}
+        fallbackBg={fallbackBg}
+        fallbackColor={fallbackColor}
+        isLoading={false}
+      />
+    );
   }
 
-  // Renderizar componente generado por la IA pasándole el contrato
   return <Component text={text} durationInFrames={durationInFrames} />;
 };
 

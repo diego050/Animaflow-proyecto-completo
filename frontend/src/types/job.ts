@@ -1,4 +1,5 @@
 // Job-related TypeScript interfaces matching backend Pydantic schemas 1:1
+import type { TimelineSpec, Spec as SceneSpec, WordTimestamp, SFX as SFXCue } from './spec';
 
 export interface JobSummary {
   job_id: string;
@@ -47,35 +48,6 @@ export interface SceneRegenerateRequest {
 export interface SceneRegenerateResponse {
   status: string;
   result_spec: TimelineSpec | null;
-}
-
-export interface TimelineSpec {
-  scenes: SceneSpec[];
-  aspect_ratio?: string;
-}
-
-export interface SceneSpec {
-  start_time_seconds: number;
-  duration_seconds: number;
-  text: string;
-  type: string;
-  media_query: string;
-  remotion_props: Record<string, string>;
-  sfx: SFXCue[];
-  audio_url?: string;
-  word_timestamps?: WordTimestamp[];
-}
-
-export interface WordTimestamp {
-  word: string;
-  start: number;
-  end: number;
-}
-
-export interface SFXCue {
-  keyword: string;
-  time_in_seconds: number;
-  file: string;
 }
 
 // Status type guard helpers
