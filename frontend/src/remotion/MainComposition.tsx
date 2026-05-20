@@ -65,9 +65,9 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor 
           const mod = generatedModules[type] as GeneratedModule;
           // El contrato dice que la IA exportará `SceneComponent`
           if (mod.SceneComponent) {
-            setComponent(() => mod.SceneComponent);
+            setComponent(mod.SceneComponent);
           } else if (mod.default) {
-            setComponent(() => mod.default);
+            setComponent(mod.default);
           } else {
              // Si el LLM nombra distinto al componente, agarramos el primer export
             const firstExport = Object.values(mod).find(
