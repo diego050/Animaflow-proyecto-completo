@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '../../api/client';
 import { useAdminStore } from '../../store/useAdminStore';
 import {
   Users,
@@ -17,6 +18,14 @@ export function AdminDashboardPage() {
     fetchStats();
     fetchSystemHealth();
   }, [fetchStats, fetchSystemHealth]);
+
+  const [businessMetrics, setBusinessMetrics] = useState<any>(null);
+
+  useEffect(() => {
+    api.get('/api/admin/metrics').then((data) => {
+      setBusinessMetrics(data);
+    }).catch(() => {});
+  }, []);
 
   if (statsLoading) {
     return (
@@ -115,6 +124,44 @@ export function AdminDashboardPage() {
         })}
       </div>
 
+      {businessMetrics && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold" style={{ color: '#e4e2e3' }}>Métricas de Negocio</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <BusinessMetricCard
+              label="Registros esta semana"
+              value={businessMetrics.users_registered_this_week ?? 0}
+              color="#00FFAB"
+            />
+            <BusinessMetricCard
+              label="Tasa de Activación"
+              value={`${(businessMetrics.activation_rate ?? 0).toFixed(1)}%`}
+              color="#00FFAB"
+            />
+            <BusinessMetricCard
+              label="Retención Semanal"
+              value={`${(businessMetrics.weekly_retention_rate ?? 0).toFixed(1)}%`}
+              color="#FF8C00"
+            />
+            <BusinessMetricCard
+              label="Churn Rate"
+              value={`${(businessMetrics.churn_rate ?? 0).toFixed(1)}%`}
+              color="#FF8C00"
+            />
+            <BusinessMetricCard
+              label="Usuarios Reactivados"
+              value={businessMetrics.reactivated_users ?? 0}
+              color="#00FFAB"
+            />
+            <BusinessMetricCard
+              label="MRR"
+              value={`$${(businessMetrics.mrr ?? 0).toFixed(2)}`}
+              color="#2C3E50"
+            />
+          </div>
+        </div>
+      )}
+
       {systemHealth && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
           <h2 className="text-lg font-semibold text-gray-100 mb-4">Estado del Sistema</h2>
@@ -161,7 +208,10 @@ function HealthItem({
 }) {
   return (
     <div className="flex items-center gap-3 bg-gray-800/50 rounded-lg p-3">
-      <div className={`w-2.5 h-2.5 rounded-full ${status ? 'bg-emerald-400' : 'bg-red-400'}`} />
+      <div
+        className="w-2.5 h-2.5 rounded-full"
+        style={{ backgroundColor: status ? '#00FFAB' : '#FF8C00' }}
+      />
       <div>
         <p className="text-sm font-medium text-gray-300">{label}</p>
         <p className="text-xs text-gray-500">{detail}</p>
@@ -177,4 +227,13 @@ function formatUptime(seconds: number): string {
   if (days > 0) return `${days}d ${hours}h ${mins}m`;
   if (hours > 0) return `${hours}h ${mins}m`;
   return `${mins}m`;
+}
+
+function BusinessMetricCard({ label, value, color }: { label: string; value: string | number; color: string }) {
+  return (
+    <div className="rounded-xl p-5 border" style={{ backgroundColor: '#1E293B', borderColor: '#334155' }}>
+      <p className="text-sm" style={{ color: '#c4c6cd' }}>{label}</p>
+      <p className="text-2xl font-bold mt-2" style={{ color }}>{value}</p>
+    </div>
+  );
 }
