@@ -7,6 +7,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Create storage directories
+RUN mkdir -p /app/storage/assets /app/storage/audio /app/storage/videos /app/storage/models
+
 # Add non-root user
 RUN useradd -m -u 1000 appuser
 

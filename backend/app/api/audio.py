@@ -13,12 +13,11 @@ from sqlalchemy.orm import Session
 from app.db.models import User, JobModel
 from app.db.session import get_db
 from app.core.security import get_current_active_user
+from app.core.storage_paths import get_storage_dir
 
 router = APIRouter(prefix="/api", tags=["audio"])
 
-AUDIO_STORAGE = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../storage/audio")
-)
+AUDIO_STORAGE = get_storage_dir("audio")
 
 
 def sanitize_filename(filename: str) -> str:
