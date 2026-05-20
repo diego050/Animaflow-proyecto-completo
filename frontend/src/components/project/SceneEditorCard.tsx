@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Pencil, Check, X as XIcon, Loader2 } from 'lucide-react';
 import { useToastStore } from '../../store/useToastStore';
-import type { SceneSpec } from '../../types/job';
+import type { Spec as SceneSpec } from '../../types/spec';
 import { SceneDownloadMenu } from './SceneDownloadMenu';
 
 interface SceneEditorCardProps {

@@ -56,8 +56,10 @@ RUN cd /app/frontend && npx remotion browser ensure
 # Crear directorios de storage
 RUN mkdir -p /app/storage/assets /app/storage/audio /app/storage/videos /app/storage/models
 
-# No usar USER appuser para evitar problemas de permisos con volumen compartido
-# El contenedor corre como root para acceso a remotion_generated
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser
+RUN chown -R appuser:appuser /app/frontend /app/storage
+USER appuser
 
 # Comando por defecto: worker de render
 CMD ["python", "-m", "worker", "--queues", "render"]

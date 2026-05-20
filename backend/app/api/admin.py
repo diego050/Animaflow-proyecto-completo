@@ -150,11 +150,12 @@ def delete_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Delete user (hard delete)."""
-    user = db.query(User).filter(User.id == user_id).first()
+    """Delete user (soft delete)."""
+    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    db.delete(user)
+    user.is_deleted = True
+    user.deleted_at = datetime.datetime.now(datetime.timezone.utc)
     db.commit()
     return {"message": "User deleted"}
 
@@ -255,7 +256,7 @@ def retry_job(
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    if job.status not in ["failed", "failed_render"]:
+    if job.status != "failed":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only failed jobs can be retried",
@@ -292,12 +293,13 @@ def cancel_job(
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    if job.status not in ["pending", "processing", "rendering", "queued_render"]:
+    if job.status not in ["pending", "segmenting", "visuals_generating", "processing_scenes", "rendering", "queued_render", "queued_scene_regen"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Can only cancel active jobs",
         )
-    job.status = "cancelled"
+    job.status = "failed"
+    job.error_message = "Job cancelled by admin"
     db.commit()
     return {"message": "Job cancelled", "job_id": job_id}
 

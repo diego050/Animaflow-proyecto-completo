@@ -1,6 +1,18 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Literal
 import datetime
+
+JobStatus = Literal[
+    "pending",
+    "segmenting",
+    "visuals_generating",
+    "processing_scenes",
+    "queued_render",
+    "rendering",
+    "completed",
+    "failed",
+    "queued_scene_regen",
+]
 
 class JobCreate(BaseModel):
     script_text: str
@@ -15,13 +27,13 @@ class SceneRegenerateRequest(BaseModel):
 
 class JobResponse(BaseModel):
     job_id: str
-    status: str
+    status: JobStatus
     result_spec: Optional[Dict[str, Any]] = None
     video_url: Optional[str] = None
 
 class JobListResponse(BaseModel):
     job_id: str
-    status: str
+    status: JobStatus
     script_text: str
     video_url: Optional[str] = None
     created_at: Optional[datetime.datetime] = None

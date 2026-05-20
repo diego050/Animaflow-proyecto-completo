@@ -268,4 +268,53 @@ docker compose -f /opt/animaflow/docker-compose.prod.yml exec -T api alembic upg
 
 ---
 
-*Documento generado automáticamente tras el despliegue exitoso del MVP de AnimaFlow.*
+## 12. Mejoras Post-Deploy al Panel de Administración
+
+### 12.1 Corrección de Menús Desplegables
+- **Problema:** Los menús de 3 puntos en las tablas de Users y Jobs se cortaban por el `overflow-x-auto` de la tabla.
+- **Solución:** Cambiar de `position: absolute` a `position: fixed` con `z-50`.
+- **Archivos:** `AdminUsersPage.tsx`, `AdminJobsPage.tsx`
+
+### 12.2 Creación de Usuarios desde el Panel
+- **Problema:** No había forma de crear usuarios desde el panel admin.
+- **Solución:** Añadir botón "+ Crear Usuario" y modal con campos de nombre, email, contraseña y rol.
+- **Archivos:** `AdminUsersPage.tsx`
+
+### 12.3 Métricas de Negocio
+- **Implementación:** Endpoint `/api/admin/metrics` con métricas de:
+  - Usuarios registrados esta semana
+  - Tasa de activación (7 días)
+  - Retención semanal
+  - Churn rate
+  - Usuarios reactivados
+  - MRR (placeholder)
+- **Archivos:** `backend/app/api/admin.py`, `AdminDashboardPage.tsx`
+
+### 12.4 Paleta de Colores DESIGN.md
+- **Problema:** El panel admin usaba colores genéricos de Tailwind.
+- **Solución:** Aplicar paleta exacta de DESIGN.md:
+  - Fondo: `#0F172A` (Deep Slate)
+  - Superficies: `#1E293B` (Surface Panel)
+  - Éxito: `#00FFAB` (Mint Precision)
+  - Warning: `#FF8C00` (Cadmium Orange)
+  - Primario: `#b5c8df` (Steel Blue)
+- **Archivos:** Todos los archivos del panel admin
+
+### 12.5 Estadísticas Reales del Sistema
+- **Problema:** `database_pool_used` y `database_pool_size` eran hardcodeados.
+- **Solución:** Leer valores reales del pool de SQLAlchemy.
+- **Archivos:** `backend/app/api/admin.py`
+
+### 12.6 Optimización de Deploy
+- **Problema:** Cada deploy rebuildaba `worker-render` (8-10 minutos).
+- **Solución:** No rebuild worker-render en deploys normales. Solo rebuild `api`, `worker-default`, `frontend`.
+- **Archivos:** `.github/workflows/deploy-testing.yml`, `.github/workflows/deploy-production.yml`
+
+### 12.7 Instalación de Torch CPU-only
+- **Problema:** `openai-whisper` descargaba PyTorch CUDA (~2GB+) en cada build.
+- **Solución:** Instalar `torch` CPU-only antes de requirements.txt.
+- **Archivos:** `backend/Dockerfile`, `backend/Dockerfile.render`
+
+---
+
+*Documento actualizado tras mejoras del panel de administración.*

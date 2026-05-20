@@ -1,5 +1,5 @@
 ﻿from pydantic_settings import BaseSettings
-from pydantic import validator
+from pydantic import model_validator
 from typing import Optional
 import os
 
@@ -54,19 +54,14 @@ class Settings(BaseSettings):
     # Encryption
     ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
 
-    @validator("SECRET_KEY")
-    def validate_secret_key(cls, v, values):
-        env = values.get("ENV", "development")
-        if env == "production" and v == "dev-secret-key-change-in-production":
-            raise ValueError("SECRET_KEY must be set in production. Do not use the default value.")
-        return v
-
-    @validator("ENCRYPTION_KEY")
-    def validate_encryption_key(cls, v, values):
-        env = values.get("ENV", "development")
-        if env == "production" and not v:
-            raise ValueError("ENCRYPTION_KEY must be set in production")
-        return v
+    @model_validator(mode="after")
+    def validate_secrets(self):
+        if self.ENV == "production":
+            if self.SECRET_KEY == "dev-secret-key-change-in-production":
+                raise ValueError("SECRET_KEY must be set in production. Do not use the default value.")
+            if not self.ENCRYPTION_KEY:
+                raise ValueError("ENCRYPTION_KEY must be set in production")
+        return self
 
     @property
     def frontend_path(self) -> str:

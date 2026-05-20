@@ -12,7 +12,7 @@ import {
   AlertTriangle,
   RefreshCw,
 } from 'lucide-react';
-import type { TimelineSpec } from '../../types/job';
+import type { TimelineSpec } from '../../types/spec';
 import { SceneDownloadMenu } from './SceneDownloadMenu';
 
 type ExportMode = 'all' | 'selected';

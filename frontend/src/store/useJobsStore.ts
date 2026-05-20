@@ -1,9 +1,6 @@
 import { create } from 'zustand';
-import type {
-  JobSummary,
-  JobDetail,
-  TimelineSpec,
-} from '../types/job';
+import type { JobSummary, JobDetail } from '../types/job';
+import type { TimelineSpec } from '../types/spec';
 import { isTerminalStatus } from '../types/job';
 import { api } from '../api/client';
 import { useToastStore } from './useToastStore';
@@ -54,7 +51,9 @@ export interface JobsState {
   refreshSelectedJob: () => Promise<void>;
 }
 
-let pollingInterval: ReturnType<typeof setInterval> | null = null;
+let pollingInterval: ReturnType<typeof setTimeout> | null = null;
+let abortController: AbortController | null = null;
+let visibilityHandler: (() => void) | null = null;
 
 export const useJobsStore = create<JobsState>((set, get) => ({
   jobs: [],
@@ -216,15 +215,17 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     get().stopPolling();
     set({ pollingJobId: jobId });
 
-    pollingInterval = setInterval(async () => {
-      const { pollingJobId: currentPollingId } = get();
-      if (currentPollingId !== jobId) {
-        get().stopPolling();
-        return;
-      }
+    let backoffMs = 3000;
+    const maxBackoffMs = 30000;
+
+    const poll = async () => {
+      if (abortController) abortController.abort();
+      abortController = new AbortController();
 
       try {
-        const data = await api.get<JobDetail>(`/api/jobs/${jobId}`);
+        const data = await api.get<JobDetail>(`/api/jobs/${jobId}`, {
+          signal: abortController.signal,
+        });
 
         const { selectedJob } = get();
         if (selectedJob?.job_id === jobId) {
@@ -239,21 +240,52 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
         if (isTerminalStatus(data.status)) {
           get().stopPolling();
+          return;
         }
+
+        // Reset backoff on success
+        backoffMs = 3000;
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : 'Error de polling';
-        useToastStore
-          .getState()
-          .addToast('error', `Error actualizando estado: ${message}`);
+        if (err instanceof Error && err.name === 'AbortError') return;
+        // Increase backoff on error
+        backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
       }
-    }, 3000);
+
+      // Schedule next poll with dynamic backoff
+      pollingInterval = setTimeout(() => {
+        const { pollingJobId: currentId } = get();
+        if (currentId === jobId) {
+          poll();
+        }
+      }, backoffMs);
+    };
+
+    // Start immediately
+    poll();
+
+    // Pause when tab hidden
+    visibilityHandler = () => {
+      if (document.hidden) {
+        get().stopPolling();
+      } else {
+        poll();
+      }
+    };
+    document.addEventListener('visibilitychange', visibilityHandler);
   },
 
   stopPolling: () => {
     if (pollingInterval) {
-      clearInterval(pollingInterval);
+      clearTimeout(pollingInterval);
       pollingInterval = null;
+    }
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
+    if (visibilityHandler) {
+      document.removeEventListener('visibilitychange', visibilityHandler);
+      visibilityHandler = null;
     }
     set({ pollingJobId: null });
   },
