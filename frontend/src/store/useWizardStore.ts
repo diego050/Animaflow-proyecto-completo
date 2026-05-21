@@ -14,6 +14,7 @@ export interface WizardData {
   customPrompt: string;
   skippedReview: boolean;
   wizardMode: 'own-script' | 'ai-generate' | null;
+  targetDurationSeconds: number;
 }
 
 export interface WizardState {
@@ -40,6 +41,7 @@ export const useWizardStore = create<WizardState>((set) => ({
     customPrompt: '',
     skippedReview: false,
     wizardMode: null,
+    targetDurationSeconds: 30,
   },
 
   setWizardStep: (step: number) => set({ wizardStep: step }),
@@ -66,6 +68,7 @@ export const useWizardStore = create<WizardState>((set) => ({
         customPrompt: '',
         skippedReview: false,
         wizardMode: null,
+        targetDurationSeconds: 30,
       },
     });
   },

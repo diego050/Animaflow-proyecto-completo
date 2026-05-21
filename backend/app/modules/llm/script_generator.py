@@ -16,6 +16,7 @@ def generate_script_from_info(
     language: str = "es",
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
+    target_duration_seconds: int = 30,
 ) -> str:
     """Usa Gemini para generar un guion narrativo basado en la información del usuario."""
     from app.core.config import settings
@@ -45,9 +46,17 @@ def generate_script_from_info(
     template = get_template(template_id)
     system_prompt = custom_system_prompt or template.system_prompt
 
+    target_words = int(target_duration_seconds * 2.17)
+
     prompt = f"""{system_prompt}
 
 ESTILO SELECCIONADO: {template.name}
+
+REQUISITO DE DURACIÓN:
+- Duración objetivo: {target_duration_seconds} segundos
+- Esto equivale a aproximadamente {target_words} palabras
+- El guion debe tener EXACTAMENTE esta duración al leerse en voz alta
+- Si necesitas menos contenido, sé conciso. Si necesitas más, desarrolla ideas relacionadas.
 
 EJEMPLOS DE HOOKS PARA ESTE ESTILO:
 {chr(10).join(f"- {h}" for h in template.hook_examples)}
@@ -58,7 +67,7 @@ GUÍAS DE ESTILO:
 TEMA DEL USUARIO:
 {info}
 
-INSTRUCCIÓN: Genera un guion narrativo completo dividido en escenas de aproximadamente 7 segundos cada una.
+INSTRUCCIÓN: Genera un guion narrativo completo que dure aproximadamente {target_duration_seconds} segundos.
 Devuelve ÚNICAMENTE el texto que se leerá en voz alta (narración). NO incluyas indicaciones visuales, NO numeres las escenas, NO agregues título, introducción ni notas al pie.
 
 FORMATO DE RESPUESTA:
@@ -83,7 +92,39 @@ No es solo su cara bonita... es que están diseñados biológicamente para enten
             contents=prompt,
             label="LLM Script",
         )
-        return response.text.strip()
+        script = response.text.strip()
+
+        # Validación post-generación
+        word_count = len(script.split())
+        estimated_seconds = word_count / 2.17
+
+        min_acceptable = target_duration_seconds * 0.8
+        max_acceptable = target_duration_seconds * 1.2
+
+        if not (min_acceptable <= estimated_seconds <= max_acceptable):
+            logger.warning(
+                "Script length mismatch: estimated %.1fs, target %ds. Regenerating...",
+                estimated_seconds,
+                target_duration_seconds,
+            )
+            if estimated_seconds > max_acceptable:
+                correction = f"El guion anterior fue demasiado largo ({estimated_seconds:.0f}s). Reduce drásticamente a {target_duration_seconds}s (~{target_words} palabras). Sé extremadamente conciso."
+            else:
+                correction = f"El guion anterior fue demasiado corto ({estimated_seconds:.0f}s). Expande a {target_duration_seconds}s (~{target_words} palabras). Añade más detalles o ejemplos."
+
+            response = _call_llm_sync(
+                client,
+                model=model,
+                contents=prompt + "\n\n" + correction,
+                label="LLM Script (retry)",
+            )
+            script = response.text.strip()
+
+            word_count = len(script.split())
+            estimated_seconds = word_count / 2.17
+            logger.info("Retry result: %.1fs (target: %ds)", estimated_seconds, target_duration_seconds)
+
+        return script
     except (TimeoutError, ValueError) as e:
         logger.error("Error generando guion: %s", e)
         return "Error al generar guion. Por favor, intenta de nuevo o escríbelo manualmente."

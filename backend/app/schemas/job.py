@@ -61,6 +61,7 @@ class ScriptGenerateRequest(BaseModel):
     custom_prompt: Optional[str] = Field(default=None, description="Optional custom system prompt override")
     api_key: Optional[str] = Field(default=None, description="Optional user-provided API key for LLM. Falls back to global config if not provided.")
     provider: Optional[str] = Field(default=None, description="Optional LLM provider override (gemini, openai, anthropic). Falls back to user default or global config.")
+    target_duration_seconds: int = Field(default=30, ge=10, le=120, description="Target duration in seconds (10-120)")
 
 class ScriptGenerateResponse(BaseModel):
     script_text: str

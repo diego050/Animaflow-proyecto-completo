@@ -285,23 +285,41 @@ def run_pipeline(
                     extra={"job_id": job_id},
                 )
 
-            # Create preliminary scenes with empty media_query for user review
+            # Generate visual prompts for each chunk
+            batch_visuals = generate_batch_visuals_with_llm(
+                chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt
+            )
+
+            # Estimate duration based on word count (~130 words/minute = 2.17 words/second)
+            words_per_second = 2.17
+
             preliminary_scenes = []
+            current_start = 0.0
+
             for i, chunk in enumerate(chunks):
+                word_count = len(chunk.split())
+                estimated_duration = max(3.0, word_count / words_per_second)  # Min 3 seconds
+
+                visual = batch_visuals.scenes[i] if i < len(batch_visuals.scenes) else None
+
                 preliminary_scenes.append(
                     {
-                        "start_time_seconds": 0.0,
-                        "duration_seconds": 0.0,
+                        "start_time_seconds": round(current_start, 2),
+                        "duration_seconds": round(estimated_duration, 2),
                         "text": chunk,
                         "type": "pending",
-                        "media_query": scenes[i].get("media_query", "") if scenes else "",
-                        "remotion_props": {},
+                        "media_query": visual.media_query if visual else "",
+                        "remotion_props": {
+                            "backgroundColor": visual.backgroundColor if visual else "#0f172a",
+                            "textColor": visual.textColor if visual else "#38bdf8",
+                        },
                         "sfx": [],
                         "audio_url": None,
                         "word_timestamps": [],
                         "ae_script_code": None,
                     }
                 )
+                current_start += estimated_duration
 
             # Save preliminary spec and pause for user approval
             preliminary_spec = {
