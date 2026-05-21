@@ -50,10 +50,28 @@ export interface SceneRegenerateResponse {
   result_spec: TimelineSpec | null;
 }
 
+export interface SceneData {
+  text: string;
+  media_query: string;
+  start_time_seconds: number;
+  duration_seconds: number;
+}
+
+export interface SceneApproveRequest {
+  scenes: SceneData[];
+}
+
+export interface SceneApproveResponse {
+  job_id: string;
+  status: string;
+  result_spec: TimelineSpec | null;
+}
+
 // Status type guard helpers
 export const PROCESSING_STATUSES = [
   'pending',
   'segmenting',
+  'segmented',
   'visuals_generating',
   'processing_scenes',
 ] as const;
