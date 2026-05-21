@@ -248,8 +248,8 @@ export const useJobsStore = create<JobsState>((set, get) => ({
           signal: abortController.signal,
         });
 
-        const { selectedJob } = get();
-        if (selectedJob?.job_id === jobId) {
+        const { selectedJob, pollingJobId } = get();
+        if (selectedJob?.job_id === jobId || pollingJobId === jobId) {
           set({ selectedJob: data });
         }
 
