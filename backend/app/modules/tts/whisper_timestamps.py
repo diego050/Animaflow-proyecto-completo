@@ -67,13 +67,26 @@ def extract_timestamps(audio_path: str, language: str = "es") -> List[Dict]:
 
 def get_audio_duration(audio_path: str) -> float:
     """Get total duration of audio file."""
+    # Try ffmpeg first
     try:
         import ffmpeg
         probe = ffmpeg.probe(audio_path)
         duration = float(probe['format']['duration'])
         return duration
     except Exception:
-        # Fallback: use whisper result
-        model = _get_model()
-        result = model.transcribe(audio_path, verbose=False)
-        return result["segments"][-1]["end"] if result["segments"] else 0.0
+        pass
+
+    # Fallback: use wave module for WAV files (Piper generates WAV)
+    if audio_path.endswith('.wav'):
+        try:
+            import wave
+            with wave.open(audio_path, 'rb') as wf:
+                frames = wf.getnframes()
+                rate = wf.getframerate()
+                return frames / float(rate)
+        except Exception:
+            pass
+
+    # Last resort: rough estimation (avoid Whisper - too heavy)
+    logger.warning("Could not get exact duration for %s, using estimation", audio_path)
+    return 0.0
