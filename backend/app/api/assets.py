@@ -49,14 +49,14 @@ async def upload_asset(
     """Upload a new image asset."""
     # Validate file type
     if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(400, f"Tipo de archivo no permitido. Permitidos: {', '.join(ALLOWED_TYPES)}")
+        raise HTTPException(400, f"File type not allowed. Allowed: {', '.join(ALLOWED_TYPES)}")
 
     # Read file content
     content = await file.read()
 
     # Validate file size
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(400, f"Archivo demasiado grande. Máximo: {MAX_FILE_SIZE // (1024*1024)}MB")
+        raise HTTPException(400, f"File too large. Maximum: {MAX_FILE_SIZE // (1024*1024)}MB")
 
     # Generate unique filename
     ext = os.path.splitext(file.filename)[1] if file.filename else ".png"
@@ -96,7 +96,7 @@ def delete_asset(
     """Delete an asset."""
     asset = db.query(Asset).filter(Asset.id == asset_id, Asset.user_id == current_user.id).first()
     if not asset:
-        raise HTTPException(404, "Asset no encontrado")
+        raise HTTPException(404, "Asset not found")
 
     # Delete file from disk
     file_path = os.path.join(ASSETS_DIR, current_user.id, asset.filename)
@@ -117,10 +117,10 @@ def get_asset_file(
     """Serve an asset file."""
     asset = db.query(Asset).filter(Asset.id == asset_id, Asset.user_id == current_user.id).first()
     if not asset:
-        raise HTTPException(404, "Asset no encontrado")
+        raise HTTPException(404, "Asset not found")
 
     file_path = os.path.join(ASSETS_DIR, current_user.id, asset.filename)
     if not os.path.exists(file_path):
-        raise HTTPException(404, "Archivo no encontrado en disco")
+        raise HTTPException(404, "File not found on disk")
 
     return FileResponse(file_path, media_type=asset.file_type)

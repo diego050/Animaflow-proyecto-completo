@@ -26,7 +26,7 @@ def get_job_or_404(db: Session, job_id: str, user_id: str) -> JobModel:
         JobModel.user_id == user_id,
     ).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Job no encontrado")
+        raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 router = APIRouter()
@@ -85,7 +85,7 @@ async def get_job_status(
         JobModel.user_id == current_user.id,
     ).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Job no encontrado")
+        raise HTTPException(status_code=404, detail="Job not found")
 
     return JobResponse(
         job_id=job.id,
@@ -210,7 +210,7 @@ async def delete_job(
         JobModel.user_id == current_user.id,
     ).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Job no encontrado")
+        raise HTTPException(status_code=404, detail="Job not found")
 
     db.delete(job)
     db.commit()
@@ -231,15 +231,15 @@ async def trigger_render(
         JobModel.user_id == current_user.id,
     ).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Job no encontrado")
+        raise HTTPException(status_code=404, detail="Job not found")
 
     if not job.result_spec:
         raise HTTPException(
-            status_code=400, detail="El job aún no tiene un Spec generado para renderizar"
+            status_code=400, detail="Job does not have a generated spec to render"
         )
 
     if job.status == "rendering":
-        raise HTTPException(status_code=400, detail="El job ya se está renderizando")
+        raise HTTPException(status_code=400, detail="Job is already rendering")
 
     # Encolar la tarea de render en la cola dedicada para tareas pesadas
     from app.modules.remotion.renderer import render_video_pipeline
@@ -317,10 +317,10 @@ async def trigger_scene_regenerate(
         JobModel.user_id == current_user.id,
     ).first()
     if not job or not job.result_spec:
-        raise HTTPException(status_code=404, detail="Job no encontrado o sin spec")
+        raise HTTPException(status_code=404, detail="Job not found or missing spec")
 
     if scene_index < 0 or scene_index >= len(job.result_spec.get("scenes", [])):
-        raise HTTPException(status_code=400, detail="Índice de escena inválido")
+        raise HTTPException(status_code=400, detail="Invalid scene index")
 
     # Encolar en RQ para no bloquear el request handler
     from app.modules.pipeline.scene_manager import _regenerate_scene_async

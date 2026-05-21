@@ -47,8 +47,9 @@ def setup_sonarqube_db():
         if result.fetchone():
             print("✅ User 'sonar' already exists")
         else:
-            # Create user with password
-            conn.execute(text("CREATE USER sonar WITH PASSWORD 'sonar'"))
+            # Create user with password from env (default fallback for local dev only)
+            password = os.environ.get("SONAR_DB_PASSWORD", "sonar")
+            conn.execute(text(f"CREATE USER sonar WITH PASSWORD '{password}'"))
             print("✅ User 'sonar' created")
         
         conn.execute(text("COMMIT"))
@@ -60,7 +61,6 @@ def setup_sonarqube_db():
     print("\n🎉 SonarQube database setup complete!")
     print("   Database: sonar")
     print("   User: sonar")
-    print("   Password: sonar")
     print("\n   You can now start SonarQube with:")
     print("   docker compose --profile security up sonarqube -d")
 

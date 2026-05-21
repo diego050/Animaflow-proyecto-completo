@@ -30,7 +30,7 @@ def get_job_or_404(db: Session, job_id: str, user_id: str) -> JobModel:
         JobModel.user_id == user_id,
     ).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Job no encontrado")
+        raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 redis_conn = Redis.from_url(settings.REDIS_URL)
@@ -54,7 +54,7 @@ async def trigger_ae_export(
     job = get_job_or_404(db, job_id, current_user.id)
 
     if not job.result_spec:
-        raise HTTPException(status_code=400, detail="El job no tiene spec.json generado")
+        raise HTTPException(status_code=400, detail="Job does not have a generated spec.json")
 
     # Enqueue export job en la cola de render (tarea pesada)
     render_queue.enqueue(
@@ -163,7 +163,7 @@ async def export_spec_json(
     job = get_job_or_404(db, job_id, current_user.id)
 
     if not job.result_spec:
-        raise HTTPException(status_code=400, detail="El job no tiene spec.json generado")
+        raise HTTPException(status_code=400, detail="Job does not have a generated spec.json")
 
     # Guardar spec.json temporalmente
     from tempfile import NamedTemporaryFile

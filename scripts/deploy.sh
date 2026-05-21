@@ -22,8 +22,7 @@ if grep -q "your-" backend/.env; then
 fi
 
 echo "📦 Building and starting services..."
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build
 
 echo "⏳ Waiting for services..."
 sleep 10
