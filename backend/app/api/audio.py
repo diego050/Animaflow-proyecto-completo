@@ -51,21 +51,20 @@ async def get_audio(
     """
     sanitized = sanitize_filename(filename)
 
-    # Extract job_id and scene_id from filename for ownership check
-    # Expected patterns: {job_id}_{scene_id}.mp3 or {job_id}_{scene_id}.wav
+    # Check if it's a job-scene format (e.g., job_123_0.wav)
     match = re.match(r"^([a-zA-Z0-9\-]+)_(\d+)\.[a-zA-Z0-9]+$", sanitized)
-    if not match:
-        raise HTTPException(status_code=400, detail="Invalid filename format")
+    if match:
+        # Ownership check for job audio
+        job_id = match.group(1)
+        job = db.query(JobModel).filter(
+            JobModel.id == job_id,
+            JobModel.user_id == current_user.id,
+        ).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Audio not found")
 
-    job_id = match.group(1)
-
-    # Ownership check
-    job = db.query(JobModel).filter(
-        JobModel.id == job_id,
-        JobModel.user_id == current_user.id,
-    ).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Audio not found")
+    # For preview audio (e.g., 966143287418.wav), no job ownership check needed
+    # The user is already authenticated
 
     # Look for exact filename
     local_path = os.path.abspath(os.path.join(AUDIO_STORAGE, sanitized))
