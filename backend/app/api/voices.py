@@ -186,19 +186,21 @@ def delete_voice(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Soft delete a voice (set is_active = False).
+    """Delete voice permanently including audio file."""
+    import os
 
-    The default voice cannot be deleted.
-    """
-    voice = db.query(Voice).filter(
-        Voice.id == voice_id,
-        Voice.user_id == current_user.id,
-    ).first()
+    voice = db.query(Voice).filter(Voice.id == voice_id, Voice.user_id == current_user.id).first()
     if not voice:
         raise HTTPException(status_code=404, detail="Voice not found")
-    if voice.is_default:
-        raise HTTPException(status_code=400, detail="Cannot delete default voice")
 
-    voice.is_active = False
+    # Delete physical audio file
+    if voice.audio_sample_path and os.path.exists(voice.audio_sample_path):
+        try:
+            os.remove(voice.audio_sample_path)
+        except OSError:
+            pass
+
+    # Hard delete from DB
+    db.delete(voice)
     db.commit()
     return None

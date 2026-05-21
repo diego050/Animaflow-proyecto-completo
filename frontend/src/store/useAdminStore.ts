@@ -145,7 +145,7 @@ export const useAdminStore = create<AdminState>((set) => ({
   },
 
   toggleUserStatus: async (userId: string, isActive: boolean) => {
-    await api.put(`/api/admin/users/${userId}/status`, { is_active: !isActive });
+    await api.put(`/api/admin/users/${userId}/toggle`);
     set((state) => ({
       users: state.users.map((u) =>
         u.id === userId ? { ...u, is_active: !isActive } : u,

@@ -84,7 +84,7 @@ def list_admin_users(
     current_user: User = Depends(require_admin),
 ):
     """List all users with stats."""
-    users = db.query(User).all()
+    users = db.query(User).filter(User.is_deleted == False).all()
     total = len(users)
     return {
         "users": [
@@ -150,14 +150,53 @@ def delete_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Delete user (soft delete)."""
-    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    """Delete user permanently with cascade (jobs, voices, files)."""
+    import os
+    from app.db.models import JobModel, Voice
+    from app.core.storage_paths import get_storage_dir
+
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    user.is_deleted = True
-    user.deleted_at = datetime.datetime.now(datetime.timezone.utc)
+
+    # 1. Delete user's jobs and their files
+    jobs = db.query(JobModel).filter(JobModel.user_id == user_id).all()
+    for job in jobs:
+        # Delete video file if exists
+        if job.video_url:
+            video_path = os.path.join(get_storage_dir("videos"), os.path.basename(job.video_url))
+            if os.path.exists(video_path):
+                try:
+                    os.remove(video_path)
+                except OSError:
+                    pass
+        # Delete audio files if referenced in result_spec
+        if job.result_spec:
+            for scene in job.result_spec.get("scenes", []):
+                audio_url = scene.get("audio_url")
+                if audio_url:
+                    audio_path = os.path.join(get_storage_dir("audio"), os.path.basename(audio_url))
+                    if os.path.exists(audio_path):
+                        try:
+                            os.remove(audio_path)
+                        except OSError:
+                            pass
+        db.delete(job)
+
+    # 2. Delete user's voices and their audio files
+    voices = db.query(Voice).filter(Voice.user_id == user_id).all()
+    for voice in voices:
+        if voice.audio_sample_path and os.path.exists(voice.audio_sample_path):
+            try:
+                os.remove(voice.audio_sample_path)
+            except OSError:
+                pass
+        db.delete(voice)
+
+    # 3. Delete user
+    db.delete(user)
     db.commit()
-    return {"message": "User deleted"}
+    return {"message": "User and all associated data deleted permanently"}
 
 
 @router.post("/users")
