@@ -47,7 +47,7 @@ async def _process_chunks_async(
 
     for i, chunk in enumerate(chunks):
         logger.info(
-            "Generando TTS para escena %d con proveedor %s...",
+            "Generating TTS for scene %d with provider %s...",
             i + 1,
             tts_provider,
             extra={"job_id": job_id},
@@ -66,7 +66,7 @@ async def _process_chunks_async(
             duration = tts_result["duration_seconds"]
         except Exception as e:
             logger.exception(
-                "TTS falló para escena %d, usando fallback de duración estimada: %s",
+                "TTS failed for scene %d, using estimated duration fallback: %s",
                 i + 1,
                 e,
                 extra={"job_id": job_id},
@@ -87,13 +87,13 @@ async def _process_chunks_async(
                 shutil.copy2(audio_path, standard_path)
                 audio_url = f"/api/audio/{standard_name}"
                 logger.info(
-                    "Audio copiado a ubicación estándar: %s",
+                    "Audio copied to standard location: %s",
                     standard_path,
                     extra={"job_id": job_id},
                 )
             except OSError as copy_err:
                 logger.error(
-                    "Error copiando audio: %s", copy_err, extra={"job_id": job_id}
+                    "Error copying audio: %s", copy_err, extra={"job_id": job_id}
                 )
                 audio_url = None
         else:
@@ -106,7 +106,7 @@ async def _process_chunks_async(
         )
 
         logger.info(
-            "Generando código TSX de Remotion para escena %d...",
+            "Generating Remotion TSX code for scene %d...",
             i + 1,
             extra={"job_id": job_id},
         )
@@ -119,7 +119,7 @@ async def _process_chunks_async(
 
         # AE script generation deferred to export step (saves tokens during iteration)
         logger.info(
-            "AE script generation deferred to export step (escena %d)",
+            "AE script generation deferred to export step (scene %d)",
             i + 1,
             extra={"job_id": job_id},
         )
@@ -266,7 +266,7 @@ def run_pipeline(
                 chunks = [script_text]
 
             logger.info(
-                "Guion segmentado en %d escenas (aspect_ratio: %s, tts_provider: %s)",
+                "Script segmented into %d scenes (aspect_ratio: %s, tts_provider: %s)",
                 len(chunks),
                 aspect_ratio,
                 tts_provider,
@@ -277,7 +277,7 @@ def run_pipeline(
             job.status = "visuals_generating"
             db.commit()
 
-            logger.info("Generando prompts visuales en Batch con Gemini...", extra={"job_id": job_id})
+            logger.info("Generating visual prompts in batch with Gemini...", extra={"job_id": job_id})
             batch_visuals = generate_batch_visuals_with_llm(chunks, aspect_ratio, user_id)
 
             # Estado 3: Procesando escenas (TTS + TSX)

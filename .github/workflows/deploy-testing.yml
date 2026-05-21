@@ -47,7 +47,7 @@ jobs:
             # Run database migrations in the running container
             docker compose -f docker-compose.prod.yml exec -T api alembic upgrade head
             
-            # Clean up old images
-            docker system prune -f
+            # Clean up dangling images only (never system prune on shared VPS)
+            docker image prune -f
             
             echo "Testing deployment complete"

@@ -111,7 +111,9 @@ export interface Voice {
   gender: 'male' | 'female' | 'neutral';
   language: string;
   createdAt: string;
+  /** @deprecated Frontend-only field. Backend does not track usage. Roadmap v2. */
   projectsUsed: number;
+  /** @deprecated Frontend-only field. Backend does not provide preview URLs yet. Roadmap v2. */
   previewAudioUrl?: string;
   audioSamplePath?: string | null;
   isActive?: boolean;
