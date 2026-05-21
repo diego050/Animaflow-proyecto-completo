@@ -72,17 +72,39 @@ async def get_audio(
         raise HTTPException(status_code=400, detail="Invalid path")
 
     if not os.path.exists(local_path):
-        # Fallback: try other common extensions
-        base = os.path.splitext(sanitized)[0]
+        # Fallback 1: search in subdirectories (e.g., audio/piper/, audio/elevenlabs/)
         found = False
-        for ext in [".mp3", ".wav", ".ogg", ".m4a"]:
-            candidate = os.path.abspath(os.path.join(AUDIO_STORAGE, base + ext))
-            if candidate.startswith(AUDIO_STORAGE + os.sep) and os.path.exists(candidate):
-                local_path = candidate
-                found = True
-                break
+        for root, dirs, files in os.walk(AUDIO_STORAGE):
+            if sanitized in files:
+                candidate = os.path.abspath(os.path.join(root, sanitized))
+                if candidate.startswith(AUDIO_STORAGE + os.sep):
+                    local_path = candidate
+                    found = True
+                    break
+        
+        # Fallback 2: try other common extensions
         if not found:
-            raise HTTPException(status_code=404, detail="Audio not found")
+            base = os.path.splitext(sanitized)[0]
+            for ext in [".mp3", ".wav", ".ogg", ".m4a"]:
+                # Check root first
+                candidate = os.path.abspath(os.path.join(AUDIO_STORAGE, base + ext))
+                if candidate.startswith(AUDIO_STORAGE + os.sep) and os.path.exists(candidate):
+                    local_path = candidate
+                    found = True
+                    break
+                # Check subdirectories
+                for root, dirs, files in os.walk(AUDIO_STORAGE):
+                    if base + ext in files:
+                        candidate = os.path.abspath(os.path.join(root, base + ext))
+                        if candidate.startswith(AUDIO_STORAGE + os.sep):
+                            local_path = candidate
+                            found = True
+                            break
+                if found:
+                    break
+            
+            if not found:
+                raise HTTPException(status_code=404, detail="Audio not found")
 
     ext = os.path.splitext(local_path)[1]
     return FileResponse(local_path, media_type=get_media_type(ext))
