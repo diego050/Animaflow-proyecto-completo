@@ -58,7 +58,7 @@ export function WizardStepInfo({
   loading,
 }: WizardStepInfoProps) {
   const [mode, setMode] = useState<WizardMode>('own-script');
-  const { setWizardData, setWizardStep } = useWizardStore();
+  const { setWizardData } = useWizardStore();
 
   const handleContinueWithOwnScript = useCallback(() => {
     if (!info.trim()) return;
