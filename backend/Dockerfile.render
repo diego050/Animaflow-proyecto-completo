@@ -56,9 +56,11 @@ RUN cd /app/frontend && npx remotion browser ensure
 # Crear directorios de storage
 RUN mkdir -p /app/storage/assets /app/storage/audio /app/storage/videos /app/storage/models
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser
-RUN chown -R appuser:appuser /app/frontend /app/storage
+# Create non-root user, handling case where UID 1000 already exists
+RUN if ! id -u appuser >/dev/null 2>&1; then \
+        useradd -m appuser || useradd -m -u 1001 appuser; \
+    fi
+RUN chown -R appuser:appuser /app/frontend /app/storage || true
 USER appuser
 
 # Comando por defecto: worker de render
