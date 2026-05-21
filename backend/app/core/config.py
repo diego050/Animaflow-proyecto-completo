@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # Storage
     STORAGE_PATH: str = "./storage"
 
+    # Storage base directory (used in Docker as /app)
+    STORAGE_BASE_DIR: Optional[str] = None
+
     # Frontend path (for Remotion component generation)
     FRONTEND_DIR: Optional[str] = None
 
