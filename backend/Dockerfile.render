@@ -60,8 +60,13 @@ RUN mkdir -p /app/storage/assets /app/storage/audio /app/storage/videos /app/sto
 RUN if ! id -u appuser >/dev/null 2>&1; then \
         useradd -m appuser || useradd -m -u 1001 appuser; \
     fi
-RUN chown -R appuser:appuser /app/frontend /app/storage || true
-USER appuser
 
-# Comando por defecto: worker de render
+RUN chown -R appuser:appuser /app/frontend /app/storage || true
+
+# Entrypoint handles runtime download of Piper model (robust against build-cache or empty volumes)
+COPY backend/entrypoint.sh /entrypoint.sh
+RUN chmod +rx /entrypoint.sh
+
+USER appuser
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "-m", "worker", "--queues", "render"]
