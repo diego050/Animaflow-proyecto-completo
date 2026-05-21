@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAdminStore } from '../../store/useAdminStore';
-import { Loader2, Search, MoreVertical, Ban, Check, Trash2, Shield } from 'lucide-react';
+import { Loader2, Search, MoreVertical, Ban, Check, Trash2, Shield, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function AdminUsersPage() {
@@ -25,6 +25,7 @@ export function AdminUsersPage() {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('user');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     fetchUsers(1, search);
@@ -40,10 +41,21 @@ export function AdminUsersPage() {
     setMenuOpen(null);
   };
 
-  const handleDelete = async (userId: string) => {
-    if (window.confirm('¿Estás seguro de eliminar este usuario?')) {
+  const handleDelete = async (userId: string, userName: string) => {
+    const confirmed = window.confirm(
+      `¿Estás seguro de que quieres eliminar permanentemente al usuario "${userName}"?\n\n` +
+      `Esta acción eliminará:\n` +
+      `- Todos sus proyectos y videos\n` +
+      `- Todas sus voces y archivos de audio\n` +
+      `- El usuario de la base de datos\n\n` +
+      `Esta acción NO se puede deshacer.`
+    );
+    if (!confirmed) return;
+    try {
       await deleteUser(userId);
       setMenuOpen(null);
+    } catch {
+      // error handled by store
     }
   };
 
@@ -211,7 +223,7 @@ export function AdminUsersPage() {
                               </button>
                               <div className="my-1 border-t border-gray-700" />
                               <button
-                                onClick={() => handleDelete(user.id)}
+                                onClick={() => handleDelete(user.id, user.name)}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors"
                               >
                                 <Trash2 size={14} />
@@ -282,14 +294,24 @@ export function AdminUsersPage() {
                   className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
                   style={{ backgroundColor: '#0F172A', border: '1px solid #334155', color: '#e4e2e3' }}
                 />
-                <input
-                  type="password"
-                  placeholder="Contraseña"
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
-                  style={{ backgroundColor: '#0F172A', border: '1px solid #334155', color: '#e4e2e3' }}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Contraseña"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none pr-10"
+                    style={{ backgroundColor: '#0F172A', border: '1px solid #334155', color: '#e4e2e3' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
                 <select
                   value={newUserRole}
                   onChange={(e) => setNewUserRole(e.target.value)}
