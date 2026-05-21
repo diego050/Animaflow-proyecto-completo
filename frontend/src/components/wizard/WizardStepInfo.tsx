@@ -21,6 +21,7 @@ interface WizardStepInfoProps {
   templateId: string;
   customPrompt: string;
   targetDurationSeconds: number;
+  durationUnit: 'seconds' | 'words';
   onInfoChange: (value: string) => void;
   onAspectRatioChange: (value: string) => void;
   onVoiceChange: (value: string) => void;
@@ -30,6 +31,7 @@ interface WizardStepInfoProps {
   onTemplateChange: (value: string) => void;
   onCustomPromptChange: (value: string) => void;
   onDurationChange: (seconds: number) => void;
+  onUnitChange: (unit: 'seconds' | 'words') => void;
   onGenerate: () => void;
   onCreate: () => void;
   loading: boolean;
@@ -48,6 +50,7 @@ export function WizardStepInfo({
   templateId,
   customPrompt,
   targetDurationSeconds,
+  durationUnit,
   onInfoChange,
   onAspectRatioChange,
   onVoiceChange,
@@ -57,6 +60,7 @@ export function WizardStepInfo({
   onTemplateChange,
   onCustomPromptChange,
   onDurationChange,
+  onUnitChange,
   onGenerate,
   onCreate,
   loading,
@@ -119,22 +123,63 @@ export function WizardStepInfo({
         <label className="text-sm font-medium text-text-primary">
           Duración estimada
         </label>
+
+        {/* Toggle Segundos / Palabras */}
+        <div className="flex items-center gap-2 mb-3">
+          <button
+            onClick={() => onUnitChange('seconds')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              durationUnit === 'seconds'
+                ? 'bg-mint-precision text-deep-slate'
+                : 'bg-surface-high text-text-secondary hover:bg-surface-container'
+            }`}
+          >
+            Segundos
+          </button>
+          <button
+            onClick={() => onUnitChange('words')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              durationUnit === 'words'
+                ? 'bg-mint-precision text-deep-slate'
+                : 'bg-surface-high text-text-secondary hover:bg-surface-container'
+            }`}
+          >
+            Palabras
+          </button>
+        </div>
+
+        {/* Slider */}
         <div className="flex items-center gap-3">
           <input
             type="range"
-            min={10}
-            max={120}
-            step={5}
-            value={targetDurationSeconds}
-            onChange={(e) => onDurationChange(Number(e.target.value))}
+            min={durationUnit === 'seconds' ? 10 : 22}
+            max={durationUnit === 'seconds' ? 120 : 260}
+            step={durationUnit === 'seconds' ? 5 : 11}
+            value={durationUnit === 'seconds' ? targetDurationSeconds : Math.round(targetDurationSeconds * 2.17)}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              if (durationUnit === 'seconds') {
+                onDurationChange(val);
+              } else {
+                onDurationChange(Math.round(val / 2.17));
+              }
+            }}
             className="flex-1 accent-mint-precision"
           />
-          <span className="text-sm font-semibold text-mint-precision w-16 text-right">
-            {targetDurationSeconds}s
+          <span className="text-sm font-semibold text-mint-precision w-20 text-right">
+            {durationUnit === 'seconds'
+              ? `${targetDurationSeconds}s`
+              : `${Math.round(targetDurationSeconds * 2.17)} palabras`
+            }
           </span>
         </div>
-        <p className="text-xs text-text-secondary/60">
-          ≈ {Math.round(targetDurationSeconds * 2.17)} palabras · {Math.ceil(targetDurationSeconds / 7)} escenas
+
+        {/* Equivalente en la otra unidad */}
+        <p className="text-xs text-text-secondary/60 mt-1">
+          {durationUnit === 'seconds'
+            ? `≈ ${Math.round(targetDurationSeconds * 2.17)} palabras · ${Math.ceil(targetDurationSeconds / 7)} escenas`
+            : `≈ ${Math.round(targetDurationSeconds)} segundos · ${Math.ceil(targetDurationSeconds / 7)} escenas`
+          }
         </p>
       </div>
 

@@ -28,6 +28,10 @@ export function NewProjectWizard() {
   const [approveLoading, setApproveLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleUnitChange = useCallback((unit: 'seconds' | 'words') => {
+    setWizardData({ durationUnit: unit });
+  }, [setWizardData]);
+
   // Fetch voices and LLM settings on mount
   useEffect(() => {
     if (voices.length === 0) {
@@ -207,6 +211,7 @@ export function NewProjectWizard() {
               templateId={wizardData.templateId}
               customPrompt={wizardData.customPrompt}
               targetDurationSeconds={wizardData.targetDurationSeconds}
+              durationUnit={wizardData.durationUnit}
               onInfoChange={(info) => setWizardData({ info })}
               onAspectRatioChange={(aspectRatio) =>
                 setWizardData({ aspectRatio })
@@ -228,6 +233,7 @@ export function NewProjectWizard() {
               onDurationChange={(targetDurationSeconds) =>
                 setWizardData({ targetDurationSeconds })
               }
+              onUnitChange={handleUnitChange}
               onGenerate={handleGenerateScript}
               onCreate={handleCreateProject}
               loading={scriptLoading}

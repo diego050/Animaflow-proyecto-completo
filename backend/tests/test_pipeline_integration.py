@@ -31,7 +31,7 @@ def mock_external_services(tmp_path):
     os.makedirs(audio_storage, exist_ok=True)
 
     # Build deterministic BatchVisualSpec with enough scenes for the sample script
-    # (sample_script has 3 sentences → 3 chunks)
+    # (sample_script has 3 sentences → 2 chunks (grouped by ~7s duration))
     batch_visuals = BatchVisualSpec(
         scenes=[
             VisualSpecResult(
@@ -43,11 +43,6 @@ def mock_external_services(tmp_path):
                 media_query="A heart shape forming from connected dots with warm golden light",
                 backgroundColor="#1e293b",
                 textColor="#fbbf24",
-            ),
-            VisualSpecResult(
-                media_query="Water drops falling into a pool creating expanding ripple circles",
-                backgroundColor="#0f172a",
-                textColor="#38bdf8",
             ),
         ]
     )
