@@ -8,7 +8,7 @@ from app.db.models import Voice, User
 from app.schemas.voice import VoiceCreate, VoiceUpdate, VoiceResponse, VoicePreviewRequest
 from app.core.security import get_current_active_user
 from app.core.config import settings
-from app.modules.tts.service import generate_tts_with_timestamps
+from app.modules.tts.service import generate_tts_audio_only
 
 import os
 import uuid
@@ -131,8 +131,10 @@ async def preview_voice(
         raise HTTPException(status_code=404, detail="Voice not found")
 
     # Generate TTS preview using the voice's profile ID
+    # NOTE: Uses generate_tts_audio_only to avoid loading Whisper (~1GB RAM)
+    # which causes OOM crashes on shared VPS instances.
     try:
-        result = await generate_tts_with_timestamps(
+        result = await generate_tts_audio_only(
             text=preview_data.text,
             provider_name="local_piper",  # default for preview
             voice_id=voice.voicebox_profile_id or "es_ES-carlfm-x_low"

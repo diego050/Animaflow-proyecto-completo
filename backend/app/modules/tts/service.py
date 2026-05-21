@@ -18,6 +18,48 @@ PROVIDERS = {
     "gemini_tts": GeminiTTSProvider(),
 }
 
+async def generate_tts_audio_only(
+    text: str,
+    provider_name: str = "local_piper",
+    voice_id: str = "es_ES-carlfm-x_low",
+    api_key: Optional[str] = None,
+) -> Dict:
+    """Generate TTS audio without timestamps (lightweight for previews).
+
+    Avoids loading Whisper, reducing RAM usage by ~1GB.
+    Duration is obtained via ffmpeg probe if available.
+
+    Returns:
+        {
+            "audio_path": str,
+            "duration_seconds": float
+        }
+    """
+    if provider_name not in PROVIDERS:
+        logger.warning("Unknown TTS provider: %s. Falling back to local_piper.", provider_name)
+        provider_name = "local_piper"
+
+    provider = PROVIDERS[provider_name]
+
+    if provider.requires_api_key and not api_key:
+        raise ValueError(f"Provider '{provider_name}' requires an API key")
+
+    logger.info("Generating lightweight TTS preview with provider: %s", provider_name)
+
+    # 1. Generate audio only (no Whisper)
+    audio_path = await provider.generate_audio(text, voice_id, api_key)
+
+    # 2. Get duration via ffmpeg (no Whisper load)
+    duration = get_audio_duration(audio_path)
+
+    logger.info("TTS preview complete: %s (%.2fs)", audio_path, duration)
+
+    return {
+        "audio_path": audio_path,
+        "duration_seconds": duration,
+    }
+
+
 async def generate_tts_with_timestamps(
     text: str,
     provider_name: str = "local_piper",
