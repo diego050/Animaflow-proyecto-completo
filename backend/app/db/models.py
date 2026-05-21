@@ -65,7 +65,7 @@ class JobModel(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending', 'segmenting', 'visuals_generating', 'processing_scenes', "
+            "status IN ('pending', 'segmenting', 'segmented', 'visuals_generating', 'processing_scenes', "
             "'queued_render', 'rendering', 'completed', 'failed', 'queued_scene_regen')",
             name="ck_job_status"
         ),
@@ -124,7 +124,7 @@ class ApiKey(Base):
     API key model for user-managed LLM provider keys.
 
     Each user can store their own API keys for different providers
-    (gemini, openai, anthropic, grok). One active key per provider per user.
+    (gemini, openai, anthropic). One active key per provider per user.
     Keys are encrypted at rest using Fernet symmetric encryption.
     """
 
@@ -143,6 +143,11 @@ class ApiKey(Base):
     @property
     def api_key(self):
         return decrypt_value(self._api_key_encrypted)
+
+    @property
+    def api_key_last_four(self) -> str | None:
+        key = self.api_key
+        return key[-4:] if key else None
 
     @api_key.setter
     def api_key(self, value: str):

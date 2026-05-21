@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.1-flash"
     GEMINI_FALLBACK_MODEL: str = "gemini-3.1-flash-lite-preview"
 
+    # Resend (contact form emails)
+    RESEND_API_KEY: Optional[str] = None
+    RESEND_TO_EMAIL: Optional[str] = None
+
     # Voicebox (TTS)
     VOICEBOX_URL: str = "http://127.0.0.1:17493"
 

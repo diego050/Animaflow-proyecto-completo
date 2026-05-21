@@ -13,18 +13,34 @@ def generate_script_from_info(
     user_id: Optional[str] = None,
     template_id: str = "viral_shorts",
     custom_system_prompt: Optional[str] = None,
-    language: str = "es"
+    language: str = "es",
+    api_key: Optional[str] = None,
+    provider: Optional[str] = None,
 ) -> str:
     """Usa Gemini para generar un guion narrativo basado en la información del usuario."""
     from app.core.config import settings
     from app.modules.llm.resolver import resolve_llm_credentials
 
-    creds = resolve_llm_credentials(user_id)
-    api_key = creds.api_key
-    model = creds.model
+    # If user provided an explicit api_key, use it; otherwise resolve from DB/env
+    if api_key:
+        # Determine model: if provider given, use default for that provider; else resolve normally
+        if provider:
+            model_defaults = {
+                "gemini": "gemini-2.0-flash",
+                "openai": "gpt-4o",
+                "anthropic": "claude-3-sonnet-20240229",
+            }
+            model = model_defaults.get(provider, settings.GEMINI_MODEL)
+        else:
+            creds = resolve_llm_credentials(user_id)
+            model = creds.model
+    else:
+        creds = resolve_llm_credentials(user_id, provider_override=provider)
+        api_key = creds.api_key
+        model = creds.model
 
-    if not api_key:
-        return "El motor IA generativo está apagado. Configura GEMINI_API_KEY o agrega tu API key."
+    # If resolve_llm_credentials raised MissingApiKeyError, let it propagate
+    # so the caller (endpoint) can return a proper 400 error.
 
     template = get_template(template_id)
     system_prompt = custom_system_prompt or template.system_prompt

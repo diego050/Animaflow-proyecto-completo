@@ -15,6 +15,7 @@ class ApiKeyResponse(BaseModel):
     provider: str
     is_active: bool
     created_at: datetime
+    api_key_last_four: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

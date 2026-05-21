@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import patch, AsyncMock, Mock
 
 from app.db.models import JobModel
-from app.modules.pipeline.orchestrator import run_pipeline
+from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_approved
 from app.modules.llm.visual_spec import BatchVisualSpec, VisualSpecResult
 
 @pytest.fixture
@@ -93,14 +93,14 @@ class TestPipelineSnapshot:
         db_session.add(job)
         db_session.commit()
 
-        # Run pipeline — signature matches the real jobs.py enqueue call
+        # Phase 1: Segment — signature matches the real jobs.py enqueue call
         run_pipeline(job.id, sample_script, "9:16", None)
 
         # Refresh job from DB (run_pipeline uses its own session)
         db_session.refresh(job)
 
-        # Assert: job completed
-        assert job.status == "completed"
+        # Assert: job segmented
+        assert job.status == "segmented"
 
         # Assert: result_spec exists and has expected structure
         spec = job.result_spec
@@ -108,13 +108,24 @@ class TestPipelineSnapshot:
         assert "scenes" in spec
         assert len(spec["scenes"]) > 0
 
-        # Assert: each scene has required fields
+        # Phase 1 scenes are preliminary: media_query may be empty, duration is 0, type is pending
         for i, scene in enumerate(spec["scenes"]):
             assert "text" in scene, f"Scene {i} missing text"
             assert "media_query" in scene, f"Scene {i} missing media_query"
             assert "duration_seconds" in scene, f"Scene {i} missing duration_seconds"
             assert "type" in scene, f"Scene {i} missing type"
             assert "remotion_props" in scene, f"Scene {i} missing remotion_props"
+
+        # Phase 2: Approve scenes (simulate user approval)
+        run_pipeline_approved(job.id, None)
+        db_session.refresh(job)
+
+        # Assert: job completed
+        assert job.status == "completed"
+
+        # Assert: each scene now has generated fields
+        spec = job.result_spec
+        for i, scene in enumerate(spec["scenes"]):
             assert scene["duration_seconds"] > 0, f"Scene {i} duration must be positive"
 
     def test_pipeline_spec_snapshot(self, db_session, sample_script, mock_external_services):
@@ -127,8 +138,15 @@ class TestPipelineSnapshot:
         db_session.add(job)
         db_session.commit()
 
+        # Phase 1: Segment
         run_pipeline(job.id, sample_script, "9:16", None)
         db_session.refresh(job)
+        assert job.status == "segmented"
+
+        # Phase 2: Approve and generate visuals
+        run_pipeline_approved(job.id, None)
+        db_session.refresh(job)
+        assert job.status == "completed"
 
         spec = job.result_spec
         assert spec is not None
@@ -201,13 +219,25 @@ class TestPipelineIdempotency:
         db_session.add(job)
         db_session.commit()
 
+        # Phase 1: Segment
         run_pipeline(job.id, script, "9:16", None)
         db_session.refresh(job)
+        assert job.status == "segmented"
+
+        # Phase 2: Approve and generate visuals
+        run_pipeline_approved(job.id, None)
+        db_session.refresh(job)
+        assert job.status == "completed"
         first_spec = job.result_spec
 
-        # Re-run
+        # Re-run phase 1 + 2
         run_pipeline(job.id, script, "9:16", None)
         db_session.refresh(job)
+        assert job.status == "segmented"
+
+        run_pipeline_approved(job.id, None)
+        db_session.refresh(job)
+        assert job.status == "completed"
         second_spec = job.result_spec
 
         assert first_spec == second_spec

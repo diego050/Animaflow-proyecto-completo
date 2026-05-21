@@ -1,21 +1,37 @@
 """
-Auth API router for AnimaFlow - register, login, profile management.
+Auth API router for AnimaFlow - register, login, profile management, password reset.
 """
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
+from redis import Redis
 
 from app.db.session import get_db
 from app.db.models import User
-from app.schemas.auth import UserCreate, UserLogin, Token, UserResponse, UserUpdate
+from app.schemas.auth import (
+    UserCreate,
+    UserLogin,
+    Token,
+    UserResponse,
+    UserUpdate,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+)
 from app.core.security import (
     get_password_hash,
     verify_password,
     create_access_token,
     get_current_active_user,
 )
+from app.core.config import settings
 from app.core.limiter import limiter
+from app.core.logging import get_logger
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+redis_conn = Redis.from_url(settings.REDIS_URL, decode_responses=True)
+logger = get_logger("auth")
+
+PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = 60
 
 
 @router.post("/register", response_model=Token, status_code=201)
@@ -106,3 +122,68 @@ def update_me(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+@router.post("/forgot-password", response_model=dict)
+@limiter.limit("3/minute")
+def forgot_password(
+    request: Request,
+    data: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Initiate a password reset flow.
+    Generates a short-lived token stored in Redis.
+    NOTE: In MVP, no SMTP email is sent. The admin can retrieve the token from logs.
+    """
+    user = db.query(User).filter(User.email == data.email, User.is_deleted == False).first()
+
+    # Always return the same generic message to prevent email enumeration
+    if not user:
+        return {"message": "Si el email existe, recibirás instrucciones."}
+
+    token = create_access_token(
+        data={"sub": user.id, "type": "password_reset"},
+        expires_delta=timedelta(minutes=PASSWORD_RESET_TOKEN_EXPIRE_MINUTES),
+    )
+
+    redis_key = f"password_reset:{token}"
+    redis_conn.setex(redis_key, PASSWORD_RESET_TOKEN_EXPIRE_MINUTES * 60, user.id)
+
+    logger.info(
+        "Password reset token generated for user %s (token prefix: %s...)",
+        user.id,
+        token[:20],
+    )
+
+    return {"message": "Si el email existe, recibirás instrucciones."}
+
+
+@router.post("/reset-password", response_model=dict)
+@limiter.limit("3/minute")
+def reset_password(
+    request: Request,
+    data: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Reset a user's password using a valid token from Redis.
+    """
+    redis_key = f"password_reset:{data.token}"
+    user_id = redis_conn.get(redis_key)
+
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Token inválido o expirado")
+
+    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Token inválido o expirado")
+
+    user.hashed_password = get_password_hash(data.new_password)
+    db.commit()
+
+    # Invalidate the token after use
+    redis_conn.delete(redis_key)
+
+    logger.info("Password reset successful for user %s", user.id)
+    return {"message": "Contraseña actualizada correctamente."}

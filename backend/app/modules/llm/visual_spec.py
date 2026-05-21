@@ -28,7 +28,11 @@ class BatchVisualSpec(BaseModel):
 
 
 def generate_batch_visuals_with_llm(
-    chunks: list[str], aspect_ratio: str = "9:16", user_id: Optional[str] = None
+    chunks: list[str],
+    aspect_ratio: str = "9:16",
+    user_id: Optional[str] = None,
+    design_md: Optional[str] = None,
+    system_prompt: Optional[str] = None,
 ) -> BatchVisualSpec:
     """Usa Gemini para generar un arreglo de escenas visuales para cada bloque de texto."""
     from app.core.config import settings
@@ -60,12 +64,19 @@ def generate_batch_visuals_with_llm(
             [f"Escena {i+1}: \"{t}\"" for i, t in enumerate(chunks)]
         )
 
+        custom_instructions = ""
+        if design_md:
+            custom_instructions += f"\n\nINSTRUCCIONES DE DISEÑO DEL USUARIO (design.md):\n{design_md}\n"
+        if system_prompt:
+            custom_instructions += f"\n\nSYSTEM PROMPT DEL USUARIO:\n{system_prompt}\n"
+
         prompt = f"""
 Eres el director de animación SENIOR de AnimaFlow. Analiza este guion y crea descripciones visuales DETALLADAS para animaciones SVG 2D complejas.
 
 CANVAS: {aspect_ratio} ({w}x{h} píxeles). TODAS las posiciones y tamaños deben caber en este canvas.
 
 {scenes_context}
+{custom_instructions}
 
 TU TAREA: Para cada escena, describe una animación SVG 2D única y contextual que refleje el mensaje del texto.
 

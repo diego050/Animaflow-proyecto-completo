@@ -15,7 +15,7 @@ import { AdminProtectedRoute } from './components/auth/AdminProtectedRoute';
 import { ScriptsPage } from './pages/dashboard/ScriptsPage';
 import { DownloadsPage } from './pages/dashboard/DownloadsPage';
 import { VideosPage } from './pages/dashboard/VideosPage';
-import { ImagesPage } from './pages/dashboard/ImagesPage';
+// import { ImagesPage } from './pages/dashboard/ImagesPage'; // MVP: oculto
 import { AdminSystemPage } from './pages/admin/AdminSystemPage';
 import { AdminSettingsPage } from './pages/admin/AdminSettingsPage';
 import { ToastContainer } from './components/ToastContainer';
@@ -58,7 +58,7 @@ export default function App() {
             <Route path="voices" element={<VoicesPage />} />
             <Route path="scripts" element={<ScriptsPage />} />
             <Route path="videos" element={<VideosPage />} />
-            <Route path="images" element={<ImagesPage />} />
+            {/* <Route path="images" element={<ImagesPage />} /> // MVP: oculto */}
             <Route path="downloads" element={<DownloadsPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
