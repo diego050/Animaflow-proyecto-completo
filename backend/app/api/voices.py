@@ -139,7 +139,10 @@ async def preview_voice(
             provider_name="local_piper",  # default for preview
             voice_id=voice.voicebox_profile_id or "es_ES-carlfm-x_low"
         )
-        return {"audio_url": result["audio_path"], "duration": result["duration_seconds"]}
+        # Convert filesystem path to API URL
+        filename = os.path.basename(result["audio_path"])
+        audio_url = f"/api/audio/{filename}"
+        return {"audio_url": audio_url, "duration": result["duration_seconds"]}
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"TTS generation failed: {str(e)}"
