@@ -29,6 +29,7 @@ interface WizardStepInfoProps {
   onTemplateChange: (value: string) => void;
   onCustomPromptChange: (value: string) => void;
   onGenerate: () => void;
+  onCreate: () => void;
   loading: boolean;
 }
 
@@ -53,6 +54,7 @@ export function WizardStepInfo({
   onTemplateChange,
   onCustomPromptChange,
   onGenerate,
+  onCreate,
   loading,
 }: WizardStepInfoProps) {
   const [mode, setMode] = useState<WizardMode>('own-script');
@@ -60,9 +62,9 @@ export function WizardStepInfo({
 
   const handleContinueWithOwnScript = useCallback(() => {
     if (!info.trim()) return;
-    setWizardData({ script: info });
-    setWizardStep(2);
-  }, [info, setWizardData, setWizardStep]);
+    setWizardData({ script: info, skippedReview: true, wizardMode: 'own-script' });
+    onCreate();
+  }, [info, setWizardData, onCreate]);
 
   return (
     <div className="space-y-6">

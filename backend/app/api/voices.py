@@ -23,7 +23,7 @@ def list_voices(
 ):
     """List all voices for the current user.
 
-    If no voices exist, a default Kokoro voice is auto-created.
+    If no voices exist, a default Carl voice is auto-created.
     """
     voices = (
         db.query(Voice)

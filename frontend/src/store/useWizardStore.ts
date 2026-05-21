@@ -12,6 +12,8 @@ export interface WizardData {
   customHeight: number;
   templateId: string;
   customPrompt: string;
+  skippedReview: boolean;
+  wizardMode: 'own-script' | 'ai-generate' | null;
 }
 
 export interface WizardState {
@@ -36,6 +38,8 @@ export const useWizardStore = create<WizardState>((set) => ({
     customHeight: 1920,
     templateId: 'viral_shorts',
     customPrompt: '',
+    skippedReview: false,
+    wizardMode: null,
   },
 
   setWizardStep: (step: number) => set({ wizardStep: step }),
@@ -60,6 +64,8 @@ export const useWizardStore = create<WizardState>((set) => ({
         customHeight: 1920,
         templateId: 'viral_shorts',
         customPrompt: '',
+        skippedReview: false,
+        wizardMode: null,
       },
     });
   },
