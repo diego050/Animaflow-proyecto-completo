@@ -6,7 +6,7 @@ from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -86,4 +86,47 @@ def require_admin(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
         )
+    return current_user
+
+
+def get_current_user_from_token(
+    token: Optional[str] = Query(None),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Extract and validate token from either query param or Bearer header.
+    Priority: query param > header
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    # Try query param first, then header
+    raw_token = token or (credentials.credentials if credentials else None)
+    if not raw_token:
+        raise credentials_exception
+
+    try:
+        payload = jwt.decode(raw_token, settings.SECRET_KEY, algorithms=["HS256"])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    if user is None or not user.is_active:
+        raise credentials_exception
+    return user
+
+
+def get_current_active_user_from_token(
+    current_user: User = Depends(get_current_user_from_token),
+) -> User:
+    """Ensure the authenticated user is active (supports query param token)."""
+    if not current_user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
