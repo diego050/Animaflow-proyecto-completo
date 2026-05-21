@@ -15,6 +15,7 @@ export interface WizardData {
   skippedReview: boolean;
   wizardMode: 'own-script' | 'ai-generate' | null;
   targetDurationSeconds: number;
+  durationUnit: 'seconds' | 'words';
 }
 
 export interface WizardState {
@@ -42,6 +43,7 @@ export const useWizardStore = create<WizardState>((set) => ({
     skippedReview: false,
     wizardMode: null,
     targetDurationSeconds: 30,
+    durationUnit: 'seconds',
   },
 
   setWizardStep: (step: number) => set({ wizardStep: step }),
@@ -69,6 +71,7 @@ export const useWizardStore = create<WizardState>((set) => ({
         skippedReview: false,
         wizardMode: null,
         targetDurationSeconds: 30,
+        durationUnit: 'seconds',
       },
     });
   },
