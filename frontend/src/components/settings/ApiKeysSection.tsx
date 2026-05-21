@@ -16,6 +16,7 @@ export function ApiKeysSection() {
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchApiKeys();
@@ -61,6 +62,10 @@ export function ApiKeysSection() {
     } finally {
       setDeleteLoading(null);
     }
+  };
+
+  const toggleKeyVisibility = (id: string) => {
+    setVisibleKeys((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
@@ -117,7 +122,24 @@ export function ApiKeysSection() {
                       {PROVIDER_LABELS[provider]}
                     </p>
                     {configured && (
-                      <p className="text-xs text-text-secondary/50">
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-xs font-mono text-text-secondary/70">
+                          {visibleKeys[configured.id]
+                            ? configured.api_key_last_four
+                              ? `sk-...${configured.api_key_last_four}`
+                              : 'sk-...****'
+                            : 'sk-...****'}
+                        </p>
+                        <button
+                          onClick={() => toggleKeyVisibility(configured.id)}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-surface-high text-text-secondary hover:text-text-primary transition-colors"
+                        >
+                          {visibleKeys[configured.id] ? 'Ocultar' : 'Mostrar'}
+                        </button>
+                      </div>
+                    )}
+                    {configured && (
+                      <p className="text-xs text-text-secondary/50 mt-0.5">
                         Creada:{' '}
                         {new Date(configured.created_at).toLocaleDateString('es-ES', {
                           day: 'numeric',
@@ -160,6 +182,9 @@ export function ApiKeysSection() {
             );
           })}
         </div>
+        <p className="text-xs text-text-secondary/50 mt-3">
+          Por seguridad, solo mostramos los últimos 4 caracteres. Guarda tus API keys en un lugar seguro.
+        </p>
       </div>
 
       {/* Add API Key Modal */}

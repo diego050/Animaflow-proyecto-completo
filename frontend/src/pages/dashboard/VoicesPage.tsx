@@ -2,10 +2,19 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Plus, Loader2, Upload, X, AlertCircle, Mic, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVoicesStore } from '../../store/useVoicesStore';
+import { useSettingsStore } from '../../store/useSettingsStore';
 import { VoiceRow } from '../../components/dashboard/VoiceCard';
 import { VoiceInspector } from '../../components/dashboard/VoiceInspector';
 import { Modal } from '../../components/dashboard/Modal';
 import type { Voice } from '../../types/job';
+
+const VOICE_NAMES: Record<string, string> = {
+  'es_ES-carlfm-x_low': 'Carl (Español)',
+};
+
+function getVoiceDisplayName(voice: Voice): string {
+  return VOICE_NAMES[voice.name] ?? voice.name;
+}
 
 const MAX_FILE_SIZE_MB = 50;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -21,6 +30,9 @@ export function VoicesPage() {
     uploadVoiceSample,
     previewVoice,
   } = useVoicesStore();
+
+  const { settings } = useSettingsStore();
+  const isLocalProvider = settings.ttsProvider === 'local_piper';
 
   const [search, setSearch] = useState('');
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
@@ -294,15 +306,17 @@ export function VoicesPage() {
               className="w-full bg-surface-lowest border border-border-tech rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors"
             />
           </div>
-          {/* New voice button */}
-          <button
-            onClick={handleOpenModal}
-            disabled={voicesLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-mint-precision text-deep-slate rounded-lg text-sm font-semibold hover:bg-white hover:-translate-y-0.5 transition-all duration-300 shadow-[0_0_12px_rgba(0,255,171,0.15)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">Nueva</span>
-          </button>
+          {/* New voice button — hidden for local provider (MVP) */}
+          {!isLocalProvider && (
+            <button
+              onClick={handleOpenModal}
+              disabled={voicesLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-mint-precision text-deep-slate rounded-lg text-sm font-semibold hover:bg-white hover:-translate-y-0.5 transition-all duration-300 shadow-[0_0_12px_rgba(0,255,171,0.15)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">Nueva</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -323,18 +337,22 @@ export function VoicesPage() {
             <Mic size={36} className="text-text-secondary/30" />
           </div>
           <h2 className="text-xl font-display font-bold text-text-primary mb-2">
-            No tienes voces aún
+            {isLocalProvider ? 'Voz Local Activa' : 'No tienes voces aún'}
           </h2>
           <p className="text-text-secondary text-sm max-w-sm mb-6">
-            Crea tu primera voz para comenzar a generar videos con narración personalizada.
+            {isLocalProvider
+              ? 'Estás usando la voz local Carl (Español). No es necesario crear voces adicionales.'
+              : 'Crea tu primera voz para comenzar a generar videos con narración personalizada.'}
           </p>
-          <button
-            onClick={handleOpenModal}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-mint-precision text-deep-slate rounded-lg text-sm font-semibold hover:bg-white transition-all shadow-[0_0_12px_rgba(0,255,171,0.15)]"
-          >
-            <Plus size={16} />
-            Crear primera voz
-          </button>
+          {!isLocalProvider && (
+            <button
+              onClick={handleOpenModal}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-mint-precision text-deep-slate rounded-lg text-sm font-semibold hover:bg-white transition-all shadow-[0_0_12px_rgba(0,255,171,0.15)]"
+            >
+              <Plus size={16} />
+              Crear primera voz
+            </button>
+          )}
         </motion.div>
       ) : (
         <div className="flex gap-6">
@@ -360,7 +378,7 @@ export function VoicesPage() {
                     {filteredVoices.map((voice) => (
                       <VoiceRow
                         key={voice.id}
-                        voice={voice}
+                        voice={{ ...voice, name: getVoiceDisplayName(voice) }}
                         isSelected={selectedVoiceId === voice.id}
                         onSelect={() => setSelectedVoiceId(voice.id)}
                         onPreview={handlePreview}
@@ -397,7 +415,7 @@ export function VoicesPage() {
               >
                 <div className="bg-surface-container border border-border-tech rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 280px)', minHeight: 400 }}>
                   <VoiceInspector
-                    voice={selectedVoice}
+                    voice={{ ...selectedVoice, name: getVoiceDisplayName(selectedVoice) }}
                     onClose={() => setSelectedVoiceId(null)}
                     onDelete={handleDelete}
                     onPreview={handlePreview}

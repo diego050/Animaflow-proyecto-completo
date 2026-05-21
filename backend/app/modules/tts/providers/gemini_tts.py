@@ -18,7 +18,7 @@ class GeminiTTSProvider(TTSProvider):
     def requires_api_key(self) -> bool:
         return True
 
-    async def generate_audio(self, text: str, voice_id: str = "default", api_key: Optional[str] = None) -> str:
+    async def generate_audio(self, text: str, voice_id: str = "es_ES-carlfm-x_low", api_key: Optional[str] = None) -> str:
         if not api_key:
             raise ValueError("Gemini TTS requires an API key")
 

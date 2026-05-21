@@ -5,6 +5,7 @@ import datetime
 JobStatus = Literal[
     "pending",
     "segmenting",
+    "segmented",
     "visuals_generating",
     "processing_scenes",
     "queued_render",
@@ -14,12 +15,28 @@ JobStatus = Literal[
     "queued_scene_regen",
 ]
 
+class SceneData(BaseModel):
+    text: str
+    media_query: str = ""
+    start_time_seconds: float = 0.0
+    duration_seconds: float = 0.0
+
+class SceneApprovalRequest(BaseModel):
+    scenes: list[SceneData]
+
+class SceneInput(BaseModel):
+    text: str
+    media_query: Optional[str] = None
+
 class JobCreate(BaseModel):
     script_text: str
     aspect_ratio: str = "9:16"
     tts_provider: str = Field(default="local_piper", description="TTS provider: local_piper, elevenlabs, google_tts, gemini_tts")
     tts_voice_id: str = Field(default="es_ES-carlfm-x_low", description="Voice ID for the selected TTS provider")
     tts_api_key: Optional[str] = Field(default=None, description="Optional API key for external TTS providers")
+    scenes: Optional[list[SceneInput]] = Field(default=None, description="Optional pre-defined scenes. If provided, skips automatic segmentation.")
+    design_md: Optional[str] = Field(default=None, description="Optional design.md content for custom visual instructions")
+    system_prompt: Optional[str] = Field(default=None, description="Optional custom system prompt for LLM visual generation")
 
 class SceneRegenerateRequest(BaseModel):
     media_query: str
@@ -42,6 +59,8 @@ class ScriptGenerateRequest(BaseModel):
     info: str
     template_id: str = Field(default="viral_shorts", description="Script template ID: viral_shorts, educational, storytelling, promotional")
     custom_prompt: Optional[str] = Field(default=None, description="Optional custom system prompt override")
+    api_key: Optional[str] = Field(default=None, description="Optional user-provided API key for LLM. Falls back to global config if not provided.")
+    provider: Optional[str] = Field(default=None, description="Optional LLM provider override (gemini, openai, anthropic). Falls back to user default or global config.")
 
 class ScriptGenerateResponse(BaseModel):
     script_text: str

@@ -157,7 +157,7 @@ export interface UserSettings {
 }
 
 export const AVAILABLE_TTS_PROVIDERS = [
-  { id: 'local_piper', name: 'Voz Local (Piper) - Gratis, más lento', requiresKey: false },
+  { id: 'local_piper', name: 'Voz Local (Piper) — Carl (Español) — Gratis, más lento', requiresKey: false },
   { id: 'elevenlabs', name: 'ElevenLabs - Mejor calidad', requiresKey: true },
   { id: 'google_tts', name: 'Google Cloud TTS - Económico', requiresKey: true },
   { id: 'gemini_tts', name: 'Gemini TTS - Experimental', requiresKey: true },

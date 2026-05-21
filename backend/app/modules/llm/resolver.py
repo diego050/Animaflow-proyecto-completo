@@ -2,10 +2,20 @@
 LLM provider resolution utilities.
 
 Resolves which API key and model to use for LLM calls, prioritizing
-user-specific settings and falling back to global configuration.
+user-specific settings and falling back to global configuration ONLY for
+unauthenticated or admin contexts. Authenticated regular users MUST provide
+their own API key.
 """
 from typing import Optional
 from dataclasses import dataclass
+
+
+class MissingApiKeyError(Exception):
+    """Raised when an authenticated user has no configured API key."""
+
+    def __init__(self, message: str = "API key not configured. Please add your API key in Settings > API Keys."):
+        self.message = message
+        super().__init__(self.message)
 
 
 @dataclass
@@ -26,7 +36,8 @@ def resolve_llm_credentials(
     Priority order:
     1. User's active API key for their default_provider (or provider_override)
     2. User's default_model (if using their key)
-    3. Global settings fallback (GEMINI_API_KEY, GEMINI_MODEL)
+    3. Global settings fallback (GEMINI_API_KEY, GEMINI_MODEL) — ONLY when
+       user_id is None (unauthenticated) or user does not exist.
 
     Args:
         user_id: The user's ID. If None, returns global fallback.
@@ -34,12 +45,15 @@ def resolve_llm_credentials(
 
     Returns:
         LLMCredentials with resolved api_key, model, and provider.
+
+    Raises:
+        MissingApiKeyError: If the user is authenticated but has no active API key.
     """
     from app.core.config import settings
-    from app.db.session import SessionLocal, get_db_context
+    from app.db.session import get_db_context
     from app.db.models import User, ApiKey
 
-    # Default fallback to global Gemini config
+    # Default fallback to global Gemini config (unauthenticated only)
     fallback_api_key = getattr(settings, "GEMINI_API_KEY", None)
     fallback_model = getattr(settings, "GEMINI_MODEL", "gemini-2.0-flash")
     fallback_provider = "gemini"
@@ -54,6 +68,7 @@ def resolve_llm_credentials(
     with get_db_context() as db:
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
+            # Unknown user — allow global fallback to avoid breaking edge cases
             return LLMCredentials(
                 api_key=fallback_api_key or "",
                 model=fallback_model,
@@ -74,8 +89,11 @@ def resolve_llm_credentials(
             .first()
         )
 
-        api_key = key_record.api_key if key_record else (fallback_api_key or "")
-        model = user.default_model if (key_record and user.default_model) else fallback_model
+        if not key_record:
+            raise MissingApiKeyError()
+
+        api_key = key_record.api_key
+        model = user.default_model if user.default_model else fallback_model
 
         return LLMCredentials(
             api_key=api_key,

@@ -35,15 +35,15 @@ def list_voices(
         .all()
     )
 
-    # If no voices exist, create a default Kokoro voice
+    # If no voices exist, create a default Carl voice
     if not voices:
         default_voice = Voice(
             user_id=current_user.id,
-            name="Kokoro ES (Default)",
+            name="Carl (Default)",
             gender="neutral",
             language="es",
             is_default=True,
-            voicebox_profile_id="kokoro-default",
+            voicebox_profile_id="es_ES-carlfm-x_low",
         )
         db.add(default_voice)
         db.commit()
@@ -130,12 +130,12 @@ async def preview_voice(
     if not voice:
         raise HTTPException(status_code=404, detail="Voice not found")
 
-    # Generate TTS preview
+    # Generate TTS preview using the voice's profile ID
     try:
         result = await generate_tts_with_timestamps(
             text=preview_data.text,
             provider_name="local_piper",  # default for preview
-            voice_id="default"
+            voice_id=voice.voicebox_profile_id or "es_ES-carlfm-x_low"
         )
         return {"audio_url": result["audio_path"], "duration": result["duration_seconds"]}
     except Exception as e:

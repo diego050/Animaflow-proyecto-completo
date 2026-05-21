@@ -11,13 +11,14 @@ from app.schemas.job import (
     ScriptGenerateRequest,
     ScriptGenerateResponse,
     SceneRegenerateRequest,
+    SceneApprovalRequest,
 )
 from app.db.session import get_db
 from app.db.models import JobModel, User
 from app.core.config import settings
 from app.core.security import get_current_active_user
 from app.core.limiter import limiter
-from app.modules.pipeline.orchestrator import run_pipeline
+from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_approved
 
 
 def get_job_or_404(db: Session, job_id: str, user_id: str) -> JobModel:
@@ -66,6 +67,11 @@ async def create_job(
         job_in.tts_provider,
         job_in.tts_voice_id,
         job_in.tts_api_key,
+        kwargs={
+            "scenes": [s.model_dump() for s in job_in.scenes] if job_in.scenes else None,
+            "design_md": job_in.design_md,
+            "system_prompt": job_in.system_prompt,
+        },
         job_timeout="10m",
         retry=Retry(max=3),
     )
@@ -90,6 +96,64 @@ async def get_job_status(
     return JobResponse(
         job_id=job.id,
         status=job.status,
+        result_spec=job.result_spec,
+        video_url=job.video_url,
+    )
+
+
+@router.post("/{job_id}/approve-scenes", response_model=JobResponse)
+async def approve_scenes(
+    job_id: str,
+    approval: SceneApprovalRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Approve or edit segmented scenes and continue the pipeline.
+
+    The frontend sends the confirmed/edited scenes with their media_query
+    prompts. The pipeline then generates visuals, TTS, and Remotion components.
+    """
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id,
+        JobModel.user_id == current_user.id,
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.status != "segmented":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be in 'segmented' status to approve scenes (current: {job.status})"
+        )
+
+    if not approval.scenes:
+        raise HTTPException(status_code=400, detail="No scenes provided for approval")
+
+    # Update result_spec with the approved/edited scenes
+    current_spec = job.result_spec or {}
+    current_spec["scenes"] = [scene.model_dump() for scene in approval.scenes]
+    job.result_spec = current_spec
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(job, "result_spec")
+    db.commit()
+
+    # Enqueue the second phase of the pipeline
+    # tts_api_key is resolved inside the worker via _get_user_api_key
+    queue.enqueue(
+        run_pipeline_approved,
+        job.id,
+        current_user.id,
+        job.tts_provider or "local_piper",
+        job.tts_voice_id or "es_ES-carlfm-x_low",
+        None,
+        job_timeout="10m",
+        retry=Retry(max=3),
+    )
+
+    # Return immediately with the updated status
+    return JobResponse(
+        job_id=job.id,
+        status="visuals_generating",
         result_spec=job.result_spec,
         video_url=job.video_url,
     )
@@ -268,13 +332,20 @@ async def generate_script(
     current_user: User = Depends(get_current_active_user),
 ):
     from app.modules.llm.script_generator import generate_script_from_info
+    from app.modules.llm.resolver import MissingApiKeyError
 
-    script = generate_script_from_info(
-        info=req.info,
-        user_id=current_user.id,
-        template_id=req.template_id,
-        custom_system_prompt=req.custom_prompt,
-    )
+    try:
+        script = generate_script_from_info(
+            info=req.info,
+            user_id=current_user.id,
+            template_id=req.template_id,
+            custom_system_prompt=req.custom_prompt,
+            api_key=req.api_key,
+            provider=req.provider,
+        )
+    except MissingApiKeyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
     return ScriptGenerateResponse(script_text=script)
 
 

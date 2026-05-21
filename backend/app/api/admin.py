@@ -522,7 +522,7 @@ def get_admin_settings(
     return {
         "site_name": "AnimaFlow",
         "max_jobs_per_user": 10,
-        "default_voice": "default",
+        "default_voice": "es_ES-carlfm-x_low",
         "maintenance_mode": False,
     }
 

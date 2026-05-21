@@ -4,6 +4,7 @@ import { Download, Zap, Edit3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
+import { api } from '../api/client';
 import { SEOHead } from '../components/SEOHead';
 import { OrganizationStructuredData, SoftwareApplicationStructuredData } from '../components/StructuredData';
 
@@ -28,16 +29,18 @@ export function Landing() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStatus('submitting');
-    
+
     try {
-      const response = await fetch('/api/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+      const messageParts = ['Contacto desde landing'];
+      if (formData.telefono) messageParts.push(`Teléfono: ${formData.telefono}`);
+      if (formData.rol) messageParts.push(`Rol: ${formData.rol}`);
+
+      await api.post('/api/send', {
+        email: formData.email,
+        name: formData.nombre || 'Anónimo',
+        message: messageParts.join(' | '),
       });
-      
-      if (!response.ok) throw new Error('Error al enviar form');
-      
+
       setStatus('success');
       setFormData({ nombre: '', email: '', telefono: '', rol: '' });
     } catch (error) {
@@ -92,7 +95,7 @@ export function Landing() {
               De 3 semanas a hoy mismo.<br/><span className="text-text-secondary">Sin saber animar.</span>
             </h1>
             <p className="font-body text-lg text-text-secondary max-w-lg leading-relaxed">
-              Crea videos profesionales para tus redes en menos de un dÃ­a. Sin contratar editores, sin complicaciones.
+              Crea videos profesionales para tus redes en menos de un día. Sin contratar editores, sin complicaciones.
             </p>
             <div className="pt-2">
               <button 
@@ -100,7 +103,7 @@ export function Landing() {
                 className="bg-mint-precision text-deep-slate px-8 py-4 rounded-md text-sm font-bold hover:bg-white hover:-translate-y-1 transition-all duration-300 shadow-[0_0_20px_rgba(0,255,171,0.2)] hover:shadow-[0_10px_40px_rgba(0,255,171,0.5)] flex items-center gap-2 group" 
               >
                 Crear mi primer video
-                <span className="transition-transform duration-300 group-hover:translate-x-1">â†’</span>
+                <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
               </button>
             </div>
           </motion.div>
@@ -258,9 +261,9 @@ export function Landing() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { title: "De dÃ­as a minutos", desc: "Ahorra valioso tiempo. Lo que antes tardaba semanas de trabajo, ahora estÃ¡ listo sÃºper rÃ¡pido con algunos prompts.", icon: Zap },
-              { title: "EdiciÃ³n hÃ­brida", desc: "Crea y edita animaciones simplemente describiÃ©ndolas con prompts. Ajusta colores, tiempos o cualquier detalle manualmente si lo prefieres.", icon: Edit3 },
-              { title: "Exporta donde quieras", desc: "Descarga tu video en alta calidad listo para compartir en tus redes, o llÃ©valo a tu editor favorito.", icon: Download }
+              { title: "De días a minutos", desc: "Ahorra valioso tiempo. Lo que antes tardaba semanas de trabajo, ahora está listo súper rápido con algunos prompts.", icon: Zap },
+              { title: "Edición híbrida", desc: "Crea y edita animaciones simplemente describiéndolas con prompts. Ajusta colores, tiempos o cualquier detalle manualmente si lo prefieres.", icon: Edit3 },
+              { title: "Exporta donde quieras", desc: "Descarga tu video en alta calidad listo para compartir en tus redes, o llévalo a tu editor favorito.", icon: Download }
             ].map((feature, i) => {
               const Icon = feature.icon;
               return (
@@ -283,9 +286,9 @@ export function Landing() {
         {/* Pipeline Bento Grid - Ultra Creative */}
         <section className="py-16 max-w-6xl mx-auto relative">
           <div className="text-center mb-20 relative z-10">
-            <h2 className="font-display font-bold text-4xl md:text-5xl text-text-primary mb-6 tracking-tight">CÃ³mo Funciona</h2>
+            <h2 className="font-display font-bold text-4xl md:text-5xl text-text-primary mb-6 tracking-tight">Cómo Funciona</h2>
             <p className="font-body text-lg text-text-secondary max-w-2xl mx-auto leading-relaxed">
-              Solo necesitas una idea. Nuestra IA se encarga de convertirla en una animaciÃ³n fluida en 4 pasos muy simples que cualquier persona puede seguir.
+              Solo necesitas una idea. Nuestra IA se encarga de convertirla en una animación fluida en 4 pasos muy simples que cualquier persona puede seguir.
             </p>
           </div>
           
@@ -316,8 +319,8 @@ export function Landing() {
                 <div className="text-mint-precision font-mono text-xs mb-3 font-bold uppercase tracking-widest flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-mint-precision animate-pulse"></span> Paso 1
                 </div>
-                <h3 className="font-display font-bold text-2xl text-text-primary mb-3">Guion, Voz y FragmentaciÃ³n</h3>
-                <p className="font-body text-sm text-text-secondary leading-relaxed">La IA genera el guion desde tu informaciÃ³n, crea el audio con voz y lo divide en fragmentos exactos. Si ya tienes guion o audio, adaptamos el proceso automÃ¡ticamente.</p>
+                <h3 className="font-display font-bold text-2xl text-text-primary mb-3">Guion, Voz y Fragmentación</h3>
+                <p className="font-body text-sm text-text-secondary leading-relaxed">La IA genera el guion desde tu información, crea el audio con voz y lo divide en fragmentos exactos. Si ya tienes guion o audio, adaptamos el proceso automáticamente.</p>
               </div>
             </motion.div>
 
@@ -333,7 +336,7 @@ export function Landing() {
                   <span className="w-2 h-2 rounded-full bg-mint-precision animate-pulse"></span> Paso 2
                 </div>
                 <h3 className="font-display font-bold text-2xl text-text-primary mb-3">Animaciones SVG con JSON</h3>
-                <p className="font-body text-sm text-text-secondary leading-relaxed">Para cada fragmento de tu video, nuestro motor crea instantÃ¡neamente animaciones vectoriales (SVG) de alta calidad, estructuradas a travÃ©s de JSON.</p>
+                <p className="font-body text-sm text-text-secondary leading-relaxed">Para cada fragmento de tu video, nuestro motor crea instantáneamente animaciones vectoriales (SVG) de alta calidad, estructuradas a través de JSON.</p>
               </div>
 
               <div className="w-full md:w-1/2 h-48 bg-[#0b101a] rounded-xl border border-border-tech relative overflow-hidden flex items-center justify-center order-1 md:order-2">
@@ -362,8 +365,8 @@ export function Landing() {
                 <div className="text-cadmium-orange font-mono text-xs mb-3 font-bold uppercase tracking-widest flex items-center justify-start md:justify-end gap-2">
                   <span className="w-2 h-2 rounded-full bg-cadmium-orange animate-pulse"></span> Paso 3
                 </div>
-                <h3 className="font-display font-bold text-2xl text-text-primary mb-3">EdiciÃ³n Visual y por Prompts</h3>
-                <p className="font-body text-sm text-text-secondary leading-relaxed">Toma el control total. Edita detalles de forma manual en la interfaz visual, o utiliza simples prompts para modificar fÃ¡cilmente las animaciones generadas.</p>
+                <h3 className="font-display font-bold text-2xl text-text-primary mb-3">Edición Visual y por Prompts</h3>
+                <p className="font-body text-sm text-text-secondary leading-relaxed">Toma el control total. Edita detalles de forma manual en la interfaz visual, o utiliza simples prompts para modificar fácilmente las animaciones generadas.</p>
               </div>
 
               <div className="w-full md:w-1/2 h-48 bg-[#0b101a] rounded-xl border border-border-tech relative p-6 flex flex-col justify-center">
@@ -417,7 +420,7 @@ export function Landing() {
                 <div className="text-mint-precision font-mono text-xs mb-3 font-bold uppercase tracking-widest flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-mint-precision animate-pulse"></span> Paso 4
                 </div>
-                <h3 className="font-display font-bold text-2xl text-text-primary mb-3">ExportaciÃ³n Multiformato</h3>
+                <h3 className="font-display font-bold text-2xl text-text-primary mb-3">Exportación Multiformato</h3>
                 <p className="font-body text-sm text-text-secondary leading-relaxed">Descarga en MP4 o formato editable. Puedes adaptar tus videos de 16:9 a 9:16 al instante con nuevos hooks y fragmentos perfectos para Reels y TikTok.</p>
               </div>
             </motion.div>
@@ -437,22 +440,22 @@ export function Landing() {
               <div className="w-12 h-12 bg-mint-precision/10 border border-mint-precision/20 rounded-xl flex items-center justify-center mb-6">
                 <span className="text-mint-precision font-mono text-xl">{'{}'}</span>
               </div>
-              <h2 className="font-display font-bold text-3xl md:text-4xl text-text-primary mb-4">Ãšnete a la Beta Gratis</h2>
+              <h2 className="font-display font-bold text-3xl md:text-4xl text-text-primary mb-4">Únete a la Beta Gratis</h2>
               <p className="font-body text-base text-text-secondary mb-8 leading-relaxed">
-                Empieza a crear videos animados de alta calidad sin complicaciones. Ãšnete ahora y transforma tu proceso creativo.
+                Empieza a crear videos animados de alta calidad sin complicaciones. Únete ahora y transforma tu proceso creativo.
               </p>
               
               <ul className="space-y-4 font-body text-sm text-text-secondary w-full max-w-sm">
                 <li className="flex items-center justify-center md:justify-start gap-3 text-left">
-                  <span className="w-5 h-5 rounded-full bg-mint-precision/10 flex items-center justify-center text-mint-precision shrink-0">âœ“</span>
+                  <span className="w-5 h-5 rounded-full bg-mint-precision/10 flex items-center justify-center text-mint-precision shrink-0">✓</span>
                   <span>Perfecto para creadores de contenido y YouTubers</span>
                 </li>
                 <li className="flex items-center justify-center md:justify-start gap-3 text-left">
-                  <span className="w-5 h-5 rounded-full bg-mint-precision/10 flex items-center justify-center text-mint-precision shrink-0">âœ“</span>
-                  <span>Ideal para diseÃ±adores, freelancers y marketers</span>
+                  <span className="w-5 h-5 rounded-full bg-mint-precision/10 flex items-center justify-center text-mint-precision shrink-0">✓</span>
+                  <span>Ideal para diseñadores, freelancers y marketers</span>
                 </li>
                 <li className="flex items-center justify-center md:justify-start gap-3 text-left">
-                  <span className="w-5 h-5 rounded-full bg-mint-precision/10 flex items-center justify-center text-mint-precision shrink-0">âœ“</span>
+                  <span className="w-5 h-5 rounded-full bg-mint-precision/10 flex items-center justify-center text-mint-precision shrink-0">✓</span>
                   <span>Acceso completo al editor visual sin costo</span>
                 </li>
               </ul>
@@ -489,7 +492,7 @@ export function Landing() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block font-mono text-[11px] text-text-secondary uppercase tracking-widest font-semibold">TelÃ©fono (Opciónal)</label>
+                  <label className="block font-mono text-[11px] text-text-secondary uppercase tracking-widest font-semibold">Teléfono (Opcional)</label>
                   <input 
                     className="w-full bg-[#0b101a] border border-border-tech/80 rounded-md px-4 py-3 text-text-primary text-sm focus:outline-none focus:border-mint-precision focus:ring-1 focus:ring-mint-precision transition-all placeholder:text-text-secondary/40 disabled:opacity-50" 
                     placeholder="+51 900 000 000" 
@@ -501,7 +504,7 @@ export function Landing() {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="block font-mono text-[11px] text-text-secondary uppercase tracking-widest font-semibold">Â¿QuÃ© tipo de contenido creas? (Opciónal)</label>
+                  <label className="block font-mono text-[11px] text-text-secondary uppercase tracking-widest font-semibold">¿Qué tipo de contenido creas? (Opcional)</label>
                   <div className="relative">
                     <select 
                       className="w-full bg-[#0b101a] border border-border-tech/80 rounded-md px-4 py-3 text-text-secondary text-sm focus:outline-none focus:border-mint-precision focus:ring-1 focus:ring-mint-precision transition-all appearance-none cursor-pointer disabled:opacity-50" 
@@ -509,11 +512,11 @@ export function Landing() {
                       onChange={(e) => setFormData({...formData, rol: e.target.value})}
                       disabled={status === 'submitting'}
                     >
-                      <option value="" disabled>selecciónar opciÃ³n...</option>
+                      <option value="" disabled>seleccionar opción...</option>
                       <option value="youtube" className="bg-deep-slate">YouTube / Redes Sociales</option>
-                      <option value="design" className="bg-deep-slate">DiseÃ±o / Freelance</option>
+                      <option value="design" className="bg-deep-slate">Diseño / Freelance</option>
                       <option value="marketing" className="bg-deep-slate">Marketing / Agencia</option>
-                      <option value="education" className="bg-deep-slate">EducaciÃ³n / Cursos</option>
+                      <option value="education" className="bg-deep-slate">Educación / Cursos</option>
                       <option value="other" className="bg-deep-slate">Otro</option>
 
                     </select>
@@ -530,7 +533,7 @@ export function Landing() {
                       <svg className="absolute w-3 h-3 text-deep-slate opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity" viewBox="0 0 14 10" fill="none"><path d="M1 5L5 9L13 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     </div>
                     <span className="font-body text-xs text-text-secondary leading-tight">
-                      Acepto la <Link to="/privacy" className="text-mint-precision hover:underline transition-all">PolÃ­tica de Privacidad</Link> y autorizo el tratamiento de mis datos.
+                      Acepto la <Link to="/privacy" className="text-mint-precision hover:underline transition-all">Política de Privacidad</Link> y autorizo el tratamiento de mis datos.
                     </span>
                   </label>
                 </div>
@@ -544,12 +547,12 @@ export function Landing() {
                     <div className="absolute inset-0 bg-mint-precision opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       {status === 'submitting' ? 'Enviando...' : 'Empieza gratis'} 
-                      {status !== 'submitting' && <span className="transition-transform group-hover:translate-x-1">â†’</span>}
+                      {status !== 'submitting' && <span className="transition-transform group-hover:translate-x-1">→</span>}
                     </span>
                   </button>
 
                   {status === 'success' && (
-                    <motion.p initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="text-mint-precision text-sm mt-4 text-center font-semibold">Â¡Solicitud enviada! Te contactaremos pronto.</motion.p>
+                    <motion.p initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="text-mint-precision text-sm mt-4 text-center font-semibold">¡Solicitud enviada! Te contactaremos pronto.</motion.p>
                   )}
                   {status === 'error' && (
                     <motion.p initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="text-red-500 text-sm mt-4 text-center font-semibold">Error de red. Intenta nuevamente.</motion.p>

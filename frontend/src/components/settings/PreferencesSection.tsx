@@ -9,7 +9,7 @@ export function PreferencesSection() {
 
   const [prefAspectRatio, setPrefAspectRatio] = useState(settings.defaultAspectRatio);
   const [prefVoice, setPrefVoice] = useState(settings.defaultVoiceId);
-  const [prefLanguage, setPrefLanguage] = useState(settings.language);
+  // const [prefLanguage, setPrefLanguage] = useState(settings.language); // MVP: idioma fijo ES
   const [prefTheme, setPrefTheme] = useState(settings.theme);
   const [saved, setSaved] = useState(false);
 
@@ -17,12 +17,12 @@ export function PreferencesSection() {
     updateSettings({
       defaultAspectRatio: prefAspectRatio,
       defaultVoiceId: prefVoice,
-      language: prefLanguage,
+      // language: prefLanguage, // MVP: idioma fijo ES
       theme: prefTheme,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [prefAspectRatio, prefVoice, prefLanguage, prefTheme, updateSettings]);
+  }, [prefAspectRatio, prefVoice, prefTheme, updateSettings]);
 
   return (
     <div className="bg-surface-container border border-border-tech rounded-xl p-6 space-y-5">
@@ -63,22 +63,6 @@ export function PreferencesSection() {
               {v.name}
             </option>
           ))}
-        </select>
-      </div>
-
-      {/* Language */}
-      <div>
-        <label className="block text-text-secondary text-sm font-medium mb-2">
-          Idioma de la interfaz
-        </label>
-        <select
-          value={prefLanguage}
-          onChange={(e) => setPrefLanguage(e.target.value)}
-          className="w-full bg-surface-lowest border border-border-tech rounded-lg px-4 py-2.5 text-sm text-text-primary focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors appearance-none"
-        >
-          <option value="es">Español</option>
-          <option value="en">English</option>
-          <option value="pt">Português</option>
         </select>
       </div>
 

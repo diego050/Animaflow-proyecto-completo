@@ -69,6 +69,7 @@ export interface ApiKeyEntry {
   provider: ApiKeyProvider;
   is_active: boolean;
   created_at: string;
+  api_key_last_four?: string;
 }
 
 export interface ApiKeyCreateRequest {
