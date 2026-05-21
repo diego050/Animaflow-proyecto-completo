@@ -11,19 +11,21 @@ import { WizardStepInfo } from '../../components/wizard/WizardStepInfo';
 import { WizardSummary } from '../../components/wizard/WizardSummary';
 import { WizardStepProcessing } from '../../components/wizard/WizardStepProcessing';
 import { WizardStepDone } from '../../components/wizard/WizardStepDone';
+import { WizardStepReviewScenes } from '../../components/wizard/WizardStepReviewScenes';
 
 export function NewProjectWizard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { wizardStep, wizardData, setWizardStep, setWizardData, resetWizard } =
     useWizardStore();
-  const { generateScript, createJob, startPolling, selectedJob } = useJobsStore();
+  const { generateScript, createJob, startPolling, selectedJob, approveScenes } = useJobsStore();
   const { voices, voicesLoading, fetchVoices } = useVoicesStore();
   const { settings } = useSettingsStore();
   const { fetchLLMSettings, llmSettings } = useAuthStore();
 
   const [scriptLoading, setScriptLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [approveLoading, setApproveLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch voices and LLM settings on mount
@@ -112,17 +114,50 @@ export function NewProjectWizard() {
     startPolling,
   ]);
 
-  // Auto-advance when job completes
-  if (wizardStep === 3 && selectedJob) {
+  // Auto-advance based on job status
+  if (selectedJob) {
     const status = selectedJob.status;
-    if (status === 'completed' || status === 'completed_video') {
-      setWizardStep(4);
+    if (wizardStep === 3) {
+      if (status === 'segmented') {
+        setWizardStep(4);
+      } else if (status === 'completed' || status === 'completed_video') {
+        setWizardStep(6);
+      }
+    } else if (wizardStep === 5) {
+      if (status === 'completed' || status === 'completed_video') {
+        setWizardStep(6);
+      }
     }
   }
+
+  const handleApproveScenes = async (scenes: Array<{
+    text: string;
+    media_query: string;
+    start_time_seconds: number;
+    duration_seconds: number;
+  }>) => {
+    if (!wizardData.generatedJobId) return;
+    setApproveLoading(true);
+    setError(null);
+    try {
+      await approveScenes(wizardData.generatedJobId, scenes);
+      setWizardStep(5);
+    } catch {
+      setError('Error aprobando las escenas. Intenta de nuevo.');
+    } finally {
+      setApproveLoading(false);
+    }
+  };
 
   const handleBack = () => {
     if (wizardStep === 3 && wizardData.skippedReview) {
       setWizardStep(1);
+    } else if (wizardStep === 4) {
+      // From scene review, go back to script review (step 2)
+      setWizardStep(2);
+    } else if (wizardStep === 5 || wizardStep === 6) {
+      // From processing continuation or done, go to dashboard
+      navigate('/dashboard');
     } else if (wizardStep > 1) {
       setWizardStep(wizardStep - 1);
     } else {
@@ -228,6 +263,32 @@ export function NewProjectWizard() {
         {wizardStep === 4 && (
           <motion.div
             key="step4"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <WizardStepReviewScenes
+              scenes={selectedJob?.result_spec?.scenes || []}
+              onApprove={handleApproveScenes}
+              loading={approveLoading}
+            />
+          </motion.div>
+        )}
+
+        {wizardStep === 5 && (
+          <motion.div
+            key="step5"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <WizardStepProcessing status={selectedJob?.status} />
+          </motion.div>
+        )}
+
+        {wizardStep === 6 && (
+          <motion.div
+            key="step6"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}

@@ -58,17 +58,21 @@ GUÍAS DE ESTILO:
 TEMA DEL USUARIO:
 {info}
 
-INSTRUCCIÓN: Genera un guion completo dividido en escenas de aproximadamente 7 segundos cada una.
-Cada escena debe tener un texto narrativo y una indicación visual.
+INSTRUCCIÓN: Genera un guion narrativo completo dividido en escenas de aproximadamente 7 segundos cada una.
+Devuelve ÚNICAMENTE el texto que se leerá en voz alta (narración). NO incluyas indicaciones visuales, NO numeres las escenas, NO agregues título, introducción ni notas al pie.
 
 FORMATO DE RESPUESTA:
-Escena 1: [texto narrativo]
-Visual: [descripción de lo que se muestra]
+- Solo texto narrativo, escena por escena, separado por líneas en blanco.
+- Cada párrafo representa una escena de ~7 segundos.
+- Nada de "Escena 1:", "Visual:", "Título:", etc.
+- El texto debe ser fluido y natural, listo para leerse en voz alta por un TTS.
 
-Escena 2: [texto narrativo]
-Visual: [descripción de lo que se muestra]
+Ejemplo de formato correcto:
+¿Sabías que tu perro te manipula con la mirada? Y no, no es por comida... es algo mucho más profundo.
 
-... etc
+La ciencia confirma que, al mirarse, ambos liberan oxitocina. La misma hormona que sentimos al abrazar a alguien que amamos.
+
+No es solo su cara bonita... es que están diseñados biológicamente para entender lo que sientes, incluso antes que tú.
 """
 
     try:

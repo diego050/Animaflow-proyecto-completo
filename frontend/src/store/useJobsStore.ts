@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { JobSummary, JobDetail } from '../types/job';
+import type { JobSummary, JobDetail, SceneData } from '../types/job';
 import type { TimelineSpec } from '../types/spec';
 import { isTerminalStatus } from '../types/job';
 import { api } from '../api/client';
@@ -46,6 +46,14 @@ export interface JobsState {
       current_scene_index?: number;
     },
   ) => Promise<void>;
+  approveScenes: (
+    jobId: string,
+    scenes: SceneData[],
+  ) => Promise<{
+    job_id: string;
+    status: string;
+    result_spec: Record<string, unknown> | null;
+  }>;
   startPolling: (jobId: string) => void;
   stopPolling: () => void;
   refreshSelectedJob: () => Promise<void>;
@@ -209,6 +217,19 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       useToastStore.getState().addToast('error', message);
       throw err;
     }
+  },
+
+  approveScenes: async (jobId: string, scenes: SceneData[]) => {
+    const data = await api.post<{
+      job_id: string;
+      status: string;
+      result_spec: Record<string, unknown> | null;
+    }>(`/api/jobs/${jobId}/approve-scenes`, {
+      scenes,
+    });
+    await get().refreshSelectedJob();
+    await get().fetchJobs();
+    return data;
   },
 
   startPolling: (jobId: string) => {

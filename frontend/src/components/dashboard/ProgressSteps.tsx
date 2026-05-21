@@ -3,6 +3,7 @@ import { Check, Loader2 } from 'lucide-react';
 const PROCESSING_ORDER = [
   { key: 'pending', label: 'Iniciando' },
   { key: 'segmenting', label: 'Segmentando audio' },
+  { key: 'segmented', label: 'Escenas generadas' },
   { key: 'visuals_generating', label: 'Generando visuales' },
   { key: 'processing_scenes', label: 'Procesando escenas' },
   { key: 'completed', label: 'Escenas listas' },
