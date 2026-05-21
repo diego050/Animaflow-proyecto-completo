@@ -90,6 +90,13 @@ def resolve_llm_credentials(
         )
 
         if not key_record:
+            # Solo admin/founder pueden usar fallback global del .env
+            if user and user.role in ("admin", "founder") and fallback_api_key:
+                return LLMCredentials(
+                    api_key=fallback_api_key,
+                    model=user.default_model or fallback_model,
+                    provider=provider,
+                )
             raise MissingApiKeyError()
 
         api_key = key_record.api_key

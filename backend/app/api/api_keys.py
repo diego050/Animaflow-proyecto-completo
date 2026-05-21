@@ -121,30 +121,6 @@ def update_settings(
     }
 
 
-@router.get("/me/active-key/{provider}", response_model=dict)
-def get_active_key(
-    provider: str,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Get the active API key for a provider. Used internally by the pipeline."""
-    key = (
-        db.query(ApiKey)
-        .filter(
-            ApiKey.user_id == current_user.id,
-            ApiKey.provider == provider,
-            ApiKey.is_active == True,
-        )
-        .first()
-    )
-    if not key:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No active API key for provider: {provider}",
-        )
-    return {"provider": key.provider, "api_key": key.api_key}
-
-
 @router.get("/models", response_model=list[str])
 def list_models(
     provider: str = Query(..., description="LLM provider: gemini, openai, anthropic"),
