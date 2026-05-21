@@ -34,6 +34,7 @@ export interface ScriptGenerateRequest {
   info: string;
   template_id?: string;
   custom_prompt?: string | null;
+  target_duration_seconds?: number;
 }
 
 export interface ScriptGenerateResponse {

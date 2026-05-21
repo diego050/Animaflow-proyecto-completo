@@ -64,6 +64,7 @@ export function NewProjectWizard() {
         wizardData.info,
         wizardData.templateId,
         wizardData.customPrompt || null,
+        wizardData.targetDurationSeconds,
       );
       setWizardData({ script });
       setWizardStep(2);
@@ -76,6 +77,7 @@ export function NewProjectWizard() {
     wizardData.info,
     wizardData.templateId,
     wizardData.customPrompt,
+    wizardData.targetDurationSeconds,
     generateScript,
     setWizardData,
     setWizardStep,
@@ -204,6 +206,7 @@ export function NewProjectWizard() {
               customHeight={wizardData.customHeight}
               templateId={wizardData.templateId}
               customPrompt={wizardData.customPrompt}
+              targetDurationSeconds={wizardData.targetDurationSeconds}
               onInfoChange={(info) => setWizardData({ info })}
               onAspectRatioChange={(aspectRatio) =>
                 setWizardData({ aspectRatio })
@@ -221,6 +224,9 @@ export function NewProjectWizard() {
               onTemplateChange={(templateId) => setWizardData({ templateId })}
               onCustomPromptChange={(customPrompt) =>
                 setWizardData({ customPrompt })
+              }
+              onDurationChange={(targetDurationSeconds) =>
+                setWizardData({ targetDurationSeconds })
               }
               onGenerate={handleGenerateScript}
               onCreate={handleCreateProject}

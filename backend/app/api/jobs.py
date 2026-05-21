@@ -344,6 +344,7 @@ async def generate_script(
             custom_system_prompt=req.custom_prompt,
             api_key=req.api_key,
             provider=req.provider,
+            target_duration_seconds=req.target_duration_seconds,
         )
     except MissingApiKeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

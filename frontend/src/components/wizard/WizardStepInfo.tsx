@@ -20,6 +20,7 @@ interface WizardStepInfoProps {
   customHeight: number;
   templateId: string;
   customPrompt: string;
+  targetDurationSeconds: number;
   onInfoChange: (value: string) => void;
   onAspectRatioChange: (value: string) => void;
   onVoiceChange: (value: string) => void;
@@ -28,6 +29,7 @@ interface WizardStepInfoProps {
   onCustomHeightChange: (value: number) => void;
   onTemplateChange: (value: string) => void;
   onCustomPromptChange: (value: string) => void;
+  onDurationChange: (seconds: number) => void;
   onGenerate: () => void;
   onCreate: () => void;
   loading: boolean;
@@ -45,6 +47,7 @@ export function WizardStepInfo({
   customHeight,
   templateId,
   customPrompt,
+  targetDurationSeconds,
   onInfoChange,
   onAspectRatioChange,
   onVoiceChange,
@@ -53,6 +56,7 @@ export function WizardStepInfo({
   onCustomHeightChange,
   onTemplateChange,
   onCustomPromptChange,
+  onDurationChange,
   onGenerate,
   onCreate,
   loading,
@@ -109,6 +113,30 @@ export function WizardStepInfo({
         selectedModel={selectedModel}
         onChange={onModelChange}
       />
+
+      {/* Duration control */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-text-primary">
+          Duración estimada
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            min={10}
+            max={120}
+            step={5}
+            value={targetDurationSeconds}
+            onChange={(e) => onDurationChange(Number(e.target.value))}
+            className="flex-1 accent-mint-precision"
+          />
+          <span className="text-sm font-semibold text-mint-precision w-16 text-right">
+            {targetDurationSeconds}s
+          </span>
+        </div>
+        <p className="text-xs text-text-secondary/60">
+          ≈ {Math.round(targetDurationSeconds * 2.17)} palabras · {Math.ceil(targetDurationSeconds / 7)} escenas
+        </p>
+      </div>
 
       {/* Script input */}
       <WizardStepScript

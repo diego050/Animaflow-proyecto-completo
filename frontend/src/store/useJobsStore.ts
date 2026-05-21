@@ -26,6 +26,7 @@ export interface JobsState {
     info: string,
     templateId?: string,
     customPrompt?: string | null,
+    targetDurationSeconds?: number,
   ) => Promise<string>;
   deleteJob: (jobId: string) => Promise<void>;
   triggerRender: (jobId: string) => Promise<void>;
@@ -134,6 +135,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     info: string,
     templateId?: string,
     customPrompt?: string | null,
+    targetDurationSeconds?: number,
   ) => {
     const body: Record<string, unknown> = { info };
     if (templateId) {
@@ -141,6 +143,9 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
     if (customPrompt) {
       body.custom_prompt = customPrompt;
+    }
+    if (targetDurationSeconds) {
+      body.target_duration_seconds = targetDurationSeconds;
     }
     const data = await api.post<{ script_text: string }>(
       '/api/jobs/generate-script',

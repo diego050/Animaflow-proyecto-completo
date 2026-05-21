@@ -46,6 +46,10 @@ export function WizardSummary({
           onChange={(e) => onScriptChange(e.target.value)}
           className="w-full h-48 bg-surface-lowest border border-border-tech rounded-lg p-4 text-sm text-text-primary focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none resize-none transition-colors"
         />
+        <div className="flex justify-between text-xs text-text-secondary/60 mt-2 px-1">
+          <span>{script.split(/\s+/).filter(Boolean).length} palabras</span>
+          <span>≈ {(script.split(/\s+/).filter(Boolean).length / 2.17).toFixed(1)}s</span>
+        </div>
       </div>
 
       <div className="bg-surface-container border border-border-tech rounded-xl p-4">
