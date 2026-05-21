@@ -16,6 +16,7 @@ from app.db.models import User
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)  # Don't auto-raise 401 when no header
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -91,7 +92,7 @@ def require_admin(
 
 def get_current_user_from_token(
     token: Optional[str] = Query(None),
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db),
 ) -> User:
     """
