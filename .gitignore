@@ -88,3 +88,6 @@ security_reports/*.md
 
 # === Temporary / Generated ===
 docs/temp/
+
+# opencode config with sensitive API tokens
+opencode.json
