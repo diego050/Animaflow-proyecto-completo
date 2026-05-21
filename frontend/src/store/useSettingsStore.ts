@@ -10,7 +10,7 @@ export interface SettingsState {
 
 const DEFAULT_SETTINGS: UserSettings = {
   defaultAspectRatio: '9:16',
-  defaultVoiceId: 'kokoro-es',
+  defaultVoiceId: 'es_ES-carlfm-x_low',
   language: 'es',
   theme: 'dark',
   name: '',

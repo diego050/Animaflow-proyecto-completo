@@ -5,7 +5,7 @@ class TTSProvider(ABC):
     """Abstract base class for TTS providers."""
 
     @abstractmethod
-    async def generate_audio(self, text: str, voice_id: str = "default", api_key: Optional[str] = None) -> str:
+    async def generate_audio(self, text: str, voice_id: str = "es_ES-carlfm-x_low", api_key: Optional[str] = None) -> str:
         """Generate audio file from text. Returns path to audio file."""
         pass
 

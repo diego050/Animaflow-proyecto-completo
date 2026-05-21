@@ -23,7 +23,7 @@ def list_voices(
 ):
     """List all voices for the current user.
 
-    If no voices exist, a default Kokoro voice is auto-created.
+    If no voices exist, a default Carl voice is auto-created.
     """
     voices = (
         db.query(Voice)
@@ -35,15 +35,15 @@ def list_voices(
         .all()
     )
 
-    # If no voices exist, create a default Kokoro voice
+    # If no voices exist, create a default Carl voice
     if not voices:
         default_voice = Voice(
             user_id=current_user.id,
-            name="Kokoro ES (Default)",
+            name="Carl (Default)",
             gender="neutral",
             language="es",
             is_default=True,
-            voicebox_profile_id="kokoro-default",
+            voicebox_profile_id="es_ES-carlfm-x_low",
         )
         db.add(default_voice)
         db.commit()
@@ -130,12 +130,12 @@ async def preview_voice(
     if not voice:
         raise HTTPException(status_code=404, detail="Voice not found")
 
-    # Generate TTS preview
+    # Generate TTS preview using the voice's profile ID
     try:
         result = await generate_tts_with_timestamps(
             text=preview_data.text,
             provider_name="local_piper",  # default for preview
-            voice_id="default"
+            voice_id=voice.voicebox_profile_id or "es_ES-carlfm-x_low"
         )
         return {"audio_url": result["audio_path"], "duration": result["duration_seconds"]}
     except Exception as e:
@@ -186,19 +186,21 @@ def delete_voice(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Soft delete a voice (set is_active = False).
+    """Delete voice permanently including audio file."""
+    import os
 
-    The default voice cannot be deleted.
-    """
-    voice = db.query(Voice).filter(
-        Voice.id == voice_id,
-        Voice.user_id == current_user.id,
-    ).first()
+    voice = db.query(Voice).filter(Voice.id == voice_id, Voice.user_id == current_user.id).first()
     if not voice:
         raise HTTPException(status_code=404, detail="Voice not found")
-    if voice.is_default:
-        raise HTTPException(status_code=400, detail="Cannot delete default voice")
 
-    voice.is_active = False
+    # Delete physical audio file
+    if voice.audio_sample_path and os.path.exists(voice.audio_sample_path):
+        try:
+            os.remove(voice.audio_sample_path)
+        except OSError:
+            pass
+
+    # Hard delete from DB
+    db.delete(voice)
     db.commit()
     return None

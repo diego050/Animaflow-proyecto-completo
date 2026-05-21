@@ -41,6 +41,7 @@ export interface SystemHealth {
   redis_queue_length: number;
   workers_active: number;
   workers_idle: number;
+  workers_connected: boolean;
   database_connected: boolean;
   database_pool_size: number;
   database_pool_used: number;

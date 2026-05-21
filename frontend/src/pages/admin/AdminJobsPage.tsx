@@ -58,11 +58,11 @@ export function AdminJobsPage() {
   };
 
   const filteredJobs = search
-    ? jobs.filter(
+    ? jobs?.filter(
         (j) =>
-          j.user_email.toLowerCase().includes(search.toLowerCase()) ||
-          j.job_id.toLowerCase().includes(search.toLowerCase()) ||
-          j.script_text.toLowerCase().includes(search.toLowerCase()),
+          j.user_email?.toLowerCase().includes(search.toLowerCase()) ||
+          j.job_id?.toLowerCase().includes(search.toLowerCase()) ||
+          j.script_text?.toLowerCase().includes(search.toLowerCase()),
       )
     : jobs;
 
@@ -83,13 +83,13 @@ export function AdminJobsPage() {
     }
   };
 
-  const selectedJob = jobs.find((j) => j.job_id === detailJob);
+  const selectedJob = jobs?.find((j) => j.job_id === detailJob);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-display font-bold text-gray-100">Gestión de Jobs</h1>
-        <p className="text-gray-400 mt-1">{jobsTotal} jobs en total</p>
+        <p className="text-gray-400 mt-1">{jobsTotal ?? 0} jobs en total</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2">
@@ -122,7 +122,7 @@ export function AdminJobsPage() {
         <div className="flex items-center justify-center h-48">
           <Loader2 size={32} className="animate-spin text-violet-400" />
         </div>
-      ) : filteredJobs.length === 0 ? (
+      ) : filteredJobs?.length === 0 ? (
         <div className="text-center text-gray-500 py-12 bg-gray-900 border border-gray-800 rounded-xl">
           No se encontraron jobs.
         </div>
@@ -141,7 +141,7 @@ export function AdminJobsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredJobs.map((job) => {
+                {filteredJobs?.map((job) => {
                   const statusColor = statusColors[job.status] || 'text-gray-400 bg-gray-700';
                   const statusLabel = statusLabels[job.status] || job.status;
                   return (
@@ -165,7 +165,7 @@ export function AdminJobsPage() {
                       <td className="px-4 py-3 text-gray-500 text-xs hidden lg:table-cell">
                         {new Date(job.created_at).toLocaleDateString('es-ES')}
                       </td>
-                      <td className="px-4 py-3 relative">
+                      <td className="px-4 py-3">
                         <button
                           onClick={() => setMenuOpen(menuOpen === job.job_id ? null : job.job_id)}
                           className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition-colors"
@@ -179,7 +179,14 @@ export function AdminJobsPage() {
                               initial={{ opacity: 0, y: -8 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -8 }}
-                              className="absolute right-0 top-10 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 z-10"
+                              className="fixed w-48 rounded-lg shadow-xl py-1 z-50"
+                              style={{
+                                backgroundColor: '#1E293B',
+                                border: '1px solid #334155',
+                                right: '20px',
+                                top: 'auto',
+                                marginTop: '8px'
+                              }}
                             >
                               <button
                                 onClick={() => setDetailJob(job.job_id)}

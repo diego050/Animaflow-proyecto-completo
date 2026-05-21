@@ -3,6 +3,14 @@ import { Volume2, Loader2 } from 'lucide-react';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { AVAILABLE_TTS_PROVIDERS, type TTSProviderId } from '../../types/job';
 
+const VOICE_NAMES: Record<string, string> = {
+  'es_ES-carlfm-x_low': 'Carl (Español)',
+};
+
+function getVoiceDisplayName(voiceId: string): string {
+  return VOICE_NAMES[voiceId] ?? voiceId;
+}
+
 export function TTSProviderSection() {
   const { settings, updateSettings } = useSettingsStore();
   const [selectedProvider, setSelectedProvider] = useState<TTSProviderId>(
@@ -106,6 +114,11 @@ export function TTSProviderSection() {
           placeholder="es_ES-carlfm-x_low"
           className="w-full bg-surface-lowest border border-border-tech rounded-lg px-3 py-2.5 text-sm text-text-primary focus:border-mint-precision outline-none transition-colors"
         />
+        {voiceId && (
+          <p className="text-xs text-mint-precision/70 mt-1">
+            {getVoiceDisplayName(voiceId)}
+          </p>
+        )}
         <p className="text-xs text-text-secondary/40 mt-1">
           ID del modelo de voz. Para Piper usa el nombre del archivo .onnx. Para
           ElevenLabs usa el Voice ID de tu dashboard.

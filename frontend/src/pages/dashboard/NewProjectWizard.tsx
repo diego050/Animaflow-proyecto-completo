@@ -121,7 +121,9 @@ export function NewProjectWizard() {
   }
 
   const handleBack = () => {
-    if (wizardStep > 1) {
+    if (wizardStep === 3 && wizardData.skippedReview) {
+      setWizardStep(1);
+    } else if (wizardStep > 1) {
       setWizardStep(wizardStep - 1);
     } else {
       navigate('/dashboard');
@@ -186,6 +188,7 @@ export function NewProjectWizard() {
                 setWizardData({ customPrompt })
               }
               onGenerate={handleGenerateScript}
+              onCreate={handleCreateProject}
               loading={scriptLoading}
             />
           </motion.div>

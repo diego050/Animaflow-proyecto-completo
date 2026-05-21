@@ -6,7 +6,7 @@ import {
   Mic,
   FileText,
   Video,
-  Image,
+  // Image, // MVP: oculto
   Download,
   Settings,
   Menu,
@@ -26,7 +26,7 @@ const navItems = [
   { to: '/dashboard/voices', label: 'Voces', icon: Mic, disabled: false },
   { to: '/dashboard/scripts', label: 'Guiones', icon: FileText, disabled: false },
   { to: '/dashboard/videos', label: 'Videos', icon: Video, disabled: false },
-  { to: '/dashboard/images', label: 'Imágenes', icon: Image, disabled: false },
+  // { to: '/dashboard/images', label: 'Imágenes', icon: Image, disabled: false }, // MVP: oculto
   { to: '/dashboard/downloads', label: 'Descargas', icon: Download, disabled: false },
   { to: '/dashboard/settings', label: 'Configuración', icon: Settings, disabled: false },
 ];

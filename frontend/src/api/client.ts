@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 export { API_BASE };
 
@@ -110,7 +110,8 @@ export async function apiUpload<T>(
 
 // Export convenience methods
 export const api = {
-  get: <T>(endpoint: string) => apiFetch<T>(endpoint, { method: 'GET' }),
+  get: <T>(endpoint: string, options?: { signal?: AbortSignal }) =>
+    apiFetch<T>(endpoint, { method: 'GET', ...options }),
   post: <T>(endpoint: string, body?: unknown) =>
     apiFetch<T>(endpoint, {
       method: 'POST',

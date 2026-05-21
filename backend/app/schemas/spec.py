@@ -37,11 +37,12 @@ class Spec(BaseModel):
     text: str
     type: str
     media_query: str = Field(..., max_length=1500)
+    animation_spec: Optional[Dict[str, Any]] = None
     remotion_props: Optional[Dict[str, Any]] = None
-    sfx: List[SFX]
+    sfx: List[SFX] = Field(default_factory=list)
     audio_url: Optional[str] = None
     word_timestamps: Optional[List[WordTimestamp]] = None
-    ae_metadata: Optional[AEMetadata] = None
+    ae_metadata: Optional[Dict[str, Any]] = None
     ae_script_code: Optional[str] = None
 
 class TimelineSpec(BaseModel):

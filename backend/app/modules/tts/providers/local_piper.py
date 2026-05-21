@@ -25,21 +25,25 @@ class PiperProvider(TTSProvider):
 
         Also requires voice model files (.onnx + .json) in storage/models/piper/
         """
-        audio_dir = "storage/audio/piper"
+        from app.core.config import settings
+
+        audio_dir = os.path.join(settings.STORAGE_BASE_DIR, "storage", "audio", "piper")
         os.makedirs(audio_dir, exist_ok=True)
         safe_hash = abs(hash(text)) % (10 ** 12)
-        audio_path = f"{audio_dir}/{safe_hash}.wav"
+        audio_path = os.path.join(audio_dir, f"{safe_hash}.wav")
 
-        model_path = f"storage/models/piper/{voice_id}.onnx"
-        config_path = f"storage/models/piper/{voice_id}.onnx.json"
+        model_dir = os.path.join(settings.STORAGE_BASE_DIR, "storage", "models", "piper")
+        os.makedirs(model_dir, exist_ok=True)
 
+        model_path = os.path.join(model_dir, f"{voice_id}.onnx")
+        config_path = os.path.join(model_dir, f"{voice_id}.onnx.json")
+
+        # Fallback to default voice if model not found
         if not os.path.exists(model_path):
-            logger.warning("Piper model not found: %s. Using default voice.", model_path)
-            # Fallback to a default model or raise error
-            raise FileNotFoundError(
-                f"Piper voice model not found: {model_path}. "
-                "Download from https://github.com/rhasspy/piper/releases"
-            )
+            fallback_id = "es_ES-carlfm-x_low"
+            model_path = os.path.join(model_dir, f"{fallback_id}.onnx")
+            config_path = os.path.join(model_dir, f"{fallback_id}.onnx.json")
+            logger.warning("Voice %s not found, falling back to %s", voice_id, fallback_id)
 
         try:
             # Run piper

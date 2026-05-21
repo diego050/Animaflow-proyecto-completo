@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { SkipForward, Play, ChevronDown } from 'lucide-react';
 import { PreviewPlayer as RemotionPreviewPlayer } from '../../components/PreviewPlayer';
-import type { TimelineSpec } from '../../types/job';
+import type { TimelineSpec } from '../../types/spec';
 
 /** Create a filtered TimelineSpec containing only the scene at the given index. */
 function createFilteredSpec(spec: TimelineSpec, sceneIndex: number): TimelineSpec {

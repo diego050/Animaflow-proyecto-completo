@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import JSONResponse
-from app.api import jobs, exports, audio, auth, voices, api_keys, assets, admin
+from app.api import jobs, exports, audio, auth, voices, api_keys, assets, admin, contact
 from app.core.config import settings
 from app.core.limiter import limiter, RateLimitExceeded
 from app.core.storage_paths import get_storage_dir
@@ -37,6 +37,7 @@ app.include_router(voices.router)  # Voice management endpoints
 app.include_router(api_keys.router)  # API key management endpoints
 app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(contact.router)
 
 # Serve video files from storage/videos directory
 VIDEO_DIR = get_storage_dir("videos")

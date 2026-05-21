@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.db.models import ApiKey, User
 from app.schemas.api_keys import ApiKeyCreate, ApiKeyResponse, UserSettingsUpdate
 from app.core.security import get_current_active_user
+from app.modules.llm.model_fetcher import fetch_available_models
 
 router = APIRouter(prefix="/api/api-keys", tags=["api-keys"])
 
@@ -120,25 +121,30 @@ def update_settings(
     }
 
 
-@router.get("/me/active-key/{provider}", response_model=dict)
-def get_active_key(
-    provider: str,
+@router.get("/models", response_model=list[str])
+def list_models(
+    provider: str = Query(..., description="LLM provider: gemini, openai, anthropic"),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Get the active API key for a provider. Used internally by the pipeline."""
-    key = (
-        db.query(ApiKey)
-        .filter(
-            ApiKey.user_id == current_user.id,
-            ApiKey.provider == provider,
-            ApiKey.is_active == True,
+    """
+    Return available models for a provider.
+    For OpenAI, dynamically fetches from the API using the user's stored key.
+    For Gemini and Anthropic, returns a static curated list.
+    """
+    api_key = None
+    if provider.lower() == "openai":
+        key_record = (
+            db.query(ApiKey)
+            .filter(
+                ApiKey.user_id == current_user.id,
+                ApiKey.provider == provider,
+                ApiKey.is_active == True,
+            )
+            .first()
         )
-        .first()
-    )
-    if not key:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No active API key for provider: {provider}",
-        )
-    return {"provider": key.provider, "api_key": key.api_key}
+        if key_record:
+            api_key = key_record.api_key
+
+    models = fetch_available_models(provider, api_key)
+    return models

@@ -3,6 +3,10 @@ FROM python:3.11-slim
 WORKDIR /app
 
 COPY requirements.txt .
+
+# Install torch CPU-only first (prevents openai-whisper from downloading CUDA libs)
+RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .

@@ -36,7 +36,7 @@ async def _regenerate_scene_async(
         result = await generate_tts_with_timestamps(
             text=new_text,
             provider_name="local_piper",
-            voice_id="default",
+            voice_id="es_ES-carlfm-x_low",
         )
         logger.info("TTS escena %d: duration=%s, audio_path=%s", scene_index + 1, result.get("duration_seconds"), result.get("audio_path"), extra={"job_id": job_id})
         duration = result.get("duration_seconds")

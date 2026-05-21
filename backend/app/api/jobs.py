@@ -1,15 +1,24 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Request, Body
+﻿from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from sqlalchemy.orm import Session
 from rq import Queue, Retry
 from redis import Redis
 
-from app.schemas.job import JobCreate, JobResponse
+from app.schemas.job import (
+    JobCreate,
+    JobResponse,
+    JobListResponse,
+    ScriptGenerateRequest,
+    ScriptGenerateResponse,
+    SceneRegenerateRequest,
+    SceneApprovalRequest,
+)
 from app.db.session import get_db
 from app.db.models import JobModel, User
 from app.core.config import settings
 from app.core.security import get_current_active_user
 from app.core.limiter import limiter
-from app.modules.pipeline.orchestrator import run_pipeline
+from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_approved
 
 
 def get_job_or_404(db: Session, job_id: str, user_id: str) -> JobModel:
@@ -18,7 +27,7 @@ def get_job_or_404(db: Session, job_id: str, user_id: str) -> JobModel:
         JobModel.user_id == user_id,
     ).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Job no encontrado")
+        raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 router = APIRouter()
@@ -58,6 +67,11 @@ async def create_job(
         job_in.tts_provider,
         job_in.tts_voice_id,
         job_in.tts_api_key,
+        kwargs={
+            "scenes": [s.model_dump() for s in job_in.scenes] if job_in.scenes else None,
+            "design_md": job_in.design_md,
+            "system_prompt": job_in.system_prompt,
+        },
         job_timeout="10m",
         retry=Retry(max=3),
     )
@@ -77,11 +91,69 @@ async def get_job_status(
         JobModel.user_id == current_user.id,
     ).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Job no encontrado")
+        raise HTTPException(status_code=404, detail="Job not found")
 
     return JobResponse(
         job_id=job.id,
         status=job.status,
+        result_spec=job.result_spec,
+        video_url=job.video_url,
+    )
+
+
+@router.post("/{job_id}/approve-scenes", response_model=JobResponse)
+async def approve_scenes(
+    job_id: str,
+    approval: SceneApprovalRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Approve or edit segmented scenes and continue the pipeline.
+
+    The frontend sends the confirmed/edited scenes with their media_query
+    prompts. The pipeline then generates visuals, TTS, and Remotion components.
+    """
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id,
+        JobModel.user_id == current_user.id,
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.status != "segmented":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be in 'segmented' status to approve scenes (current: {job.status})"
+        )
+
+    if not approval.scenes:
+        raise HTTPException(status_code=400, detail="No scenes provided for approval")
+
+    # Update result_spec with the approved/edited scenes
+    current_spec = job.result_spec or {}
+    current_spec["scenes"] = [scene.model_dump() for scene in approval.scenes]
+    job.result_spec = current_spec
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(job, "result_spec")
+    db.commit()
+
+    # Enqueue the second phase of the pipeline
+    # tts_api_key is resolved inside the worker via _get_user_api_key
+    queue.enqueue(
+        run_pipeline_approved,
+        job.id,
+        current_user.id,
+        job.tts_provider or "local_piper",
+        job.tts_voice_id or "es_ES-carlfm-x_low",
+        None,
+        job_timeout="10m",
+        retry=Retry(max=3),
+    )
+
+    # Return immediately with the updated status
+    return JobResponse(
+        job_id=job.id,
+        status="visuals_generating",
         result_spec=job.result_spec,
         video_url=job.video_url,
     )
@@ -202,7 +274,7 @@ async def delete_job(
         JobModel.user_id == current_user.id,
     ).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Job no encontrado")
+        raise HTTPException(status_code=404, detail="Job not found")
 
     db.delete(job)
     db.commit()
@@ -223,15 +295,15 @@ async def trigger_render(
         JobModel.user_id == current_user.id,
     ).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Job no encontrado")
+        raise HTTPException(status_code=404, detail="Job not found")
 
     if not job.result_spec:
         raise HTTPException(
-            status_code=400, detail="El job aún no tiene un Spec generado para renderizar"
+            status_code=400, detail="Job does not have a generated spec to render"
         )
 
     if job.status == "rendering":
-        raise HTTPException(status_code=400, detail="El job ya se está renderizando")
+        raise HTTPException(status_code=400, detail="Job is already rendering")
 
     # Encolar la tarea de render en la cola dedicada para tareas pesadas
     from app.modules.remotion.renderer import render_video_pipeline
@@ -254,30 +326,26 @@ async def trigger_render(
     )
 
 
-from typing import List
-from app.schemas.job import (
-    JobCreate,
-    JobResponse,
-    SceneRegenerateRequest,
-    JobListResponse,
-    ScriptGenerateRequest,
-    ScriptGenerateResponse,
-)
-
-
 @router.post("/generate-script", response_model=ScriptGenerateResponse)
 async def generate_script(
     req: ScriptGenerateRequest,
     current_user: User = Depends(get_current_active_user),
 ):
     from app.modules.llm.script_generator import generate_script_from_info
+    from app.modules.llm.resolver import MissingApiKeyError
 
-    script = generate_script_from_info(
-        info=req.info,
-        user_id=current_user.id,
-        template_id=req.template_id,
-        custom_system_prompt=req.custom_prompt,
-    )
+    try:
+        script = generate_script_from_info(
+            info=req.info,
+            user_id=current_user.id,
+            template_id=req.template_id,
+            custom_system_prompt=req.custom_prompt,
+            api_key=req.api_key,
+            provider=req.provider,
+        )
+    except MissingApiKeyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
     return ScriptGenerateResponse(script_text=script)
 
 
@@ -320,31 +388,26 @@ async def trigger_scene_regenerate(
         JobModel.user_id == current_user.id,
     ).first()
     if not job or not job.result_spec:
-        raise HTTPException(status_code=404, detail="Job no encontrado o sin spec")
+        raise HTTPException(status_code=404, detail="Job not found or missing spec")
 
     if scene_index < 0 or scene_index >= len(job.result_spec.get("scenes", [])):
-        raise HTTPException(status_code=400, detail="Índice de escena inválido")
+        raise HTTPException(status_code=400, detail="Invalid scene index")
 
+    # Encolar en RQ para no bloquear el request handler
     from app.modules.pipeline.scene_manager import _regenerate_scene_async
+    queue.enqueue(
+        _regenerate_scene_async,
+        job.id,
+        job.result_spec,
+        scene_index,
+        req.media_query,
+        req.text,
+        current_user.id,
+        job_timeout="5m",
+    )
 
-    try:
-        # Usamos await directo porque FastAPI ya corre en un event loop
-        updated_spec = await _regenerate_scene_async(
-            job.id, job.result_spec, scene_index, req.media_query, req.text, current_user.id
-        )
-
-        # Clonamos el diccionario para asegurar que SQLAlchemy detecte el cambio en el JSON
-        job.result_spec = dict(updated_spec)
-
-        # En SQLAlchemy, cuando mutas campos JSON, a veces necesitas flag_modified
-        from sqlalchemy.orm.attributes import flag_modified
-
-        flag_modified(job, "result_spec")
-
-        db.commit()
-    except Exception as e:
-        print(f"Error regenerando: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    job.status = "queued_scene_regen"
+    db.commit()
 
     return JobResponse(
         job_id=job.id,
