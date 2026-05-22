@@ -18,8 +18,8 @@ const SceneWrapper: React.FC<SceneWrapperProps> = ({
   fallbackBg = "#000000",
   fallbackColor = "#ffffff",
 }) => {
-  const mod = (generatedModules as Record<string, any>)[type];
-  const Component = mod?.SceneComponent;
+  const mod = (generatedModules as Record<string, Record<string, unknown>>)[type];
+  const Component = mod?.SceneComponent as React.ComponentType<{ text: string; durationInFrames: number }> | undefined;
 
   if (!Component) {
     return (
@@ -52,7 +52,7 @@ export const RemotionSceneRoot = () => {
   return (
     <Composition
       id="SceneRenderer"
-      component={SceneWrapper}
+      component={SceneWrapper as React.FC<any>}
       fps={30}
       width={1080}
       height={1920}
