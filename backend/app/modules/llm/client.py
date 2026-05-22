@@ -1,45 +1,43 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from google import genai
 from google.genai import types
 from app.core.logging import get_logger
 
 logger = get_logger("llm")
 
-LLM_TIMEOUT = 300  # 5 minutes max per LLM call
+LLM_TIMEOUT = 580  # Justo debajo del timeout de RQ (600s)
 
 
 def _call_llm_sync(
     client, model: str, contents: str, config=None, label: str = "LLM"
 ):
     """
-    Ejecuta una llamada síncrona a Gemini con timeout de 5 minutos.
-    Si excede el timeout, lanza TimeoutError con info del label.
+    Ejecuta una llamada async a Gemini con timeout.
+    Usa asyncio.run para poder usar asyncio.wait_for que SÍ cancela la tarea.
     """
 
-    def _do_call():
+    async def _do_call_async():
         if config is not None:
-            return client.models.generate_content(
+            return await client.aio.models.generate_content(
                 model=model, contents=contents, config=config
             )
-        return client.models.generate_content(model=model, contents=contents)
+        return await client.aio.models.generate_content(
+            model=model, contents=contents
+        )
 
     logger.info("Llamando a Gemini (model=%s, timeout=%ds)...", model, LLM_TIMEOUT, extra={"label": label})
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(_do_call)
-        try:
-            response = future.result(timeout=LLM_TIMEOUT)
-            logger.info(
-                "Respuesta recibida (%d chars)",
-                len(response.text) if response.text else 0,
-                extra={"label": label},
-            )
-            return response
-        except FuturesTimeout:
-            logger.warning("TIMEOUT después de %ds — la llamada se colgó", LLM_TIMEOUT, extra={"label": label})
-            future.cancel()
-            raise TimeoutError(f"[{label}] LLM call timed out after {LLM_TIMEOUT}s")
+    try:
+        response = asyncio.run(asyncio.wait_for(_do_call_async(), timeout=LLM_TIMEOUT))
+        logger.info(
+            "Respuesta recibida (%d chars)",
+            len(response.text) if response.text else 0,
+            extra={"label": label},
+        )
+        return response
+    except asyncio.TimeoutError:
+        logger.warning("TIMEOUT después de %ds — la llamada se canceló", LLM_TIMEOUT, extra={"label": label})
+        raise TimeoutError(f"[{label}] LLM call timed out after {LLM_TIMEOUT}s")
 
 
 async def _call_gemini_with_retry(

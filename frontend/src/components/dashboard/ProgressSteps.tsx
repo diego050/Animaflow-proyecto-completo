@@ -6,7 +6,8 @@ const PROCESSING_ORDER = [
   { key: 'segmented', label: 'Escenas generadas' },
   { key: 'visuals_generating', label: 'Generando visuales' },
   { key: 'processing_scenes', label: 'Procesando escenas' },
-  { key: 'completed', label: 'Escenas listas' },
+  { key: 'rendering_scenes', label: 'Renderizando escenas' },
+  { key: 'completed', label: 'Video completado' },
 ];
 
 const RENDER_ORDER = [

@@ -73,8 +73,8 @@ def render_video_pipeline(job_id: str):
             logger.info("Render exitoso -> %s", output_file, extra={"job_id": job_id})
 
             job.status = "completed"
-            # Video served via FastAPI StaticFiles mount at /videos/
-            job.video_url = f"/videos/{job_id}.mp4"
+            # Video served via authenticated endpoint
+            job.video_url = f"/api/jobs/{job_id}/video"
             db.commit()
         except (subprocess.SubprocessError, OSError) as e:
             logger.error("Excepción renderizando: %s", e, extra={"job_id": job_id})

@@ -128,9 +128,13 @@ export function NewProjectWizard() {
         setWizardStep(4);
       } else if (status === 'completed' || status === 'completed_video') {
         setWizardStep(6);
+      } else if (status === 'failed' || status === 'failed_render') {
+        setWizardStep(6);
       }
     } else if (wizardStep === 5) {
       if (status === 'completed' || status === 'completed_video') {
+        setWizardStep(6);
+      } else if (status === 'failed' || status === 'failed_render') {
         setWizardStep(6);
       }
     }

@@ -44,6 +44,7 @@ class Spec(BaseModel):
     word_timestamps: Optional[List[WordTimestamp]] = None
     ae_metadata: Optional[Dict[str, Any]] = None
     ae_script_code: Optional[str] = None
+    scene_video_url: Optional[str] = None
 
 class TimelineSpec(BaseModel):
     scenes: List[Spec]
