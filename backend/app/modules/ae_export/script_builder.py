@@ -1,4 +1,4 @@
-﻿"""
+"""
 AE script builder: per-scene script generation and full script assembly.
 """
 import os
@@ -203,31 +203,50 @@ if (app.project == null) {{
 
             if os.path.exists(tsx_path):
                 try:
-                    from app.modules.parsers.svg.extractor import parse_svg_from_tsx
-                    from app.modules.parsers.tsx.analyzer import analyze_tsx_for_ae
-                    from app.modules.ae_export.deterministic import generate_deterministic_script
-
+                    from app.modules.parsers.tsx.components import parse_components_from_tsx
+                    from app.modules.ae_export.deterministic.components_generator import generate_component_script
+                    
                     with open(tsx_path, 'r', encoding='utf-8') as f:
                         tsx_code = f.read()
 
-                    svg_elements = parse_svg_from_tsx(tsx_code)
-                    enriched = analyze_tsx_for_ae(tsx_code, width, height, 30)
-                    bg_color = scene.get('remotion_props', {}).get('backgroundColor', '#0f172a')
-                    txt_color = scene.get('remotion_props', {}).get('textColor', '#38bdf8')
-
-                    scene_script = generate_deterministic_script(
-                        svg_elements=svg_elements,
-                        enriched=enriched,
-                        text=scene.get('text', ''),
-                        duration=scene.get('duration_seconds', 6),
-                        bg_color=bg_color,
-                        text_color=txt_color,
-                        width=width,
-                        height=height,
-                        fps=30,
-                    )
-                    scene_script = f"// Escena {i + 1} - Generado por AnimaFlow (Deterministic Fallback)\n{scene_script}\n"
-                    logger.info("Scene %d: Deterministic fallback OK (len=%d)", i + 1, len(scene_script))
+                    components = parse_components_from_tsx(tsx_code)
+                    
+                    if components:
+                        logger.info("Scene %d: Found components %s", i + 1, list(components.keys()))
+                        scene_script = generate_component_script(
+                            components=components,
+                            text=scene.get('text', ''),
+                            duration=scene.get('duration_seconds', 6),
+                            width=width,
+                            height=height,
+                            fps=30,
+                        )
+                        scene_script = f"// Escena {i + 1} - Generado por AnimaFlow (Components Fallback)\n{scene_script}\n"
+                        logger.info("Scene %d: Components fallback OK (len=%d)", i + 1, len(scene_script))
+                    else:
+                        logger.info("Scene %d: No components found, falling back to SVG parser", i + 1)
+                        from app.modules.parsers.svg.extractor import parse_svg_from_tsx
+                        from app.modules.parsers.tsx.analyzer import analyze_tsx_for_ae
+                        from app.modules.ae_export.deterministic.generator import generate_deterministic_script
+    
+                        svg_elements = parse_svg_from_tsx(tsx_code)
+                        enriched = analyze_tsx_for_ae(tsx_code, width, height, 30)
+                        bg_color = scene.get('remotion_props', {}).get('backgroundColor', '#0f172a')
+                        txt_color = scene.get('remotion_props', {}).get('textColor', '#38bdf8')
+    
+                        scene_script = generate_deterministic_script(
+                            svg_elements=svg_elements,
+                            enriched=enriched,
+                            text=scene.get('text', ''),
+                            duration=scene.get('duration_seconds', 6),
+                            bg_color=bg_color,
+                            text_color=txt_color,
+                            width=width,
+                            height=height,
+                            fps=30,
+                        )
+                        scene_script = f"// Escena {i + 1} - Generado por AnimaFlow (Deterministic SVG Fallback)\n{scene_script}\n"
+                        logger.info("Scene %d: Deterministic SVG fallback OK (len=%d)", i + 1, len(scene_script))
                 except (ValueError, KeyError, OSError) as fallback_e:
                     logger.error("Scene %d: Deterministic fallback failed: %s", i + 1, fallback_e)
                     # Last resort: minimal script with just text + background
