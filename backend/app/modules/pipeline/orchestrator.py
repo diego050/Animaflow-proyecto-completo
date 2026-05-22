@@ -148,7 +148,7 @@ async def _process_chunks_async(
         )
         current_start_time += duration
 
-    write_index_ts(job_id, timeline_scenes)
+    write_index_ts(job_id, timeline_scenes, user_id)
     return timeline_scenes
 
 
@@ -183,7 +183,7 @@ async def _regenerate_components_for_reformat(
             user_id=user_id,
         )
         scene["type"] = new_type
-    write_index_ts(job_id, timeline_scenes)
+    write_index_ts(job_id, timeline_scenes, user_id)
     return timeline_scenes
 
 

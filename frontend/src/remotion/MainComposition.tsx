@@ -2,6 +2,7 @@
 import React from "react";
 import type { TimelineSpec } from "../types/spec";
 import { useAuthStore } from "../store/useAuthStore";
+import { generatedModules } from "./generated"; // index.ts global re-exporta todo
 
 interface FallbackSceneProps {
   text: string;
@@ -43,11 +44,17 @@ interface SceneProps {
 
 type SceneComponent = React.ComponentType<SceneProps>;
 
-// Mapa estático de componentes de escena conocidos.
-// A medida que se generen/validen nuevos tipos de escena, añadirlos aquí.
-const sceneComponents: Record<string, SceneComponent> = {
-  // Ejemplos: 'FadeText': FadeTextScene, 'Typewriter': TypewriterScene,
-};
+// Mapa dinámico poblado por el index.ts global que re-exporta
+// todos los componentes generados de todos los usuarios.
+const sceneComponents: Record<string, SceneComponent> = {};
+
+// Cada módulo en generatedModules es un namespace import (* as X).
+// El componente real exportado por cada archivo TSX es 'SceneComponent'.
+for (const [typeName, mod] of Object.entries(generatedModules)) {
+  if (mod && (mod as any).SceneComponent) {
+    sceneComponents[typeName] = (mod as any).SceneComponent as SceneComponent;
+  }
+}
 
 const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor }: DynamicSceneProps) => {
   const Component = sceneComponents[type];

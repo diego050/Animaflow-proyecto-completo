@@ -72,7 +72,7 @@ async def _regenerate_scene_async(
 
     spec["scenes"][scene_index] = scene
 
-    write_index_ts(job_id, spec["scenes"])
+    write_index_ts(job_id, spec["scenes"], user_id)
 
     return spec
 

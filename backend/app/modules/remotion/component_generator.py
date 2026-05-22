@@ -221,18 +221,19 @@ async def generate_remotion_component(
         # 8. Fix unbalanced parentheses in Math.max
         code = re.sub(r"Math\.max\(0,\s*\{([^}]+)\)", r"Math.max(0, \1)", code)
 
-        # Guardar archivo físicamente
+        # Guardar archivo físicamente en subdirectorio por usuario
         from app.core.config import settings
         generated_dir = os.path.join(settings.frontend_path, "src", "remotion", "generated")
-        os.makedirs(generated_dir, exist_ok=True)
+        user_dir = os.path.join(generated_dir, f"user_{user_id or 'anonymous'}")
+        os.makedirs(user_dir, exist_ok=True)
 
         file_name = f"Scene_{job_id}_{scene_index}.tsx"
-        file_path = os.path.join(generated_dir, file_name)
+        file_path = os.path.join(user_dir, file_name)
 
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(code)
 
-        logger.info("Componente TSX generado para escena %d -> %s", scene_index, file_name, extra={"job_id": job_id})
+        logger.info("Componente TSX generado para escena %d -> %s (user: %s)", scene_index, file_name, user_id or 'anonymous', extra={"job_id": job_id})
         return f"Scene_{job_id}_{scene_index}"
     except (TimeoutError, ValueError) as e:
         logger.error("Error programando componente para escena %d: %s", scene_index, e, extra={"job_id": job_id})
