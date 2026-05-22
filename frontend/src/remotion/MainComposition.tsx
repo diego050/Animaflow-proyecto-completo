@@ -1,6 +1,7 @@
 ﻿import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig, Sequence, Audio } from "remotion";
 import React from "react";
 import type { TimelineSpec } from "../types/spec";
+import { useAuthStore } from "../store/useAuthStore";
 
 interface FallbackSceneProps {
   text: string;
@@ -67,12 +68,16 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor 
 
 export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
   const { fps } = useVideoConfig();
+  const token = useAuthStore.getState().token;
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       {spec.scenes.map((scene, index) => {
         const fromFrame = Math.round(scene.start_time_seconds * fps);
         const durationInFrames = Math.max(1, Math.round(scene.duration_seconds * fps));
+        const audioUrlWithToken = scene.audio_url && token
+          ? `${scene.audio_url}?token=${token}`
+          : scene.audio_url;
 
         return (
           <Sequence key={index} from={fromFrame} durationInFrames={durationInFrames}>
@@ -83,7 +88,7 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
                 fallbackBg={String(scene.remotion_props?.backgroundColor || "#000")}
                 fallbackColor={String(scene.remotion_props?.textColor || "#fff")}
             />
-            {scene.audio_url && <Audio src={scene.audio_url} />}
+            {audioUrlWithToken && <Audio src={audioUrlWithToken} />}
           </Sequence>
         );
       })}
