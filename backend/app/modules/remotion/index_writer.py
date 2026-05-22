@@ -102,3 +102,39 @@ def write_index_ts(job_id: str, timeline_scenes: list[dict], user_id: Optional[s
     """
     write_user_index_ts(job_id, timeline_scenes, user_id)
     write_global_index_ts()
+
+
+def cleanup_stale_tsx_files(current_job_id: str, user_id: Optional[str] = None):
+    """Elimina archivos .tsx de jobs anteriores en el directorio del usuario.
+    
+    Esto previene que Remotion/Webpack intente compilar archivos rotos
+    de proyectos anteriores que siguen en la carpeta generated/.
+    Solo conserva los archivos del job actual.
+    """
+    generated_dir = _get_generated_dir()
+    user_dir = os.path.join(generated_dir, f"user_{user_id or 'anonymous'}")
+
+    if not os.path.isdir(user_dir):
+        return
+
+    removed = 0
+    for fname in os.listdir(user_dir):
+        if not fname.endswith(".tsx"):
+            continue
+        # Archivos tienen formato: Scene_{job_id}_{scene_index}.tsx
+        # Conservar solo los del job actual
+        if fname.startswith("Scene_") and current_job_id not in fname:
+            fpath = os.path.join(user_dir, fname)
+            try:
+                os.remove(fpath)
+                removed += 1
+            except OSError as e:
+                logger.warning("No se pudo eliminar %s: %s", fname, e)
+
+    if removed > 0:
+        logger.info(
+            "Limpiados %d archivos TSX de jobs anteriores para usuario %s",
+            removed, user_id or 'anonymous',
+            extra={"job_id": current_job_id},
+        )
+

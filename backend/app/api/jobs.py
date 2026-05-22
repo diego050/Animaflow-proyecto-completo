@@ -300,6 +300,11 @@ async def delete_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    import os
+    import shutil
+    from app.core.storage_paths import get_storage_dir
+    from app.core.config import settings as app_settings
+
     # Verify current_user owns this job before deletion
     job = db.query(JobModel).filter(
         JobModel.id == job_id,
@@ -308,6 +313,57 @@ async def delete_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    # 1. Delete final video file (storage/videos/{job_id}.mp4)
+    videos_dir = get_storage_dir("videos")
+    for ext in (".mp4", ".webm"):
+        video_path = os.path.join(videos_dir, f"{job_id}{ext}")
+        if os.path.exists(video_path):
+            try:
+                os.remove(video_path)
+            except OSError:
+                pass
+
+    # 2. Delete scene MP4s directory (storage/scenes/{job_id}/)
+    scenes_dir = os.path.join(get_storage_dir("scenes"), job_id)
+    if os.path.isdir(scenes_dir):
+        shutil.rmtree(scenes_dir, ignore_errors=True)
+
+    # 3. Delete audio files (storage/audio/{job_id}_*.wav)
+    audio_dir = get_storage_dir("audio")
+    if os.path.isdir(audio_dir):
+        for fname in os.listdir(audio_dir):
+            if fname.startswith(f"{job_id}_"):
+                try:
+                    os.remove(os.path.join(audio_dir, fname))
+                except OSError:
+                    pass
+
+    # 4. Delete generated TSX components (frontend/src/remotion/generated/user_*/Scene_{job_id}_*.tsx)
+    generated_dir = os.path.join(app_settings.frontend_path, "src", "remotion", "generated")
+    user_dir = os.path.join(generated_dir, f"user_{current_user.id}")
+    if os.path.isdir(user_dir):
+        for fname in os.listdir(user_dir):
+            if fname.startswith(f"Scene_{job_id}_") and fname.endswith(".tsx"):
+                try:
+                    os.remove(os.path.join(user_dir, fname))
+                except OSError:
+                    pass
+
+    # 5. Delete AE export files (storage/ae_exports/{job_id}*)
+    ae_dir = get_storage_dir("ae_exports")
+    if os.path.isdir(ae_dir):
+        for fname in os.listdir(ae_dir):
+            if job_id in fname:
+                fpath = os.path.join(ae_dir, fname)
+                try:
+                    if os.path.isdir(fpath):
+                        shutil.rmtree(fpath, ignore_errors=True)
+                    else:
+                        os.remove(fpath)
+                except OSError:
+                    pass
+
+    # 6. Delete DB record
     db.delete(job)
     db.commit()
     return {"status": "deleted", "job_id": job_id}

@@ -16,7 +16,7 @@ from ..tts.service import generate_tts_with_timestamps, AUDIO_STORAGE
 from ..segmentation.service import split_text_into_chunks
 from ..llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
 from ..remotion.component_generator import generate_remotion_component, heal_remotion_component
-from ..remotion.index_writer import write_index_ts
+from ..remotion.index_writer import write_index_ts, cleanup_stale_tsx_files
 from ..remotion.scene_renderer import render_single_scene, SCENES_STORAGE
 from ..video.concat import concat_scenes, VIDEOS_STORAGE
 
@@ -427,6 +427,11 @@ def run_pipeline_approved(
             # Estado 4: Renderizando escenas individuales como MP4
             job.status = "rendering_scenes"
             db.commit()
+
+            # Limpiar archivos TSX de jobs anteriores para evitar errores de compilación
+            cleanup_stale_tsx_files(job_id, user_id)
+            # Regenerar index.ts sin los archivos eliminados
+            write_index_ts(job_id, timeline_scenes, user_id)
 
             scene_mp4s = []
             for i, scene in enumerate(timeline_scenes):
