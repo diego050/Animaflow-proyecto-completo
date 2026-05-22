@@ -71,44 +71,33 @@ def generate_batch_visuals_with_llm(
             custom_instructions += f"\n\nSYSTEM PROMPT DEL USUARIO:\n{system_prompt}\n"
 
         prompt = f"""
-Eres el director de animación SENIOR de AnimaFlow. Analiza este guion y crea descripciones visuales DETALLADAS para animaciones SVG 2D complejas.
+Eres el Director de Arte SENIOR de AnimaFlow. Analiza este guion y crea instrucciones visuales de alto nivel (media_query) para configurar los componentes de nuestra librería.
 
-CANVAS: {aspect_ratio} ({w}x{h} píxeles). TODAS las posiciones y tamaños deben caber en este canvas.
+CANVAS: {aspect_ratio} ({w}x{h} píxeles).
 
 {scenes_context}
 {custom_instructions}
 
-TU TAREA: Para cada escena, describe una animación SVG 2D única y contextual que refleje el mensaje del texto.
+TU TAREA: Para cada escena, define el "mood", la paleta de colores, y el estilo de animación de texto y fondo que mejor refleje el mensaje.
 
 REQUISITOS CRÍTICOS:
 
-1. ANIMACIÓN COMPLEJA:
-   - Describe una animación SVG 2D específica (NO abstracta).
-   - Puede incluir: colisiones, morphing, partículas, conexiones, revelaciones, construcciones, etc.
-   - Usa easing curves: bounce, spring, ease-in-out, elastic.
-   - Incluye transiciones de entrada, desarrollo y salida.
-   - Ejemplos: "Dos bloques chocan y generan destello", "Calendario aparece con bounce", "Nodos se conectan en secuencia"
+1. DESCRIPCIÓN CONCEPTUAL (media_query):
+   - NO describas "formas SVG", "coordenadas X,Y", ni "radios".
+   - Describe la **Atmósfera**, **Paleta de Colores**, y **Estilo de Animación**.
+   - Ejemplo 1: "Cyberpunk theme with neon pink and cyan kinetic background. Text uses a fast slide-up reveal with intense glowing shadows."
+   - Ejemplo 2: "Corporate elegant style. Dark slate background shifting to deep indigo. Smooth and slow text fade with minimal blur."
+   - Ejemplo 3: "Aggressive and energetic. Pure black background contrasting with bright crimson red. Text pops up instantly with zero delay."
 
-2. ELEMENTOS SVG CONCRETOS:
-   - Especifica formas: calendarios, cuadrados, círculos, líneas, partículas, etc.
-   - Mínimo 3-5 elementos visuales por escena.
-   - Describe tamaños, posiciones relativas y colores.
-   - POSICIONES: X debe estar entre 0 y {w}, Y entre 0 y {h}.
+2. ESTILO VISUAL Y COLORES:
+   - Elige un `backgroundColor` oscuro y elegante (Hexadecimal).
+   - Elige un `textColor` contrastante y vibrante (Hexadecimal).
+   - Mantén cohesión cromática entre escenas a menos que haya un giro dramático en el guion.
 
-3. ESTILO VISUAL:
-   - Minimalista 2D, sin elementos 3D.
-   - Colores vibrantes, sombras, glows, gradientes.
-   - Paleta oscura y premium.
-
-4. MEDIA_QUERY EN INGLÉS:
-   - Debe ser una descripción narrativa detallada de la animación completa.
-   - Cada escena debe tener un media_query DIFERENTE y contextual al texto.
-   - Ejemplo escenas distintas: "Two rectangular blocks slide from opposite sides, collide at center creating a bright flash burst..." vs "A leaf grows from bottom center, branches extend outward with organic curves..."
-
-5. COHERENCIA:
-   - Mantén coherencia visual entre escenas (misma familia de colores).
+3. REGLAS ABSOLUTAS:
+   - El `media_query` DEBE estar en INGLÉS.
+   - NUNCA uses frases genéricas como "generic abstract background" o "particle effects".
    - Devuelve exactamente {len(chunks)} escenas en el mismo orden.
-   - NUNCA uses "generic abstract background" o "particle effects" como media_query.
 
 Responde SOLO con JSON válido.
 """
