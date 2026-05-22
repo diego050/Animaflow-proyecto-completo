@@ -5,35 +5,40 @@ export const TextReveal: React.FC<{
   text: string;
   color?: string;
   animation?: 'fade' | 'blur' | 'slide_up';
-  size?: 'normal' | 'large' | 'title';
   glowIntensity?: number;
+  x?: number;
+  y?: number;
+  fontSize?: number;
+  width?: number;
 }> = ({
   text,
   color = '#ffffff',
   animation = 'slide_up',
-  size = 'large',
   glowIntensity = 0.5,
+  x = 540,
+  y = 960,
+  fontSize = 60,
+  width = 900,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
   const words = text.split(' ');
 
-  let fontSize = '60px';
-  if (size === 'title') fontSize = '90px';
-  if (size === 'normal') fontSize = '40px';
-
   return (
     <div
       style={{
         position: 'absolute',
-        bottom: '15%',
-        left: '5%',
-        width: '90%',
+        top: `${y}px`,
+        left: `${x}px`,
+        transform: 'translate(-50%, -50%)',
+        width: `${width}px`,
         display: 'flex',
         flexWrap: 'wrap',
         justifyContent: 'center',
-        gap: '20px',
+        alignItems: 'center',
+        alignContent: 'center',
+        gap: `${Math.max(10, fontSize * 0.3)}px`,
         zIndex: 10,
         textAlign: 'center',
       }}

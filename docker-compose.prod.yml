@@ -92,6 +92,7 @@ services:
     volumes:
       - animaflow_storage:/app/storage
       - remotion_generated:/app/frontend/src/remotion/generated
+      - whisper_cache:/home/appuser/.cache/whisper
     restart: unless-stopped
     deploy:
       replicas: 1
@@ -166,6 +167,7 @@ volumes:
   animaflow_storage:
   remotion_generated:
   redis_data:
+  whisper_cache:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:

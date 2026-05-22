@@ -27,12 +27,16 @@ def parse_components_from_tsx(tsx_code: str) -> Dict[str, Any]:
         props_str = tr_match.group(1)
         color_m = re.search(r'color="([^"]+)"', props_str)
         anim_m = re.search(r'animation="([^"]+)"', props_str)
-        size_m = re.search(r'size="([^"]+)"', props_str)
+        x_m = re.search(r'x=\{([0-9.]+)\}', props_str)
+        y_m = re.search(r'y=\{([0-9.]+)\}', props_str)
+        fs_m = re.search(r'fontSize=\{([0-9.]+)\}', props_str)
         
         components['TextReveal'] = {
             'color': color_m.group(1) if color_m else '#ffffff',
             'animation': anim_m.group(1) if anim_m else 'slide_up',
-            'size': size_m.group(1) if size_m else 'large',
+            'x': float(x_m.group(1)) if x_m else 540,
+            'y': float(y_m.group(1)) if y_m else 960,
+            'fontSize': float(fs_m.group(1)) if fs_m else 80,
         }
         
     return components

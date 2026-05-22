@@ -76,6 +76,8 @@ def concat_scenes(job_id: str, scene_mp4s: List[str]) -> str:
                 "ffmpeg",
                 "-f", "concat", "-safe", "0", "-i", list_path,          # Input 0: Video list
                 "-f", "concat", "-safe", "0", "-i", audio_list_path,    # Input 1: Audio list
+                "-map", "0:v:0",                                        # Map video from input 0
+                "-map", "1:a:0",                                        # Map audio from input 1
                 "-c:v", "copy",                                         # Copy video stream
                 "-c:a", "aac", "-b:a", "192k",                          # Encode audio to AAC
                 "-y",                                                   # Overwrite

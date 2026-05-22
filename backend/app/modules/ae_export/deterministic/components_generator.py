@@ -45,20 +45,23 @@ def generate_component_script(
         
         parts.append('// TextReveal')
         safe_text = text.replace('"', '\\"').replace("'", "\\'")
-        # Put text layer near the bottom
-        text_y = int(height * 0.8)
+        # Read props
+        x = tr_props.get('x', width // 2)
+        y = tr_props.get('y', int(height * 0.8))
+        fs = tr_props.get('fontSize', 68)
+        w_box = tr_props.get('width', int(width * 0.9))
         
-        parts.append(f'var textLayer = comp.layers.addBoxText([{int(width * 0.9)}, 400], "{safe_text}");')
+        parts.append(f'var textLayer = comp.layers.addBoxText([{w_box}, 800], "{safe_text}");')
         parts.append('textLayer.name = "TextReveal";')
         parts.append('var td = textLayer.property("Source Text").value;')
         parts.append('td.resetCharStyle();')
         parts.append('td.font = "Arial-BoldMT";')
-        parts.append('td.fontSize = 68;')
+        parts.append(f'td.fontSize = {fs};')
         parts.append('td.applyFill = true;')
         parts.append(f'td.fillColor = {hex_to_rgb_array(txt_color)};')
         parts.append('td.justification = ParagraphJustification.CENTER_JUSTIFY;')
         parts.append('textLayer.property("Source Text").setValue(td);')
-        parts.append(f'textLayer.property("ADBE Transform Group").property("ADBE Position").setValue([{width // 2}, {text_y}]);')
+        parts.append(f'textLayer.property("ADBE Transform Group").property("ADBE Position").setValue([{x}, {y}]);')
         
         # Add text animator for slide_up / fade
         parts.append('var textAnimator = textLayer.property("ADBE Text Properties").property("ADBE Text Animators").addProperty("ADBE Text Animator");')
