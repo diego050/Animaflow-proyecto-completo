@@ -242,3 +242,77 @@ async def generate_remotion_component(
         # Fallback: return default component on any unexpected error
         logger.exception("Error programando componente para escena %d: %s", scene_index, e, extra={"job_id": job_id})
         return "FadeText"
+
+
+async def heal_remotion_component(
+    user_id: Optional[str],
+    job_id: str,
+    scene_index: int,
+    error_message: str,
+) -> bool:
+    """Intenta curar un componente TSX que falló al compilar."""
+    from app.core.config import settings
+    from app.modules.llm.resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    model = creds.model
+
+    if not api_key:
+        return False
+
+    # Leer el código actual
+    generated_dir = os.path.join(settings.frontend_path, "src", "remotion", "generated")
+    user_dir = os.path.join(generated_dir, f"user_{user_id or 'anonymous'}")
+    file_name = f"Scene_{job_id}_{scene_index}.tsx"
+    file_path = os.path.join(user_dir, file_name)
+
+    if not os.path.exists(file_path):
+        logger.error("No se puede curar %s porque no existe", file_path)
+        return False
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        broken_code = f.read()
+
+    prompt = (
+        "El siguiente código React/Remotion falló al compilar con este error de esbuild/TSX:\n\n"
+        f"ERROR: {error_message}\n\n"
+        "CÓDIGO ROTO:\n"
+        "```tsx\n"
+        f"{broken_code}\n"
+        "```\n\n"
+        "Tu tarea es arreglar el error de sintaxis y devolver el código TSX completo y funcional. "
+        "NO cambies la animación ni el diseño, SOLO arregla el error técnico (etiquetas mal cerradas, llaves, etc).\n"
+        "DEVUELVE UNICAMENTE EL CODIGO TSX PLANO. SIN BLOQUES DE MARKDOWN. SOLO CODIGO."
+    )
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = await _call_gemini_with_retry(
+            client, prompt, max_retries=2, model=model
+        )
+        
+        code = response.text.strip()
+        if code.startswith("```tsx"): code = code[6:]
+        elif code.startswith("```javascript"): code = code[13:]
+        elif code.startswith("```"): code = code[3:]
+        if code.endswith("```"): code = code[:-3]
+        code = code.strip()
+        
+        # Post-procesamiento
+        code = re.sub(r"\beasing\.", "Easing.", code)
+        if "from 'remotion'" in code and "Easing" not in code:
+            code = code.replace("interpolate } from 'remotion'", "interpolate, Easing } from 'remotion'")
+        if "import React" not in code and "from 'react'" not in code:
+            code = "import React from 'react';\n" + code
+        code = fix_interpolate_mismatch(code)
+        code = wrap_radius_with_math_max(code)
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(code)
+
+        logger.info("Componente curado con éxito: %s", file_name, extra={"job_id": job_id})
+        return True
+    except Exception as e:
+        logger.error("Fallo la curación de %s: %s", file_name, e, extra={"job_id": job_id})
+        return False
