@@ -1,4 +1,4 @@
-﻿# AnimaFlow — Agent Instructions
+# AnimaFlow — Agent Instructions
 
 ## Project Overview
 AnimaFlow is a SaaS platform that converts text/audio into editable, frame-accurate video projects for Adobe After Effects via a structured `spec.json` pipeline.
@@ -49,12 +49,12 @@ AnimaFlow is a SaaS platform that converts text/audio into editable, frame-accur
 - Follow "Mom Test" framework rigorously for interviews
 - Never mention specific tools (After Effects), technical internals (spec.json), or dual export in initial user conversations
 
-### MVP Prioritization
-- MVP functional in 20 days max priority
-- "MVP first, visual UI later": initial editor is code/prompt-driven only
-- Drag-and-drop UI is strictly v2 roadmap
-- Dual export (MP4 + spec.json) is mandatory, must work between Sprint 1-2
-- **Stability > Features**: 95% render success rate required before scaling
+### Architecture & Animation Standards
+- **High-Fidelity Automated Graphics:** Abandon raw SVG/React generation via LLM. Use declarative physics (`spring`, `interpolate`) via `Remotion Animated` or pre-built `Remocn` / `shadcn` registries.
+- **Strict Determinism:** NEVER use Framer Motion, standard Tailwind `animate-*` utilities, or GSAP without forced time-mocking (`useCurrentFrame`).
+- **Scalable UI:** Editor remains code/prompt-driven initially, but visual outputs must be premium from Day 1 using the component registry.
+- Dual export (MP4 + spec.json) remains mandatory.
+- **Stability > Features**: 95% render success rate required before scaling.
 
 ### Development
 - Avoid over-engineering: use managed services until WTP is validated
