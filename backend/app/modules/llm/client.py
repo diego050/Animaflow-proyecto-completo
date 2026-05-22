@@ -12,32 +12,31 @@ def _call_llm_sync(
     client, model: str, contents: str, config=None, label: str = "LLM"
 ):
     """
-    Ejecuta una llamada async a Gemini con timeout.
-    Usa asyncio.run para poder usar asyncio.wait_for que SÍ cancela la tarea.
+    Ejecuta una llamada síncrona a Gemini.
+    Usa directamente el cliente sincrónico para evitar problemas de "Event loop is closed"
+    al llamar varias veces en la misma función.
     """
-
-    async def _do_call_async():
-        if config is not None:
-            return await client.aio.models.generate_content(
-                model=model, contents=contents, config=config
-            )
-        return await client.aio.models.generate_content(
-            model=model, contents=contents
-        )
-
-    logger.info("Llamando a Gemini (model=%s, timeout=%ds)...", model, LLM_TIMEOUT, extra={"label": label})
+    logger.info("Llamando a Gemini (model=%s)...", model, extra={"label": label})
 
     try:
-        response = asyncio.run(asyncio.wait_for(_do_call_async(), timeout=LLM_TIMEOUT))
+        if config is not None:
+            response = client.models.generate_content(
+                model=model, contents=contents, config=config
+            )
+        else:
+            response = client.models.generate_content(
+                model=model, contents=contents
+            )
+            
         logger.info(
             "Respuesta recibida (%d chars)",
             len(response.text) if response.text else 0,
             extra={"label": label},
         )
         return response
-    except asyncio.TimeoutError:
-        logger.warning("TIMEOUT después de %ds — la llamada se canceló", LLM_TIMEOUT, extra={"label": label})
-        raise TimeoutError(f"[{label}] LLM call timed out after {LLM_TIMEOUT}s")
+    except Exception as e:
+        logger.error("Error en llamada síncrona a Gemini: %s", str(e), extra={"label": label})
+        raise
 
 
 async def _call_gemini_with_retry(
