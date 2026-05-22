@@ -335,6 +335,8 @@ export function ProjectDetail() {
           <ErrorBoundary>
             <PreviewPlayer
               spec={spec}
+              jobId={jobId}
+              isReadyToRender={isReadyToRender}
               aspectRatio={spec.aspect_ratio}
               focusSceneIndex={focusSceneIndex}
               onClearFocus={() => setFocusSceneIndex(null)}

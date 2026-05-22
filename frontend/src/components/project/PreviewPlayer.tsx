@@ -1,43 +1,31 @@
-import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { SkipForward, Play, ChevronDown } from 'lucide-react';
-import { PreviewPlayer as RemotionPreviewPlayer } from '../../components/PreviewPlayer';
+import { SkipForward, Play, ChevronDown, Video } from 'lucide-react';
 import type { TimelineSpec } from '../../types/spec';
-
-/** Create a filtered TimelineSpec containing only the scene at the given index. */
-function createFilteredSpec(spec: TimelineSpec, sceneIndex: number): TimelineSpec {
-  const scene = spec.scenes[sceneIndex];
-  if (!scene) return spec;
-  return {
-    ...spec,
-    scenes: [
-      {
-        ...scene,
-        start_time_seconds: 0,
-      },
-    ],
-  };
-}
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface PreviewPlayerProps {
   spec: TimelineSpec;
+  jobId: string;
+  isReadyToRender?: boolean;
   aspectRatio?: string;
   focusSceneIndex?: number | null;
   onClearFocus?: () => void;
 }
 
-export function PreviewPlayer({ spec, aspectRatio, focusSceneIndex, onClearFocus }: PreviewPlayerProps) {
+export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focusSceneIndex, onClearFocus }: PreviewPlayerProps) {
   const totalDuration = spec.scenes.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0);
   const sceneCount = spec.scenes.length;
-
-  const displaySpec = useMemo<TimelineSpec>(() => {
-    if (focusSceneIndex != null && focusSceneIndex >= 0 && focusSceneIndex < spec.scenes.length) {
-      return createFilteredSpec(spec, focusSceneIndex);
-    }
-    return spec;
-  }, [spec, focusSceneIndex]);
+  const token = useAuthStore((state) => state.token);
 
   const focusedScene = focusSceneIndex != null ? spec.scenes[focusSceneIndex] : null;
+
+  // Determinar la URL del video a mostrar
+  let videoUrl = '';
+  if (focusSceneIndex != null) {
+    videoUrl = `/api/scenes/${jobId}/${focusSceneIndex}.mp4?token=${token}`;
+  } else if (isReadyToRender) {
+    videoUrl = `/api/jobs/${jobId}/video?token=${token}`;
+  }
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
@@ -62,13 +50,34 @@ export function PreviewPlayer({ spec, aspectRatio, focusSceneIndex, onClearFocus
           </motion.div>
         )}
 
-        <div className="w-full max-w-sm">
-          <RemotionPreviewPlayer spec={displaySpec} aspectRatio={aspectRatio || '9:16'} />
+        <div className="w-full max-w-sm aspect-[9/16] bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50">
+          {videoUrl ? (
+            <video
+              key={videoUrl} // Forzar recarga al cambiar URL
+              src={videoUrl}
+              controls
+              autoPlay
+              className="w-full h-full object-cover"
+              controlsList="nodownload"
+            />
+          ) : (
+            <div className="text-center p-6">
+              <Video className="w-12 h-12 text-text-secondary/30 mx-auto mb-3" />
+              <p className="text-text-secondary/60 text-sm">
+                Selecciona una escena de la lista para ver su preview.
+              </p>
+              <p className="text-text-secondary/40 text-xs mt-2">
+                El video final estará disponible aquí una vez renderizado.
+              </p>
+            </div>
+          )}
         </div>
         <p className="text-text-secondary/40 text-xs mt-4">
           {focusedScene
-            ? `Preview individual — Escena ${focusSceneIndex! + 1}`
-            : 'Preview frame-accurate a 30fps'}
+            ? `Preview MP4 individual — Escena ${focusSceneIndex! + 1}`
+            : isReadyToRender 
+              ? 'Video MP4 final'
+              : 'Selecciona una escena'}
         </p>
       </div>
 
@@ -94,10 +103,6 @@ export function PreviewPlayer({ spec, aspectRatio, focusSceneIndex, onClearFocus
                 <span className="text-xs text-text-secondary/50">Relación de aspecto</span>
                 <span className="text-sm font-semibold text-mint-precision">{aspectRatio || '9:16'}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-secondary/50">FPS</span>
-                <span className="text-sm font-semibold text-text-primary">30</span>
-              </div>
             </div>
           </details>
         </div>
@@ -118,10 +123,6 @@ export function PreviewPlayer({ spec, aspectRatio, focusSceneIndex, onClearFocus
               <span className="text-xs text-text-secondary/50">Relación de aspecto</span>
               <span className="text-sm font-semibold text-mint-precision">{aspectRatio || '9:16'}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-text-secondary/50">FPS</span>
-              <span className="text-sm font-semibold text-text-primary">30</span>
-            </div>
           </div>
         </div>
 
@@ -139,6 +140,13 @@ export function PreviewPlayer({ spec, aspectRatio, focusSceneIndex, onClearFocus
                   return (
                     <div
                       key={idx}
+                      onClick={() => {
+                        if (onClearFocus && isFocused) onClearFocus();
+                        else if (onClearFocus) {
+                           // This requires onPreviewScene, but it's not passed. 
+                           // Actually, let's keep the view-only nature of this list since we just highlight.
+                        }
+                      }}
                       className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${
                         isFocused
                           ? 'bg-mint-precision/10 border border-mint-precision/30'
@@ -167,7 +175,7 @@ export function PreviewPlayer({ spec, aspectRatio, focusSceneIndex, onClearFocus
         {/* Desktop scene list (hidden on mobile) */}
         <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-3">Escenas</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
             {spec.scenes.map((scene, idx) => {
               const isFocused = focusSceneIndex === idx;
               return (

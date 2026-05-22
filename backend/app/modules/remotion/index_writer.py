@@ -64,10 +64,10 @@ def write_global_index_ts():
             for fname in sorted(os.listdir(user_path)):
                 if fname.endswith(".tsx") and not fname.startswith("index"):
                     base = fname[:-4]  # quitar .tsx
-                    # Evitar nombres que empiecen con número (no válidos como identificadores JS)
-                    safe_base = base
-                    if base[0].isdigit():
-                        safe_base = f"_{base}"
+                    # Evitar nombres que empiecen con número o tengan guiones/espacios
+                    safe_base = base.replace("-", "_").replace(" ", "_")
+                    if safe_base[0].isdigit():
+                        safe_base = f"_{safe_base}"
                     imports.append(f"import * as {safe_base} from './{entry}/{base}';")
                     exports.append(f"  '{base}': {safe_base},")
 

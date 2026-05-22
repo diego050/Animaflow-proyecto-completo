@@ -63,6 +63,7 @@ RUN if ! id -u appuser >/dev/null 2>&1; then \
     fi
 
 RUN chown -R appuser:appuser /app/frontend /app/storage || true
+RUN mkdir -p /app/frontend/node_modules/.cache && chmod -R 777 /app/frontend/node_modules/.cache || true
 
 # Entrypoint handles runtime download of Piper model (robust against build-cache or empty volumes)
 COPY backend/entrypoint.sh /entrypoint.sh
