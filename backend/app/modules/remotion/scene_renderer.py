@@ -112,7 +112,7 @@ def render_single_scene(
             text=True,
             encoding="utf-8",
             env=os.environ.copy(),
-            timeout=120,  # 2 minutos max por escena
+            timeout=300,  # 5 minutos max por escena (primera vez tarda más por webpack)
         )
     finally:
         try:

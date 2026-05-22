@@ -464,6 +464,11 @@ def run_pipeline_approved(
                             i, attempt + 1, max_render_retries, err_str,
                             extra={"job_id": job_id}
                         )
+                        # Si es timeout, no reintentar (solo desperdiciaría más tiempo)
+                        if "timed out" in err_str:
+                            logger.error("Timeout renderizando escena %d. Abortando.", i, extra={"job_id": job_id})
+                            scene["scene_video_url"] = None
+                            break
                         if attempt < max_render_retries - 1 and "Transform failed" in err_str:
                             logger.info("Intentando curar componente TSX para escena %d...", i, extra={"job_id": job_id})
                             healed = asyncio.run(
