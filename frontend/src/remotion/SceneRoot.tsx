@@ -1,4 +1,4 @@
-import { Composition, registerRoot, Audio } from "remotion";
+import { Composition, registerRoot } from "remotion";
 import React from "react";
 import { AbsoluteFill } from "remotion";
 import { generatedModules } from "./generated";
@@ -9,7 +9,6 @@ interface SceneWrapperProps {
   durationInFrames: number;
   fallbackBg?: string;
   fallbackColor?: string;
-  audioUrl?: string;
 }
 
 const SceneWrapper: React.FC<SceneWrapperProps> = ({
@@ -18,7 +17,6 @@ const SceneWrapper: React.FC<SceneWrapperProps> = ({
   durationInFrames,
   fallbackBg = "#000000",
   fallbackColor = "#ffffff",
-  audioUrl,
 }) => {
   const mod = (generatedModules as Record<string, Record<string, unknown>>)[type];
   const Component = mod?.SceneComponent as React.ComponentType<{ text: string; durationInFrames: number }> | undefined;
@@ -43,17 +41,11 @@ const SceneWrapper: React.FC<SceneWrapperProps> = ({
         >
           {text}
         </div>
-        {audioUrl && <Audio src={audioUrl} />}
       </AbsoluteFill>
     );
   }
 
-  return (
-    <AbsoluteFill>
-      <Component text={text} durationInFrames={durationInFrames} />
-      {audioUrl && <Audio src={audioUrl} />}
-    </AbsoluteFill>
-  );
+  return <Component text={text} durationInFrames={durationInFrames} />;
 };
 
 export const RemotionSceneRoot = () => {

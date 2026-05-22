@@ -21,7 +21,6 @@ def render_single_scene(
     text_color: str = "#38bdf8",
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
-    audio_path: Optional[str] = None,
 ) -> str:
     """
     Renderiza una sola escena como MP4 usando Remotion CLI.
@@ -64,7 +63,6 @@ def render_single_scene(
         "durationInFrames": int(duration_seconds * 30),
         "fallbackBg": background_color,
         "fallbackColor": text_color,
-        "audioUrl": audio_path, # Añadido para que Remotion muxee el audio en el .mp4
     }
 
     # Escribir props a archivo temporal para evitar problemas de escape

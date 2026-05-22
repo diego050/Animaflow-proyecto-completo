@@ -443,12 +443,6 @@ def run_pipeline_approved(
                 max_render_retries = 3
                 for attempt in range(max_render_retries):
                     try:
-                        # Compute absolute audio path if audio_url exists
-                        audio_path_abs = None
-                        if scene.get("audio_url"):
-                            audio_filename = os.path.basename(scene["audio_url"])
-                            audio_path_abs = os.path.join(get_storage_dir("audio"), audio_filename)
-                            
                         mp4_path = render_single_scene(
                             job_id=job_id,
                             scene_index=i,
@@ -459,7 +453,6 @@ def run_pipeline_approved(
                             text_color=remotion_props.get("textColor", "#38bdf8"),
                             aspect_ratio=aspect_ratio,
                             user_id=user_id,
-                            audio_path=audio_path_abs,
                         )
                         scene_mp4s.append(mp4_path)
                         scene["scene_video_url"] = f"/api/scenes/{job_id}/{i}.mp4"
