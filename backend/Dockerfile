@@ -23,7 +23,9 @@ RUN mkdir -p /app/storage/assets /app/storage/audio /app/storage/videos /app/sto
 RUN useradd -m -u 1000 appuser
 
 # Create mount point for shared frontend generated components volume
-RUN mkdir -p /app/frontend/src/remotion/generated && chown -R appuser:appuser /app/frontend
+RUN mkdir -p /app/frontend/src/remotion/generated && \
+    chown -R appuser:appuser /app/frontend && \
+    chmod -R 777 /app/frontend/src/remotion/generated
 
 # Change ownership of app directory
 RUN chown -R appuser:appuser /app

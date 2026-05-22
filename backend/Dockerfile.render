@@ -41,7 +41,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./
 
 # Crear punto de montaje para volumen compartido de componentes generados
-RUN mkdir -p /app/frontend/src/remotion/generated
+RUN mkdir -p /app/frontend/src/remotion/generated && \
+    chmod -R 777 /app/frontend/src/remotion/generated
 
 # Copiar frontend e instalar dependencias Node (necesario para Remotion CLI)
 COPY frontend/package*.json /app/frontend/
