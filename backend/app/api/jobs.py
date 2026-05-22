@@ -359,7 +359,7 @@ async def trigger_render(
 
 
 @router.post("/generate-script", response_model=ScriptGenerateResponse)
-async def generate_script(
+def generate_script(
     req: ScriptGenerateRequest,
     current_user: User = Depends(get_current_active_user),
 ):
