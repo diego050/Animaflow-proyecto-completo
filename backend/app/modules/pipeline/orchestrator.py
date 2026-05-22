@@ -15,7 +15,7 @@ logger = get_logger("pipeline")
 from ..tts.service import generate_tts_with_timestamps, AUDIO_STORAGE
 from ..segmentation.service import split_text_into_chunks
 from ..llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
-from ..remotion.component_generator import generate_remotion_component
+from ..remotion.component_generator import generate_remotion_component, heal_remotion_component
 from ..remotion.index_writer import write_index_ts
 from ..remotion.scene_renderer import render_single_scene, SCENES_STORAGE
 from ..video.concat import concat_scenes, VIDEOS_STORAGE
@@ -435,30 +435,48 @@ def run_pipeline_approved(
                 render_duration = duration + 1.0
                 remotion_props = scene.get("remotion_props") or {}
 
-                try:
-                    mp4_path = render_single_scene(
-                        job_id=job_id,
-                        scene_index=i,
-                        duration_seconds=render_duration,
-                        scene_text=scene.get("text", ""),
-                        component_name=scene.get("type", f"Scene_{job_id}_{i}"),
-                        background_color=remotion_props.get("backgroundColor", "#0f172a"),
-                        text_color=remotion_props.get("textColor", "#38bdf8"),
-                        aspect_ratio=aspect_ratio,
-                        user_id=user_id,
-                    )
-                    scene_mp4s.append(mp4_path)
-                    scene["scene_video_url"] = f"/api/scenes/{job_id}/{i}.mp4"
-                except Exception as render_err:
-                    logger.exception(
-                        "Error renderizando escena %d del job %s: %s",
-                        i,
-                        job_id,
-                        render_err,
-                        extra={"job_id": job_id, "scene_index": i},
-                    )
-                    # Fallback: continuar sin el MP4 de esta escena
-                    scene["scene_video_url"] = None
+                max_render_retries = 3
+                for attempt in range(max_render_retries):
+                    try:
+                        mp4_path = render_single_scene(
+                            job_id=job_id,
+                            scene_index=i,
+                            duration_seconds=render_duration,
+                            scene_text=scene.get("text", ""),
+                            component_name=scene.get("type", f"Scene_{job_id}_{i}"),
+                            background_color=remotion_props.get("backgroundColor", "#0f172a"),
+                            text_color=remotion_props.get("textColor", "#38bdf8"),
+                            aspect_ratio=aspect_ratio,
+                            user_id=user_id,
+                        )
+                        scene_mp4s.append(mp4_path)
+                        scene["scene_video_url"] = f"/api/scenes/{job_id}/{i}.mp4"
+                        break  # Éxito, salir del loop de reintentos
+                    except Exception as render_err:
+                        err_str = str(render_err)
+                        logger.warning(
+                            "Fallo render escena %d (intento %d/%d): %s",
+                            i, attempt + 1, max_render_retries, err_str,
+                            extra={"job_id": job_id}
+                        )
+                        if attempt < max_render_retries - 1 and "Transform failed" in err_str:
+                            logger.info("Intentando curar componente TSX para escena %d...", i, extra={"job_id": job_id})
+                            healed = asyncio.run(
+                                heal_remotion_component(
+                                    user_id=user_id,
+                                    job_id=job_id,
+                                    scene_index=i,
+                                    error_message=err_str,
+                                )
+                            )
+                            if not healed:
+                                logger.error("No se pudo curar la escena %d. Abortando render.", i, extra={"job_id": job_id})
+                                scene["scene_video_url"] = None
+                                break
+                        else:
+                            if attempt == max_render_retries - 1:
+                                logger.exception("Error final renderizando escena %d", i, extra={"job_id": job_id})
+                            scene["scene_video_url"] = None
 
             # Unir todos los MP4s si hay al menos uno
             if scene_mp4s:
