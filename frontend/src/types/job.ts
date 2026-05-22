@@ -78,6 +78,7 @@ export const PROCESSING_STATUSES = [
 ] as const;
 
 export const RENDER_STATUSES = [
+  'rendering_scenes',
   'queued_render',
   'rendering',
 ] as const;

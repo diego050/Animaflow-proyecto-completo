@@ -85,6 +85,33 @@ def regenerate_single_scene_sync(
     new_text: str,
     user_id: Optional[str] = None,
 ) -> dict:
-    return asyncio.run(
+    """Sync wrapper that also persists changes to DB."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    updated_spec = asyncio.run(
         _regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text, user_id)
     )
+
+    # Persist to DB — the RQ worker receives a serialized copy, so we must
+    # open our own session and write back.
+    db = SessionLocal()
+    try:
+        job = db.query(JobModel).filter(JobModel.id == job_id).first()
+        if job:
+            job.result_spec = updated_spec
+            flag_modified(job, "result_spec")
+            job.status = "completed"
+            db.commit()
+            logger.info(
+                "Scene %d regenerated and persisted for job %s",
+                scene_index,
+                job_id,
+                extra={"job_id": job_id},
+            )
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+    return updated_spec

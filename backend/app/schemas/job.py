@@ -8,10 +8,12 @@ JobStatus = Literal[
     "segmented",
     "visuals_generating",
     "processing_scenes",
+    "rendering_scenes",
     "queued_render",
     "rendering",
     "completed",
     "failed",
+    "failed_render",
     "queued_scene_regen",
 ]
 

@@ -1,5 +1,7 @@
-﻿from typing import List
+import os
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Request, Body
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from rq import Queue, Retry
 from redis import Redis
@@ -16,9 +18,12 @@ from app.schemas.job import (
 from app.db.session import get_db
 from app.db.models import JobModel, User
 from app.core.config import settings
-from app.core.security import get_current_active_user
+from app.core.security import get_current_active_user, get_current_active_user_from_token
 from app.core.limiter import limiter
+from app.core.storage_paths import get_storage_dir
 from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_approved
+
+VIDEOS_STORAGE = get_storage_dir("videos")
 
 
 def get_job_or_404(db: Session, job_id: str, user_id: str) -> JobModel:
@@ -141,24 +146,49 @@ async def approve_scenes(
 
     # Enqueue the second phase of the pipeline
     # tts_api_key is resolved inside the worker via _get_user_api_key
-    queue.enqueue(
+    render_queue.enqueue(
         run_pipeline_approved,
         job.id,
         current_user.id,
         job.tts_provider or "local_piper",
         job.tts_voice_id or "es_ES-carlfm-x_low",
         None,
-        job_timeout="10m",
+        job_timeout="20m",
         retry=Retry(max=3),
     )
 
     # Return immediately with the updated status
     return JobResponse(
         job_id=job.id,
-        status="visuals_generating",
+        status=job.status,
         result_spec=job.result_spec,
         video_url=job.video_url,
     )
+
+
+@router.get("/{job_id}/video")
+async def get_job_video(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user_from_token),
+):
+    """Servir MP4 final del job."""
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id,
+        JobModel.user_id == current_user.id,
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if not job.video_url:
+        raise HTTPException(status_code=404, detail="Video not ready")
+
+    # Extraer path del video_url
+    video_path = os.path.join(VIDEOS_STORAGE, f"{job_id}.mp4")
+    if not os.path.exists(video_path):
+        raise HTTPException(status_code=404, detail="Video file not found")
+
+    return FileResponse(video_path, media_type="video/mp4")
 
 
 @router.post("/{job_id}/reformat")
@@ -397,9 +427,9 @@ async def trigger_scene_regenerate(
         raise HTTPException(status_code=400, detail="Invalid scene index")
 
     # Encolar en RQ para no bloquear el request handler
-    from app.modules.pipeline.scene_manager import _regenerate_scene_async
+    from app.modules.pipeline.scene_manager import regenerate_single_scene_sync
     queue.enqueue(
-        _regenerate_scene_async,
+        regenerate_single_scene_sync,
         job.id,
         job.result_spec,
         scene_index,

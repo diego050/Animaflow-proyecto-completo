@@ -66,7 +66,7 @@ class JobModel(Base):
     __table_args__ = (
         CheckConstraint(
             "status IN ('pending', 'segmenting', 'segmented', 'visuals_generating', 'processing_scenes', "
-            "'queued_render', 'rendering', 'completed', 'failed', 'queued_scene_regen')",
+            "'rendering_scenes', 'queued_render', 'rendering', 'completed', 'failed', 'queued_scene_regen')",
             name="ck_job_status"
         ),
     )

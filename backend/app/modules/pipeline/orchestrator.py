@@ -17,6 +17,8 @@ from ..segmentation.service import split_text_into_chunks
 from ..llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
 from ..remotion.component_generator import generate_remotion_component
 from ..remotion.index_writer import write_index_ts
+from ..remotion.scene_renderer import render_single_scene, SCENES_STORAGE
+from ..video.concat import concat_scenes, VIDEOS_STORAGE
 
 
 def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]:
@@ -422,13 +424,65 @@ def run_pipeline_approved(
                 )
             )
 
+            # Estado 4: Renderizando escenas individuales como MP4
+            job.status = "rendering_scenes"
+            db.commit()
+
+            scene_mp4s = []
+            for i, scene in enumerate(timeline_scenes):
+                duration = scene.get("duration_seconds", 7.0)
+                # Añadir 1 segundo extra para entry/exit animations
+                render_duration = duration + 1.0
+                remotion_props = scene.get("remotion_props") or {}
+
+                try:
+                    mp4_path = render_single_scene(
+                        job_id=job_id,
+                        scene_index=i,
+                        duration_seconds=render_duration,
+                        scene_text=scene.get("text", ""),
+                        component_name=scene.get("type", f"Scene_{job_id}_{i}"),
+                        background_color=remotion_props.get("backgroundColor", "#0f172a"),
+                        text_color=remotion_props.get("textColor", "#38bdf8"),
+                        aspect_ratio=aspect_ratio,
+                        user_id=user_id,
+                    )
+                    scene_mp4s.append(mp4_path)
+                    scene["scene_video_url"] = f"/api/scenes/{job_id}/{i}.mp4"
+                except Exception as render_err:
+                    logger.exception(
+                        "Error renderizando escena %d del job %s: %s",
+                        i,
+                        job_id,
+                        render_err,
+                        extra={"job_id": job_id, "scene_index": i},
+                    )
+                    # Fallback: continuar sin el MP4 de esta escena
+                    scene["scene_video_url"] = None
+
+            # Unir todos los MP4s si hay al menos uno
+            if scene_mp4s:
+                try:
+                    final_mp4 = concat_scenes(job_id, scene_mp4s)
+                    job.video_url = f"/api/jobs/{job_id}/video"
+                except Exception as concat_err:
+                    logger.exception(
+                        "Error uniendo escenas del job %s: %s",
+                        job_id,
+                        concat_err,
+                        extra={"job_id": job_id},
+                    )
+                    job.video_url = None
+            else:
+                job.video_url = None
+
             # Guardamos el timeline completo y lo validamos con Pydantic
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
             spec_obj = TimelineSpec(**final_spec)
             job.result_spec = spec_obj.model_dump()
             flag_modified(job, "result_spec")
 
-            # Estado 4: Completado
+            # Estado 5: Completado
             job.status = "completed"
             db.commit()
 
