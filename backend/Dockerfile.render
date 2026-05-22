@@ -59,7 +59,7 @@ RUN mkdir -p /app/storage/assets /app/storage/audio /app/storage/videos /app/sto
 
 # Create non-root user, handling case where UID 1000 already exists
 RUN if ! id -u appuser >/dev/null 2>&1; then \
-        useradd -m appuser || useradd -m -u 1001 appuser; \
+        useradd -m appuser; \
     fi
 
 RUN chown -R appuser:appuser /app/frontend /app/storage || true

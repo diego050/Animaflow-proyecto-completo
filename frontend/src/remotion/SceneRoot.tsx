@@ -56,11 +56,17 @@ export const RemotionSceneRoot = () => {
       fps={30}
       width={1080}
       height={1920}
-      durationInFrames={1}
+      durationInFrames={150} // Fallback de 5 segundos
+      calculateMetadata={({ props }) => {
+        const typedProps = props as unknown as SceneWrapperProps;
+        return {
+          durationInFrames: typedProps.durationInFrames || 150,
+        };
+      }}
       defaultProps={{
         type: "",
         text: "",
-        durationInFrames: 1,
+        durationInFrames: 150,
         fallbackBg: "#000000",
         fallbackColor: "#ffffff",
       }}
