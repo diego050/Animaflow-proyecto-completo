@@ -86,8 +86,8 @@ async def generate_remotion_component(
         txt_color = visual_spec.textColor
         prompt_code = (
             "import React from 'react';\n"
-            "import { KineticBackground } from '../components/KineticBackground';\n"
-            "import { TextReveal } from '../components/TextReveal';\n\n"
+            "import { KineticBackground } from '../../components/KineticBackground';\n"
+            "import { TextReveal } from '../../components/TextReveal';\n\n"
             "export const SceneComponent = ({ text, durationInFrames }) => {\n"
             "    // Analiza el media_query y configura los colores de fondo y texto adecuadamente.\n"
             "    // Puedes cambiar theme, colores, y animaciones de acuerdo al contexto.\n"
