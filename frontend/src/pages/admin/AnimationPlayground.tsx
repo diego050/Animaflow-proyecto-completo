@@ -2,14 +2,14 @@ import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Player } from '@remotion/player';
-import * as Components from '../../remotion/components';
+import { COMPONENT_REGISTRY } from '../../remotion/registry';
 
 export function AnimationPlayground() {
   const { componentName } = useParams();
   const navigate = useNavigate();
 
   // Find the component dynamically
-  const Component = componentName ? (Components as any)[componentName] : null;
+  const Component = componentName ? COMPONENT_REGISTRY[componentName] : null;
 
   // Default editable props based on common universal props
   const [props, setProps] = useState({

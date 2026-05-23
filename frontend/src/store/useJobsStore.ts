@@ -119,6 +119,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     scenes?: any[],
     designMd?: string | null,
     systemPrompt?: string | null,
+    animationOnly?: boolean,
   ) => {
     void _voiceId;
     const settings = useSettingsStore.getState().settings;

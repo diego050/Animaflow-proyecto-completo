@@ -278,7 +278,7 @@ export function NewProjectWizard() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
           >
-            <WizardStepProcessing status={selectedJob?.status} jobId={selectedJob?.id} />
+            <WizardStepProcessing status={selectedJob?.status} jobId={selectedJob?.job_id} />
           </motion.div>
         )}
 

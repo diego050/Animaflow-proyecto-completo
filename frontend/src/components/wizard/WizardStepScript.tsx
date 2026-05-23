@@ -52,9 +52,9 @@ export function WizardStepScript({
     onScenesChange([...scenes, { text: '', media_query: '' }]);
   };
 
-  const handleSceneChange = (index: number, field: 'text' | 'media_query', value: string) => {
+  const handleSceneChange = (index: number, field: 'text' | 'media_query' | 'duration_seconds', value: string | number) => {
     const newScenes = [...scenes];
-    newScenes[index][field] = value;
+    (newScenes[index] as any)[field] = value;
     onScenesChange(newScenes);
   };
 
