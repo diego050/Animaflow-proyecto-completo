@@ -8,6 +8,7 @@ export interface JobSummary {
   video_url: string | null;
   created_at: string;
   aspect_ratio?: string;
+  parent_job_id?: string;
 }
 
 export interface JobDetail {

@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { useMarketplaceStore } from '../../store/useMarketplaceStore';
 import type { MarketplaceComponent } from '../../store/useMarketplaceStore';
+import { Player } from '@remotion/player';
+import { AnimaComposer } from '../../remotion/composer/AnimaComposer';
 
 // ─── TSX Template Generator ──────────────────────────────────────────────────
 
@@ -108,6 +110,9 @@ export function AdminMarketplacePage() {
     componentName: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Preview state
+  const [previewModal, setPreviewModal] = useState<MarketplaceComponent | null>(null);
 
   useEffect(() => {
     fetchPending();
@@ -347,6 +352,14 @@ export function AdminMarketplacePage() {
                   <X size={18} />
                 </button>
                 <button
+                  onClick={async () => {
+                    let component = comp;
+                    if (!comp.content) {
+                      const detail = await fetchComponentDetail(comp.id);
+                      if (detail) component = detail;
+                    }
+                    setPreviewModal(component);
+                  }}
                   className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl hover:bg-blue-500/20 transition-colors"
                   title="Vista previa"
                 >
@@ -512,6 +525,55 @@ export function AdminMarketplacePage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Vista Previa ── */}
+      {previewModal && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+          onClick={() => setPreviewModal(null)}
+        >
+          <div
+            className="bg-surface-container border border-border-tech rounded-2xl p-6 max-w-2xl w-full flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white">Vista Previa: {previewModal.name}</h3>
+              <button onClick={() => setPreviewModal(null)} className="p-2 hover:bg-surface-elevated rounded-lg">
+                <X size={20} className="text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="w-full max-w-sm aspect-[9/16] bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50">
+              <Player
+                component={AnimaComposer}
+                inputProps={{
+                  spec: (() => {
+                    try {
+                      return JSON.parse(previewModal.content || '{}');
+                    } catch {
+                      return {};
+                    }
+                  })(),
+                  text: 'Preview Text',
+                  durationInFrames: 150,
+                  frame: 0,
+                  fps: 30
+                }}
+                durationInFrames={150}
+                compositionWidth={1080}
+                compositionHeight={1920}
+                fps={30}
+                controls
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
+            
+            <p className="text-xs text-gray-500 mt-4 text-center">
+              La duración y el texto son de prueba. En producción se inyectarán los datos reales del guion.
+            </p>
           </div>
         </div>
       )}

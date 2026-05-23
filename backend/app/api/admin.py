@@ -10,8 +10,6 @@ import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from sqlalchemy.orm import Session
-from rq import Queue, Retry
-from redis import Redis
 
 from app.db.session import get_db
 from app.db.models import User, JobModel
@@ -20,8 +18,6 @@ from app.core.config import settings
 from app.core.limiter import limiter
 
 router = APIRouter()
-redis_conn = Redis.from_url(settings.REDIS_URL)
-queue = Queue("default", connection=redis_conn)
 
 
 # ---------------------------------------------------------------------------
@@ -301,23 +297,10 @@ def retry_job(
             detail="Only failed jobs can be retried",
         )
 
-    from app.modules.pipeline.orchestrator import run_pipeline
-
     job.status = "pending"
     db.commit()
 
-    # Re-enqueue to the default RQ queue
-    queue.enqueue(
-        run_pipeline,
-        job.id,
-        job.script_text,
-        job.aspect_ratio,
-        job.user_id,
-        job_timeout="10m",
-        retry=Retry(max=3),
-    )
-
-    return {"message": "Job queued for retry", "job_id": job_id}
+    return {"message": "Job queued for retry (picked up by scheduler)", "job_id": job_id}
 
 
 @router.post("/jobs/{job_id}/cancel")
@@ -427,15 +410,6 @@ def system_health(
     current_user: User = Depends(require_admin),
 ):
     """Return system health status."""
-    # Check Redis
-    redis_connected = False
-    redis_queue_length = 0
-    try:
-        redis_connected = redis_conn.ping()
-        redis_queue_length = len(queue.get_job_ids())
-    except Exception:
-        pass
-
     # Check Database
     database_connected = False
     database_pool_size = 0
@@ -455,17 +429,6 @@ def system_health(
     except Exception:
         pass
 
-    # Workers info (from RQ)
-    workers_active = 0
-    workers_idle = 0
-    try:
-        from rq import Worker
-        workers = Worker.all(connection=redis_conn)
-        workers_active = sum(1 for w in workers if w.get_state() == 'busy')
-        workers_idle = sum(1 for w in workers if w.get_state() == 'idle')
-    except Exception:
-        pass
-
     # Uptime (process start time approximation)
     import time
     uptime_seconds = time.time() - getattr(system_health, '_start_time', time.time())
@@ -473,11 +436,11 @@ def system_health(
         system_health._start_time = time.time()
 
     return {
-        "redis_connected": redis_connected,
-        "redis_queue_length": redis_queue_length,
-        "workers_active": workers_active,
-        "workers_idle": workers_idle,
-        "workers_connected": (workers_active + workers_idle) > 0,
+        "redis_connected": False,
+        "redis_queue_length": 0,
+        "workers_active": 0,
+        "workers_idle": 0,
+        "workers_connected": False,
         "database_connected": database_connected,
         "database_pool_size": database_pool_size,
         "database_pool_used": database_pool_used,

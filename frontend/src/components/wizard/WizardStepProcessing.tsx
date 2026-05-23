@@ -7,6 +7,8 @@ export interface WizardStepProcessingProps {
   status?: string;
   progress?: number;
   jobId?: string;
+  title?: string;
+  description?: string;
 }
 
 interface LogMessage {
@@ -15,7 +17,7 @@ interface LogMessage {
   message?: string;
 }
 
-export function WizardStepProcessing({ status, jobId }: WizardStepProcessingProps) {
+export function WizardStepProcessing({ status, jobId, title, description }: WizardStepProcessingProps) {
   const isFailed = status === 'failed' || status === 'failed_render';
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -49,10 +51,10 @@ export function WizardStepProcessing({ status, jobId }: WizardStepProcessingProp
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-display font-bold text-text-primary mb-1">
-          Procesando tu proyecto
+          {title || "Procesando tu proyecto"}
         </h2>
         <p className="text-text-secondary text-sm">
-          La IA está generando las escenas. Esto puede tomar unos minutos.
+          {description || "La IA está generando las escenas. Esto puede tomar unos minutos."}
         </p>
       </div>
 

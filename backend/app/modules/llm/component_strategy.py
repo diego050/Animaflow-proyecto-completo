@@ -174,7 +174,17 @@ Devuelve: {{ "mode": "component", "component_name": "NombreComponente", "confide
 
 OPCION B - ESCENA PERSONALIZADA (SOLO si ningún componente existente sirve):
 Si la escena requiere una animacion o composicion unica que ningun componente cubre,
-genera un JSON AnimaComposer.
+genera un JSON AnimaComposer bajo la clave "anima_composer". 
+El JSON debe tener un arreglo de "primitives" (type: 'rect'|'circle'|'path'|'text'|'image'|'group'|'particles'|'gradient').
+Cada primitiva puede tener "animations" (ej. type: 'spring'|'interpolate', property: 'scale'|'opacity'|'y', from: 0, to: 1).
+Ejemplo rápido:
+"anima_composer": {{
+  "primitives": [
+    {{ "id": "bg", "type": "rect", "props": {{ "fill": "#0f172a", "width": 1080, "height": 1920 }} }},
+    {{ "id": "t1", "type": "text", "props": {{ "text": "Hola", "fill": "#fff", "fontSize": 120, "x": 540, "y": 960 }},
+      "animations": [ {{ "type": "spring", "property": "scale", "from": 0, "to": 1, "startFrame": 0 }} ] }}
+  ]
+}}
 Devuelve: {{ "mode": "custom", "justification": "...", "anima_composer": {{...}} }}
 
 IMPORTANTE: Siempre prioriza la OPCION A. Solo usa OPCION B si realmente no hay componente adecuado.

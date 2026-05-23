@@ -84,7 +84,7 @@ export interface Spec {
   word_timestamps?: WordTimestamp[];
   ae_metadata?: Record<string, unknown>;
   ae_script_code?: string;
-  animaComposer?: AnimaComposerSpec;
+  anima_composer?: AnimaComposerSpec;
 }
 
 export interface TimelineSpec {

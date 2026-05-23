@@ -1,0 +1,55 @@
+oot@srv1582664:/opt/animaflow# docker compose -f docker-compose.prod.yml logs -f worker-default
+worker-default-2  | 20:18:00 Worker f754540b9ceb477482a9132effb5a29d: started with PID 1, version 2.8.0
+worker-default-2  | 20:18:00 Worker f754540b9ceb477482a9132effb5a29d: subscribing to channel rq:pubsub:f754540b9ceb477482a9132effb5a29d
+worker-default-2  | 20:18:00 *** Listening on default...
+worker-default-2  | 20:18:00 Worker f754540b9ceb477482a9132effb5a29d: cleaning registries for queue: default
+worker-default-2  | 20:31:30 Worker f754540b9ceb477482a9132effb5a29d: cleaning registries for queue: default
+worker-default-2  | 20:40:05 default: app.modules.pipeline.orchestrator.run_pipeline('c282dac5-320e-47fa-9b88-14fb05e888e2', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '9:16', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, animation_only=False, design_md=None, scenes=None, system_prompt=None) (df1f2ea4-b15b-4c5b-a92f-719d8b42bdc0)
+worker-default-2  | 20:40:10 [animaflow.pipeline] INFO: Script segmented into 3 scenes (aspect_ratio: 9:16, tts_provider: local_piper)
+worker-default-2  | 20:40:10 [animaflow.llm] INFO: Llamando a Gemini (model=gemma-4-31b-it)...
+worker-default-2  | 20:40:18 [animaflow.llm] INFO: Respuesta recibida (1061 chars)
+worker-default-2  | 20:40:18 [animaflow.pipeline] INFO: Job c282dac5-320e-47fa-9b88-14fb05e888e2 paused at 'segmented' status awaiting user scene approval (3 scenes)
+worker-default-2  | 20:40:18 Successfully completed app.modules.pipeline.orchestrator.run_pipeline('c282dac5-320e-47fa-9b88-14fb05e888e2', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '9:16', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, animation_only=False, design_md=None, scenes=None, system_prompt=None) job in 0:00:13.684394s on worker f754540b9ceb477482a9132effb5a29d
+worker-default-2  | 20:40:18 default: Job OK (df1f2ea4-b15b-4c5b-a92f-719d8b42bdc0)
+worker-default-2  | 20:40:18 Result is kept for 500 seconds
+worker-default-2  | 20:44:10 default: app.modules.pipeline.orchestrator.run_pipeline('4f55e2b0-5b13-4838-827b-40136431884b', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '16:9', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) (525c2ef1-b3b1-4a73-8c91-81be8c3d7069)
+worker-default-2  | 20:44:13 [animaflow.pipeline] INFO: Reformatting job 4f55e2b0-5b13-4838-827b-40136431884b from c282dac5-320e-47fa-9b88-14fb05e888e2 to aspect ratio 16:9
+worker-default-2  | 20:44:15 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:15 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:15 [animaflow.remotion] INFO: Scene 0: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:18 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-2  | 20:44:18 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-2  | 20:44:18 [animaflow.remotion] INFO: Scene 1: Using Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-2  | 20:44:26 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:26 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:26 [animaflow.remotion] INFO: Scene 2: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:26 [animaflow.remotion] INFO: Generado index.ts para usuario 83438828-46ca-497e-b4d8-d50eb7d25bbc
+worker-default-2  | 20:44:26 [animaflow.remotion] INFO: Regenerado index.ts global con 0 módulos.
+worker-default-2  | 20:44:26 [animaflow.pipeline] INFO: Reformat completed for job 4f55e2b0-5b13-4838-827b-40136431884b
+worker-default-2  | 20:44:26 Successfully completed app.modules.pipeline.orchestrator.run_pipeline('4f55e2b0-5b13-4838-827b-40136431884b', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '16:9', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) job in 0:00:15.703922s on worker f754540b9ceb477482a9132effb5a29d
+worker-default-2  | 20:44:26 default: Job OK (525c2ef1-b3b1-4a73-8c91-81be8c3d7069)
+worker-default-2  | 20:44:26 Result is kept for 500 seconds
+worker-default-2  | 20:44:26 Worker f754540b9ceb477482a9132effb5a29d: cleaning registries for queue: default
+worker-default-1  | 20:18:00 Worker 3a489315f3b244249ad6915dbb12f4b2: started with PID 1, version 2.8.0
+worker-default-1  | 20:18:00 Worker 3a489315f3b244249ad6915dbb12f4b2: subscribing to channel rq:pubsub:3a489315f3b244249ad6915dbb12f4b2
+worker-default-1  | 20:18:00 *** Listening on default...
+worker-default-1  | 20:18:00 Worker 3a489315f3b244249ad6915dbb12f4b2: cleaning registries for queue: default
+worker-default-1  | 20:44:04 default: app.modules.pipeline.orchestrator.run_pipeline('fb8b3620-79d5-409d-8985-38b2030d280c', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '9:16', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) (6649d78f-5652-4789-9d3d-2b0bb6ab7ea9)
+worker-default-1  | 20:44:09 [animaflow.pipeline] INFO: Reformatting job fb8b3620-79d5-409d-8985-38b2030d280c from c282dac5-320e-47fa-9b88-14fb05e888e2 to aspect ratio 9:16
+worker-default-1  | 20:44:10 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:10 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:10 [animaflow.remotion] INFO: Scene 0: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:12 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-1  | 20:44:12 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-1  | 20:44:12 [animaflow.remotion] INFO: Scene 1: Using Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-1  | 20:44:19 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:19 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:19 [animaflow.remotion] INFO: Scene 2: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:19 [animaflow.remotion] INFO: Generado index.ts para usuario 83438828-46ca-497e-b4d8-d50eb7d25bbc
+worker-default-1  | 20:44:19 [animaflow.remotion] INFO: Regenerado index.ts global con 0 módulos.
+worker-default-1  | 20:44:19 [animaflow.pipeline] INFO: Reformat completed for job fb8b3620-79d5-409d-8985-38b2030d280c
+worker-default-1  | 20:44:19 Successfully completed app.modules.pipeline.orchestrator.run_pipeline('fb8b3620-79d5-409d-8985-38b2030d280c', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '9:16', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) job in 0:00:14.728499s on worker 3a489315f3b244249ad6915dbb12f4b2
+worker-default-1  | 20:44:19 default: Job OK (6649d78f-5652-4789-9d3d-2b0bb6ab7ea9)
+worker-default-1  | 20:44:19 Result is kept for 500 seconds
+worker-default-1  | 20:44:19 Worker 3a489315f3b244249ad6915dbb12f4b2: cleaning registries for queue: default
+

@@ -13,7 +13,7 @@ interface SceneWrapperProps {
   animaComposer?: any;
 }
 
-const SceneWrapper: React.FC<SceneWrapperProps> = ({
+export const SceneWrapper: React.FC<SceneWrapperProps> = ({
   type,
   text,
   durationInFrames,

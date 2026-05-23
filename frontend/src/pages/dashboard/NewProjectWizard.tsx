@@ -304,7 +304,12 @@ export function NewProjectWizard() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
           >
-            <WizardStepProcessing status={selectedJob?.status} />
+            <WizardStepProcessing 
+              status={selectedJob?.status} 
+              jobId={selectedJob?.job_id}
+              title="Renderizando Video Final"
+              description="Nuestros motores están uniendo todas las escenas para exportar tu proyecto. Esto puede demorar unos minutos."
+            />
           </motion.div>
         )}
 

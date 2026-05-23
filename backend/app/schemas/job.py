@@ -63,6 +63,8 @@ class JobListResponse(BaseModel):
     script_text: str
     video_url: Optional[str] = None
     created_at: Optional[datetime.datetime] = None
+    aspect_ratio: Optional[str] = None
+    parent_job_id: Optional[str] = None
 
 class ScriptGenerateRequest(BaseModel):
     info: str

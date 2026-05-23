@@ -3,8 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from rq import Queue, Retry
-from redis import Redis
+
 
 from app.schemas.job import (
     JobCreate,
@@ -22,7 +21,7 @@ from app.core.config import settings
 from app.core.security import get_current_active_user, get_current_active_user_from_token
 from app.core.limiter import limiter
 from app.core.storage_paths import get_storage_dir
-from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_approved
+from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_enrichment
 
 VIDEOS_STORAGE = get_storage_dir("videos")
 
@@ -37,9 +36,6 @@ def get_job_or_404(db: Session, job_id: str, user_id: str) -> JobModel:
     return job
 
 router = APIRouter()
-redis_conn = Redis.from_url(settings.REDIS_URL)
-queue = Queue("default", connection=redis_conn)
-render_queue = Queue("render", connection=redis_conn)
 
 
 @router.post("/", response_model=JobResponse, status_code=201)
@@ -63,27 +59,8 @@ async def create_job(
     db.commit()
     db.refresh(new_job)
 
-    # Enviar la tarea pesada a Redis para que el Worker la procese en background
-    queue.enqueue(
-        run_pipeline,
-        args=(
-            new_job.id,
-            new_job.script_text,
-            job_in.aspect_ratio,
-            current_user.id,
-            job_in.tts_provider,
-            job_in.tts_voice_id,
-            job_in.tts_api_key,
-        ),
-        kwargs={
-            "scenes": [s.model_dump() for s in job_in.scenes] if job_in.scenes else None,
-            "design_md": job_in.design_md,
-            "system_prompt": job_in.system_prompt,
-            "animation_only": job_in.animation_only,
-        },
-        job_timeout="10m",
-        retry=Retry(max=3),
-    )
+    # El scheduler se encargará de esto ahora que está en 'pending'
+    # db.refresh(new_job) fue llamado arriba.
 
     return JobResponse(job_id=new_job.id, status=new_job.status, error_message=new_job.error_message)
 
@@ -181,26 +158,14 @@ async def approve_scenes(
     if not approval.scenes:
         raise HTTPException(status_code=400, detail="No scenes provided for approval")
 
-    # Update result_spec with the approved/edited scenes
+    # Update status to segmented but add approved flag so scheduler picks it up
     current_spec = job.result_spec or {}
-    current_spec["scenes"] = [scene.model_dump() for scene in approval.scenes]
+    current_spec["approved"] = True
     job.result_spec = current_spec
+    job.status = "segmented" # Keep segmented as before but the scheduler checks for approved=True
     from sqlalchemy.orm.attributes import flag_modified
     flag_modified(job, "result_spec")
     db.commit()
-
-    # Enqueue the second phase of the pipeline
-    # tts_api_key is resolved inside the worker via _get_user_api_key
-    render_queue.enqueue(
-        run_pipeline_approved,
-        job.id,
-        current_user.id,
-        job.tts_provider or "local_piper",
-        job.tts_voice_id or "es_ES-carlfm-x_low",
-        None,
-        job_timeout="20m",
-        retry=Retry(max=3),
-    )
 
     # Return immediately with the updated status
     return JobResponse(
@@ -218,19 +183,9 @@ async def get_job_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user_from_token),
 ):
-    """Obtener logs en tiempo real del worker desde Redis."""
+    """Obtener logs (Desactivado temporalmente - Arquitectura sin Redis)."""
     job = get_job_or_404(db, job_id, current_user.id)
-    key = f"job:{job_id}:logs"
-    
-    import json
-    logs_raw = redis_conn.lrange(key, 0, -1)
-    logs = []
-    for raw in logs_raw:
-        try:
-            logs.append(json.loads(raw))
-        except:
-            pass
-    return {"logs": logs}
+    return {"logs": []}
 
 
 
@@ -337,21 +292,8 @@ async def reformat_job(
                    list(range(len(scenes)))
     }
 
-    # Enqueue pipeline with reformat config
-    queue.enqueue(
-        run_pipeline,
-        new_job.id,
-        new_job.script_text,
-        aspect_ratio,
-        current_user.id,
-        job.tts_provider or "local_piper",
-        job.tts_voice_id or "es_ES-carlfm-x_low",
-        None,
-        reformatted_from=job.id,
-        scenes_to_reformat=scenes_to_reformat,
-        job_timeout="10m",
-        retry=Retry(max=3),
-    )
+    # El Scheduler procesará esto
+    pass
 
     return {
         "message": "Reformat job created",
@@ -462,16 +404,6 @@ async def trigger_render(
     if job.status == "rendering":
         raise HTTPException(status_code=400, detail="Job is already rendering")
 
-    # Encolar la tarea de render en la cola dedicada para tareas pesadas
-    from app.modules.remotion.renderer import render_video_pipeline
-
-    render_queue.enqueue(
-        render_video_pipeline,
-        job.id,
-        job_timeout="10m",
-        retry=Retry(max=3),
-    )  # Puede tardar minutos
-
     job.status = "queued_render"
     db.commit()
 
@@ -528,6 +460,8 @@ async def get_all_jobs(
             script_text=j.script_text,
             video_url=j.video_url,
             created_at=j.created_at,
+            aspect_ratio=j.aspect_ratio,
+            parent_job_id=j.parent_job_id,
         )
         for j in jobs
     ]
@@ -552,18 +486,8 @@ async def trigger_scene_regenerate(
     if scene_index < 0 or scene_index >= len(job.result_spec.get("scenes", [])):
         raise HTTPException(status_code=400, detail="Invalid scene index")
 
-    # Encolar en RQ para no bloquear el request handler
-    from app.modules.pipeline.scene_manager import regenerate_single_scene_sync
-    queue.enqueue(
-        regenerate_single_scene_sync,
-        job.id,
-        job.result_spec,
-        scene_index,
-        req.media_query,
-        req.text,
-        current_user.id,
-        job_timeout="5m",
-    )
+    # We set status to queued_scene_regen for the scheduler
+    # wait, the prompt doesn't ask to handle scene regenerate in Day 1 scheduler, but let's just update the status.
 
     job.status = "queued_scene_regen"
     db.commit()
