@@ -55,10 +55,16 @@ def mock_external_services(tmp_path):
         new_callable=AsyncMock,
         return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 5.0, "word_timestamps": []},
     ) as mock_tts, patch(
-        "app.modules.pipeline.orchestrator.generate_remotion_component",
+        "app.modules.pipeline.orchestrator.decide_and_generate_component",
         new_callable=AsyncMock,
-        return_value=("Scene_test", "passed"),
-    ) as mock_remotion, patch(
+        return_value=("Scene_test", "passed", None),
+    ) as mock_component, patch(
+        "app.modules.pipeline.orchestrator.render_single_scene",
+        return_value="http://test/scene.mp4",
+    ) as mock_render, patch(
+        "app.modules.pipeline.orchestrator.concat_scenes",
+        return_value="http://test/final.mp4",
+    ) as mock_concat, patch(
         "app.modules.pipeline.orchestrator.write_index_ts"
     ) as mock_index, patch(
         "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
@@ -66,7 +72,9 @@ def mock_external_services(tmp_path):
         yield {
             "batch": mock_batch,
             "tts": mock_tts,
-            "remotion": mock_remotion,
+            "component": mock_component,
+            "render": mock_render,
+            "concat": mock_concat,
             "index": mock_index,
             "batch_visuals": batch_visuals,
         }
@@ -191,9 +199,15 @@ class TestPipelineIdempotency:
             new_callable=AsyncMock,
             return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 3.0, "word_timestamps": []},
         ), patch(
-            "app.modules.pipeline.orchestrator.generate_remotion_component",
+            "app.modules.pipeline.orchestrator.decide_and_generate_component",
             new_callable=AsyncMock,
-            return_value=("Scene_test", "passed"),
+            return_value=("Scene_test", "passed", None),
+        ), patch(
+            "app.modules.pipeline.orchestrator.render_single_scene",
+            return_value="http://test/scene.mp4",
+        ), patch(
+            "app.modules.pipeline.orchestrator.concat_scenes",
+            return_value="http://test/final.mp4",
         ), patch(
             "app.modules.pipeline.orchestrator.write_index_ts"
         ), patch(
