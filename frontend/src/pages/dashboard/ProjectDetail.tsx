@@ -373,6 +373,7 @@ export function ProjectDetail() {
               aspectRatio={spec.aspect_ratio}
               focusSceneIndex={focusSceneIndex}
               onClearFocus={() => setFocusSceneIndex(null)}
+              onFocusScene={(idx: number) => setFocusSceneIndex(idx)}
             />
           </ErrorBoundary>
         )}

@@ -1,16 +1,15 @@
 import React from 'react';
 import { useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';
+import type { UniversalProps } from "./types";
 
-export const TextReveal: React.FC<{
+export interface TextRevealProps extends UniversalProps {
   text: string;
-  color?: string;
   animation?: 'fade' | 'blur' | 'slide_up';
   glowIntensity?: number;
-  x?: number;
-  y?: number;
-  fontSize?: number;
   width?: number;
-}> = ({
+}
+
+export const TextReveal: React.FC<TextRevealProps> = ({
   text,
   color = '#ffffff',
   animation = 'slide_up',
@@ -19,8 +18,10 @@ export const TextReveal: React.FC<{
   y = 960,
   fontSize = 60,
   width = 900,
+  delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const adjustedFrame = Math.max(0, frame - delay);
   const { fps } = useVideoConfig();
 
   const words = text.split(' ');
@@ -45,8 +46,8 @@ export const TextReveal: React.FC<{
     >
       {words.map((word, index) => {
         // Stagger: delay each word by 3 frames
-        const delay = index * 3;
-        const wordFrame = Math.max(0, frame - delay);
+        const wordDelay = index * 3;
+        const wordFrame = Math.max(0, adjustedFrame - wordDelay);
 
         // Spring animation from 0 to 1
         const progress = spring({

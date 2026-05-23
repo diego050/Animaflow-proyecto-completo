@@ -45,7 +45,9 @@ class Spec(BaseModel):
     ae_metadata: Optional[Dict[str, Any]] = None
     ae_script_code: Optional[str] = None
     scene_video_url: Optional[str] = None
+    quality_status: Optional[str] = None
 
 class TimelineSpec(BaseModel):
     scenes: List[Spec]
     aspect_ratio: str = "9:16"
+    quality_metrics: Optional[Dict[str, Any]] = None

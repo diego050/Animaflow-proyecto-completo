@@ -90,6 +90,8 @@ def render_single_scene(
         str(h),
         "--frames-per-second",
         "30",
+        "--crf",
+        "28",     # Alta compresión para ahorrar espacio en las escenas previas
         "--log",
         "error",  # Solo errores, menos verbose
     ]

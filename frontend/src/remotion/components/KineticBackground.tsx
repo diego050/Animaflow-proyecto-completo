@@ -1,16 +1,25 @@
 import React from 'react';
 import { useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import type { UniversalProps } from "./types";
 
-export const KineticBackground: React.FC<{
+export interface KineticBackgroundProps extends UniversalProps {
   color1?: string;
   color2?: string;
   theme?: string;
-}> = ({ color1 = '#0f172a', color2 = '#312e81', theme = 'default' }) => {
+}
+
+export const KineticBackground: React.FC<KineticBackgroundProps> = ({ 
+  color1 = '#0f172a', 
+  color2 = '#312e81', 
+  theme = 'default',
+  delay = 0 
+}) => {
   const frame = useCurrentFrame();
+  const adjustedFrame = Math.max(0, frame - delay);
   const { durationInFrames } = useVideoConfig();
 
   // Create a slow shifting animation for the gradient
-  const shift = interpolate(frame, [0, durationInFrames], [0, 100]);
+  const shift = interpolate(adjustedFrame, [0, durationInFrames], [0, 100]);
 
   // Optionally override colors based on theme
   let c1 = color1;
