@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCurrentFrame, useVideoConfig, random } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 export interface ParticleFieldProps extends UniversalProps {
   color1?: string; // Color of the particles

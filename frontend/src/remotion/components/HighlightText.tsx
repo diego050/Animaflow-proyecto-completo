@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCurrentFrame, useVideoConfig, spring } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 export interface HighlightTextProps extends UniversalProps {
   text: string;

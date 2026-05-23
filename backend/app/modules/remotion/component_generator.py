@@ -39,7 +39,7 @@ async def generate_remotion_component(
 
     if not api_key:
         logger.warning("GEMINI_API_KEY no encontrada. Fallback a componente predeterminado.")
-        return "FadeText"
+        return "FadeText", "defaulted"
 
     try:
         client = genai.Client(api_key=api_key)
@@ -430,7 +430,7 @@ async def generate_remotion_component(
                     "Fallback también falló (%s...). Usando componente por defecto FadeText.",
                     str(e2)[:60],
                 )
-                return "FadeText"
+                return "FadeText", "defaulted"
 
         code = response.text.strip()
 

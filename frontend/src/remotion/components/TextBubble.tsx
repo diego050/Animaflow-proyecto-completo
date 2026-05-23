@@ -1,6 +1,6 @@
 import React from 'react';
 import { interpolate, spring, useCurrentFrame, useVideoConfig, Easing } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 interface TextBubbleProps extends UniversalProps {
   text?: string;

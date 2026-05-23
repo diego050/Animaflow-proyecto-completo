@@ -1,6 +1,6 @@
 import React from 'react';
 import { interpolate, useCurrentFrame } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 interface FeatureChecklistProps extends UniversalProps {
   itemsStr?: string;

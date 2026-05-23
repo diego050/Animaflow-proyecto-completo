@@ -1,6 +1,6 @@
 import React from 'react';
 import { interpolate, useCurrentFrame, useVideoConfig, Easing } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 interface ZoomBlurTransitionProps extends UniversalProps {
   durationFrames?: number;

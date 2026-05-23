@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCurrentFrame, useVideoConfig } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 export interface GridPerspectiveProps extends UniversalProps {
   color1?: string; // Color of the grid lines (e.g. #ff00ff)

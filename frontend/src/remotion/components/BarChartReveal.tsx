@@ -1,6 +1,6 @@
 import React from 'react';
 import { spring, useCurrentFrame, useVideoConfig } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 export const BarChartReveal: React.FC<{
   color1?: string; // Main color of the bars

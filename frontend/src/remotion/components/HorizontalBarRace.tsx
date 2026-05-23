@@ -1,6 +1,6 @@
 import React from 'react';
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 interface HorizontalBarRaceProps extends UniversalProps {
   items?: string; // Comma separated: Name1:100,Name2:80,Name3:50

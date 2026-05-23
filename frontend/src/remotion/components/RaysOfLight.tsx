@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCurrentFrame, useVideoConfig } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 export interface RaysOfLightProps extends UniversalProps {
   color1?: string; // Ray color (e.g., #ffffff)

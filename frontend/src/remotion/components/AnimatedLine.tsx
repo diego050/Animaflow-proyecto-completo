@@ -1,6 +1,6 @@
 import React from 'react';
 import { spring, useCurrentFrame, useVideoConfig } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 interface AnimatedLineProps extends UniversalProps {
   startX?: number;

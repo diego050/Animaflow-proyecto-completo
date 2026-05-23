@@ -57,7 +57,7 @@ def mock_external_services(tmp_path):
     ) as mock_tts, patch(
         "app.modules.pipeline.orchestrator.generate_remotion_component",
         new_callable=AsyncMock,
-        return_value="Scene_test",
+        return_value=("Scene_test", "passed"),
     ) as mock_remotion, patch(
         "app.modules.pipeline.orchestrator.write_index_ts"
     ) as mock_index, patch(
@@ -193,7 +193,7 @@ class TestPipelineIdempotency:
         ), patch(
             "app.modules.pipeline.orchestrator.generate_remotion_component",
             new_callable=AsyncMock,
-            return_value="Scene_test",
+            return_value=("Scene_test", "passed"),
         ), patch(
             "app.modules.pipeline.orchestrator.write_index_ts"
         ), patch(

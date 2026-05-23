@@ -1,6 +1,6 @@
 import React from 'react';
 import { interpolate, useCurrentFrame, Easing } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 interface SubscribeButtonProps extends UniversalProps {
   clickFrame?: number;

@@ -1,9 +1,11 @@
 import React from 'react';
 import { useCurrentFrame, useVideoConfig } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 interface GlitchTransitionProps extends UniversalProps {
   intensity?: number;
+  durationFrames?: number;
+  triggerFrame?: number;
 }
 
 export const GlitchTransition: React.FC<GlitchTransitionProps> = ({

@@ -1,6 +1,6 @@
 import React from 'react';
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
-import { UniversalProps } from './types';
+import type { UniversalProps } from "./types";
 
 interface StockCandlestickProps extends UniversalProps {
   data?: string; // Comma separated High,Low,Open,Close;H,L,O,C...
