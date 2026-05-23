@@ -1,14 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, PlayCircle, Settings, Palette } from 'lucide-react';
 
-const COMPONENT_NAMES = [
-  'SearchEngineTyping', 'TextReveal', 'KineticBackground', 'FloatingBlobs',
-  'TrendLine', 'Typewriter', 'SubscribeButton', 'NetworkNodes',
-  'GlitchTitle', 'GridPerspective', 'ParticleField', 'RaysOfLight',
-  'BarChartReveal', 'PercentageRing', 'SocialProgressBar', 'FeatureChecklist',
-  'TestimonialReview', 'MessageBubble', 'TweetCard', 'InstagramPost',
-  'TikTokOverlay', 'PodcastGuestCard', 'MusicPlayerUI'
-];
+import { COMPONENT_NAMES } from '../../remotion/registry';
 
 export function AnimationsGallery() {
   const navigate = useNavigate();
