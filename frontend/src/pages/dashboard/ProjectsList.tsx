@@ -1,10 +1,12 @@
-import { useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useJobsStore } from '../../store/useJobsStore';
 import { useToastStore } from '../../store/useToastStore';
+import { useWizardStore } from '../../store/useWizardStore';
 import { ProjectCard } from '../../components/dashboard/ProjectCard';
+import { Modal } from '../../components/dashboard/Modal';
 
 export function ProjectsList() {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ export function ProjectsList() {
     deleteJob,
   } = useJobsStore();
   const { addToast } = useToastStore();
+  const resetWizard = useWizardStore((state) => state.resetWizard);
 
   useEffect(() => {
     fetchJobs();
@@ -29,18 +32,26 @@ export function ProjectsList() {
     return () => clearInterval(interval);
   }, [fetchJobs]);
 
-  const handleDelete = useCallback(
-    async (jobId: string) => {
-      if (!confirm('¿Seguro que deseas eliminar este proyecto?')) return;
+  const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+
+  const confirmDelete = useCallback(
+    async () => {
+      if (!jobToDelete) return;
       try {
-        await deleteJob(jobId);
+        await deleteJob(jobToDelete);
         addToast('success', 'Proyecto eliminado correctamente');
       } catch {
         addToast('error', 'Error al eliminar el proyecto.');
+      } finally {
+        setJobToDelete(null);
       }
     },
-    [deleteJob, addToast],
+    [deleteJob, addToast, jobToDelete],
   );
+
+  const handleDelete = useCallback((jobId: string) => {
+    setJobToDelete(jobId);
+  }, []);
 
   if (jobsLoading && jobs.length === 0) {
     return (
@@ -89,7 +100,7 @@ export function ProjectsList() {
             {jobs.length} {jobs.length === 1 ? 'proyecto' : 'proyectos'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <button
             onClick={() => fetchJobs()}
             className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-high transition-colors"
@@ -98,8 +109,11 @@ export function ProjectsList() {
             <RefreshCw size={18} className={jobsLoading ? 'animate-spin' : ''} />
           </button>
           <button
-            onClick={() => navigate('/dashboard/new')}
-            className="flex items-center gap-2 px-4 py-2 bg-mint-precision text-deep-slate rounded-lg text-sm font-semibold hover:bg-white hover:-translate-y-0.5 transition-all duration-300 shadow-[0_0_12px_rgba(0,255,171,0.15)]"
+            onClick={() => {
+              resetWizard();
+              navigate('/dashboard/new');
+            }}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-mint-precision text-deep-slate rounded-lg text-sm font-semibold hover:bg-white hover:-translate-y-0.5 transition-all shadow-lg shadow-mint-precision/10"
           >
             <Plus size={16} />
             Nuevo Proyecto
@@ -109,7 +123,10 @@ export function ProjectsList() {
 
       {/* Grid */}
       {jobs.length === 0 ? (
-        <EmptyState onCreateNew={() => navigate('/dashboard/new')} />
+        <EmptyState onCreateNew={() => {
+          resetWizard();
+          navigate('/dashboard/new');
+        }} />
       ) : (
         <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
@@ -124,6 +141,40 @@ export function ProjectsList() {
           ))}
         </motion.div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!jobToDelete}
+        onClose={() => setJobToDelete(null)}
+        title="Eliminar Proyecto"
+        size="sm"
+      >
+        <div className="space-y-6">
+          <div className="flex items-center gap-4 text-text-secondary">
+            <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+              <AlertTriangle className="text-error" size={24} />
+            </div>
+            <p className="text-sm">
+              ¿Estás seguro que deseas eliminar este proyecto de forma permanente? Esta acción no se puede deshacer y se borrarán todos los archivos asociados.
+            </p>
+          </div>
+          
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              onClick={() => setJobToDelete(null)}
+              className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="px-4 py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors shadow-lg shadow-error/20"
+            >
+              Sí, eliminar proyecto
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

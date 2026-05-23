@@ -130,6 +130,22 @@ async def preview_voice(
     if not voice:
         raise HTTPException(status_code=404, detail="Voice not found")
 
+    import hashlib
+    from app.core.storage_paths import get_storage_dir
+    import os
+    
+    # Check cache first for this text + voice profile
+    profile_id = voice.voicebox_profile_id or "es_ES-carlfm-x_low"
+    text_hash = hashlib.md5(f"{profile_id}_{preview_data.text}".encode()).hexdigest()
+    cache_filename = f"preview_{text_hash}.wav"
+    audio_storage = get_storage_dir("audio")
+    cache_path = os.path.join(audio_storage, cache_filename)
+    
+    if os.path.exists(cache_path):
+        from app.modules.tts.whisper_timestamps import get_audio_duration
+        duration = get_audio_duration(cache_path)
+        return {"audio_url": f"/api/audio/{cache_filename}", "duration": duration}
+
     # Generate TTS preview using the voice's profile ID
     # NOTE: Uses generate_tts_audio_only to avoid loading Whisper (~1GB RAM)
     # which causes OOM crashes on shared VPS instances.
@@ -137,11 +153,14 @@ async def preview_voice(
         result = await generate_tts_audio_only(
             text=preview_data.text,
             provider_name="local_piper",  # default for preview
-            voice_id=voice.voicebox_profile_id or "es_ES-carlfm-x_low"
+            voice_id=profile_id
         )
-        # Convert filesystem path to API URL
-        filename = os.path.basename(result["audio_path"])
-        audio_url = f"/api/audio/{filename}"
+        
+        # Save to cache path
+        import shutil
+        shutil.move(result["audio_path"], cache_path)
+        
+        audio_url = f"/api/audio/{cache_filename}"
         return {"audio_url": audio_url, "duration": result["duration_seconds"]}
     except Exception as e:
         raise HTTPException(

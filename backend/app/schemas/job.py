@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any, Literal
 import datetime
 
 JobStatus = Literal[
+    "draft",
     "pending",
     "segmenting",
     "segmented",
@@ -27,8 +28,9 @@ class SceneApprovalRequest(BaseModel):
     scenes: list[SceneData]
 
 class SceneInput(BaseModel):
-    text: str
+    text: str = ""
     media_query: Optional[str] = None
+    duration_seconds: Optional[float] = None
 
 class JobCreate(BaseModel):
     script_text: str
@@ -39,6 +41,10 @@ class JobCreate(BaseModel):
     scenes: Optional[list[SceneInput]] = Field(default=None, description="Optional pre-defined scenes. If provided, skips automatic segmentation.")
     design_md: Optional[str] = Field(default=None, description="Optional design.md content for custom visual instructions")
     system_prompt: Optional[str] = Field(default=None, description="Optional custom system prompt for LLM visual generation")
+    animation_only: bool = Field(default=False, description="If true, skips TTS and Audio alignment")
+
+class JobDraftRequest(BaseModel):
+    draft_data: Dict[str, Any]
 
 class SceneRegenerateRequest(BaseModel):
     media_query: str
@@ -49,6 +55,7 @@ class JobResponse(BaseModel):
     status: JobStatus
     result_spec: Optional[Dict[str, Any]] = None
     video_url: Optional[str] = None
+    error_message: Optional[str] = None
 
 class JobListResponse(BaseModel):
     job_id: str
