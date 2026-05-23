@@ -311,6 +311,7 @@ export function ProjectDetail() {
         isProcessing={isProcessing}
         isRendering={isRendering}
         isFailed={isFailed}
+        errorMessage={selectedJob.error_message}
       />
 
       <ProjectTabs

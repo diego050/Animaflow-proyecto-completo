@@ -25,11 +25,25 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
 
   // Determinar la URL del video a mostrar
   let videoUrl = '';
-  if (focusSceneIndex != null) {
-    videoUrl = `/api/scenes/${jobId}/${focusSceneIndex}.mp4?token=${token}`;
-  } else if (isReadyToRender) {
+  if (isReadyToRender) {
     videoUrl = `/api/jobs/${jobId}/video?token=${token}`;
   }
+
+  // Effect to handle seeking when focusSceneIndex changes
+  useEffect(() => {
+    if (focusSceneIndex != null && videoRef.current && isReadyToRender) {
+      const scene = spec.scenes[focusSceneIndex];
+      if (scene) {
+        // Use a small timeout to ensure video is loaded
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.currentTime = scene.start_time_seconds ?? 0;
+            videoRef.current.play().catch(e => console.warn('Autoplay prevented:', e));
+          }
+        }, 100);
+      }
+    }
+  }, [focusSceneIndex, isReadyToRender, spec.scenes]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -112,7 +126,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
               src={videoUrl}
               controls
               autoPlay
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain bg-black"
               controlsList="nodownload"
             />
           ) : (

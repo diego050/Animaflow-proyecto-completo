@@ -41,6 +41,7 @@ async def _process_chunks_async(
     tts_voice_id: str = "es_ES-carlfm-x_low",
     tts_api_key: Optional[str] = None,
     user_scenes: Optional[list[dict]] = None,
+    animation_only: bool = False,
 ) -> list[dict]:
     from app.core.resolutions import get_resolution
 
@@ -49,58 +50,70 @@ async def _process_chunks_async(
     current_start_time = 0.0
 
     for i, chunk in enumerate(chunks):
-        logger.info(
-            "Generating TTS for scene %d with provider %s...",
-            i + 1,
-            tts_provider,
-            extra={"job_id": job_id},
-        )
-
-        try:
-            tts_result = await generate_tts_with_timestamps(
-                text=chunk,
-                provider_name=tts_provider,
-                voice_id=tts_voice_id,
-                api_key=tts_api_key,
-                language="es",
-            )
-            audio_path = tts_result["audio_path"]
-            word_timestamps = tts_result["word_timestamps"]
-            duration = tts_result["duration_seconds"]
-        except Exception as e:
-            logger.exception(
-                "TTS failed for scene %d, using estimated duration fallback: %s",
-                i + 1,
-                e,
-                extra={"job_id": job_id},
-            )
+        if animation_only:
+            # Skip TTS completely
             audio_path = None
             word_timestamps = []
-            duration = max(3.0, len(chunk) / 15.0)
+            # Extract duration from user_scenes if available, else default to 7.0
+            if user_scenes and i < len(user_scenes) and user_scenes[i].get("duration_seconds"):
+                duration = float(user_scenes[i]["duration_seconds"])
+            else:
+                duration = 7.0
+            audio_url = None
+            logger.info("Animation only mode: skipped TTS for scene %d (duration: %.1f)", i + 1, duration, extra={"job_id": job_id})
+        else:
+            logger.info(
+                "Generating TTS for scene %d with provider %s...",
+                i + 1,
+                tts_provider,
+                extra={"job_id": job_id},
+            )
 
-        # Copy/symlink audio to standard location for serving
-        if audio_path and os.path.exists(audio_path):
-            os.makedirs(AUDIO_STORAGE, exist_ok=True)
-            ext = os.path.splitext(audio_path)[1]
-            if not ext:
-                ext = ".mp3"
-            standard_name = f"{job_id}_{i}{ext}"
-            standard_path = os.path.join(AUDIO_STORAGE, standard_name)
             try:
-                shutil.move(audio_path, standard_path)
-                audio_url = f"/api/audio/{standard_name}"
-                logger.info(
-                    "Audio moved to standard location: %s",
-                    standard_path,
+                tts_result = await generate_tts_with_timestamps(
+                    text=chunk,
+                    provider_name=tts_provider,
+                    voice_id=tts_voice_id,
+                    api_key=tts_api_key,
+                    language="es",
+                )
+                audio_path = tts_result["audio_path"]
+                word_timestamps = tts_result["word_timestamps"]
+                duration = tts_result["duration_seconds"]
+            except Exception as e:
+                logger.exception(
+                    "TTS failed for scene %d, using estimated duration fallback: %s",
+                    i + 1,
+                    e,
                     extra={"job_id": job_id},
                 )
-            except OSError as copy_err:
-                logger.error(
-                    "Error copying audio: %s", copy_err, extra={"job_id": job_id}
-                )
+                audio_path = None
+                word_timestamps = []
+                duration = max(3.0, len(chunk) / 15.0)
+
+            # Copy/symlink audio to standard location for serving
+            if audio_path and os.path.exists(audio_path):
+                os.makedirs(AUDIO_STORAGE, exist_ok=True)
+                ext = os.path.splitext(audio_path)[1]
+                if not ext:
+                    ext = ".mp3"
+                standard_name = f"{job_id}_{i}{ext}"
+                standard_path = os.path.join(AUDIO_STORAGE, standard_name)
+                try:
+                    shutil.move(audio_path, standard_path)
+                    audio_url = f"/api/audio/{standard_name}"
+                    logger.info(
+                        "Audio moved to standard location: %s",
+                        standard_path,
+                        extra={"job_id": job_id},
+                    )
+                except OSError as copy_err:
+                    logger.error(
+                        "Error copying audio: %s", copy_err, extra={"job_id": job_id}
+                    )
+                    audio_url = None
+            else:
                 audio_url = None
-        else:
-            audio_url = None
 
         visual_spec = (
             batch_visuals.scenes[i]
@@ -204,6 +217,7 @@ def run_pipeline(
     scenes: Optional[list[dict]] = None,
     design_md: Optional[str] = None,
     system_prompt: Optional[str] = None,
+    animation_only: bool = False,
 ):
     """Fase 1: Segmenta el guion y pausa en 'segmented' para aprobación del usuario."""
     with get_db_context() as db:
@@ -332,6 +346,7 @@ def run_pipeline(
                 "user_scenes": scenes,
                 "design_md": design_md,
                 "system_prompt": system_prompt,
+                "animation_only": animation_only,
             }
             job.result_spec = preliminary_spec
             flag_modified(job, "result_spec")
@@ -390,6 +405,7 @@ def run_pipeline_approved(
         user_scenes = spec.get("user_scenes")  # preserved from initial creation if provided
         design_md = design_md or spec.get("design_md")
         system_prompt = system_prompt or spec.get("system_prompt")
+        animation_only = spec.get("animation_only", False)
 
         # Si no se proporcionó API key explícita, intentar buscarla en DB
         if tts_api_key is None and user_id is not None:
@@ -423,6 +439,7 @@ def run_pipeline_approved(
                     tts_voice_id,
                     tts_api_key,
                     user_scenes=user_scenes,
+                    animation_only=animation_only,
                 )
             )
 

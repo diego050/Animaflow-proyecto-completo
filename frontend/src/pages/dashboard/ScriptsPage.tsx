@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, FileText, Loader2 } from 'lucide-react';
+import { Plus, Search, FileText, Loader2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useJobsStore } from '../../store/useJobsStore';
 import { useMediaStore } from '../../store/useMediaStore';
@@ -21,6 +21,8 @@ export function ScriptsPage() {
   const [formName, setFormName] = useState('');
   const [formContent, setFormContent] = useState('');
   const [formAspectRatio, setFormAspectRatio] = useState('9:16');
+  
+  const [scriptToDelete, setScriptToDelete] = useState<string | null>(null);
 
   // Fetch scripts when component mounts
   useEffect(() => {
@@ -56,13 +58,15 @@ export function ScriptsPage() {
     setModalOpen(true);
   }, []);
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      if (!confirm('¿Seguro que deseas eliminar este guion?')) return;
-      deleteScript(id);
-    },
-    [deleteScript],
-  );
+  const handleDelete = useCallback((id: string) => {
+    setScriptToDelete(id);
+  }, []);
+
+  const confirmDelete = useCallback(() => {
+    if (!scriptToDelete) return;
+    deleteScript(scriptToDelete);
+    setScriptToDelete(null);
+  }, [scriptToDelete, deleteScript]);
 
   const handleOpenNew = () => {
     setEditingScript(null);
@@ -248,6 +252,40 @@ export function ScriptsPage() {
           >
             {editingScript ? 'Guardar Cambios' : 'Crear Guion'}
           </button>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!scriptToDelete}
+        onClose={() => setScriptToDelete(null)}
+        title="Eliminar Guion"
+        size="sm"
+      >
+        <div className="space-y-6">
+          <div className="flex items-center gap-4 text-text-secondary">
+            <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+              <AlertTriangle className="text-error" size={24} />
+            </div>
+            <p className="text-sm">
+              ¿Estás seguro que deseas eliminar este guion de forma permanente? Esta acción no se puede deshacer.
+            </p>
+          </div>
+          
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              onClick={() => setScriptToDelete(null)}
+              className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="px-4 py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors shadow-lg shadow-error/20"
+            >
+              Sí, eliminar guion
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

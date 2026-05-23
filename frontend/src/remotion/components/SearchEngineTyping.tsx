@@ -60,17 +60,18 @@ export const SearchEngineTyping: React.FC<{
       <div
         style={{
           width: `${width}px`,
-          height: '100px',
+          minHeight: '100px',
+          height: 'auto',
           backgroundColor: bgColor || '#ffffff',
           borderRadius: '50px',
           boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
           display: 'flex',
           alignItems: 'center',
-          padding: '0 40px',
+          padding: '20px 40px',
         }}
       >
         {/* Search Icon */}
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color || "#94a3b8"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg style={{ flexShrink: 0 }} width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color || "#94a3b8"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
@@ -79,10 +80,13 @@ export const SearchEngineTyping: React.FC<{
         <div
           style={{
             marginLeft: '30px',
-            fontSize: '45px',
+            fontSize: '40px',
             color: textColor || '#1e293b',
             fontFamily: 'system-ui, sans-serif',
             fontWeight: 500,
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+            lineHeight: 1.2,
           }}
         >
           {displayedText}

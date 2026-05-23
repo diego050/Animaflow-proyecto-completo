@@ -15,6 +15,7 @@ export interface JobDetail {
   status: string;
   result_spec: TimelineSpec | null;
   video_url: string | null;
+  error_message?: string;
 }
 
 export interface JobCreateRequest {

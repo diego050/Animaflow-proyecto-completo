@@ -88,7 +88,9 @@ export function NewProjectWizard() {
   ]);
 
   const handleCreateProject = useCallback(async () => {
-    if (!wizardData.script.trim()) {
+    const isAnimationOnly = wizardData.wizardMode === 'animation-only';
+    const scriptToUse = isAnimationOnly ? "Solo Animación" : wizardData.script;
+    if (!isAnimationOnly && !scriptToUse.trim()) {
       setError('El guión no puede estar vacío.');
       return;
     }
@@ -96,10 +98,14 @@ export function NewProjectWizard() {
     setCreateLoading(true);
     try {
       const jobId = await createJob(
-        wizardData.script,
+        scriptToUse,
         wizardData.aspectRatio,
         wizardData.voiceId || undefined,
         wizardData.selectedModel,
+        wizardData.scenes,
+        wizardData.designMd,
+        wizardData.customPrompt,
+        isAnimationOnly
       );
       setWizardData({ generatedJobId: jobId });
       setWizardStep(3);
@@ -272,7 +278,7 @@ export function NewProjectWizard() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
           >
-            <WizardStepProcessing status={selectedJob?.status} />
+            <WizardStepProcessing status={selectedJob?.status} jobId={selectedJob?.job_id} />
           </motion.div>
         )}
 

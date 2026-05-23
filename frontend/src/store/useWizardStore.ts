@@ -13,7 +13,10 @@ export interface WizardData {
   templateId: string;
   customPrompt: string;
   skippedReview: boolean;
-  wizardMode: 'own-script' | 'ai-generate' | null;
+  wizardMode: 'own-script' | 'ai-generate' | 'animation-only' | null;
+  ownScriptMode: 'with-prompts' | 'text-only' | null;
+  scenes: Array<{text: string; media_query: string}>;
+  designMd: string;
   targetDurationSeconds: number;
   durationUnit: 'seconds' | 'words';
 }
@@ -42,6 +45,9 @@ export const useWizardStore = create<WizardState>((set) => ({
     customPrompt: '',
     skippedReview: false,
     wizardMode: null,
+    ownScriptMode: null,
+    scenes: [],
+    designMd: '',
     targetDurationSeconds: 30,
     durationUnit: 'seconds',
   },
@@ -70,6 +76,9 @@ export const useWizardStore = create<WizardState>((set) => ({
         customPrompt: '',
         skippedReview: false,
         wizardMode: null,
+        ownScriptMode: null,
+        scenes: [],
+        designMd: '',
         targetDurationSeconds: 30,
         durationUnit: 'seconds',
       },

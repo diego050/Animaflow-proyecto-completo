@@ -10,6 +10,7 @@ from app.schemas.job import (
     JobCreate,
     JobResponse,
     JobListResponse,
+    JobDraftRequest,
     ScriptGenerateRequest,
     ScriptGenerateResponse,
     SceneRegenerateRequest,
@@ -78,12 +79,55 @@ async def create_job(
             "scenes": [s.model_dump() for s in job_in.scenes] if job_in.scenes else None,
             "design_md": job_in.design_md,
             "system_prompt": job_in.system_prompt,
+            "animation_only": job_in.animation_only,
         },
         job_timeout="10m",
         retry=Retry(max=3),
     )
 
-    return JobResponse(job_id=new_job.id, status=new_job.status)
+    return JobResponse(job_id=new_job.id, status=new_job.status, error_message=new_job.error_message)
+
+
+@router.post("/draft", response_model=JobResponse, status_code=201)
+async def create_draft(
+    draft_in: JobDraftRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Create a new draft job."""
+    # Guardamos los datos del draft en result_spec temporalmente
+    new_job = JobModel(
+        script_text=draft_in.draft_data.get("script", "[DRAFT]"),
+        status="draft",
+        user_id=current_user.id,
+        result_spec=draft_in.draft_data,
+    )
+    db.add(new_job)
+    db.commit()
+    db.refresh(new_job)
+    return JobResponse(job_id=new_job.id, status=new_job.status, result_spec=new_job.result_spec, error_message=new_job.error_message)
+
+
+@router.put("/{job_id}/draft", response_model=JobResponse)
+async def update_draft(
+    job_id: str,
+    draft_in: JobDraftRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Update an existing draft."""
+    job = get_job_or_404(db, job_id, current_user.id)
+    if job.status != "draft":
+        raise HTTPException(status_code=400, detail="Job is not in draft status")
+    
+    job.result_spec = draft_in.draft_data
+    if "script" in draft_in.draft_data:
+        job.script_text = draft_in.draft_data["script"]
+        
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(job, "result_spec")
+    db.commit()
+    return JobResponse(job_id=job.id, status=job.status, result_spec=job.result_spec, error_message=job.error_message)
 
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -105,6 +149,7 @@ async def get_job_status(
         status=job.status,
         result_spec=job.result_spec,
         video_url=job.video_url,
+        error_message=job.error_message,
     )
 
 
@@ -163,7 +208,30 @@ async def approve_scenes(
         status=job.status,
         result_spec=job.result_spec,
         video_url=job.video_url,
+        error_message=job.error_message,
     )
+
+
+@router.get("/{job_id}/logs")
+async def get_job_logs(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user_from_token),
+):
+    """Obtener logs en tiempo real del worker desde Redis."""
+    job = get_job_or_404(db, job_id, current_user.id)
+    key = f"job:{job_id}:logs"
+    
+    import json
+    logs_raw = redis_conn.lrange(key, 0, -1)
+    logs = []
+    for raw in logs_raw:
+        try:
+            logs.append(json.loads(raw))
+        except:
+            pass
+    return {"logs": logs}
+
 
 
 @router.get("/{job_id}/video")
@@ -279,7 +347,8 @@ async def reformat_job(
         job.tts_provider or "local_piper",
         job.tts_voice_id or "es_ES-carlfm-x_low",
         None,
-        kwargs={"reformatted_from": job.id, "scenes_to_reformat": scenes_to_reformat},
+        reformatted_from=job.id,
+        scenes_to_reformat=scenes_to_reformat,
         job_timeout="10m",
         retry=Retry(max=3),
     )
@@ -411,6 +480,7 @@ async def trigger_render(
         status=job.status,
         result_spec=job.result_spec,
         video_url=job.video_url,
+        error_message=job.error_message,
     )
 
 
@@ -503,4 +573,5 @@ async def trigger_scene_regenerate(
         status=job.status,
         result_spec=job.result_spec,
         video_url=job.video_url,
+        error_message=job.error_message,
     )

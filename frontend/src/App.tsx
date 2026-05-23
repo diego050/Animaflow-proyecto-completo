@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -28,6 +28,8 @@ const VoicesPage = lazy(() => import('./pages/dashboard/VoicesPage').then(m => (
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })));
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })));
 const AdminJobsPage = lazy(() => import('./pages/admin/AdminJobsPage').then(m => ({ default: m.AdminJobsPage })));
+const AnimationsGallery = lazy(() => import('./pages/admin/AnimationsGallery').then(m => ({ default: m.AnimationsGallery })));
+const AnimationPlayground = lazy(() => import('./pages/admin/AnimationPlayground').then(m => ({ default: m.AnimationPlayground })));
 
 export default function App() {
   return (
@@ -79,6 +81,8 @@ export default function App() {
             <Route path="jobs" element={<AdminJobsPage />} />
             <Route path="system" element={<AdminSystemPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
+            <Route path="animations" element={<AnimationsGallery />} />
+            <Route path="animations/:componentName" element={<AnimationPlayground />} />
           </Route>
 
           {/* 404 catch-all */}

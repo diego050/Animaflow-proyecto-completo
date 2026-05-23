@@ -171,3 +171,26 @@ class Asset(Base):
 
     # Relationship
     user = relationship("User", back_populates="assets")
+
+
+class DesignTemplate(Base):
+    """
+    Design template model for user-saved design.md prompts.
+    """
+
+    __tablename__ = "design_templates"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    # Relationship
+    user = relationship("User", backref="design_templates")

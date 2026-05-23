@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
-import { Pencil, Wand2 } from 'lucide-react';
+import { Pencil, Wand2, Film } from 'lucide-react';
 import { useWizardStore } from '../../store/useWizardStore';
 import { WizardStepScript } from './WizardStepScript';
 import { WizardStepVoice } from './WizardStepVoice';
 import { AspectRatioSelector, ModelSelector } from './WizardStepConfig';
 import type { UserLLMSettings } from '../../types/auth';
 
-type WizardMode = 'own-script' | 'ai-generate';
+type WizardMode = 'own-script' | 'ai-generate' | 'animation-only';
 
 interface WizardStepInfoProps {
   info: string;
@@ -66,13 +66,25 @@ export function WizardStepInfo({
   loading,
 }: WizardStepInfoProps) {
   const [mode, setMode] = useState<WizardMode>('own-script');
-  const { setWizardData } = useWizardStore();
+  const { wizardData, setWizardData } = useWizardStore();
 
   const handleContinueWithOwnScript = useCallback(() => {
-    if (!info.trim()) return;
+    // If text-only, we need info. If with-prompts, we need scenes.
+    if (mode === 'animation-only') {
+      if (wizardData.scenes.length === 0 || wizardData.scenes.some(s => !s.media_query.trim())) return;
+      setWizardData({ script: 'Solo Animación', skippedReview: true, wizardMode: 'animation-only' });
+      onCreate();
+      return;
+    }
+
+    if (wizardData.ownScriptMode === 'with-prompts') {
+      if (wizardData.scenes.length === 0 || wizardData.scenes.some(s => !s.text.trim())) return;
+    } else {
+      if (!info.trim()) return;
+    }
     setWizardData({ script: info, skippedReview: true, wizardMode: 'own-script' });
     onCreate();
-  }, [info, setWizardData, onCreate]);
+  }, [mode, info, wizardData.ownScriptMode, wizardData.scenes, setWizardData, onCreate]);
 
   return (
     <div className="space-y-6">
@@ -109,6 +121,24 @@ export function WizardStepInfo({
           <Wand2 size={16} />
           Generar con IA
         </button>
+        <button
+          onClick={() => {
+            setMode('animation-only');
+            if (wizardData.scenes.length === 0) {
+              setWizardData({ ownScriptMode: 'with-prompts', scenes: [{ text: '', media_query: '', duration_seconds: 7 } as any] });
+            } else {
+              setWizardData({ ownScriptMode: 'with-prompts' });
+            }
+          }}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+            mode === 'animation-only'
+              ? 'bg-mint-precision/10 text-mint-precision border border-mint-precision/20'
+              : 'text-text-secondary hover:text-text-primary'
+          }`}
+        >
+          <Film size={16} />
+          Solo Animación
+        </button>
       </div>
 
       {/* Model selector - shown in both modes */}
@@ -118,77 +148,82 @@ export function WizardStepInfo({
         onChange={onModelChange}
       />
 
-      {/* Duration control */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-text-primary">
-          Duración estimada
-        </label>
+      {/* Duration control - only in AI generate mode */}
+      {mode === 'ai-generate' && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">
+            Duración estimada
+          </label>
 
-        {/* Toggle Segundos / Palabras */}
-        <div className="flex items-center gap-2 mb-3">
-          <button
-            onClick={() => onUnitChange('seconds')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              durationUnit === 'seconds'
-                ? 'bg-mint-precision text-deep-slate'
-                : 'bg-surface-high text-text-secondary hover:bg-surface-container'
-            }`}
-          >
-            Segundos
-          </button>
-          <button
-            onClick={() => onUnitChange('words')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              durationUnit === 'words'
-                ? 'bg-mint-precision text-deep-slate'
-                : 'bg-surface-high text-text-secondary hover:bg-surface-container'
-            }`}
-          >
-            Palabras
-          </button>
-        </div>
+          {/* Toggle Segundos / Palabras */}
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              onClick={() => onUnitChange('seconds')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                durationUnit === 'seconds'
+                  ? 'bg-mint-precision text-deep-slate'
+                  : 'bg-surface-high text-text-secondary hover:bg-surface-container'
+              }`}
+            >
+              Segundos
+            </button>
+            <button
+              onClick={() => onUnitChange('words')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                durationUnit === 'words'
+                  ? 'bg-mint-precision text-deep-slate'
+                  : 'bg-surface-high text-text-secondary hover:bg-surface-container'
+              }`}
+            >
+              Palabras
+            </button>
+          </div>
 
-        {/* Slider */}
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min={durationUnit === 'seconds' ? 10 : 22}
-            max={durationUnit === 'seconds' ? 120 : 260}
-            step={durationUnit === 'seconds' ? 5 : 11}
-            value={durationUnit === 'seconds' ? targetDurationSeconds : Math.round(targetDurationSeconds * 2.17)}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              if (durationUnit === 'seconds') {
-                onDurationChange(val);
-              } else {
-                onDurationChange(Math.round(val / 2.17));
-              }
-            }}
-            className="flex-1 accent-mint-precision"
-          />
-          <span className="text-sm font-semibold text-mint-precision w-20 text-right">
+          {/* Number Input */}
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={durationUnit === 'seconds' ? 10 : 22}
+              max={durationUnit === 'seconds' ? 120 : 260}
+              value={durationUnit === 'seconds' ? targetDurationSeconds : Math.round(targetDurationSeconds * 2.17)}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                // Allow empty or partial input, validate on blur if needed, but min/max bounds can just clamp.
+                if (durationUnit === 'seconds') {
+                  onDurationChange(Math.max(10, Math.min(120, val)));
+                } else {
+                  onDurationChange(Math.max(10, Math.min(120, Math.round(val / 2.17))));
+                }
+              }}
+              className="bg-surface-lowest border border-border-tech rounded-lg px-4 py-2 text-sm text-text-primary focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none w-24 text-center transition-colors"
+            />
+            <span className="text-sm font-semibold text-text-secondary">
+              {durationUnit === 'seconds' ? 'segundos' : 'palabras'}
+            </span>
+          </div>
+
+          {/* Equivalente en la otra unidad */}
+          <p className="text-xs text-text-secondary/60 mt-1">
             {durationUnit === 'seconds'
-              ? `${targetDurationSeconds}s`
-              : `${Math.round(targetDurationSeconds * 2.17)} palabras`
+              ? `≈ ${Math.round(targetDurationSeconds * 2.17)} palabras · ${Math.ceil(targetDurationSeconds / 7)} escenas`
+              : `≈ ${Math.round(targetDurationSeconds)} segundos · ${Math.ceil(targetDurationSeconds / 7)} escenas`
             }
-          </span>
+          </p>
         </div>
-
-        {/* Equivalente en la otra unidad */}
-        <p className="text-xs text-text-secondary/60 mt-1">
-          {durationUnit === 'seconds'
-            ? `≈ ${Math.round(targetDurationSeconds * 2.17)} palabras · ${Math.ceil(targetDurationSeconds / 7)} escenas`
-            : `≈ ${Math.round(targetDurationSeconds)} segundos · ${Math.ceil(targetDurationSeconds / 7)} escenas`
-          }
-        </p>
-      </div>
+      )}
 
       {/* Script input */}
       <WizardStepScript
         mode={mode}
+        ownScriptMode={wizardData.ownScriptMode}
+        scenes={wizardData.scenes}
+        designMd={wizardData.designMd}
         info={info}
         templateId={templateId}
         customPrompt={customPrompt}
+        onOwnScriptModeChange={(val) => setWizardData({ ownScriptMode: val })}
+        onScenesChange={(scenes) => setWizardData({ scenes })}
+        onDesignMdChange={(designMd) => setWizardData({ designMd })}
         onInfoChange={onInfoChange}
         onTemplateChange={onTemplateChange}
         onCustomPromptChange={onCustomPromptChange}

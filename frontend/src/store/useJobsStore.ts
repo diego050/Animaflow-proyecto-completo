@@ -21,7 +21,15 @@ export interface JobsState {
     aspectRatio: string,
     voiceId?: string,
     model?: string | null,
+    scenes?: any[],
+    designMd?: string | null,
+    systemPrompt?: string | null,
+    animationOnly?: boolean,
   ) => Promise<string>;
+  saveDraft: (
+    jobId: string | null,
+    draftData: Record<string, any>,
+  ) => Promise<{ job_id: string; status: string }>;
   generateScript: (
     info: string,
     templateId?: string,
@@ -108,6 +116,10 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     aspectRatio: string,
     _voiceId?: string,
     model?: string | null,
+    scenes?: any[],
+    designMd?: string | null,
+    systemPrompt?: string | null,
+    animationOnly?: boolean,
   ) => {
     void _voiceId;
     const settings = useSettingsStore.getState().settings;
@@ -123,12 +135,42 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     if (settings.ttsApiKey) {
       body.tts_api_key = settings.ttsApiKey;
     }
+    if (scenes && scenes.length > 0) {
+      body.scenes = scenes;
+    }
+    if (designMd) {
+      body.design_md = designMd;
+    }
+    if (systemPrompt) {
+      body.system_prompt = systemPrompt;
+    }
+    if (animationOnly) {
+      body.animation_only = true;
+    }
+    
     const data = await api.post<{ job_id: string; status: string }>(
       '/api/jobs/',
       body,
     );
     await get().fetchJobs();
     return data.job_id;
+  },
+
+  saveDraft: async (jobId: string | null, draftData: Record<string, any>) => {
+    let data;
+    if (jobId) {
+      data = await api.put<{ job_id: string; status: string }>(
+        `/api/jobs/${jobId}/draft`,
+        { draft_data: draftData }
+      );
+    } else {
+      data = await api.post<{ job_id: string; status: string }>(
+        '/api/jobs/draft',
+        { draft_data: draftData }
+      );
+    }
+    await get().fetchJobs();
+    return data;
   },
 
   generateScript: async (

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useWizardStore } from '../../store/useWizardStore';
 import { SEOHead } from '../SEOHead';
 
 const navItems = [
@@ -223,6 +224,54 @@ function NavItem({
   onClick: () => void;
 }) {
   const Icon = item.icon;
+  const resetWizard = useWizardStore((state) => state.resetWizard);
+  const wizardData = useWizardStore((state) => state.wizardData);
+  const wizardStep = useWizardStore((state) => state.wizardStep);
+  
+  const [showPrompt, setShowPrompt] = useState(false);
+  const navigate = useNavigate();
+
+  const isWizardDirty = () => {
+    return window.location.pathname === '/dashboard/new' &&
+           wizardStep < 3 &&
+           (wizardData.info.trim() !== '' || wizardData.script.trim() !== '');
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (item.to === '/dashboard/new') {
+      resetWizard();
+      onClick();
+      return;
+    }
+
+    if (isWizardDirty()) {
+      e.preventDefault();
+      setShowPrompt(true);
+      return;
+    }
+    
+    onClick();
+  };
+
+  const handleSaveDraft = async () => {
+    try {
+      const { useJobsStore } = await import('../../store/useJobsStore');
+      await useJobsStore.getState().saveDraft(wizardData.generatedJobId, wizardData);
+    } catch (e) {
+      console.error('Error saving draft:', e);
+    }
+    resetWizard();
+    setShowPrompt(false);
+    navigate(item.to);
+    onClick();
+  };
+
+  const handleDiscard = () => {
+    resetWizard();
+    setShowPrompt(false);
+    navigate(item.to);
+    onClick();
+  };
 
   if (item.disabled) {
     return (
@@ -240,25 +289,59 @@ function NavItem({
   }
 
   return (
-    <NavLink
-      to={item.to}
-      end
-      onClick={onClick}
-      className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-          isActive
-            ? 'bg-mint-precision/10 text-mint-precision'
-            : 'text-text-secondary hover:text-text-primary hover:bg-surface-high'
-        }`
-      }
-    >
-      {({ isActive }) => (
-        <>
-          <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
-          <span>{item.label}</span>
-        </>
+    <>
+      <NavLink
+        to={item.to}
+        end
+        onClick={handleClick}
+        className={({ isActive }) =>
+          `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            isActive
+              ? 'bg-mint-precision/10 text-mint-precision'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-high'
+          }`
+        }
+      >
+        {({ isActive }) => (
+          <>
+            <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
+            <span>{item.label}</span>
+          </>
+        )}
+      </NavLink>
+
+      {/* Draft Save Modal */}
+      {showPrompt && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-container border border-border-tech rounded-2xl w-full max-w-sm shadow-2xl p-6">
+            <h3 className="text-lg font-bold text-text-primary mb-2">Proyecto sin guardar</h3>
+            <p className="text-sm text-text-secondary mb-6">
+              Tienes progreso en un nuevo proyecto. ¿Deseas guardarlo como borrador antes de salir?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleSaveDraft}
+                className="w-full px-4 py-2 bg-mint-precision text-deep-slate rounded-lg text-sm font-semibold hover:bg-white transition-colors"
+              >
+                Sí, guardar borrador
+              </button>
+              <button
+                onClick={handleDiscard}
+                className="w-full px-4 py-2 bg-error/10 text-error rounded-lg text-sm font-semibold hover:bg-error/20 transition-colors"
+              >
+                No, descartar
+              </button>
+              <button
+                onClick={() => setShowPrompt(false)}
+                className="w-full px-4 py-2 text-text-secondary rounded-lg text-sm font-medium hover:text-text-primary transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-    </NavLink>
+    </>
   );
 }
 

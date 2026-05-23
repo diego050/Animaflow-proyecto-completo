@@ -85,14 +85,14 @@ REQUISITOS CRÍTICOS:
 1. DESCRIPCIÓN CONCEPTUAL (media_query):
    - NO describas "formas SVG", "coordenadas X,Y", ni "radios".
    - Describe la **Atmósfera**, **Paleta de Colores**, y **Estilo de Animación**.
-   - Ejemplo 1: "Cyberpunk theme with neon pink and cyan kinetic background. Text uses a fast slide-up reveal with intense glowing shadows."
-   - Ejemplo 2: "Corporate elegant style. Dark slate background shifting to deep indigo. Smooth and slow text fade with minimal blur."
-   - Ejemplo 3: "Aggressive and energetic. Pure black background contrasting with bright crimson red. Text pops up instantly with zero delay."
+   - **CONTINUIDAD VISUAL Y TRANSICIONES**: Si una escena es la continuación lógica de la anterior, INDICA EXPLÍCITAMENTE que mantenga la misma paleta y fondo, y si debe usar un "fade out" o "seamless transition". Si cambia radicalmente, indica que debe usar una transición de choque (glitch, wipe, blur) y cambiar la paleta.
+   - Ejemplo 1: "Cyberpunk theme with neon pink and cyan kinetic background. Text uses a fast slide-up reveal."
+   - Ejemplo 2: "Corporate elegant style. Dark slate background shifting to deep indigo. Seamless transition from previous scene."
 
 2. ESTILO VISUAL Y COLORES:
    - Elige un `backgroundColor` oscuro y elegante (Hexadecimal).
    - Elige un `textColor` contrastante y vibrante (Hexadecimal).
-   - Mantén cohesión cromática entre escenas a menos que haya un giro dramático en el guion.
+   - **IMPORTANTE**: Mantén ESTRICTA cohesión cromática (`backgroundColor` y `textColor`) entre escenas consecutivas a menos que haya un giro dramático en el guion. Evita cambiar de fondo claro a oscuro bruscamente.
 
 3. REGLAS ABSOLUTAS:
    - El `media_query` DEBE estar en INGLÉS.

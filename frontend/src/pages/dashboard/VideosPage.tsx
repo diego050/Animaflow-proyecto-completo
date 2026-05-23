@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useJobsStore } from '../../store/useJobsStore';
 import { useToastStore } from '../../store/useToastStore';
+import { useWizardStore } from '../../store/useWizardStore';
 import {
   isProcessingStatus,
   isRenderStatus,
@@ -31,6 +32,7 @@ export function VideosPage() {
   const navigate = useNavigate();
   const { jobs, jobsLoading, jobsError, fetchJobs } = useJobsStore();
   const { addToast } = useToastStore();
+  const { resetWizard } = useWizardStore();
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [previewJob, setPreviewJob] = useState<JobSummary | null>(null);
@@ -301,7 +303,10 @@ export function VideosPage() {
           </p>
           {!search && (
             <button
-              onClick={() => navigate('/dashboard/new')}
+              onClick={() => {
+                resetWizard();
+                navigate('/dashboard/new');
+              }}
               className="flex items-center gap-2 px-5 py-2.5 bg-mint-precision text-surface-container rounded-lg text-sm font-semibold hover:bg-mint-precision/90 transition-colors"
             >
               Crear Proyecto
