@@ -87,10 +87,10 @@ async def _process_chunks_async(
             standard_name = f"{job_id}_{i}{ext}"
             standard_path = os.path.join(AUDIO_STORAGE, standard_name)
             try:
-                shutil.copy2(audio_path, standard_path)
+                shutil.move(audio_path, standard_path)
                 audio_url = f"/api/audio/{standard_name}"
                 logger.info(
-                    "Audio copied to standard location: %s",
+                    "Audio moved to standard location: %s",
                     standard_path,
                     extra={"job_id": job_id},
                 )
@@ -117,7 +117,7 @@ async def _process_chunks_async(
             i + 1,
             extra={"job_id": job_id},
         )
-        component_type_name = await generate_remotion_component(
+        component_type_name, q_status = await generate_remotion_component(
             i, visual_spec, chunk, duration, job_id, aspect_ratio, user_id
         )
 
@@ -138,6 +138,7 @@ async def _process_chunks_async(
                 "text": chunk,
                 "type": component_type_name,
                 "media_query": visual_spec.media_query,
+                "quality_status": q_status,
                 "remotion_props": {
                     "backgroundColor": visual_spec.backgroundColor,
                     "textColor": visual_spec.textColor,
@@ -175,7 +176,7 @@ async def _regenerate_components_for_reformat(
             backgroundColor=remotion_props.get("backgroundColor", "#0f172a"),
             textColor=remotion_props.get("textColor", "#38bdf8"),
         )
-        new_type = await generate_remotion_component(
+        new_type, q_status = await generate_remotion_component(
             scene_index=i,
             visual_spec=visual_spec,
             text=scene.get("text", ""),
@@ -185,6 +186,7 @@ async def _regenerate_components_for_reformat(
             user_id=user_id,
         )
         scene["type"] = new_type
+        scene["quality_status"] = q_status
     write_index_ts(job_id, timeline_scenes, user_id)
     return timeline_scenes
 
@@ -436,8 +438,8 @@ def run_pipeline_approved(
             scene_mp4s = []
             for i, scene in enumerate(timeline_scenes):
                 duration = scene.get("duration_seconds", 7.0)
-                # Añadir 1 segundo extra para entry/exit animations
-                render_duration = duration + 1.0
+                # La duración del video debe ser idéntica a la del audio para que no haya desfase
+                render_duration = duration
                 remotion_props = scene.get("remotion_props") or {}
 
                 max_render_retries = 3
@@ -504,8 +506,19 @@ def run_pipeline_approved(
             else:
                 job.video_url = None
 
+            quality_metrics = {
+                "total_scenes": len(timeline_scenes),
+                "scenes_passed_first_try": sum(1 for s in timeline_scenes if s.get("quality_status") == "passed"),
+                "scenes_healed": sum(1 for s in timeline_scenes if s.get("quality_status") == "healed"),
+                "scenes_defaulted": sum(1 for s in timeline_scenes if s.get("quality_status") == "defaulted"),
+            }
+            if quality_metrics["total_scenes"] > 0:
+                quality_metrics["success_rate"] = (quality_metrics["scenes_passed_first_try"] + quality_metrics["scenes_healed"]) / quality_metrics["total_scenes"]
+            else:
+                quality_metrics["success_rate"] = 0.0
+
             # Guardamos el timeline completo y lo validamos con Pydantic
-            final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
+            final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio, "quality_metrics": quality_metrics}
             spec_obj = TimelineSpec(**final_spec)
             job.result_spec = spec_obj.model_dump()
             flag_modified(job, "result_spec")

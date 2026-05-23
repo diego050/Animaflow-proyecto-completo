@@ -122,7 +122,7 @@ async def preview_voice(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Generate a preview audio for a voice using Voicebox TTS."""
+    """Generate a preview audio for a voice using Piper TTS."""
     voice = db.query(Voice).filter(
         Voice.id == voice_id,
         Voice.user_id == current_user.id,

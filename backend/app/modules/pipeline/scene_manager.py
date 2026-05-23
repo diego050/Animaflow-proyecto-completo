@@ -61,11 +61,12 @@ async def _regenerate_scene_async(
     )
 
     logger.info("Regenerando TSX para escena %d...", scene_index, extra={"job_id": job_id})
-    component_type_name = await generate_remotion_component(
+    component_type_name, q_status = await generate_remotion_component(
         scene_index, visual_spec, new_text, scene["duration_seconds"], job_id, aspect_ratio, user_id
     )
 
     scene["type"] = component_type_name
+    scene["quality_status"] = q_status
 
     # AE script generation deferred to export step
     scene["ae_script_code"] = None

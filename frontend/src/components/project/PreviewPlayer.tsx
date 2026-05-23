@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { SkipForward, Play, ChevronDown, Video } from 'lucide-react';
+import { SkipForward, SkipBack, Play, ChevronDown, Video } from 'lucide-react';
 import type { TimelineSpec } from '../../types/spec';
 import { useAuthStore } from '../../store/useAuthStore';
+import { SceneTimelineBar } from './SceneTimelineBar';
 
 interface PreviewPlayerProps {
   spec: TimelineSpec;
@@ -10,12 +12,14 @@ interface PreviewPlayerProps {
   aspectRatio?: string;
   focusSceneIndex?: number | null;
   onClearFocus?: () => void;
+  onFocusScene?: (index: number) => void;
 }
 
-export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focusSceneIndex, onClearFocus }: PreviewPlayerProps) {
+export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focusSceneIndex, onClearFocus, onFocusScene }: PreviewPlayerProps) {
   const totalDuration = spec.scenes.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0);
   const sceneCount = spec.scenes.length;
   const token = useAuthStore((state) => state.token);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const focusedScene = focusSceneIndex != null ? spec.scenes[focusSceneIndex] : null;
 
@@ -27,6 +31,41 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
     videoUrl = `/api/jobs/${jobId}/video?token=${token}`;
   }
 
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
+
+      if (e.key === 'ArrowRight') {
+        if (focusSceneIndex != null && focusSceneIndex < sceneCount - 1 && onFocusScene) {
+          onFocusScene(focusSceneIndex + 1);
+        }
+      } else if (e.key === 'ArrowLeft') {
+        if (focusSceneIndex != null && focusSceneIndex > 0 && onFocusScene) {
+          onFocusScene(focusSceneIndex - 1);
+        }
+      } else if (e.key === 'Escape') {
+        if (focusSceneIndex != null && onClearFocus) {
+          onClearFocus();
+        }
+      } else if (e.key === ' ') {
+        // Toggle play/pause
+        e.preventDefault();
+        if (videoRef.current) {
+          if (videoRef.current.paused) {
+            videoRef.current.play();
+          } else {
+            videoRef.current.pause();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [focusSceneIndex, sceneCount, onFocusScene, onClearFocus]);
+
   return (
     <div className="flex flex-col lg:flex-row gap-6">
       {/* Player - centered */}
@@ -35,24 +74,40 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-sm mb-4"
+            className="w-full max-w-sm mb-4 flex items-center justify-between"
           >
             <button
               onClick={onClearFocus}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-mint-precision bg-mint-precision/10 hover:bg-mint-precision/20 transition-colors"
             >
-              <SkipForward size={14} />
+              <SkipBack size={14} />
               Volver a todas las escenas
             </button>
-            <p className="text-text-secondary/50 text-xs mt-1.5">
-              Preview: Escena {focusSceneIndex! + 1} · {focusedScene.duration_seconds}s
-            </p>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={focusSceneIndex === 0}
+                onClick={() => onFocusScene?.(focusSceneIndex! - 1)}
+                className="p-1.5 rounded bg-surface-elevated text-text-secondary hover:text-text-primary disabled:opacity-30 transition-colors"
+                title="Escena Anterior (←)"
+              >
+                <SkipBack size={14} />
+              </button>
+              <button
+                disabled={focusSceneIndex === sceneCount - 1}
+                onClick={() => onFocusScene?.(focusSceneIndex! + 1)}
+                className="p-1.5 rounded bg-surface-elevated text-text-secondary hover:text-text-primary disabled:opacity-30 transition-colors"
+                title="Siguiente Escena (→)"
+              >
+                <SkipForward size={14} />
+              </button>
+            </div>
           </motion.div>
         )}
 
         <div className="w-full max-w-sm aspect-[9/16] bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50">
           {videoUrl ? (
             <video
+              ref={videoRef}
               key={videoUrl} // Forzar recarga al cambiar URL
               src={videoUrl}
               controls
@@ -72,41 +127,24 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
             </div>
           )}
         </div>
-        <p className="text-text-secondary/40 text-xs mt-4">
+        
+        {/* Timeline Bar */}
+        <div className="w-full max-w-sm">
+          <SceneTimelineBar spec={spec} focusSceneIndex={focusSceneIndex ?? null} onSceneClick={onFocusScene} />
+        </div>
+
+        <p className="text-text-secondary/40 text-[10px] mt-4 flex items-center gap-2">
           {focusedScene
             ? `Preview MP4 individual — Escena ${focusSceneIndex! + 1}`
             : isReadyToRender 
               ? 'Video MP4 final'
               : 'Selecciona una escena'}
+          <span className="bg-surface-elevated px-1.5 py-0.5 rounded text-[9px]">Espacio para play/pause</span>
         </p>
       </div>
 
       {/* Project info sidebar - stacked on mobile, sidebar on desktop */}
       <div className="w-full lg:w-72 space-y-4">
-        {/* Collapsible info on mobile */}
-        <div className="lg:hidden">
-          <details className="group">
-            <summary className="flex items-center justify-between cursor-pointer p-4 bg-surface-container border border-border-tech rounded-xl text-sm font-semibold text-text-primary list-none">
-              <span>Información del proyecto</span>
-              <ChevronDown size={16} className="text-text-secondary/50 transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="mt-2 bg-surface-container border border-border-tech rounded-xl p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-secondary/50">Escenas</span>
-                <span className="text-sm font-semibold text-text-primary">{sceneCount}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-secondary/50">Duración total</span>
-                <span className="text-sm font-semibold text-text-primary">{totalDuration.toFixed(1)}s</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-secondary/50">Relación de aspecto</span>
-                <span className="text-sm font-semibold text-mint-precision">{aspectRatio || '9:16'}</span>
-              </div>
-            </div>
-          </details>
-        </div>
-
         {/* Desktop info card (hidden on mobile) */}
         <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-4">Información del proyecto</h3>
@@ -126,65 +164,20 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
           </div>
         </div>
 
-        {/* Scene list - collapsible on mobile */}
-        <div className="lg:hidden">
-          <details className="group">
-            <summary className="flex items-center justify-between cursor-pointer p-4 bg-surface-container border border-border-tech rounded-xl text-sm font-semibold text-text-primary list-none">
-              <span>Escenas ({sceneCount})</span>
-              <ChevronDown size={16} className="text-text-secondary/50 transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="mt-2 bg-surface-container border border-border-tech rounded-xl p-5">
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {spec.scenes.map((scene, idx) => {
-                  const isFocused = focusSceneIndex === idx;
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        if (onClearFocus && isFocused) onClearFocus();
-                        else if (onClearFocus) {
-                           // This requires onPreviewScene, but it's not passed. 
-                           // Actually, let's keep the view-only nature of this list since we just highlight.
-                        }
-                      }}
-                      className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${
-                        isFocused
-                          ? 'bg-mint-precision/10 border border-mint-precision/30'
-                          : 'bg-surface-lowest/50'
-                      }`}
-                    >
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
-                        isFocused
-                          ? 'text-deep-slate bg-mint-precision'
-                          : 'text-mint-precision bg-mint-precision/10'
-                      }`}>
-                        {idx + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs text-text-primary truncate">{scene.text}</p>
-                        <p className="text-[10px] text-text-secondary/40">{scene.duration_seconds}s</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </details>
-        </div>
-
         {/* Desktop scene list (hidden on mobile) */}
         <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-3">Escenas</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {spec.scenes.map((scene, idx) => {
               const isFocused = focusSceneIndex === idx;
               return (
                 <div
                   key={idx}
-                  className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${
+                  onClick={() => onFocusScene?.(idx)}
+                  className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
                     isFocused
                       ? 'bg-mint-precision/10 border border-mint-precision/30'
-                      : 'bg-surface-lowest/50'
+                      : 'bg-surface-lowest/50 hover:bg-surface-elevated'
                   }`}
                 >
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
@@ -199,7 +192,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
                     <p className="text-[10px] text-text-secondary/40">{scene.duration_seconds}s</p>
                   </div>
                   {isFocused && (
-                    <Play size={12} className="text-mint-precision shrink-0 mt-1" />
+                    <Play size={12} className="text-mint-precision shrink-0 mt-1 ml-auto" />
                   )}
                 </div>
               );
