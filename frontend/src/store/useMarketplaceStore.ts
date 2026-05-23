@@ -37,7 +37,7 @@ interface MarketplaceStore {
     content: string;
     format?: string;
     category?: string;
-  }) => Promise<void>;
+  }) => Promise<MarketplaceComponent>;
   likeComponent: (id: string) => Promise<void>;
 }
 
