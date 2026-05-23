@@ -29,6 +29,7 @@ const navItems = [
   { to: '/dashboard/videos', label: 'Videos', icon: Video, disabled: false },
   // { to: '/dashboard/images', label: 'Imágenes', icon: Image, disabled: false }, // MVP: oculto
   { to: '/dashboard/downloads', label: 'Descargas', icon: Download, disabled: false },
+  // Marketplace — solo admin
   { to: '/dashboard/settings', label: 'Configuración', icon: Settings, disabled: false },
 ];
 

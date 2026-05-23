@@ -125,7 +125,7 @@ export function WizardStepInfo({
           onClick={() => {
             setMode('animation-only');
             if (wizardData.scenes.length === 0) {
-              setWizardData({ ownScriptMode: 'with-prompts', scenes: [{ text: '', media_query: '', duration_seconds: 7 } as any] });
+              setWizardData({ ownScriptMode: 'with-prompts', scenes: [{ text: '', media_query: '', duration_seconds: 7 }] });
             } else {
               setWizardData({ ownScriptMode: 'with-prompts' });
             }

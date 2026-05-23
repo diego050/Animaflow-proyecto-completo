@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Upload, FileText, Save, Trash2, Check, X, Loader2 } from 'lucide-react';
-import { useDesignTemplatesStore, type DesignTemplate } from '../../store/useDesignTemplatesStore';
+import { useDesignTemplatesStore } from '../../store/useDesignTemplatesStore';
 
 interface DesignTemplateManagerProps {
   value: string;

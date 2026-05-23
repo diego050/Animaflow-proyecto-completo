@@ -2,6 +2,7 @@ import { Composition, registerRoot } from "remotion";
 import React from "react";
 import { AbsoluteFill } from "remotion";
 import { generatedModules } from "./generated";
+import { AnimaComposer } from './composer/AnimaComposer';
 
 interface SceneWrapperProps {
   type: string;
@@ -9,6 +10,7 @@ interface SceneWrapperProps {
   durationInFrames: number;
   fallbackBg?: string;
   fallbackColor?: string;
+  animaComposer?: any;
 }
 
 const SceneWrapper: React.FC<SceneWrapperProps> = ({
@@ -17,7 +19,18 @@ const SceneWrapper: React.FC<SceneWrapperProps> = ({
   durationInFrames,
   fallbackBg = "#000000",
   fallbackColor = "#ffffff",
+  animaComposer,
 }) => {
+  if (type === 'custom' && animaComposer) {
+    return (
+      <AnimaComposer
+        spec={animaComposer}
+        text={text}
+        durationInFrames={durationInFrames}
+      />
+    );
+  }
+
   const mod = (generatedModules as Record<string, Record<string, unknown>>)[type];
   const Component = mod?.SceneComponent as React.ComponentType<{ text: string; durationInFrames: number }> | undefined;
 

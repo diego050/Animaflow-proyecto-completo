@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { SkipForward, SkipBack, Play, ChevronDown, Video } from 'lucide-react';
-import type { TimelineSpec } from '../../types/spec';
+import { SkipForward, SkipBack, Play, Video } from 'lucide-react';
+import { Player } from '@remotion/player';
+import { AnimaComposer } from '../../remotion/composer/AnimaComposer';
+import type { TimelineSpec, Spec } from '../../types/spec';
 import { useAuthStore } from '../../store/useAuthStore';
 import { SceneTimelineBar } from './SceneTimelineBar';
 
@@ -119,7 +121,21 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
         )}
 
         <div className="w-full max-w-sm aspect-[9/16] bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50">
-          {videoUrl ? (
+          {focusedScene?.type === 'custom' && (focusedScene as Spec)?.animaComposer ? (
+            <Player
+              component={AnimaComposer}
+              inputProps={{
+                spec: (focusedScene as Spec).animaComposer!,
+                text: focusedScene.text,
+              }}
+              durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
+              compositionWidth={1080}
+              compositionHeight={1920}
+              fps={30}
+              controls
+              style={{ width: '100%', height: '100%' }}
+            />
+          ) : videoUrl ? (
             <video
               ref={videoRef}
               key={videoUrl} // Forzar recarga al cambiar URL
@@ -149,7 +165,9 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
 
         <p className="text-text-secondary/40 text-[10px] mt-4 flex items-center gap-2">
           {focusedScene
-            ? `Preview MP4 individual — Escena ${focusSceneIndex! + 1}`
+            ? focusedScene.type === 'custom' && (focusedScene as Spec)?.animaComposer
+              ? `Preview en vivo — AnimaComposer · Escena ${focusSceneIndex! + 1}`
+              : `Preview MP4 individual — Escena ${focusSceneIndex! + 1}`
             : isReadyToRender 
               ? 'Video MP4 final'
               : 'Selecciona una escena'}

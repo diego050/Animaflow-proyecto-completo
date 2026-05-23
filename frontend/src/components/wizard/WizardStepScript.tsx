@@ -6,13 +6,13 @@ interface WizardStepScriptProps {
   mode: 'own-script' | 'ai-generate' | 'animation-only';
   ownScriptMode: 'with-prompts' | 'text-only' | null;
   info: string;
-  scenes: Array<{text: string; media_query: string}>;
+  scenes: Array<{text: string; media_query: string; duration_seconds?: number}>;
   designMd: string;
   templateId: string;
   customPrompt: string;
   onOwnScriptModeChange: (mode: 'with-prompts' | 'text-only') => void;
   onInfoChange: (value: string) => void;
-  onScenesChange: (scenes: Array<{text: string; media_query: string}>) => void;
+  onScenesChange: (scenes: Array<{text: string; media_query: string; duration_seconds?: number}>) => void;
   onDesignMdChange: (value: string) => void;
   onTemplateChange: (value: string) => void;
   onCustomPromptChange: (value: string) => void;
@@ -54,7 +54,7 @@ export function WizardStepScript({
 
   const handleSceneChange = (index: number, field: 'text' | 'media_query' | 'duration_seconds', value: string | number) => {
     const newScenes = [...scenes];
-    (newScenes[index] as any)[field] = value;
+    newScenes[index] = { ...newScenes[index], [field]: value };
     onScenesChange(newScenes);
   };
 
@@ -111,7 +111,7 @@ export function WizardStepScript({
               onClick={() => {
                 onOwnScriptModeChange('with-prompts');
                 if (scenes.length === 0) {
-                  onScenesChange([{ text: '', media_query: '', duration_seconds: 7 } as any]);
+                  onScenesChange([{ text: '', media_query: '', duration_seconds: 7 }]);
                 }
               }}
               className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-all ${
@@ -169,8 +169,8 @@ export function WizardStepScript({
                         type="number"
                         min="1"
                         max="60"
-                        value={(scene as any).duration_seconds || 7}
-                        onChange={(e) => handleSceneChange(idx, 'duration_seconds' as any, Number(e.target.value) || 7)}
+                        value={scene.duration_seconds || 7}
+                        onChange={(e) => handleSceneChange(idx, 'duration_seconds', Number(e.target.value) || 7)}
                         className="bg-surface-container border border-border-tech rounded-md px-2 py-1 text-sm text-text-primary focus:border-mint-precision outline-none w-20"
                       />
                     </div>

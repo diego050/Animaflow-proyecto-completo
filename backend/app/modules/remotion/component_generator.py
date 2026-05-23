@@ -9,6 +9,12 @@ logger = get_logger("remotion")
 from .component_postprocess import fix_interpolate_mismatch, wrap_radius_with_math_max
 from ..llm.client import _call_gemini_with_retry
 from ..llm.visual_spec import VisualSpecResult
+from ..llm.component_strategy import (
+    decide_scene_strategy,
+    StandardLibraryChoice,
+    CustomSceneChoice,
+    AVAILABLE_COMPONENTS,
+)
 
 def _get_api_key_for_model(model_id: str, default_api_key: Optional[str] = None) -> str:
     """Helper to get the right API key based on the model"""
@@ -17,6 +23,80 @@ def _get_api_key_for_model(model_id: str, default_api_key: Optional[str] = None)
     if model_id.startswith("gemini"):
         return default_api_key or settings.GEMINI_API_KEY
     return default_api_key or settings.GEMINI_API_KEY
+
+
+async def decide_and_generate_component(
+    scene_index: int,
+    visual_spec: Any,
+    text: str,
+    duration: float,
+    job_id: str,
+    aspect_ratio: str = "9:16",
+    user_id: Optional[str] = None,
+) -> Tuple[str, str, Optional[dict]]:
+    """
+    Decide la estrategia optima para una escena: componente existente o JSON AnimaComposer.
+
+    El LLM evalúa el texto y media_query contra los 85+ componentes de la Standard Library.
+    Si encuentra uno que cubra >=80% de lo necesario, lo usa (1-2 tokens).
+    Si no, genera un JSON AnimaComposer personalizado (~200-400 tokens).
+
+    Returns:
+        (type_name, quality_status, anima_composer_json_or_None)
+    """
+    from app.core.config import settings
+    from app.modules.llm.resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    model = creds.model
+
+    if not api_key:
+        logger.warning("No API key. Defaulting to FadeText.")
+        return "FadeText", "defaulted", None
+
+    media_query = visual_spec.media_query if visual_spec else ""
+
+    try:
+        strategy = decide_scene_strategy(
+            text=text,
+            media_query=media_query,
+            available_components=AVAILABLE_COMPONENTS,
+            api_key=api_key,
+            model=model,
+        )
+
+        if strategy.mode == "component":
+            logger.info(
+                "Scene %d: Using Standard Library component '%s' (confidence: %.2f)",
+                scene_index,
+                strategy.component_name,
+                strategy.confidence,
+                extra={"job_id": job_id},
+            )
+            return strategy.component_name, "passed", None
+
+        # mode == "custom"
+        logger.info(
+            "Scene %d: Custom scene via AnimaComposer. Justification: %s",
+            scene_index,
+            strategy.justification[:120],
+            extra={"job_id": job_id},
+        )
+        return "custom", "passed", strategy.anima_composer
+
+    except Exception as e:
+        logger.error(
+            "Strategy decision failed for scene %d: %s. Falling back to generate_remotion_component().",
+            scene_index,
+            str(e)[:80],
+            extra={"job_id": job_id},
+        )
+        # Fallback: usar generate_remotion_component() existente
+        component_name, q_status = await generate_remotion_component(
+            scene_index, visual_spec, text, duration, job_id, aspect_ratio, user_id
+        )
+        return component_name, q_status, None
 
 
 async def generate_remotion_component(

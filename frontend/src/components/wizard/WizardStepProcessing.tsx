@@ -9,9 +9,15 @@ export interface WizardStepProcessingProps {
   jobId?: string;
 }
 
+interface LogMessage {
+  timestamp?: string;
+  level?: string;
+  message?: string;
+}
+
 export function WizardStepProcessing({ status, jobId }: WizardStepProcessingProps) {
   const isFailed = status === 'failed' || status === 'failed_render';
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<LogMessage[]>([]);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -19,11 +25,11 @@ export function WizardStepProcessing({ status, jobId }: WizardStepProcessingProp
 
     const fetchLogs = async () => {
       try {
-        const data = await api.get<{logs: any[]}>(`/api/jobs/${jobId}/logs`);
+        const data = await api.get<{logs: LogMessage[]}>(`/api/jobs/${jobId}/logs`);
         if (data && data.logs) {
           setLogs(data.logs);
         }
-      } catch (e) {
+      } catch (_e) {
         // Ignore errors
       }
     };
