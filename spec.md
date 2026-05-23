@@ -175,5 +175,5 @@ Cualquier cambio a spec.json requiere:
 1. Version bump (v1 → v2)
 2. Actualización simultánea de Pydantic + TypeScript
 3. Migración script para datos existentes
-4. Documentación en /docs/adr/
+4. Documentación en /docs/adr/ 
 
