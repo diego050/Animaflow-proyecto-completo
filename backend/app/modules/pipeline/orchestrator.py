@@ -15,7 +15,7 @@ logger = get_logger("pipeline")
 from ..tts.service import generate_tts_with_timestamps, AUDIO_STORAGE
 from ..segmentation.service import split_text_into_chunks
 from ..llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
-from ..remotion.component_generator import generate_remotion_component, heal_remotion_component
+from ..remotion.component_generator import generate_remotion_component, decide_and_generate_component, heal_remotion_component
 from ..remotion.index_writer import write_index_ts, cleanup_stale_tsx_files
 from ..remotion.scene_renderer import render_single_scene, SCENES_STORAGE
 from ..video.concat import concat_scenes, VIDEOS_STORAGE
@@ -126,11 +126,11 @@ async def _process_chunks_async(
             visual_spec.media_query = user_scenes[i]["media_query"]
 
         logger.info(
-            "Generating Remotion TSX code for scene %d...",
+            "Deciding component strategy for scene %d...",
             i + 1,
             extra={"job_id": job_id},
         )
-        component_type_name, q_status = await generate_remotion_component(
+        component_type_name, q_status, anima_composer_json = await decide_and_generate_component(
             i, visual_spec, chunk, duration, job_id, aspect_ratio, user_id
         )
 
@@ -160,6 +160,7 @@ async def _process_chunks_async(
                 "audio_url": audio_url,
                 "word_timestamps": word_timestamps,
                 "ae_script_code": None,
+                "anima_composer": anima_composer_json,  # None si es Standard Library, dict si es custom
             }
         )
         current_start_time += duration
@@ -189,7 +190,7 @@ async def _regenerate_components_for_reformat(
             backgroundColor=remotion_props.get("backgroundColor", "#0f172a"),
             textColor=remotion_props.get("textColor", "#38bdf8"),
         )
-        new_type, q_status = await generate_remotion_component(
+        new_type, q_status, anima_composer_json = await decide_and_generate_component(
             scene_index=i,
             visual_spec=visual_spec,
             text=scene.get("text", ""),
@@ -200,6 +201,8 @@ async def _regenerate_components_for_reformat(
         )
         scene["type"] = new_type
         scene["quality_status"] = q_status
+        if anima_composer_json is not None:
+            scene["anima_composer"] = anima_composer_json
     write_index_ts(job_id, timeline_scenes, user_id)
     return timeline_scenes
 

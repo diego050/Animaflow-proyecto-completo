@@ -15,7 +15,7 @@ export interface WizardData {
   skippedReview: boolean;
   wizardMode: 'own-script' | 'ai-generate' | 'animation-only' | null;
   ownScriptMode: 'with-prompts' | 'text-only' | null;
-  scenes: Array<{text: string; media_query: string}>;
+  scenes: Array<{text: string; media_query: string; duration_seconds?: number}>;
   designMd: string;
   targetDurationSeconds: number;
   durationUnit: 'seconds' | 'words';

@@ -30,6 +30,8 @@ const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(m 
 const AdminJobsPage = lazy(() => import('./pages/admin/AdminJobsPage').then(m => ({ default: m.AdminJobsPage })));
 const AnimationsGallery = lazy(() => import('./pages/admin/AnimationsGallery').then(m => ({ default: m.AnimationsGallery })));
 const AnimationPlayground = lazy(() => import('./pages/admin/AnimationPlayground').then(m => ({ default: m.AnimationPlayground })));
+const AdminMarketplacePage = lazy(() => import('./pages/admin/AdminMarketplacePage').then(m => ({ default: m.AdminMarketplacePage })));
+// MarketplacePage eliminada — solo accesible para admin vía /admin/marketplace
 
 export default function App() {
   return (
@@ -62,6 +64,7 @@ export default function App() {
             <Route path="videos" element={<VideosPage />} />
             {/* <Route path="images" element={<ImagesPage />} /> // MVP: oculto */}
             <Route path="downloads" element={<DownloadsPage />} />
+            {/* <Route path="marketplace" element={<MarketplacePage />} /> // MVP: solo admin */}
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 
@@ -83,6 +86,7 @@ export default function App() {
             <Route path="settings" element={<AdminSettingsPage />} />
             <Route path="animations" element={<AnimationsGallery />} />
             <Route path="animations/:componentName" element={<AnimationPlayground />} />
+            <Route path="marketplace" element={<AdminMarketplacePage />} />
           </Route>
 
           {/* 404 catch-all */}

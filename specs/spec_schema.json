@@ -1,5 +1,282 @@
 {
   "$defs": {
+    "AnimatedValue": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "number"
+            },
+            "to": {
+              "type": "number"
+            },
+            "duration": {
+              "type": "number",
+              "default": 30
+            },
+            "delay": {
+              "type": "number",
+              "default": 0
+            },
+            "easing": {
+              "type": "string",
+              "enum": [
+                "linear",
+                "ease-in",
+                "ease-out",
+                "ease-in-out",
+                "spring"
+              ],
+              "default": "linear"
+            },
+            "springConfig": {
+              "type": "object",
+              "properties": {
+                "damping": {
+                  "type": "number"
+                },
+                "stiffness": {
+                  "type": "number"
+                },
+                "mass": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "damping",
+                "stiffness"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "from",
+            "to"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "title": "AnimatedValue"
+    },
+    "AnimaBackground": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "solid",
+            "linear-gradient",
+            "radial-gradient"
+          ]
+        },
+        "colors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "angle": {
+          "type": "number",
+          "default": 0
+        },
+        "center": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "required": [
+        "type",
+        "colors"
+      ],
+      "additionalProperties": false,
+      "title": "AnimaBackground"
+    },
+    "AnimaLayer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "rect",
+            "circle",
+            "path",
+            "text",
+            "image",
+            "group",
+            "particles"
+          ]
+        },
+        "x": {
+          "$ref": "#/$defs/AnimatedValue"
+        },
+        "y": {
+          "$ref": "#/$defs/AnimatedValue"
+        },
+        "scale": {
+          "$ref": "#/$defs/AnimatedValue"
+        },
+        "rotation": {
+          "$ref": "#/$defs/AnimatedValue"
+        },
+        "opacity": {
+          "$ref": "#/$defs/AnimatedValue"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "borderRadius": {
+          "type": "number"
+        },
+        "fill": {
+          "type": "string"
+        },
+        "stroke": {
+          "type": "string"
+        },
+        "strokeWidth": {
+          "type": "number"
+        },
+        "r": {
+          "type": "number"
+        },
+        "pathData": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "fontSize": {
+          "type": "number"
+        },
+        "fontWeight": {
+          "type": "number"
+        },
+        "letterSpacing": {
+          "type": "number"
+        },
+        "textAlign": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "src": {
+          "type": "string"
+        },
+        "fit": {
+          "type": "string",
+          "enum": [
+            "cover",
+            "contain"
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AnimaLayer"
+          }
+        },
+        "count": {
+          "type": "integer"
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "circle",
+            "rect",
+            "star"
+          ]
+        },
+        "spread": {
+          "type": "number"
+        },
+        "colors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "entry": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "fade-in",
+                "slide-up",
+                "slide-down",
+                "slide-left",
+                "slide-right",
+                "scale-in",
+                "spring-in"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entryDelay": {
+          "type": "number",
+          "default": 0
+        },
+        "filter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "title": "AnimaLayer"
+    },
+    "AnimaComposerSpec": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "default": "1.0"
+        },
+        "background": {
+          "$ref": "#/$defs/AnimaBackground"
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AnimaLayer"
+          }
+        }
+      },
+      "required": [
+        "background",
+        "layers"
+      ],
+      "additionalProperties": false,
+      "title": "AnimaComposerSpec"
+    },
     "SFX": {
       "properties": {
         "keyword": {
@@ -130,6 +407,18 @@
           ],
           "default": null,
           "title": "Ae Script Code"
+        },
+        "anima_composer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnimaComposerSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Anima Composer"
         }
       },
       "required": [
@@ -138,6 +427,26 @@
         "text",
         "type",
         "media_query"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "anima_composer": {
+                "type": "object"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "custom"
+                ]
+              }
+            }
+          }
+        }
       ],
       "title": "Spec",
       "type": "object"

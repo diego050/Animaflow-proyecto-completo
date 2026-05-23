@@ -3,6 +3,7 @@ import React from "react";
 import type { TimelineSpec } from "../types/spec";
 import { useAuthStore } from "../store/useAuthStore";
 import { generatedModules } from "./generated"; // index.ts global re-exporta todo
+import { AnimaComposer } from './composer/AnimaComposer';
 
 interface FallbackSceneProps {
   text: string;
@@ -34,6 +35,7 @@ interface DynamicSceneProps {
   durationInFrames: number;
   fallbackBg: string;
   fallbackColor: string;
+  animaComposer?: any;
 }
 
 interface SceneProps {
@@ -56,7 +58,17 @@ for (const [typeName, mod] of Object.entries(generatedModules)) {
   }
 }
 
-const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor }: DynamicSceneProps) => {
+const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, animaComposer }: DynamicSceneProps) => {
+  if (type === 'custom' && animaComposer) {
+    return (
+      <AnimaComposer
+        spec={animaComposer}
+        text={text}
+        durationInFrames={durationInFrames}
+      />
+    );
+  }
+
   const Component = sceneComponents[type];
 
   if (!Component) {
@@ -94,6 +106,7 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
                durationInFrames={durationInFrames}
                 fallbackBg={String(scene.remotion_props?.backgroundColor || "#000")}
                 fallbackColor={String(scene.remotion_props?.textColor || "#fff")}
+                animaComposer={(scene as any).animaComposer}
             />
             {audioUrlWithToken && <Audio src={audioUrlWithToken} />}
           </Sequence>

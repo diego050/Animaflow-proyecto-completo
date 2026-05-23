@@ -6,4 +6,5 @@ export { useDashboardStore } from './useDashboardStore';
 export { useMediaStore } from './useMediaStore';
 export { useVoicesStore } from './useVoicesStore';
 export { useToastStore } from './useToastStore';
+export { useMarketplaceStore } from './useMarketplaceStore';
 export { useAdminStore } from './useAdminStore';
