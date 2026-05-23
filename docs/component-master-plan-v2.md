@@ -266,3 +266,27 @@ Consolidan el producto para el mercado corporativo y de e-learning.
 
 ### Sprint 4: Geografía + Entretenimiento (11 componentes)
 Cubren nichos especializados de alto valor (travel, gaming, lifestyle).
+
+---
+
+## ARQUITECTURA FUTURA: COMPONENTES DINÁMICOS GENERADOS POR IA
+
+Para implementar la creación de componentes por usuarios en tiempo real (Nivel 3), se requiere abordar tanto el frontend web como el backend de After Effects.
+
+### 1. Previsualización Dinámica en Web (Inmediata)
+No necesitamos reconstruir toda la plataforma web con `vite build` para previsualizar código nuevo. Podemos usar el enfoque de **Evaluación Dinámica de JSX**:
+- El navegador carga `@babel/standalone`.
+- Cuando la IA genera el texto de un componente React (ej. `CoffeeBeans.tsx`), el frontend toma ese string de código, lo transpila con Babel a JavaScript puro y lo evalúa en un envoltorio usando `new Function()`.
+- Remotion inyectaría los hooks `useCurrentFrame` en este entorno, permitiendo previsualizar el componente de forma **instantánea**.
+
+### 2. El Cuello de Botella de After Effects (El verdadero reto)
+El diferenciador core de AnimaFlow es su sistema de **Doble Exportación**. Actualmente, cuando renderizamos en AE, no ejecutamos React. Nuestro backend Python traduce componentes conocidos a **ExtendScript (JavaScript de After Effects)**. 
+Si un usuario crea un componente en React de forma dinámica, After Effects **no sabrá cómo renderizarlo** a menos que la IA genere 3 cosas simultáneamente:
+1. El código React (`.tsx`) para Remotion.
+2. La lógica de extracción de propiedades en Python (`parsers/tsx/components.py`).
+3. El código de dibujo de After Effects en ExtendScript (`ae_export/deterministic/components_generator.py`).
+
+### Solución Propuesta (Fase de Implementación)
+1. **Entorno Sandboxed**: La IA generará el `.tsx` y un bloque `.jsx` (ExtendScript) asociado.
+2. **Evaluación Aislada**: El backend recibirá este script en Python y usará `eval()` en un entorno seguro o inyectará el bloque de código al archivo final `.jsx` que se envía a After Effects.
+3. **Galería Comunitaria**: Los mejores componentes, tras ser validados manualmente por el Administrador, se "nativizan", es decir, se integran oficialmente al código fuente de la plataforma.
