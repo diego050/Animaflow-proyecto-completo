@@ -22,10 +22,6 @@ class Settings(BaseSettings):
     @property
     def sqlalchemy_database_uri(self) -> str:
         return self.DATABASE_URL
-
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379"
-
     # LLM - Google Gemini API (Free Tier)
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_MODEL: str = "gemini-3.1-flash"

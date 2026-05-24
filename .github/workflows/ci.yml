@@ -27,11 +27,6 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-
     steps:
       - uses: actions/checkout@v4
 
@@ -83,7 +78,6 @@ jobs:
       - name: Run backend tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/animaflow_test
-          REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-not-for-production
           ENCRYPTION_KEY: test-encryption-key-not-for-production
         run: |

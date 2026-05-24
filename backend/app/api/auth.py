@@ -1,10 +1,10 @@
 """
 Auth API router for AnimaFlow - register, login, profile management, password reset.
 """
-from datetime import timedelta
+import hashlib
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from redis import Redis
 
 from app.db.session import get_db
 from app.db.models import User
@@ -23,12 +23,10 @@ from app.core.security import (
     create_access_token,
     get_current_active_user,
 )
-from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-redis_conn = Redis.from_url(settings.REDIS_URL, decode_responses=True)
 logger = get_logger("auth")
 
 PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = 60
@@ -133,7 +131,7 @@ def forgot_password(
 ):
     """
     Initiate a password reset flow.
-    Generates a short-lived token stored in Redis.
+    Generates a short-lived token stored in the user's DB record.
     NOTE: In MVP, no SMTP email is sent. The admin can retrieve the token from logs.
     """
     user = db.query(User).filter(User.email == data.email, User.is_deleted == False).first()
@@ -147,8 +145,13 @@ def forgot_password(
         expires_delta=timedelta(minutes=PASSWORD_RESET_TOKEN_EXPIRE_MINUTES),
     )
 
-    redis_key = f"password_reset:{token}"
-    redis_conn.setex(redis_key, PASSWORD_RESET_TOKEN_EXPIRE_MINUTES * 60, user.id)
+    # Store hashed token in the user's DB record instead of Redis
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    user.reset_token_hash = token_hash
+    user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+    )
+    db.commit()
 
     logger.info(
         "Password reset token generated for user %s (token prefix: %s...)",
@@ -167,23 +170,24 @@ def reset_password(
     db: Session = Depends(get_db),
 ):
     """
-    Reset a user's password using a valid token from Redis.
+    Reset a user's password using a valid token stored in the user's DB record.
     """
-    redis_key = f"password_reset:{data.token}"
-    user_id = redis_conn.get(redis_key)
+    token_hash = hashlib.sha256(data.token.encode()).hexdigest()
+    now = datetime.now(timezone.utc)
 
-    if not user_id:
-        raise HTTPException(status_code=400, detail="Token inválido o expirado")
+    user = db.query(User).filter(
+        User.reset_token_hash == token_hash,
+        User.reset_token_expires_at > now,
+        User.is_deleted == False,
+    ).first()
 
-    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
     if not user:
         raise HTTPException(status_code=400, detail="Token inválido o expirado")
 
     user.hashed_password = get_password_hash(data.new_password)
+    user.reset_token_hash = None
+    user.reset_token_expires_at = None
     db.commit()
-
-    # Invalidate the token after use
-    redis_conn.delete(redis_key)
 
     logger.info("Password reset successful for user %s", user.id)
     return {"message": "Contraseña actualizada correctamente."}
