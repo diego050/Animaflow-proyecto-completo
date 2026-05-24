@@ -83,7 +83,13 @@ class JobModel(Base):
     aspect_ratio = Column(String, default="9:16")
     result_spec = Column(MutableDict.as_mutable(JSON), nullable=True)
     video_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+        nullable=False
+    )
 
     # Reformatting support
     parent_job_id = Column(String(36), ForeignKey("jobs.id"), nullable=True, index=True)
