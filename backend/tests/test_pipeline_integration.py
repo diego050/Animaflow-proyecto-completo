@@ -162,7 +162,8 @@ class TestPipelineSnapshot:
         for i, (actual, expected) in enumerate(zip(spec["scenes"], expected_scenes)):
             assert actual["text"] and len(actual["text"]) > 0, f"Scene {i} text is empty"
             assert actual["media_query"] == expected.media_query, f"Scene {i} media_query mismatch"
-            assert actual["type"] == "Scene_test", f"Scene {i} type mismatch"
+            assert actual["type"] == "custom", f"Scene {i} type mismatch"
+            assert "anima_composer" in actual, f"Scene {i} missing anima_composer JSON"
             assert actual["remotion_props"] == {
                 "backgroundColor": expected.backgroundColor,
                 "textColor": expected.textColor,
