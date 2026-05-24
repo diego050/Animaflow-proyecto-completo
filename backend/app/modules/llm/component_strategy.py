@@ -129,7 +129,9 @@ def generate_scene_composer(
         return default_fallback
 
     try:
-        client = genai.Client(api_key=api_key)
+        from app.modules.llm.client import _call_llm_sync
+        # Configurar cliente con un timeout estricto de 120 segundos
+        client = genai.Client(api_key=api_key, http_options={'timeout': 120.0})
 
         gemini_schema = {
             "type": "OBJECT",
@@ -201,7 +203,8 @@ def generate_scene_composer(
             "required": ["background", "layers"]
         }
 
-        response = client.models.generate_content(
+        response = _call_llm_sync(
+            client=client,
             model=model,
             contents=prompt,
             config=types.GenerateContentConfig(
@@ -209,6 +212,7 @@ def generate_scene_composer(
                 response_schema=gemini_schema,
                 temperature=0.3,
             ),
+            label="LLM Component Strategy"
         )
 
         result = response.parsed
