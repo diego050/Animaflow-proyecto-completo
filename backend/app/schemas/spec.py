@@ -69,7 +69,7 @@ class AnimaBackground(BaseModel):
     center: Optional[List[float]] = Field(default=None, min_length=2, max_length=2)
 
 
-class AnimaLayer(BaseModel):
+class BaseAnimaLayer(BaseModel):
     model_config = {"extra": "forbid"}
     id: Optional[str] = None
     type: Literal["rect", "circle", "path", "text", "image", "group", "particles", "component"]
@@ -93,7 +93,6 @@ class AnimaLayer(BaseModel):
     textAlign: Optional[Literal["left", "center", "right"]] = None
     src: Optional[str] = None
     fit: Optional[Literal["cover", "contain"]] = None
-    children: Optional[List["AnimaLayer"]] = None
     count: Optional[int] = None
     shape: Optional[Literal["circle", "rect", "star"]] = None
     spread: Optional[float] = None
@@ -132,6 +131,12 @@ class AnimaLayer(BaseModel):
     query: Optional[str] = None
     animation: Optional[str] = None
     lineWidth: Optional[float] = None
+
+class AnimaChildLayer(BaseAnimaLayer):
+    pass
+
+class AnimaLayer(BaseAnimaLayer):
+    children: Optional[List[AnimaChildLayer]] = None
 
 
 class AnimaComposerSpec(BaseModel):
