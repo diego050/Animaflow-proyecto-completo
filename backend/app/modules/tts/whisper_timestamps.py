@@ -1,6 +1,6 @@
 import os
 import httpx
-from typing import List, Dict
+from typing import List, Dict, Optional
 from app.core.logging import get_logger
 
 logger = get_logger("tts.whisper")
