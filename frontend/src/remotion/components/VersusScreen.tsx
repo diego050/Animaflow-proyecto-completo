@@ -19,7 +19,7 @@ export const VersusScreen: React.FC<VersusScreenProps> = ({
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
-  const { width, height, fps } = useVideoConfig();
+  const { width, height, fps } = useVideoConfig(); // eslint-disable-line @typescript-eslint/no-unused-vars
   const adjustedFrame = Math.max(0, frame - delay);
 
   // Split entrance

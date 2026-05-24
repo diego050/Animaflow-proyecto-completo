@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+import { useCurrentFrame } from 'remotion';
 import type { UniversalProps } from "./types";
 
 interface TerminalHackerProps extends UniversalProps {

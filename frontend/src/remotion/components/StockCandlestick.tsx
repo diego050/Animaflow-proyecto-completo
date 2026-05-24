@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { UniversalProps } from "./types";
 
 interface StockCandlestickProps extends UniversalProps {
@@ -35,7 +35,7 @@ export const StockCandlestick: React.FC<StockCandlestickProps> = ({
   const minL = Math.min(...candles.map(c => c.l));
   const range = maxH - minL;
   
-  const stepX = width / candles.length;
+  const stepX = width / candles.length; // eslint-disable-line @typescript-eslint/no-unused-vars
 
   return (
     <div style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: `translate(-50%, -50%) scale(${entrance})`, width: `${width}px`, height: `${height}px`, backgroundColor: bgColor, borderRadius: '16px', padding: '40px', boxShadow: '0 30px 60px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', gap: '10px', zIndex: 40 }}>

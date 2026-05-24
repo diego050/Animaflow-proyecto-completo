@@ -47,7 +47,6 @@ export function subscribeToJob(jobId: string, callbacks: StreamCallbacks) {
     });
 
     eventSource.addEventListener('error', (e: Event) => {
-      let errorMessage = 'Connection lost';
       const messageEvent = e as MessageEvent;
       
       if (messageEvent.data) {
@@ -59,7 +58,7 @@ export function subscribeToJob(jobId: string, callbacks: StreamCallbacks) {
             close();
             return;
           }
-        } catch (err) {
+        } catch {
           // Ignore
         }
       }

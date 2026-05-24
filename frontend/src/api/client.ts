@@ -49,7 +49,7 @@ export async function apiFetch<T>(
       // Handle FastAPI validation error array
       let errorMessage = data.detail;
       if (Array.isArray(data.detail)) {
-        errorMessage = data.detail.map((e: any) => e.msg).join(', ');
+        errorMessage = data.detail.map((e: { msg: string }) => e.msg).join(', ');
       }
       
       throw new Error(errorMessage || `API error: ${response.status}`);
@@ -106,7 +106,7 @@ export async function apiUpload<T>(
       // Handle FastAPI validation error array
       let errorMessage = data.detail;
       if (Array.isArray(data.detail)) {
-        errorMessage = data.detail.map((e: any) => e.msg).join(', ');
+        errorMessage = data.detail.map((e: { msg: string }) => e.msg).join(', ');
       }
       
       throw new Error(errorMessage || `API error: ${response.status}`);

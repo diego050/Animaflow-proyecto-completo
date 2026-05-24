@@ -57,7 +57,7 @@ def mock_external_services(tmp_path):
     ) as mock_tts, patch(
         "app.modules.pipeline.orchestrator.decide_and_generate_component",
         new_callable=AsyncMock,
-        return_value=("Scene_test", "passed", None),
+        return_value=("Scene_test", "passed", None, None),
     ) as mock_component, patch(
         "app.modules.pipeline.orchestrator.render_single_scene",
         return_value="http://test/scene.mp4",
@@ -201,7 +201,7 @@ class TestPipelineIdempotency:
         ), patch(
             "app.modules.pipeline.orchestrator.decide_and_generate_component",
             new_callable=AsyncMock,
-            return_value=("Scene_test", "passed", None),
+            return_value=("Scene_test", "passed", None, None),
         ), patch(
             "app.modules.pipeline.orchestrator.render_single_scene",
             return_value="http://test/scene.mp4",

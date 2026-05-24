@@ -16,7 +16,7 @@ export const RaysOfLight: React.FC<RaysOfLightProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
-  const { width, height } = useVideoConfig();
+  const { width, height } = useVideoConfig(); // eslint-disable-line @typescript-eslint/no-unused-vars
 
   // Slow rotation
   const rotation = adjustedFrame * 0.5;
