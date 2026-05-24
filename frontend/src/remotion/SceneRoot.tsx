@@ -3,6 +3,7 @@ import React from "react";
 import { AbsoluteFill } from "remotion";
 import { generatedModules } from "./generated";
 import { AnimaComposer } from './composer/AnimaComposer';
+import { COMPONENT_REGISTRY } from './registry';
 
 interface SceneWrapperProps {
   type: string;
@@ -32,7 +33,11 @@ export const SceneWrapper: React.FC<SceneWrapperProps> = ({
   }
 
   const mod = (generatedModules as Record<string, Record<string, unknown>>)[type];
-  const Component = mod?.SceneComponent as React.ComponentType<{ text: string; durationInFrames: number }> | undefined;
+  let Component = mod?.SceneComponent as React.ComponentType<{ text: string; durationInFrames: number }> | undefined;
+
+  if (!Component && COMPONENT_REGISTRY[type]) {
+    Component = COMPONENT_REGISTRY[type] as React.ComponentType<{ text: string; durationInFrames: number }>;
+  }
 
   if (!Component) {
     return (

@@ -4,6 +4,7 @@ import type { TimelineSpec } from "../types/spec";
 import { useAuthStore } from "../store/useAuthStore";
 import { generatedModules } from "./generated"; // index.ts global re-exporta todo
 import { AnimaComposer } from './composer/AnimaComposer';
+import { COMPONENT_REGISTRY } from './registry';
 
 interface FallbackSceneProps {
   text: string;
@@ -43,7 +44,7 @@ interface SceneProps {
   durationInFrames: number;
   [key: string]: unknown;
 }
-type SceneComponent = React.ComponentType<SceneProps>;
+type SceneComponent = React.ComponentType<SceneProps>;
 
 // Mapa dinámico poblado por el index.ts global que re-exporta
 // todos los componentes generados de todos los usuarios.
@@ -69,7 +70,13 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor,
     );
   }
 
-  const Component = sceneComponents[type];
+  let Component = sceneComponents[type];
+  let isStandardLibrary = false;
+
+  if (!Component && COMPONENT_REGISTRY[type]) {
+    Component = COMPONENT_REGISTRY[type] as SceneComponent;
+    isStandardLibrary = true;
+  }
 
   if (!Component) {
     return (
@@ -79,6 +86,14 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor,
         fallbackColor={fallbackColor}
         isLoading={false}
       />
+    );
+  }
+
+  if (isStandardLibrary) {
+    return (
+      <AbsoluteFill style={{ backgroundColor: fallbackBg, overflow: 'hidden' }}>
+        <Component text={text} durationInFrames={durationInFrames} color={fallbackColor} textColor={fallbackColor} bgColor={fallbackBg} />
+      </AbsoluteFill>
     );
   }
 
