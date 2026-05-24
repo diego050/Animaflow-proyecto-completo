@@ -19,7 +19,7 @@ export const RippleEffect: React.FC<RippleEffectProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
-  const { fps } = useVideoConfig();
+  const { fps } = useVideoConfig(); // eslint-disable-line @typescript-eslint/no-unused-vars
 
   // If we haven't reached the delay, return null to save performance
   if (adjustedFrame === 0) return null;

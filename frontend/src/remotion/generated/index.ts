@@ -2,5 +2,5 @@
 // NO MODIFICAR MANUALMENTE — se regenera automáticamente al crear escenas
 
 
-export const generatedModules: Record<string, any> = {
+export const generatedModules: Record<string, unknown> = {
 };

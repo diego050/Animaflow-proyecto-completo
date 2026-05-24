@@ -31,7 +31,7 @@ export function WizardStepProcessing({ status, jobId, title, description }: Wiza
         if (data && data.logs) {
           setLogs(data.logs);
         }
-      } catch (_e) {
+      } catch {
         // Ignore errors
       }
     };

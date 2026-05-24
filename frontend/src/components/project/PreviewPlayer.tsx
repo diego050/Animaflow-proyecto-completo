@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { SkipForward, SkipBack, Play, Video } from 'lucide-react';
+import { SkipForward, SkipBack, Play } from 'lucide-react';
 import { Player } from '@remotion/player';
 import { SceneWrapper } from '../../remotion/SceneRoot';
 import { MainComposition } from '../../remotion/MainComposition';
@@ -18,10 +18,9 @@ interface PreviewPlayerProps {
   onFocusScene?: (index: number) => void;
 }
 
-export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focusSceneIndex, onClearFocus, onFocusScene }: PreviewPlayerProps) {
+export function PreviewPlayer({ spec, isReadyToRender, aspectRatio, focusSceneIndex, onClearFocus, onFocusScene }: PreviewPlayerProps) {
   const totalDuration = spec.scenes.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0);
   const sceneCount = spec.scenes.length;
-  const token = useAuthStore((state) => state.token);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const focusedScene = focusSceneIndex != null ? spec.scenes[focusSceneIndex] : null;
@@ -32,12 +31,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
   const containerWidthClass = isLandscape ? 'max-w-3xl' : 'max-w-sm';
   const aspectClass = isLandscape ? 'aspect-[16/9]' : 'aspect-[9/16]';
 
-  // Determinar la URL del video a mostrar
-  // Eliminamos lógica de videoUrl ya que usaremos el Player
-  let videoUrl = '';
-  // if (isReadyToRender) {
-  //   videoUrl = `/api/jobs/${jobId}/video?token=${token}`;
-  // }
+  // Determinamos contenedor
 
   // Effect to handle seeking when focusSceneIndex changes
   useEffect(() => {

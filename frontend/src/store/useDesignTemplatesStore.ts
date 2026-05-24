@@ -19,7 +19,7 @@ interface DesignTemplatesState {
   deleteTemplate: (id: string) => Promise<void>;
 }
 
-export const useDesignTemplatesStore = create<DesignTemplatesState>((set, get) => ({
+export const useDesignTemplatesStore = create<DesignTemplatesState>((set) => ({
   templates: [],
   loading: false,
   error: null,
@@ -29,7 +29,7 @@ export const useDesignTemplatesStore = create<DesignTemplatesState>((set, get) =
     try {
       const templates = await api.get<DesignTemplate[]>('/api/design-templates');
       set({ templates, loading: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
       set({ error: error.message, loading: false });
     }
   },
@@ -40,7 +40,7 @@ export const useDesignTemplatesStore = create<DesignTemplatesState>((set, get) =
       const newTemplate = await api.post<DesignTemplate>('/api/design-templates', { name, content });
       set((state) => ({ templates: [...state.templates, newTemplate], loading: false }));
       return newTemplate;
-    } catch (error: any) {
+    } catch (error: unknown) {
       set({ error: error.message, loading: false });
       throw error;
     }
@@ -55,7 +55,7 @@ export const useDesignTemplatesStore = create<DesignTemplatesState>((set, get) =
         loading: false,
       }));
       return updatedTemplate;
-    } catch (error: any) {
+    } catch (error: unknown) {
       set({ error: error.message, loading: false });
       throw error;
     }
@@ -69,7 +69,7 @@ export const useDesignTemplatesStore = create<DesignTemplatesState>((set, get) =
         templates: state.templates.filter((t) => t.id !== id),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       set({ error: error.message, loading: false });
       throw error;
     }
