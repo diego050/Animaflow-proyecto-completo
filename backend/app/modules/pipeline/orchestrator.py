@@ -106,6 +106,7 @@ async def _process_chunks_async(
     tts_api_key: Optional[str] = None,
     user_scenes: Optional[list[dict]] = None,
     animation_only: bool = False,
+    groq_api_key: Optional[str] = None,
 ) -> list[dict]:
     from app.core.resolutions import get_resolution
 
@@ -140,6 +141,7 @@ async def _process_chunks_async(
                     voice_id=tts_voice_id,
                     api_key=tts_api_key,
                     language="es",
+                    groq_api_key=groq_api_key,
                 )
                 audio_path = tts_result["audio_path"]
                 word_timestamps = tts_result["word_timestamps"]
@@ -511,6 +513,7 @@ def run_pipeline_enrichment(
                     tts_api_key,
                     user_scenes=user_scenes,
                     animation_only=animation_only,
+                    groq_api_key=groq_api_key,
                 )
             )
 
