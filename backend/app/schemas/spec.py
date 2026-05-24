@@ -119,7 +119,19 @@ class AnimaLayer(BaseModel):
         "Typewriter", "UnderlineReveal", "VersusScreen", "WaveformVisualizer", "WipeTransition",
         "YouTubeEndScreen", "ZoomBlurTransition"
     ]] = None
-    props: Optional[Dict[str, Any]] = None
+    color: Optional[str] = None
+    color1: Optional[str] = None
+    color2: Optional[str] = None
+    bgColor: Optional[str] = None
+    textColor: Optional[str] = None
+    speed: Optional[float] = None
+    delay: Optional[float] = None
+    intensity: Optional[float] = None
+    theme: Optional[str] = None
+    url: Optional[str] = None
+    query: Optional[str] = None
+    animation: Optional[str] = None
+    lineWidth: Optional[float] = None
 
 
 class AnimaComposerSpec(BaseModel):

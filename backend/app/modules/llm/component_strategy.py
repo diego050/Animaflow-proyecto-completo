@@ -68,12 +68,14 @@ Ejemplo de JSON esperado:
     {{
       "type": "component",
       "componentName": "KineticBackground",
-      "props": {{ "color1": "#38bdf8" }}
+      "color1": "#38bdf8"
     }},
     {{
       "type": "component",
       "componentName": "TextReveal",
-      "props": {{ "text": "{{text}}", "fontSize": 80, "color": "#ffffff" }}
+      "text": "{{text}}", 
+      "fontSize": 80, 
+      "color": "#ffffff"
     }},
     {{
       "type": "particles",
@@ -87,6 +89,7 @@ IMPORTANTE:
 - El texto hablado principal debe representarse idealmente con "{{text}}" en algún componente de texto o usar primitivas text.
 - Usa type: "component" siempre que un componente de la librería sirva (ej. TextReveal, Typewriter, ProductCardReveal).
 - Puedes apilar múltiples componentes.
+- Si un componente necesita propiedades adicionales (como speed, color, textColor, url), pásalas directamente como propiedades de la capa, en el mismo nivel que "type" y "componentName". La propiedad "props" NO existe.
 DEVUELVE SOLO JSON VALIDO, SIN MARKDOWN."""
 
 

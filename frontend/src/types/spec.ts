@@ -34,7 +34,8 @@ export interface AnimaBackground {
 
 export interface AnimaLayer {
   id?: string;
-  type: 'rect' | 'circle' | 'path' | 'text' | 'image' | 'group' | 'particles';
+  type: 'rect' | 'circle' | 'path' | 'text' | 'image' | 'group' | 'particles' | 'component';
+  componentName?: string;
   x?: AnimValue;
   y?: AnimValue;
   scale?: AnimValue;
@@ -63,6 +64,19 @@ export interface AnimaLayer {
   entry?: 'fade-in' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'scale-in' | 'spring-in' | null;
   entryDelay?: number;
   filter?: string | null;
+  color?: string;
+  color1?: string;
+  color2?: string;
+  bgColor?: string;
+  textColor?: string;
+  speed?: number;
+  delay?: number;
+  intensity?: number;
+  theme?: string;
+  url?: string;
+  query?: string;
+  animation?: string;
+  lineWidth?: number;
 }
 
 export interface AnimaComposerSpec {

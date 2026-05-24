@@ -644,15 +644,11 @@ function renderSingleLayer(
 
       // Merge props and resolve {{text}} placeholder if present
       const mergedProps: Record<string, any> = {
-        ...layer.props,
-        text: typeof layer.props?.text === 'string' 
-          ? layer.props.text.replace('{{text}}', ctx.text) 
+        ...layer,
+        text: typeof layer.text === 'string' 
+          ? layer.text.replace('{{text}}', ctx.text) 
           : ctx.text,
       };
-
-      // Also pass transform props if they exist (though most Standard Library components expect x,y as props directly)
-      if (layer.x !== undefined) mergedProps.x = layer.x;
-      if (layer.y !== undefined) mergedProps.y = layer.y;
 
       element = <ComponentToRender {...mergedProps} />;
 
