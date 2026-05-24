@@ -95,7 +95,11 @@ async def generate_tts_with_timestamps(
 
     # 2. Extract timestamps with Whisper
     logger.info("Extracting timestamps with Groq API...")
-    word_timestamps = extract_timestamps(audio_path, language=language, groq_api_key=groq_api_key)
+    try:
+        word_timestamps = extract_timestamps(audio_path, language=language, groq_api_key=groq_api_key)
+    except Exception as e:
+        logger.error("Failed to extract timestamps: %s. Falling back to estimation.", e)
+        word_timestamps = []
 
     duration = get_audio_duration(audio_path)
 

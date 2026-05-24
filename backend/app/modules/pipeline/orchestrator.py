@@ -372,7 +372,7 @@ def run_pipeline(
 
             # Generate visual prompts for each chunk
             batch_visuals = generate_batch_visuals_with_llm(
-                chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt
+                chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt, llm_model_override=job.llm_model
             )
 
             # Estimate duration based on word count (~130 words/minute = 2.17 words/second)
@@ -492,7 +492,7 @@ def run_pipeline_enrichment(
                 extra={"job_id": job_id},
             )
             batch_visuals = generate_batch_visuals_with_llm(
-                chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt
+                chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt, llm_model_override=job.llm_model
             )
 
             # Estado 3: Procesando escenas (TTS + TSX)

@@ -68,15 +68,22 @@ export function ProjectDetail() {
     selectJob(jobId);
   }, [jobId, selectJob]);
 
+  const currentJobId = selectedJob?.job_id;
+  const isTerminal = selectedJob ? isTerminalStatus(selectedJob.status) : true;
+
   useEffect(() => {
-    if (!selectedJob) return;
-    if (!isTerminalStatus(selectedJob.status)) {
-      startPolling(selectedJob.job_id);
+    if (!currentJobId) return;
+    
+    if (!isTerminal) {
+      startPolling(currentJobId);
+    } else {
+      stopPolling();
     }
+    
     return () => {
       stopPolling();
     };
-  }, [selectedJob, startPolling, stopPolling]);
+  }, [currentJobId, isTerminal, startPolling, stopPolling]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -356,13 +363,23 @@ export function ProjectDetail() {
         )}
         {activeTab === 'script' && !spec && (
           <div className="bg-surface-container border border-border-tech rounded-xl p-8 text-center">
-            <FileText size={32} className="mx-auto text-text-secondary/30 mb-3" />
-            <p className="text-text-secondary">
-              El guión estará disponible cuando el pipeline complete.
-            </p>
-            <p className="text-text-secondary/50 text-sm mt-1">
-              Estado actual: {selectedJob.status}
-            </p>
+            {selectedJob.status === 'segmenting' || selectedJob.status === 'pending' ? (
+              <>
+                <Loader2 size={32} className="animate-spin mx-auto text-mint-precision mb-3" />
+                <p className="text-text-primary font-bold">Preparando escenas...</p>
+                <p className="text-text-secondary/70 text-sm mt-1">El servidor está analizando el guión y segmentando la línea de tiempo.</p>
+              </>
+            ) : (
+              <>
+                <FileText size={32} className="mx-auto text-text-secondary/30 mb-3" />
+                <p className="text-text-secondary">
+                  El guión estará disponible cuando el pipeline complete.
+                </p>
+                <p className="text-text-secondary/50 text-sm mt-1">
+                  Estado actual: {selectedJob.status}
+                </p>
+              </>
+            )}
           </div>
         )}
         {activeTab === 'preview' && spec && (
