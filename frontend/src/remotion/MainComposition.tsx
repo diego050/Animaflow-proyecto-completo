@@ -99,7 +99,7 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
                durationInFrames={durationInFrames}
                 fallbackBg={String(scene.remotion_props?.backgroundColor || "#000")}
                 fallbackColor={String(scene.remotion_props?.textColor || "#fff")}
-                animaComposer={(scene as any).animaComposer}
+                animaComposer={scene.anima_composer}
             />
             {audioUrlWithToken && <Audio src={audioUrlWithToken} />}
           </Sequence>
