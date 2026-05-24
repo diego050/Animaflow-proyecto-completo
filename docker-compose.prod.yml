@@ -16,7 +16,6 @@ services:
       - RENDER_MODE=local
     volumes:
       - animaflow_storage:/app/storage
-      - remotion_generated:/app/frontend/src/remotion/generated
     restart: unless-stopped
     deploy:
       resources:
@@ -56,7 +55,6 @@ services:
       - "127.0.0.1:3001:3001"
     volumes:
       - animaflow_storage:/app/storage
-      - remotion_generated:/app/frontend/src/remotion/generated
     restart: unless-stopped
     deploy:
       replicas: 1
@@ -121,7 +119,6 @@ services:
 volumes:
   postgres_data:
   animaflow_storage:
-  remotion_generated:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:

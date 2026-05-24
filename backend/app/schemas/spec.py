@@ -72,7 +72,7 @@ class AnimaBackground(BaseModel):
 class AnimaLayer(BaseModel):
     model_config = {"extra": "forbid"}
     id: Optional[str] = None
-    type: Literal["rect", "circle", "path", "text", "image", "group", "particles"]
+    type: Literal["rect", "circle", "path", "text", "image", "group", "particles", "component"]
     x: Optional[AnimValue] = None
     y: Optional[AnimValue] = None
     scale: Optional[AnimValue] = None
@@ -101,6 +101,25 @@ class AnimaLayer(BaseModel):
     entry: Optional[Literal["fade-in", "slide-up", "slide-down", "slide-left", "slide-right", "scale-in", "spring-in"]] = None
     entryDelay: float = Field(default=0)
     filter: Optional[str] = None
+    componentName: Optional[Literal[
+        "APIRequestFlow", "AbstractWave", "AnimatedArrow", "AnimatedIcon", "AnimatedLine", "AnimatedShape",
+        "AppStoreButtons", "AudioSpectrumBars", "BarChartReveal", "BreakingNewsAlert", "BreakingNewsTicker",
+        "BrowserWindow", "CalendarDatePop", "CodeBlockHighlight", "CountdownTimer", "CounterNumber",
+        "CursorClick", "EmojiFloat", "FeatureChecklist", "FeatureUnlock", "FlashSaleTimer", "FloatingBadge",
+        "FloatingBlobs", "FollowerCounter", "FunnelChart", "GitCommitGraph", "GlitchTitle", "GlitchTransition",
+        "GlobalVFX", "GradientOverlay", "GridPerspective", "HighlightText", "HorizontalBarRace", "InstagramPost",
+        "KineticBackground", "LightLeakTransition", "LoadingSpinner", "LottieAnimation", "LowerThird",
+        "MaskedReveal", "MediaFrame", "MessageBubble", "MusicPlayerUI", "NetworkNodes", "NotificationToast",
+        "ParticleField", "PercentageRing", "PhoneMockup", "PieChartReveal", "PodcastGuestCard", "PricingTableReveal",
+        "ProductCardReveal", "ProgressPill", "PromoCodeBanner", "QuoteBlock", "RadarSpiderChart", "RaysOfLight",
+        "RippleEffect", "ScoreboardCounter", "SearchEngineTyping", "ShoppingCartBadge", "SizeSelector",
+        "SocialProgressBar", "SocialSharePopup", "SoundWaveCircle", "SplitScreenGrid", "SplitText",
+        "StockCandlestick", "StrikethroughText", "SubscribeButton", "TerminalHacker", "TestimonialReview",
+        "TextBubble", "TextReveal", "TextSwap", "TikTokOverlay", "TinderSwipeCard", "TrendLine", "TweetCard",
+        "Typewriter", "UnderlineReveal", "VersusScreen", "WaveformVisualizer", "WipeTransition",
+        "YouTubeEndScreen", "ZoomBlurTransition"
+    ]] = None
+    props: Optional[Dict[str, Any]] = None
 
 
 class AnimaComposerSpec(BaseModel):

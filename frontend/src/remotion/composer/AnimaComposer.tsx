@@ -21,6 +21,7 @@ import { AnimaImage } from '../primitives/AnimaImage';
 import { AnimaGroup } from '../primitives/AnimaGroup';
 import { AnimaParticles } from '../primitives/AnimaParticles';
 import { AnimaGradient } from '../primitives/AnimaGradient';
+import { COMPONENT_REGISTRY } from '../registry';
 
 import type { AnimValue } from '../primitives/types';
 
@@ -39,7 +40,11 @@ export interface LayerSpec {
   id?: string;
 
   /** Tipo de primitiva visual a renderizar. */
-  type: 'rect' | 'circle' | 'path' | 'text' | 'image' | 'group' | 'particles';
+  type: 'rect' | 'circle' | 'path' | 'text' | 'image' | 'group' | 'particles' | 'component';
+
+  // -- component -----------------------------------------------------------
+  componentName?: string;
+  props?: Record<string, any>;
 
   // -- Propiedades de transformación universales (animables) ----------------
   x?: number | AnimValue;
@@ -605,6 +610,51 @@ function renderSingleLayer(
           opacity={layer.opacity}
         />
       );
+
+      element = (
+        <EntryWrapper
+          entry={layer.entry}
+          entryDelay={layer.entryDelay}
+          frame={ctx.frame}
+          fps={ctx.fps}
+        >
+          {element}
+        </EntryWrapper>
+      );
+
+      element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
+
+      return <React.Fragment key={key}>{element}</React.Fragment>;
+    }
+
+    // ===================================================================
+    // COMPONENT (Standard Library integration)
+    // ===================================================================
+    case 'component': {
+      if (!layer.componentName) {
+        console.warn(`[AnimaComposer] Layer "${key}" type "component" requires "componentName".`);
+        return null;
+      }
+      
+      const ComponentToRender = COMPONENT_REGISTRY[layer.componentName];
+      if (!ComponentToRender) {
+        console.warn(`[AnimaComposer] Component "${layer.componentName}" not found in registry.`);
+        return null;
+      }
+
+      // Merge props and resolve {{text}} placeholder if present
+      const mergedProps = {
+        ...layer.props,
+        text: typeof layer.props?.text === 'string' 
+          ? layer.props.text.replace('{{text}}', ctx.text) 
+          : ctx.text,
+      };
+
+      // Also pass transform props if they exist (though most Standard Library components expect x,y as props directly)
+      if (layer.x !== undefined) mergedProps.x = layer.x;
+      if (layer.y !== undefined) mergedProps.y = layer.y;
+
+      element = <ComponentToRender {...mergedProps} />;
 
       element = (
         <EntryWrapper
