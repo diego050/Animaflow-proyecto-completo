@@ -1,4 +1,4 @@
-﻿from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings
 from pydantic import model_validator
 from typing import Optional
 import os
@@ -22,10 +22,6 @@ class Settings(BaseSettings):
     @property
     def sqlalchemy_database_uri(self) -> str:
         return self.DATABASE_URL
-
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379"
-
     # LLM - Google Gemini API (Free Tier)
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_MODEL: str = "gemini-3.1-flash"
@@ -57,6 +53,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = os.getenv(
         "CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"
     )
+
+    # Render Server
+    RENDER_MODE: str = os.getenv("RENDER_MODE", "local")
+    RENDER_SERVER_URL: str = os.getenv("RENDER_SERVER_URL", "http://render-server:3001")
 
     # Encryption
     ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")

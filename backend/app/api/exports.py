@@ -4,8 +4,6 @@ Router para endpoints de exportación de AnimaFlow.
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
-from rq import Queue, Retry
-from redis import Redis
 
 from app.db.session import get_db
 from app.db.models import User
@@ -33,9 +31,6 @@ def get_job_or_404(db: Session, job_id: str, user_id: str) -> JobModel:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
-redis_conn = Redis.from_url(settings.REDIS_URL)
-queue = Queue("default", connection=redis_conn)
-render_queue = Queue("render", connection=redis_conn)
 
 
 @router.post("/{job_id}/export/after-effects")
@@ -56,14 +51,8 @@ async def trigger_ae_export(
     if not job.result_spec:
         raise HTTPException(status_code=400, detail="Job does not have a generated spec.json")
 
-    # Enqueue export job en la cola de render (tarea pesada)
-    render_queue.enqueue(
-        generate_ae_export_async,
-        job_id,
-        force,
-        job_timeout="10m",
-        retry=Retry(max=3),
-    )
+    # Generate AE scripts and zip synchronously
+    generate_ae_export_async(job_id, force)
 
     job.result_spec["_ae_export_status"] = "queued"
     job.result_spec["_ae_export_progress"] = {

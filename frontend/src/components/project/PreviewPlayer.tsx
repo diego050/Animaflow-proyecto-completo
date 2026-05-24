@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { SkipForward, SkipBack, Play, Video } from 'lucide-react';
 import { Player } from '@remotion/player';
-import { AnimaComposer } from '../../remotion/composer/AnimaComposer';
+import { SceneWrapper } from '../../remotion/SceneRoot';
+import { MainComposition } from '../../remotion/MainComposition';
 import type { TimelineSpec, Spec } from '../../types/spec';
 import { useAuthStore } from '../../store/useAuthStore';
 import { SceneTimelineBar } from './SceneTimelineBar';
@@ -25,11 +26,18 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
 
   const focusedScene = focusSceneIndex != null ? spec.scenes[focusSceneIndex] : null;
 
+  const isLandscape = aspectRatio === '16:9';
+  const compWidth = isLandscape ? 1920 : 1080;
+  const compHeight = isLandscape ? 1080 : 1920;
+  const containerWidthClass = isLandscape ? 'max-w-3xl' : 'max-w-sm';
+  const aspectClass = isLandscape ? 'aspect-[16/9]' : 'aspect-[9/16]';
+
   // Determinar la URL del video a mostrar
+  // Eliminamos lógica de videoUrl ya que usaremos el Player
   let videoUrl = '';
-  if (isReadyToRender) {
-    videoUrl = `/api/jobs/${jobId}/video?token=${token}`;
-  }
+  // if (isReadyToRender) {
+  //   videoUrl = `/api/jobs/${jobId}/video?token=${token}`;
+  // }
 
   // Effect to handle seeking when focusSceneIndex changes
   useEffect(() => {
@@ -85,12 +93,12 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
   return (
     <div className="flex flex-col lg:flex-row gap-6">
       {/* Player - centered */}
-      <div className="flex-1 flex flex-col items-center justify-center bg-surface-lowest rounded-xl border border-border-tech p-6 min-h-[400px]">
+      <div className={`flex-1 flex flex-col items-center justify-center bg-surface-lowest rounded-xl border border-border-tech p-6 min-h-[400px]`}>
         {focusedScene && onClearFocus && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-sm mb-4 flex items-center justify-between"
+            className={`w-full ${containerWidthClass} mb-4 flex items-center justify-between`}
           >
             <button
               onClick={onClearFocus}
@@ -120,52 +128,47 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
           </motion.div>
         )}
 
-        <div className="w-full max-w-sm aspect-[9/16] bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50">
-          {focusedScene?.type === 'custom' && (focusedScene as Spec)?.animaComposer ? (
+        <div className={`w-full ${containerWidthClass} ${aspectClass} bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50`}>
+          {focusedScene ? (
             <Player
-              component={AnimaComposer}
+              component={SceneWrapper}
               inputProps={{
-                spec: (focusedScene as Spec).animaComposer!,
+                type: focusedScene.type,
                 text: focusedScene.text,
+                durationInFrames: Math.round((focusedScene.duration_seconds || 5) * 30),
+                animaComposer: (focusedScene as Spec).anima_composer,
               }}
               durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
-              compositionWidth={1080}
-              compositionHeight={1920}
+              compositionWidth={compWidth}
+              compositionHeight={compHeight}
               fps={30}
               controls
               style={{ width: '100%', height: '100%' }}
             />
-          ) : videoUrl ? (
-            <video
-              ref={videoRef}
-              key={videoUrl} // Forzar recarga al cambiar URL
-              src={videoUrl}
-              controls
-              autoPlay
-              className="w-full h-full object-contain bg-black"
-              controlsList="nodownload"
-            />
           ) : (
-            <div className="text-center p-6">
-              <Video className="w-12 h-12 text-text-secondary/30 mx-auto mb-3" />
-              <p className="text-text-secondary/60 text-sm">
-                Selecciona una escena de la lista para ver su preview.
-              </p>
-              <p className="text-text-secondary/40 text-xs mt-2">
-                El video final estará disponible aquí una vez renderizado.
-              </p>
-            </div>
+            <Player
+              component={MainComposition}
+              inputProps={{
+                spec: spec,
+              }}
+              durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
+              compositionWidth={compWidth}
+              compositionHeight={compHeight}
+              fps={30}
+              controls
+              style={{ width: '100%', height: '100%' }}
+            />
           )}
         </div>
         
         {/* Timeline Bar */}
-        <div className="w-full max-w-sm">
+        <div className={`w-full ${containerWidthClass} mt-6`}>
           <SceneTimelineBar spec={spec} focusSceneIndex={focusSceneIndex ?? null} onSceneClick={onFocusScene} />
         </div>
 
         <p className="text-text-secondary/40 text-[10px] mt-4 flex items-center gap-2">
           {focusedScene
-            ? focusedScene.type === 'custom' && (focusedScene as Spec)?.animaComposer
+            ? focusedScene.type === 'custom' && (focusedScene as Spec)?.anima_composer
               ? `Preview en vivo — AnimaComposer · Escena ${focusSceneIndex! + 1}`
               : `Preview MP4 individual — Escena ${focusSceneIndex! + 1}`
             : isReadyToRender 

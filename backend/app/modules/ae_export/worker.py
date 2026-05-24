@@ -94,72 +94,92 @@ def generate_ae_export_async(job_id: str, force: bool = False):
                     _persist_job_spec(job_id, job.result_spec)
                     continue
 
-                # Read TSX from disk
-                tsx_path = os.path.join(generated_dir, f"Scene_{job_id}_{i}.tsx")
-                if not os.path.exists(tsx_path):
-                    logger.warning("TSX not found for scene %d: %s", i + 1, tsx_path)
-                    job.result_spec['_ae_export_progress'] = {'current': i + 1, 'total': len(scenes)}
-                    _persist_job_spec(job_id, job.result_spec)
-                    continue
-
-                with open(tsx_path, 'r', encoding='utf-8') as f:
-                    tsx_code = f.read()
-
                 logger.info("Generating AE script for scene %d/%d...", i + 1, len(scenes))
-                logger.info("TSX file: %s, exists: %s", tsx_path, os.path.exists(tsx_path))
 
-                # Generate AE script using Deterministic engine!
-                logger.info("Calling Deterministic Generator for scene %d...", i + 1)
+                # Si la escena es customizada via JSON, usamos AnimaComposer
+                if scene.get('type') == 'custom' and scene.get('anima_composer'):
+                    logger.info("Scene %d is AnimaComposer JSON! Calling ae_transformer...", i + 1)
+                    try:
+                        from app.modules.anima_composer.ae_transformer import anima_composer_to_aescript
+                        ae_script = anima_composer_to_aescript(
+                            scene['anima_composer'], 
+                            scene['duration_seconds'], 
+                            w, 
+                            h, 
+                            30
+                        )
+                        logger.info("AnimaComposer AE script generated successfully (length: %d chars)", len(ae_script))
+                    except Exception as e:
+                        logger.exception("AnimaComposer translation failed for scene %d: %s", i + 1, e)
+                        ae_script = None
+                        
+                else:
+                    # Lógica original para Standard Library via AST/JSX
+                    # Read TSX from disk
+                    tsx_path = os.path.join(generated_dir, f"Scene_{job_id}_{i}.tsx")
+                    if not os.path.exists(tsx_path):
+                        logger.warning("TSX not found for scene %d: %s", i + 1, tsx_path)
+                        job.result_spec['_ae_export_progress'] = {'current': i + 1, 'total': len(scenes)}
+                        _persist_job_spec(job_id, job.result_spec)
+                        continue
 
-                try:
-                    from app.modules.parsers.tsx.components import parse_components_from_tsx
-                    from app.modules.ae_export.deterministic.components_generator import generate_component_script
-                    
-                    components = parse_components_from_tsx(tsx_code)
-                    bg_color = scene.get('remotion_props', {}).get('backgroundColor', '#0f172a')
-                    txt_color = scene.get('remotion_props', {}).get('textColor', '#38bdf8')
-                    
-                    if components:
-                        logger.info("Deterministic components found for scene %d", i + 1)
-                        ae_script = generate_component_script(
-                            components=components,
-                            text=scene['text'],
-                            duration=scene['duration_seconds'],
-                            width=w,
-                            height=h,
-                            fps=30
-                        )
-                    else:
-                        # 1. Parse SVG geometries
-                        from app.modules.parsers.svg.extractor import parse_svg_from_tsx
-                        from app.modules.parsers.tsx.analyzer import analyze_tsx_for_ae
-                        from app.modules.ae_export.deterministic import generate_deterministic_script
+                    with open(tsx_path, 'r', encoding='utf-8') as f:
+                        tsx_code = f.read()
+
+                    logger.info("TSX file: %s, exists: %s", tsx_path, os.path.exists(tsx_path))
+
+                    # Generate AE script using Deterministic engine!
+                    logger.info("Calling Deterministic Generator for scene %d...", i + 1)
     
-                        svg_elements = parse_svg_from_tsx(tsx_code)
-    
-                        # 2. Extract Remotion animations and metadata
-                        enriched_data = analyze_tsx_for_ae(tsx_code, w, h, 30)
-    
-                        # 3. Generate .jsx
-                        ae_script = generate_deterministic_script(
-                            svg_elements=svg_elements,
-                            enriched=enriched_data,
-                            text=scene['text'],
-                            duration=scene['duration_seconds'],
-                            bg_color=bg_color,
-                            text_color=txt_color,
-                            width=w,
-                            height=h,
-                            fps=30
-                        )
-                    logger.info("Deterministic result for scene %d: OK (length: %d chars)", i + 1, len(ae_script))
-                except (ValueError, KeyError, OSError) as script_e:
-                    logger.error("Deterministic generation failed for scene %d: %s", i + 1, script_e)
-                    ae_script = None
-                except Exception as script_e:
-                    # Fallback: log unexpected error and continue with next scene
-                    logger.exception("Deterministic generation failed for scene %d: %s", i + 1, script_e)
-                    ae_script = None
+                    try:
+                        from app.modules.parsers.tsx.components import parse_components_from_tsx
+                        from app.modules.ae_export.deterministic.components_generator import generate_component_script
+                        
+                        components = parse_components_from_tsx(tsx_code)
+                        bg_color = scene.get('remotion_props', {}).get('backgroundColor', '#0f172a')
+                        txt_color = scene.get('remotion_props', {}).get('textColor', '#38bdf8')
+                        
+                        if components:
+                            logger.info("Deterministic components found for scene %d", i + 1)
+                            ae_script = generate_component_script(
+                                components=components,
+                                text=scene['text'],
+                                duration=scene['duration_seconds'],
+                                width=w,
+                                height=h,
+                                fps=30
+                            )
+                        else:
+                            # 1. Parse SVG geometries
+                            from app.modules.parsers.svg.extractor import parse_svg_from_tsx
+                            from app.modules.parsers.tsx.analyzer import analyze_tsx_for_ae
+                            from app.modules.ae_export.deterministic import generate_deterministic_script
+        
+                            svg_elements = parse_svg_from_tsx(tsx_code)
+        
+                            # 2. Extract Remotion animations and metadata
+                            enriched_data = analyze_tsx_for_ae(tsx_code, w, h, 30)
+        
+                            # 3. Generate .jsx
+                            ae_script = generate_deterministic_script(
+                                svg_elements=svg_elements,
+                                enriched=enriched_data,
+                                text=scene['text'],
+                                duration=scene['duration_seconds'],
+                                bg_color=bg_color,
+                                text_color=txt_color,
+                                width=w,
+                                height=h,
+                                fps=30
+                            )
+                        logger.info("Deterministic result for scene %d: OK (length: %d chars)", i + 1, len(ae_script))
+                    except (ValueError, KeyError, OSError) as script_e:
+                        logger.error("Deterministic generation failed for scene %d: %s", i + 1, script_e)
+                        ae_script = None
+                    except Exception as script_e:
+                        # Fallback: log unexpected error and continue with next scene
+                        logger.exception("Deterministic generation failed for scene %d: %s", i + 1, script_e)
+                        ae_script = None
 
                 if ae_script:
                     # Wrap with individual undo group

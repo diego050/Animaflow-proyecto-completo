@@ -1,0 +1,37 @@
+FROM node:20-bullseye
+
+# Install Chromium and required dependencies for Puppeteer / Remotion headlessly
+RUN apt-get update && apt-get install -y \
+    chromium \
+    libnss3 \
+    libxss1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the frontend (needed for remotion project bundling)
+COPY frontend /app/frontend
+
+# Install frontend dependencies so remotion bundler can resolve them
+WORKDIR /app/frontend
+RUN npm install
+
+# Copy the servers folder
+COPY servers /app/servers
+
+WORKDIR /app/servers
+
+# Install server dependencies
+RUN npm init -y && \
+    npm install express @remotion/renderer @remotion/bundler
+
+# Optional: Set environment variables so Remotion/Puppeteer use the system Chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV REMOTION_CHROMIUM_EXECUTABLE=/usr/bin/chromium
+
+EXPOSE 3001
+
+CMD ["node", "render-server.mjs"]

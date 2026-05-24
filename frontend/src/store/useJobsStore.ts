@@ -5,6 +5,7 @@ import { isTerminalStatus } from '../types/job';
 import { api } from '../api/client';
 import { useToastStore } from './useToastStore';
 import { useSettingsStore } from './useSettingsStore';
+import { subscribeToJob, type JobStreamEvent } from '../api/jobStream';
 
 export interface JobsState {
   jobs: JobSummary[];
@@ -68,9 +69,7 @@ export interface JobsState {
   refreshSelectedJob: () => Promise<void>;
 }
 
-let pollingInterval: ReturnType<typeof setTimeout> | null = null;
-let abortController: AbortController | null = null;
-let visibilityHandler: (() => void) | null = null;
+let unsubscribeStream: (() => void) | null = null;
 
 export const useJobsStore = create<JobsState>((set, get) => ({
   jobs: [],
@@ -283,77 +282,35 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     get().stopPolling();
     set({ pollingJobId: jobId });
 
-    let backoffMs = 3000;
-    const maxBackoffMs = 30000;
+    unsubscribeStream = subscribeToJob(jobId, {
+      onStatusChange: (data: JobStreamEvent) => {
+        set((state) => {
+          const newSelectedJob = state.selectedJob?.job_id === jobId 
+            ? { ...state.selectedJob, status: data.status, video_url: data.video_url || state.selectedJob.video_url, error_message: data.error_message || state.selectedJob.error_message } 
+            : state.selectedJob;
+            
+          const newJobs = state.jobs.map((j) =>
+            j.job_id === jobId ? { ...j, status: data.status, video_url: data.video_url || j.video_url } : j,
+          );
 
-    const poll = async () => {
-      if (abortController) abortController.abort();
-      abortController = new AbortController();
-
-      try {
-        const data = await api.get<JobDetail>(`/api/jobs/${jobId}`, {
-          signal: abortController.signal,
+          return { selectedJob: newSelectedJob, jobs: newJobs };
         });
-
-        const { selectedJob, pollingJobId } = get();
-        if (selectedJob?.job_id === jobId || pollingJobId === jobId) {
-          set({ selectedJob: data });
-        }
-
-        set((state) => ({
-          jobs: state.jobs.map((j) =>
-            j.job_id === jobId ? { ...j, status: data.status } : j,
-          ),
-        }));
-
-        if (isTerminalStatus(data.status)) {
-          get().stopPolling();
-          return;
-        }
-
-        // Reset backoff on success
-        backoffMs = 3000;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return;
-        // Increase backoff on error
-        backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
-      }
-
-      // Schedule next poll with dynamic backoff
-      pollingInterval = setTimeout(() => {
-        const { pollingJobId: currentId } = get();
-        if (currentId === jobId) {
-          poll();
-        }
-      }, backoffMs);
-    };
-
-    // Start immediately
-    poll();
-
-    // Pause when tab hidden
-    visibilityHandler = () => {
-      if (document.hidden) {
+      },
+      onComplete: () => {
+        get().refreshSelectedJob();
         get().stopPolling();
-      } else {
-        poll();
+      },
+      onError: (errMessage: string) => {
+        useToastStore.getState().addToast('error', `Stream error: ${errMessage}`);
+        get().stopPolling();
       }
-    };
-    document.addEventListener('visibilitychange', visibilityHandler);
+    });
   },
 
   stopPolling: () => {
-    if (pollingInterval) {
-      clearTimeout(pollingInterval);
-      pollingInterval = null;
-    }
-    if (abortController) {
-      abortController.abort();
-      abortController = null;
-    }
-    if (visibilityHandler) {
-      document.removeEventListener('visibilitychange', visibilityHandler);
-      visibilityHandler = null;
+    if (unsubscribeStream) {
+      unsubscribeStream();
+      unsubscribeStream = null;
     }
     set({ pollingJobId: null });
   },

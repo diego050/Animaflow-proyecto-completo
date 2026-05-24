@@ -31,6 +31,70 @@ def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]
     return key_entry.api_key if key_entry else None
 
 
+def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
+    """Fase 2+3: Enriquecimiento y renderizado sincrónico (backward-compatible wrapper).
+    
+    Llama a run_pipeline_enrichment y luego renderiza cada escena.
+    Útil para tests y flujos sincrónicos; en producción el scheduler maneja
+    el renderizado vía SSE.
+    """
+    with get_db_context() as db:
+        job = db.query(JobModel).filter(JobModel.id == job_id).first()
+        if not job:
+            logger.warning("Job %s not found in approved pipeline", job_id)
+            return
+
+        if job.status not in ["segmented", "pending"]:
+            logger.warning(
+                "Job %s is in status '%s', expected 'segmented' or 'pending'",
+                job_id, job.status,
+            )
+            return
+
+        # Phase 2: Enrichment (reutiliza la función existente)
+        run_pipeline_enrichment(
+            job_id=job_id,
+            user_id=user_id,
+        )
+        db.refresh(job)
+
+        if job.status != "queued_render":
+            return
+
+        # Phase 3: Render sincrónico
+        try:
+            spec = job.result_spec
+            if not spec or not spec.get("scenes"):
+                job.status = "failed"
+                job.error_message = "No scenes to render"
+                db.commit()
+                return
+
+            timeline_scenes = spec["scenes"]
+            aspect_ratio = spec.get("aspect_ratio", "9:16")
+
+            video_paths = []
+            for i, scene in enumerate(timeline_scenes):
+                video_path = render_single_scene(
+                    job_id, i, scene, aspect_ratio, user_id
+                )
+                video_paths.append(video_path)
+
+            output_path = concat_scenes(video_paths, job_id, user_id)
+            job.video_url = output_path
+            job.status = "completed"
+            db.commit()
+
+        except Exception as e:
+            logger.exception(
+                "Approved pipeline render failed: %s", e,
+                extra={"job_id": job_id},
+            )
+            job.status = "failed"
+            job.error_message = str(e)
+            db.commit()
+
+
 async def _process_chunks_async(
     job_id: str,
     chunks: list[str],
@@ -370,7 +434,7 @@ def run_pipeline(
             db.commit()
 
 
-def run_pipeline_approved(
+def run_pipeline_enrichment(
     job_id: str,
     user_id: Optional[str] = None,
     tts_provider: str = "local_piper",
@@ -385,9 +449,9 @@ def run_pipeline_approved(
         if not job:
             return
 
-        if job.status != "segmented":
+        if job.status not in ["segmented", "visuals_generating", "pending"]:
             logger.warning(
-                "Job %s is not in 'segmented' status (current: %s), skipping approval pipeline",
+                "Job %s is not in 'segmented' or 'visuals_generating' status (current: %s), skipping approval pipeline",
                 job_id,
                 job.status,
                 extra={"job_id": job_id},
@@ -413,6 +477,10 @@ def run_pipeline_approved(
         # Si no se proporcionó API key explícita, intentar buscarla en DB
         if tts_api_key is None and user_id is not None:
             tts_api_key = _get_user_api_key(user_id, tts_provider, db)
+            
+        groq_api_key = None
+        if user_id is not None:
+            groq_api_key = _get_user_api_key(user_id, "groq", db)
 
         try:
             # Estado 2: Generando visuales con Gemini
@@ -446,105 +514,16 @@ def run_pipeline_approved(
                 )
             )
 
-            # Estado 4: Renderizando escenas individuales como MP4
-            job.status = "rendering_scenes"
-            db.commit()
-
             # Limpiar archivos TSX de jobs anteriores para evitar errores de compilación
             cleanup_stale_tsx_files(job_id, user_id)
             # Regenerar index.ts sin los archivos eliminados
             write_index_ts(job_id, timeline_scenes, user_id)
 
-            scene_mp4s = []
-            for i, scene in enumerate(timeline_scenes):
-                duration = scene.get("duration_seconds", 7.0)
-                # La duración del video debe ser idéntica a la del audio para que no haya desfase
-                render_duration = duration
-                remotion_props = scene.get("remotion_props") or {}
-
-                max_render_retries = 3
-                for attempt in range(max_render_retries):
-                    try:
-                        mp4_path = render_single_scene(
-                            job_id=job_id,
-                            scene_index=i,
-                            duration_seconds=render_duration,
-                            scene_text=scene.get("text", ""),
-                            component_name=scene.get("type", f"Scene_{job_id}_{i}"),
-                            background_color=remotion_props.get("backgroundColor", "#0f172a"),
-                            text_color=remotion_props.get("textColor", "#38bdf8"),
-                            aspect_ratio=aspect_ratio,
-                            user_id=user_id,
-                        )
-                        scene_mp4s.append(mp4_path)
-                        scene["scene_video_url"] = f"/api/scenes/{job_id}/{i}.mp4"
-                        break  # Éxito, salir del loop de reintentos
-                    except Exception as render_err:
-                        err_str = str(render_err)
-                        logger.warning(
-                            "Fallo render escena %d (intento %d/%d): %s",
-                            i, attempt + 1, max_render_retries, err_str,
-                            extra={"job_id": job_id}
-                        )
-                        # Si es timeout, no reintentar (solo desperdiciaría más tiempo)
-                        if "timed out" in err_str:
-                            logger.error("Timeout renderizando escena %d. Abortando.", i, extra={"job_id": job_id})
-                            scene["scene_video_url"] = None
-                            break
-                        if attempt < max_render_retries - 1 and "Transform failed" in err_str:
-                            logger.info("Intentando curar componente TSX para escena %d...", i, extra={"job_id": job_id})
-                            healed = asyncio.run(
-                                heal_remotion_component(
-                                    user_id=user_id,
-                                    job_id=job_id,
-                                    scene_index=i,
-                                    error_message=err_str,
-                                )
-                            )
-                            if not healed:
-                                logger.error("No se pudo curar la escena %d. Abortando render.", i, extra={"job_id": job_id})
-                                scene["scene_video_url"] = None
-                                break
-                        else:
-                            if attempt == max_render_retries - 1:
-                                logger.exception("Error final renderizando escena %d", i, extra={"job_id": job_id})
-                            scene["scene_video_url"] = None
-
-            # Unir todos los MP4s si hay al menos uno
-            if scene_mp4s:
-                try:
-                    final_mp4 = concat_scenes(job_id, scene_mp4s)
-                    job.video_url = f"/api/jobs/{job_id}/video"
-                except Exception as concat_err:
-                    logger.exception(
-                        "Error uniendo escenas del job %s: %s",
-                        job_id,
-                        concat_err,
-                        extra={"job_id": job_id},
-                    )
-                    job.video_url = None
-            else:
-                job.video_url = None
-
-            quality_metrics = {
-                "total_scenes": len(timeline_scenes),
-                "scenes_passed_first_try": sum(1 for s in timeline_scenes if s.get("quality_status") == "passed"),
-                "scenes_healed": sum(1 for s in timeline_scenes if s.get("quality_status") == "healed"),
-                "scenes_defaulted": sum(1 for s in timeline_scenes if s.get("quality_status") == "defaulted"),
-            }
-            if quality_metrics["total_scenes"] > 0:
-                quality_metrics["success_rate"] = (quality_metrics["scenes_passed_first_try"] + quality_metrics["scenes_healed"]) / quality_metrics["total_scenes"]
-            else:
-                quality_metrics["success_rate"] = 0.0
-
-            # Guardamos el timeline completo y lo validamos con Pydantic
-            final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio, "quality_metrics": quality_metrics}
-            spec_obj = TimelineSpec(**final_spec)
-            job.result_spec = spec_obj.model_dump()
+            # Encolar para la Fase 3: Renderizado
+            final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
+            job.result_spec = final_spec
             flag_modified(job, "result_spec")
-
-            # Estado 5: Completado
-            job.status = "completed"
+            job.status = "queued_render"
             db.commit()
 
         except Exception as e:
@@ -555,3 +534,5 @@ def run_pipeline_approved(
             job.status = "failed"
             job.error_message = str(e)
             db.commit()
+
+

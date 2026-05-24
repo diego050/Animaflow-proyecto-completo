@@ -7,11 +7,13 @@ services:
       - "127.0.0.1:8000:8000"
     depends_on:
       - postgres
-      - redis
+      - render-server
     env_file:
       - ./backend/.env
     environment:
       - STORAGE_BASE_DIR=/app
+      - RENDER_SERVER_URL=http://render-server:3001
+      - RENDER_MODE=local
     volumes:
       - animaflow_storage:/app/storage
       - remotion_generated:/app/frontend/src/remotion/generated
@@ -19,8 +21,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '2.0'
+          memory: 2G
     logging:
       driver: json-file
       options:
@@ -46,60 +48,25 @@ services:
     networks:
       - animaflow_net
 
-  worker-default:
+  render-server:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-    command: python -m worker --queues default
-    depends_on:
-      - postgres
-      - redis
-    env_file:
-      - ./backend/.env
-    environment:
-      - STORAGE_BASE_DIR=/app
+      context: ./servers
+      dockerfile: Dockerfile.render-server
+    ports:
+      - "127.0.0.1:3001:3001"
     volumes:
       - animaflow_storage:/app/storage
       - remotion_generated:/app/frontend/src/remotion/generated
-    restart: unless-stopped
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 3G
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - animaflow_net
-
-  worker-render:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile.render
-    user: "1000:1000"
-    command: python -m worker --queues render
-    depends_on:
-      - postgres
-      - redis
-    env_file:
-      - ./backend/.env
-    environment:
-      - STORAGE_BASE_DIR=/app
-    volumes:
-      - animaflow_storage:/app/storage
-      - remotion_generated:/app/frontend/src/remotion/generated
-      - whisper_cache:/home/appuser/.cache/whisper
     restart: unless-stopped
     deploy:
       replicas: 1
       resources:
         limits:
           cpus: '2.0'
-          memory: 4G
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
     logging:
       driver: json-file
       options:
@@ -117,17 +84,6 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:5432:5432"
-    networks:
-      - animaflow_net
-
-  redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:6379:6379"
     networks:
       - animaflow_net
 
@@ -166,8 +122,6 @@ volumes:
   postgres_data:
   animaflow_storage:
   remotion_generated:
-  redis_data:
-  whisper_cache:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:

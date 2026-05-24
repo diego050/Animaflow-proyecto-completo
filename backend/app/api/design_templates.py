@@ -9,7 +9,7 @@ from app.schemas.design_template import DesignTemplateCreate, DesignTemplateUpda
 
 router = APIRouter()
 
-@router.get("/", response_model=List[DesignTemplateResponse])
+@router.get("", response_model=List[DesignTemplateResponse])
 def read_design_templates(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -18,7 +18,7 @@ def read_design_templates(
     templates = db.query(DesignTemplate).filter(DesignTemplate.user_id == current_user.id).all()
     return templates
 
-@router.post("/", response_model=DesignTemplateResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=DesignTemplateResponse, status_code=status.HTTP_201_CREATED)
 def create_design_template(
     template_in: DesignTemplateCreate,
     db: Session = Depends(get_db),

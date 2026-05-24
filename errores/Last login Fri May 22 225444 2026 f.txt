@@ -1,0 +1,282 @@
+Last login: Fri May 22 22:54:44 2026 from 38.25.17.28
+root@srv1582664:~# cd /opt/animaflow
+root@srv1582664:/opt/animaflow# docker compose -f docker-compose.prod.yml logs -f worker-render
+worker-render-1  | [entrypoint] Piper model found at /app/storage/models/piper/es_ES-carlfm-x_low.onnx
+worker-render-1  | 20:20:50 Worker ae07129a37784ad68dc61c97ec9183eb: started with PID 1, version 2.8.0
+worker-render-1  | 20:20:50 Worker ae07129a37784ad68dc61c97ec9183eb: subscribing to channel rq:pubsub:ae07129a37784ad68dc61c97ec9183eb
+worker-render-1  | 20:20:50 *** Listening on render...
+worker-render-1  | 20:20:50 Worker ae07129a37784ad68dc61c97ec9183eb: cleaning registries for queue: render
+worker-render-1  | 20:34:21 Worker ae07129a37784ad68dc61c97ec9183eb: cleaning registries for queue: render
+worker-render-1  | 20:40:36 render: app.modules.pipeline.orchestrator.run_pipeline_approved('c282dac5-320e-47fa-9b88-14fb05e888e2', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None) (eb024b17-cc4c-487d-9437-22c99e14e0c2)
+worker-render-1  | 20:40:43 [animaflow.pipeline] INFO: Generating visual prompts in batch with Gemini...
+worker-render-1  | 20:40:43 [animaflow.llm] INFO: Llamando a Gemini (model=gemma-4-31b-it)...
+worker-render-1  | 20:40:51 [animaflow.llm] INFO: Respuesta recibida (990 chars)
+worker-render-1  | 20:40:51 [animaflow.pipeline] INFO: Generating TTS for scene 1 with provider local_piper...
+worker-render-1  | 20:40:51 [animaflow.tts.service] INFO: Generating TTS with provider: local_piper
+worker-render-1  | 20:40:53 [animaflow.tts.piper] INFO: Piper audio generated: /app/storage/audio/piper/764471540226.wav
+worker-render-1  | 20:40:53 [animaflow.tts.service] INFO: Extracting timestamps with Whisper...
+worker-render-1  | 20:40:53 [animaflow.tts.whisper] INFO: Loading Whisper small model...
+100%|████████████████████████████████████████| 461M/461M [00:04<00:00, 106MiB/s]
+worker-render-1  | 20:41:06 [animaflow.tts.whisper] INFO: Whisper model loaded
+worker-render-1  | 20:41:06 [animaflow.tts.whisper] INFO: Transcribing audio with Whisper: /app/storage/audio/piper/764471540226.wav
+worker-render-1  | /usr/local/lib/python3.11/site-packages/whisper/transcribe.py:132: UserWarning: FP16 is not supported on CPU; using FP32 instead
+worker-render-1  |   warnings.warn("FP16 is not supported on CPU; using FP32 instead")
+worker-render-1  | 20:41:19 [animaflow.tts.whisper] INFO: Extracted 11 word timestamps
+100%|██████████| 297/297 [00:11<00:00, 24.79frames/s]
+worker-render-1  | 20:41:19 [animaflow.tts.service] INFO: TTS complete: /app/storage/audio/piper/764471540226.wav (2.98s, 11 words)
+worker-render-1  | 20:41:19 [animaflow.pipeline] INFO: Audio moved to standard location: /app/storage/audio/c282dac5-320e-47fa-9b88-14fb05e888e2_0.wav
+worker-render-1  | 20:41:19 [animaflow.pipeline] INFO: Deciding component strategy for scene 1...
+worker-render-1  | 20:41:20 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-render-1  | 20:41:20 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-render-1  | 20:41:20 [animaflow.remotion] INFO: Scene 0: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-render-1  | 20:41:24 [animaflow.pipeline] INFO: AE script generation deferred to export step (scene 1)
+worker-render-1  | 20:41:24 [animaflow.pipeline] INFO: Generating TTS for scene 2 with provider local_piper...
+worker-render-1  | 20:41:24 [animaflow.tts.service] INFO: Generating TTS with provider: local_piper
+worker-render-1  | 20:41:27 [animaflow.tts.piper] INFO: Piper audio generated: /app/storage/audio/piper/947184333658.wav
+worker-render-1  | 20:41:27 [animaflow.tts.service] INFO: Extracting timestamps with Whisper...
+worker-render-1  | 20:41:27 [animaflow.tts.whisper] INFO: Transcribing audio with Whisper: /app/storage/audio/piper/947184333658.wav
+worker-render-1  | /usr/local/lib/python3.11/site-packages/whisper/transcribe.py:132: UserWarning: FP16 is not supported on CPU; using FP32 instead
+worker-render-1  |   warnings.warn("FP16 is not supported on CPU; using FP32 instead")
+100%|██████████| 561/561 [00:10<00:00, 53.43frames/s]
+worker-render-1  | 20:41:37 [animaflow.tts.whisper] INFO: Extracted 14 word timestamps
+worker-render-1  | 20:41:37 [animaflow.tts.service] INFO: TTS complete: /app/storage/audio/piper/947184333658.wav (5.62s, 14 words)
+worker-render-1  | 20:41:37 [animaflow.pipeline] INFO: Audio moved to standard location: /app/storage/audio/c282dac5-320e-47fa-9b88-14fb05e888e2_1.wav
+worker-render-1  | 20:41:37 [animaflow.pipeline] INFO: Deciding component strategy for scene 2...
+worker-render-1  | 20:41:38 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-render-1  | 20:41:38 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-render-1  | 20:41:38 [animaflow.remotion] INFO: Scene 1: Using Standard Library component 'TextReveal' (confidence: 0.90)
+worker-render-1  | 20:41:42 [animaflow.pipeline] INFO: AE script generation deferred to export step (scene 2)
+worker-render-1  | 20:41:42 [animaflow.pipeline] INFO: Generating TTS for scene 3 with provider local_piper...
+worker-render-1  | 20:41:42 [animaflow.tts.service] INFO: Generating TTS with provider: local_piper
+worker-render-1  | 20:41:44 [animaflow.tts.piper] INFO: Piper audio generated: /app/storage/audio/piper/16982262790.wav
+worker-render-1  | 20:41:44 [animaflow.tts.service] INFO: Extracting timestamps with Whisper...
+worker-render-1  | 20:41:44 [animaflow.tts.whisper] INFO: Transcribing audio with Whisper: /app/storage/audio/piper/16982262790.wav
+worker-render-1  | /usr/local/lib/python3.11/site-packages/whisper/transcribe.py:132: UserWarning: FP16 is not supported on CPU; using FP32 instead
+worker-render-1  |   warnings.warn("FP16 is not supported on CPU; using FP32 instead")
+100%|██████████| 366/366 [00:10<00:00, 33.39frames/s]
+worker-render-1  | 20:41:56 [animaflow.tts.whisper] INFO: Extracted 12 word timestamps
+worker-render-1  | 20:41:56 [animaflow.tts.service] INFO: TTS complete: /app/storage/audio/piper/16982262790.wav (3.66s, 12 words)
+worker-render-1  | 20:41:56 [animaflow.pipeline] INFO: Audio moved to standard location: /app/storage/audio/c282dac5-320e-47fa-9b88-14fb05e888e2_2.wav
+worker-render-1  | 20:41:56 [animaflow.pipeline] INFO: Deciding component strategy for scene 3...
+worker-render-1  | 20:42:07 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-render-1  | 20:42:07 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-render-1  | 20:42:07 [animaflow.remotion] INFO: Scene 2: Using Standard Library component 'TextReveal' (confidence: 0.90)
+worker-render-1  | 20:42:07 [animaflow.pipeline] INFO: AE script generation deferred to export step (scene 3)
+worker-render-1  | 20:42:07 [animaflow.remotion] INFO: Generado index.ts para usuario 83438828-46ca-497e-b4d8-d50eb7d25bbc
+worker-render-1  | 20:42:07 [animaflow.remotion] INFO: Regenerado index.ts global con 0 módulos.
+worker-render-1  | 20:42:07 [animaflow.remotion] INFO: Generado index.ts para usuario 83438828-46ca-497e-b4d8-d50eb7d25bbc
+worker-render-1  | 20:42:07 [animaflow.remotion] INFO: Regenerado index.ts global con 0 módulos.
+worker-render-1  | 20:42:07 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 0 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (3.0s, 1080x1920)...
+worker-render-1  | 20:42:07 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 0 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (3.0s, 1080x1920)...
+worker-render-1  | 20:42:35 [animaflow.remotion.scene_renderer] INFO: Escena 0 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/0.mp4
+worker-render-1  | 20:42:35 [animaflow.remotion.scene_renderer] INFO: Escena 0 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/0.mp4
+worker-render-1  | 20:42:35 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 1 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (5.6s, 1080x1920)...
+worker-render-1  | 20:42:35 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 1 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (5.6s, 1080x1920)...
+worker-render-1  | 20:43:00 [animaflow.remotion.scene_renderer] INFO: Escena 1 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/1.mp4
+worker-render-1  | 20:43:00 [animaflow.remotion.scene_renderer] INFO: Escena 1 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/1.mp4
+worker-render-1  | 20:43:00 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 2 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (3.7s, 1080x1920)...
+worker-render-1  | 20:43:00 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 2 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (3.7s, 1080x1920)...
+worker-render-1  | 20:43:18 [animaflow.remotion.scene_renderer] INFO: Escena 2 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/2.mp4
+worker-render-1  | 20:43:18 [animaflow.remotion.scene_renderer] INFO: Escena 2 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/2.mp4
+worker-render-1  | 20:43:18 [animaflow.video.concat] INFO: Uniendo 3 escenas para job c282dac5-320e-47fa-9b88-14fb05e888e2... (Con audio: True)
+worker-render-1  | 20:43:18 [animaflow.video.concat] INFO: Video final unido: /app/storage/videos/c282dac5-320e-47fa-9b88-14fb05e888e2.mp4 (0.2 MB)
+worker-render-1  | 20:43:18 Successfully completed app.modules.pipeline.orchestrator.run_pipeline_approved('c282dac5-320e-47fa-9b88-14fb05e888e2', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None) job in 0:02:41.715004s on worker ae07129a37784ad68dc61c97ec9183eb
+worker-render-1  | 20:43:18 render: Job OK (eb024b17-cc4c-487d-9437-22c99e14e0c2)
+worker-render-1  | 20:43:18 Result is kept for 500 seconds
+^C
+root@srv1582664:/opt/animaflow# docker compose -f docker-compose.prod.yml logs -f worker-default
+worker-default-2  | 20:18:00 Worker f754540b9ceb477482a9132effb5a29d: started with PID 1, version 2.8.0
+worker-default-2  | 20:18:00 Worker f754540b9ceb477482a9132effb5a29d: subscribing to channel rq:pubsub:f754540b9ceb477482a9132effb5a29d
+worker-default-2  | 20:18:00 *** Listening on default...
+worker-default-2  | 20:18:00 Worker f754540b9ceb477482a9132effb5a29d: cleaning registries for queue: default
+worker-default-2  | 20:31:30 Worker f754540b9ceb477482a9132effb5a29d: cleaning registries for queue: default
+worker-default-2  | 20:40:05 default: app.modules.pipeline.orchestrator.run_pipeline('c282dac5-320e-47fa-9b88-14fb05e888e2', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '9:16', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, animation_only=False, design_md=None, scenes=None, system_prompt=None) (df1f2ea4-b15b-4c5b-a92f-719d8b42bdc0)
+worker-default-2  | 20:40:10 [animaflow.pipeline] INFO: Script segmented into 3 scenes (aspect_ratio: 9:16, tts_provider: local_piper)
+worker-default-2  | 20:40:10 [animaflow.llm] INFO: Llamando a Gemini (model=gemma-4-31b-it)...
+worker-default-2  | 20:40:18 [animaflow.llm] INFO: Respuesta recibida (1061 chars)
+worker-default-2  | 20:40:18 [animaflow.pipeline] INFO: Job c282dac5-320e-47fa-9b88-14fb05e888e2 paused at 'segmented' status awaiting user scene approval (3 scenes)
+worker-default-2  | 20:40:18 Successfully completed app.modules.pipeline.orchestrator.run_pipeline('c282dac5-320e-47fa-9b88-14fb05e888e2', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '9:16', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, animation_only=False, design_md=None, scenes=None, system_prompt=None) job in 0:00:13.684394s on worker f754540b9ceb477482a9132effb5a29d
+worker-default-2  | 20:40:18 default: Job OK (df1f2ea4-b15b-4c5b-a92f-719d8b42bdc0)
+worker-default-2  | 20:40:18 Result is kept for 500 seconds
+worker-default-2  | 20:44:10 default: app.modules.pipeline.orchestrator.run_pipeline('4f55e2b0-5b13-4838-827b-40136431884b', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '16:9', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) (525c2ef1-b3b1-4a73-8c91-81be8c3d7069)
+worker-default-2  | 20:44:13 [animaflow.pipeline] INFO: Reformatting job 4f55e2b0-5b13-4838-827b-40136431884b from c282dac5-320e-47fa-9b88-14fb05e888e2 to aspect ratio 16:9
+worker-default-2  | 20:44:15 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:15 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:15 [animaflow.remotion] INFO: Scene 0: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:18 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-2  | 20:44:18 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-2  | 20:44:18 [animaflow.remotion] INFO: Scene 1: Using Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-2  | 20:44:26 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:26 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:26 [animaflow.remotion] INFO: Scene 2: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:26 [animaflow.remotion] INFO: Generado index.ts para usuario 83438828-46ca-497e-b4d8-d50eb7d25bbc
+worker-default-2  | 20:44:26 [animaflow.remotion] INFO: Regenerado index.ts global con 0 módulos.
+worker-default-2  | 20:44:26 [animaflow.pipeline] INFO: Reformat completed for job 4f55e2b0-5b13-4838-827b-40136431884b
+worker-default-2  | 20:44:26 Successfully completed app.modules.pipeline.orchestrator.run_pipeline('4f55e2b0-5b13-4838-827b-40136431884b', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '16:9', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) job in 0:00:15.703922s on worker f754540b9ceb477482a9132effb5a29d
+worker-default-2  | 20:44:26 default: Job OK (525c2ef1-b3b1-4a73-8c91-81be8c3d7069)
+worker-default-2  | 20:44:26 Result is kept for 500 seconds
+worker-default-2  | 20:44:26 Worker f754540b9ceb477482a9132effb5a29d: cleaning registries for queue: default
+worker-default-1  | 20:18:00 Worker 3a489315f3b244249ad6915dbb12f4b2: started with PID 1, version 2.8.0
+worker-default-1  | 20:18:00 Worker 3a489315f3b244249ad6915dbb12f4b2: subscribing to channel rq:pubsub:3a489315f3b244249ad6915dbb12f4b2
+worker-default-1  | 20:18:00 *** Listening on default...
+worker-default-1  | 20:18:00 Worker 3a489315f3b244249ad6915dbb12f4b2: cleaning registries for queue: default
+worker-default-1  | 20:44:04 default: app.modules.pipeline.orchestrator.run_pipeline('fb8b3620-79d5-409d-8985-38b2030d280c', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '9:16', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) (6649d78f-5652-4789-9d3d-2b0bb6ab7ea9)
+worker-default-1  | 20:44:09 [animaflow.pipeline] INFO: Reformatting job fb8b3620-79d5-409d-8985-38b2030d280c from c282dac5-320e-47fa-9b88-14fb05e888e2 to aspect ratio 9:16
+worker-default-1  | 20:44:10 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:10 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:10 [animaflow.remotion] INFO: Scene 0: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:12 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-1  | 20:44:12 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-1  | 20:44:12 [animaflow.remotion] INFO: Scene 1: Using Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-1  | 20:44:19 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:19 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:19 [animaflow.remotion] INFO: Scene 2: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:19 [animaflow.remotion] INFO: Generado index.ts para usuario 83438828-46ca-497e-b4d8-d50eb7d25bbc
+worker-default-1  | 20:44:19 [animaflow.remotion] INFO: Regenerado index.ts global con 0 módulos.
+worker-default-1  | 20:44:19 [animaflow.pipeline] INFO: Reformat completed for job fb8b3620-79d5-409d-8985-38b2030d280c
+worker-default-1  | 20:44:19 Successfully completed app.modules.pipeline.orchestrator.run_pipeline('fb8b3620-79d5-409d-8985-38b2030d280c', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '9:16', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) job in 0:00:14.728499s on worker 3a489315f3b244249ad6915dbb12f4b2
+worker-default-1  | 20:44:19 default: Job OK (6649d78f-5652-4789-9d3d-2b0bb6ab7ea9)
+worker-default-1  | 20:44:19 Result is kept for 500 seconds
+worker-default-1  | 20:44:19 Worker 3a489315f3b244249ad6915dbb12f4b2: cleaning registries for queue: default
+^C
+root@srv1582664:/opt/animaflow# docker compose -f docker-compose.prod.yml logs -f --tail 20
+api-1  | INFO:     172.16.2.8:52256 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52264 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52276 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52282 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52292 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52306 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52314 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52328 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52338 - "GET /api/jobs HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52354 - "GET /api/jobs HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52360 - "GET /api/jobs/fb8b3620-79d5-409d-8985-38b2030d280c HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52376 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:52388 - "GET /api/jobs/fb8b3620-79d5-409d-8985-38b2030d280c/video?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3Nzk5NjA5MjN9.YpKjVDF1W_Q8C8i4gz19yyrJyzrKcfT86mR0cTHIVzM HTTP/1.1" 404 Not Found
+api-1  | INFO:     172.16.2.8:45422 - "GET /api/jobs HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:45436 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:45438 - "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b/video?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3Nzk5NjA5MjN9.YpKjVDF1W_Q8C8i4gz19yyrJyzrKcfT86mR0cTHIVzM HTTP/1.1" 404 Not Found
+api-1  | INFO:     127.0.0.1:33776 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:51458 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.8:59850 - "GET /api/jobs HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:34672 - "GET /health HTTP/1.1" 200 OK
+worker-default-2  | 20:40:18 default: Job OK (df1f2ea4-b15b-4c5b-a92f-719d8b42bdc0)
+worker-default-2  | 20:40:18 Result is kept for 500 seconds
+worker-default-2  | 20:44:10 default: app.modules.pipeline.orchestrator.run_pipeline('4f55e2b0-5b13-4838-827b-40136431884b', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '16:9', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) (525c2ef1-b3b1-4a73-8c91-81be8c3d7069)
+worker-default-2  | 20:44:13 [animaflow.pipeline] INFO: Reformatting job 4f55e2b0-5b13-4838-827b-40136431884b from c282dac5-320e-47fa-9b88-14fb05e888e2 to aspect ratio 16:9
+worker-default-2  | 20:44:15 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:15 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:15 [animaflow.remotion] INFO: Scene 0: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:18 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-2  | 20:44:18 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-2  | 20:44:18 [animaflow.remotion] INFO: Scene 1: Using Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-2  | 20:44:26 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:26 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:26 [animaflow.remotion] INFO: Scene 2: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-2  | 20:44:26 [animaflow.remotion] INFO: Generado index.ts para usuario 83438828-46ca-497e-b4d8-d50eb7d25bbc
+worker-default-2  | 20:44:26 [animaflow.remotion] INFO: Regenerado index.ts global con 0 módulos.
+worker-default-2  | 20:44:26 [animaflow.pipeline] INFO: Reformat completed for job 4f55e2b0-5b13-4838-827b-40136431884b
+worker-default-2  | 20:44:26 Successfully completed app.modules.pipeline.orchestrator.run_pipeline('4f55e2b0-5b13-4838-827b-40136431884b', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '16:9', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) job in 0:00:15.703922s on worker f754540b9ceb477482a9132effb5a29d
+worker-default-2  | 20:44:26 default: Job OK (525c2ef1-b3b1-4a73-8c91-81be8c3d7069)
+worker-default-2  | 20:44:26 Result is kept for 500 seconds
+worker-default-2  | 20:44:26 Worker f754540b9ceb477482a9132effb5a29d: cleaning registries for queue: default
+worker-default-1  | 20:18:00 *** Listening on default...
+worker-default-1  | 20:18:00 Worker 3a489315f3b244249ad6915dbb12f4b2: cleaning registries for queue: default
+redis-1           | 1:M 23 May 2026 20:07:02.008 * 1 changes in 3600 seconds. Saving...
+worker-default-1  | 20:44:04 default: app.modules.pipeline.orchestrator.run_pipeline('fb8b3620-79d5-409d-8985-38b2030d280c', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '9:16', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) (6649d78f-5652-4789-9d3d-2b0bb6ab7ea9)
+worker-default-1  | 20:44:09 [animaflow.pipeline] INFO: Reformatting job fb8b3620-79d5-409d-8985-38b2030d280c from c282dac5-320e-47fa-9b88-14fb05e888e2 to aspect ratio 9:16
+worker-default-1  | 20:44:10 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:10 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:10 [animaflow.remotion] INFO: Scene 0: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:12 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-1  | 20:44:12 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-1  | 20:44:12 [animaflow.remotion] INFO: Scene 1: Using Standard Library component 'TextReveal' (confidence: 0.90)
+worker-default-1  | 20:44:19 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:19 [animaflow.llm.strategy] INFO: Strategy decision: Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:19 [animaflow.remotion] INFO: Scene 2: Using Standard Library component 'TextReveal' (confidence: 0.95)
+worker-default-1  | 20:44:19 [animaflow.remotion] INFO: Generado index.ts para usuario 83438828-46ca-497e-b4d8-d50eb7d25bbc
+worker-default-1  | 20:44:19 [animaflow.remotion] INFO: Regenerado index.ts global con 0 módulos.
+worker-default-1  | 20:44:19 [animaflow.pipeline] INFO: Reformat completed for job fb8b3620-79d5-409d-8985-38b2030d280c
+worker-default-1  | 20:44:19 Successfully completed app.modules.pipeline.orchestrator.run_pipeline('fb8b3620-79d5-409d-8985-38b2030d280c', '¿Sabías que los perros bonitos no son solo una cara linda? Científicamente..., '9:16', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None, reformatted_from='c282dac5-320e-47fa-9b88-14fb05e888e2', scenes_to_reformat={'selection': 'all', 'indices': [0, 1, 2]}) job in 0:00:14.728499s on worker 3a489315f3b244249ad6915dbb12f4b2
+worker-default-1  | 20:44:19 default: Job OK (6649d78f-5652-4789-9d3d-2b0bb6ab7ea9)
+worker-default-1  | 20:44:19 Result is kept for 500 seconds
+worker-default-1  | 20:44:19 Worker 3a489315f3b244249ad6915dbb12f4b2: cleaning registries for queue: default
+redis-1           | 1:M 23 May 2026 20:07:02.012 * Background saving started by pid 58
+redis-1           | 58:C 23 May 2026 20:07:02.019 * DB saved on disk
+redis-1           | 58:C 23 May 2026 20:07:02.021 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+redis-1           | 1:M 23 May 2026 20:07:02.114 * Background saving terminated with success
+redis-1           | 1:M 23 May 2026 20:33:33.847 * 100 changes in 300 seconds. Saving...
+redis-1           | 1:M 23 May 2026 20:33:33.848 * Background saving started by pid 59
+redis-1           | 59:C 23 May 2026 20:33:33.856 * DB saved on disk
+redis-1           | 59:C 23 May 2026 20:33:33.857 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+redis-1           | 1:M 23 May 2026 20:33:33.950 * Background saving terminated with success
+redis-1           | 1:M 23 May 2026 20:40:36.729 * 100 changes in 300 seconds. Saving...
+redis-1           | 1:M 23 May 2026 20:40:36.729 * Background saving started by pid 60
+redis-1           | 60:C 23 May 2026 20:40:36.734 * DB saved on disk
+redis-1           | 60:C 23 May 2026 20:40:36.735 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+redis-1           | 1:M 23 May 2026 20:40:36.830 * Background saving terminated with success
+redis-1           | 1:M 23 May 2026 20:45:37.072 * 100 changes in 300 seconds. Saving...
+redis-1           | 1:M 23 May 2026 20:45:37.073 * Background saving started by pid 61
+redis-1           | 61:C 23 May 2026 20:45:37.078 * DB saved on disk
+redis-1           | 61:C 23 May 2026 20:45:37.078 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+redis-1           | 1:M 23 May 2026 20:45:37.174 * Background saving terminated with success
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:24 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:24 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:24 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:24 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:24 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:25 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:25 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:25 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:25 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:25 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:25 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 134 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:25 +0000] "GET /api/jobs HTTP/1.1" 200 435 "http://76.13.231.144:8080/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:25 +0000] "GET /api/jobs HTTP/1.1" 200 435 "http://76.13.231.144:8080/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:26 +0000] "GET /api/jobs/fb8b3620-79d5-409d-8985-38b2030d280c HTTP/1.1" 200 1539 "http://76.13.231.144:8080/dashboard/project/fb8b3620-79d5-409d-8985-38b2030d280c" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:26 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 1539 "http://76.13.231.144:8080/dashboard/project/fb8b3620-79d5-409d-8985-38b2030d280c" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:28 +0000] "GET /api/jobs/fb8b3620-79d5-409d-8985-38b2030d280c/video?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3Nzk5NjA5MjN9.YpKjVDF1W_Q8C8i4gz19yyrJyzrKcfT86mR0cTHIVzM HTTP/1.1" 404 28 "http://76.13.231.144:8080/dashboard/project/fb8b3620-79d5-409d-8985-38b2030d280c" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:36 +0000] "GET /api/jobs HTTP/1.1" 200 426 "http://76.13.231.144:8080/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:37 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b HTTP/1.1" 200 1539 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:44:37 +0000] "GET /api/jobs/4f55e2b0-5b13-4838-827b-40136431884b/video?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3Nzk5NjA5MjN9.YpKjVDF1W_Q8C8i4gz19yyrJyzrKcfT86mR0cTHIVzM HTTP/1.1" 404 28 "http://76.13.231.144:8080/dashboard/project/4f55e2b0-5b13-4838-827b-40136431884b" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+frontend-1        | 38.25.17.28 - - [23/May/2026:20:45:25 +0000] "GET /api/jobs HTTP/1.1" 200 426 "http://76.13.231.144:8080/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-"
+worker-render-1   | 20:42:07 [animaflow.remotion] INFO: Regenerado index.ts global con 0 módulos.
+worker-render-1   | 20:42:07 [animaflow.remotion] INFO: Generado index.ts para usuario 83438828-46ca-497e-b4d8-d50eb7d25bbc
+worker-render-1   | 20:42:07 [animaflow.remotion] INFO: Regenerado index.ts global con 0 módulos.
+worker-render-1   | 20:42:07 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 0 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (3.0s, 1080x1920)...
+worker-render-1   | 20:42:07 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 0 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (3.0s, 1080x1920)...
+worker-render-1   | 20:42:35 [animaflow.remotion.scene_renderer] INFO: Escena 0 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/0.mp4
+worker-render-1   | 20:42:35 [animaflow.remotion.scene_renderer] INFO: Escena 0 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/0.mp4
+postgres-1        | 2026-05-23 04:20:06.957 UTC [27] LOG:  checkpoint starting: time
+postgres-1        | 2026-05-23 04:20:07.468 UTC [27] LOG:  checkpoint complete: wrote 6 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.504 s, sync=0.003 s, total=0.512 s; sync files=6, longest=0.002 s, average=0.001 s; distance=8 kB, estimate=24 kB
+postgres-1        | 2026-05-23 04:25:06.559 UTC [27] LOG:  checkpoint starting: time
+postgres-1        | 2026-05-23 04:25:06.672 UTC [27] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.105 s, sync=0.002 s, total=0.113 s; sync files=2, longest=0.001 s, average=0.001 s; distance=2 kB, estimate=21 kB
+postgres-1        | 2026-05-23 04:35:06.759 UTC [27] LOG:  checkpoint starting: time
+postgres-1        | 2026-05-23 04:35:07.282 UTC [27] LOG:  checkpoint complete: wrote 6 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.510 s, sync=0.003 s, total=0.523 s; sync files=6, longest=0.002 s, average=0.001 s; distance=12 kB, estimate=21 kB
+postgres-1        | 2026-05-23 04:40:06.361 UTC [27] LOG:  checkpoint starting: time
+postgres-1        | 2026-05-23 04:40:06.678 UTC [27] LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.304 s, sync=0.006 s, total=0.317 s; sync files=4, longest=0.005 s, average=0.002 s; distance=10 kB, estimate=19 kB
+postgres-1        | 2026-05-23 04:45:06.778 UTC [27] LOG:  checkpoint starting: time
+postgres-1        | 2026-05-23 04:45:07.500 UTC [27] LOG:  checkpoint complete: wrote 8 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.707 s, sync=0.003 s, total=0.722 s; sync files=7, longest=0.002 s, average=0.001 s; distance=17 kB, estimate=19 kB
+postgres-1        | 2026-05-23 04:50:06.591 UTC [27] LOG:  checkpoint starting: time
+postgres-1        | 2026-05-23 04:50:06.912 UTC [27] LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.303 s, sync=0.004 s, total=0.321 s; sync files=3, longest=0.003 s, average=0.002 s; distance=9 kB, estimate=18 kB
+postgres-1        | 2026-05-23 07:55:09.588 UTC [27] LOG:  checkpoint starting: time
+postgres-1        | 2026-05-23 07:55:13.623 UTC [27] LOG:  checkpoint complete: wrote 41 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=4.022 s, sync=0.005 s, total=4.036 s; sync files=36, longest=0.001 s, average=0.001 s; distance=168 kB, estimate=168 kB
+postgres-1        | 2026-05-23 10:00:11.392 UTC [27] LOG:  checkpoint starting: time
+postgres-1        | 2026-05-23 10:00:15.948 UTC [27] LOG:  checkpoint complete: wrote 46 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=4.541 s, sync=0.005 s, total=4.557 s; sync files=43, longest=0.002 s, average=0.001 s; distance=189 kB, estimate=189 kB
+postgres-1        | 2026-05-23 20:40:21.338 UTC [27] LOG:  checkpoint starting: time
+postgres-1        | 2026-05-23 20:40:22.059 UTC [27] LOG:  checkpoint complete: wrote 8 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.711 s, sync=0.002 s, total=0.722 s; sync files=8, longest=0.001 s, average=0.001 s; distance=9 kB, estimate=171 kB
+postgres-1        | 2026-05-23 20:45:21.142 UTC [27] LOG:  checkpoint starting: time
+postgres-1        | 2026-05-23 20:45:23.773 UTC [27] LOG:  checkpoint complete: wrote 27 buffers (0.2%); 0 WAL file(s) added, 0 removed, 0 recycled; write=2.622 s, sync=0.004 s, total=2.632 s; sync files=14, longest=0.001 s, average=0.001 s; distance=68 kB, estimate=161 kB
+worker-render-1   | 20:42:35 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 1 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (5.6s, 1080x1920)...
+worker-render-1   | 20:42:35 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 1 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (5.6s, 1080x1920)...
+worker-render-1   | 20:43:00 [animaflow.remotion.scene_renderer] INFO: Escena 1 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/1.mp4
+worker-render-1   | 20:43:00 [animaflow.remotion.scene_renderer] INFO: Escena 1 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/1.mp4
+worker-render-1   | 20:43:00 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 2 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (3.7s, 1080x1920)...
+worker-render-1   | 20:43:00 [animaflow.remotion.scene_renderer] INFO: Renderizando escena 2 del job c282dac5-320e-47fa-9b88-14fb05e888e2 (3.7s, 1080x1920)...
+worker-render-1   | 20:43:18 [animaflow.remotion.scene_renderer] INFO: Escena 2 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/2.mp4
+worker-render-1   | 20:43:18 [animaflow.remotion.scene_renderer] INFO: Escena 2 renderizada: /app/storage/scenes/c282dac5-320e-47fa-9b88-14fb05e888e2/2.mp4
+worker-render-1   | 20:43:18 [animaflow.video.concat] INFO: Uniendo 3 escenas para job c282dac5-320e-47fa-9b88-14fb05e888e2... (Con audio: True)
+worker-render-1   | 20:43:18 [animaflow.video.concat] INFO: Video final unido: /app/storage/videos/c282dac5-320e-47fa-9b88-14fb05e888e2.mp4 (0.2 MB)
+worker-render-1   | 20:43:18 Successfully completed app.modules.pipeline.orchestrator.run_pipeline_approved('c282dac5-320e-47fa-9b88-14fb05e888e2', '83438828-46ca-497e-b4d8-d50eb7d25bbc', 'local_piper', 'es_ES-carlfm-x_low', None) job in 0:02:41.715004s on worker ae07129a37784ad68dc61c97ec9183eb
+worker-render-1   | 20:43:18 render: Job OK (eb024b17-cc4c-487d-9437-22c99e14e0c2)
+worker-render-1   | 20:43:18 Result is kept for 500 seconds

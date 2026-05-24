@@ -41,6 +41,10 @@ class User(Base):
     is_deleted = Column(Boolean, nullable=False, default=False)
     deleted_at = Column(DateTime, nullable=True)
 
+    # Password reset fields (replaces Redis-based reset tokens)
+    reset_token_hash = Column(String(255), nullable=True, index=True)
+    reset_token_expires_at = Column(DateTime, nullable=True)
+
     # LLM provider settings
     default_provider = Column(String(50), nullable=True, default="gemini")
     default_model = Column(String(100), nullable=True, default="gemini-2.0-flash")

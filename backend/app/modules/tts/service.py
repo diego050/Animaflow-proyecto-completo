@@ -1,7 +1,7 @@
 from typing import Optional, Dict, List
 from .providers.elevenlabs import ElevenLabsProvider
 from .providers.google_tts import GoogleTTSProvider
-from .providers.local_piper import PiperProvider
+from .providers.openai_tts import OpenAITTSProvider
 from .providers.gemini_tts import GeminiTTSProvider
 from .whisper_timestamps import extract_timestamps, get_audio_duration
 from app.core.logging import get_logger
@@ -14,14 +14,14 @@ AUDIO_STORAGE = get_storage_dir("audio")
 PROVIDERS = {
     "elevenlabs": ElevenLabsProvider(),
     "google_tts": GoogleTTSProvider(),
-    "local_piper": PiperProvider(),
+    "openai_tts": OpenAITTSProvider(),
     "gemini_tts": GeminiTTSProvider(),
 }
 
 async def generate_tts_audio_only(
     text: str,
-    provider_name: str = "local_piper",
-    voice_id: str = "es_ES-carlfm-x_low",
+    provider_name: str = "openai_tts",
+    voice_id: str = "alloy",
     api_key: Optional[str] = None,
 ) -> Dict:
     """Generate TTS audio without timestamps (lightweight for previews).
@@ -36,8 +36,8 @@ async def generate_tts_audio_only(
         }
     """
     if provider_name not in PROVIDERS:
-        logger.warning("Unknown TTS provider: %s. Falling back to local_piper.", provider_name)
-        provider_name = "local_piper"
+        logger.warning("Unknown TTS provider: %s. Falling back to openai_tts.", provider_name)
+        provider_name = "openai_tts"
 
     provider = PROVIDERS[provider_name]
 
@@ -62,10 +62,11 @@ async def generate_tts_audio_only(
 
 async def generate_tts_with_timestamps(
     text: str,
-    provider_name: str = "local_piper",
-    voice_id: str = "es_ES-carlfm-x_low",
+    provider_name: str = "openai_tts",
+    voice_id: str = "alloy",
     api_key: Optional[str] = None,
-    language: str = "es"
+    language: str = "es",
+    groq_api_key: Optional[str] = None
 ) -> Dict:
     """Generate TTS audio and extract word-level timestamps.
 
@@ -77,8 +78,8 @@ async def generate_tts_with_timestamps(
         }
     """
     if provider_name not in PROVIDERS:
-        logger.warning("Unknown TTS provider: %s. Falling back to local_piper.", provider_name)
-        provider_name = "local_piper"
+        logger.warning("Unknown TTS provider: %s. Falling back to openai_tts.", provider_name)
+        provider_name = "openai_tts"
 
     provider = PROVIDERS[provider_name]
 
@@ -91,8 +92,8 @@ async def generate_tts_with_timestamps(
     audio_path = await provider.generate_audio(text, voice_id, api_key)
 
     # 2. Extract timestamps with Whisper
-    logger.info("Extracting timestamps with Whisper...")
-    word_timestamps = extract_timestamps(audio_path, language=language)
+    logger.info("Extracting timestamps with Groq API...")
+    word_timestamps = extract_timestamps(audio_path, language=language, groq_api_key=groq_api_key)
 
     duration = get_audio_duration(audio_path)
 
