@@ -34,7 +34,8 @@ async def decide_and_generate_component(
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
     word_timestamps: list = None,
-) -> Tuple[str, str, Optional[dict]]:
+    previous_scene_tsx: Optional[str] = None,
+) -> Tuple[str, str, Optional[dict], Optional[str]]:
     """
     Decide la estrategia optima para una escena: componente existente o JSON AnimaComposer.
 
@@ -43,7 +44,7 @@ async def decide_and_generate_component(
     Si no, genera un JSON AnimaComposer personalizado (~200-400 tokens).
 
     Returns:
-        (type_name, quality_status, anima_composer_json_or_None)
+        (type_name, quality_status, anima_composer_json_or_None, generated_tsx_code)
     """
     from app.core.config import settings
     from app.modules.llm.resolver import resolve_llm_credentials
@@ -54,7 +55,7 @@ async def decide_and_generate_component(
 
     if not api_key:
         logger.warning("No API key. Defaulting to FadeText.")
-        return "FadeText", "defaulted", None
+        return "FadeText", "defaulted", None, None
 
     media_query = visual_spec.media_query if visual_spec else ""
 
@@ -74,7 +75,7 @@ async def decide_and_generate_component(
                 scene_index,
                 extra={"job_id": job_id},
             )
-            type_name, q_status = await generate_remotion_component(
+            type_name, q_status, generated_tsx = await generate_remotion_component(
                 scene_index=scene_index,
                 visual_spec=visual_spec,
                 text=text,
@@ -82,9 +83,10 @@ async def decide_and_generate_component(
                 job_id=job_id,
                 aspect_ratio=aspect_ratio,
                 user_id=user_id,
-                word_timestamps=word_timestamps
+                word_timestamps=word_timestamps,
+                previous_scene_tsx=previous_scene_tsx
             )
-            return type_name, q_status, None
+            return type_name, q_status, None, generated_tsx
 
         # mode == "custom"
         logger.info(
@@ -93,7 +95,7 @@ async def decide_and_generate_component(
             strategy.justification[:120],
             extra={"job_id": job_id},
         )
-        return "custom", "passed", strategy.anima_composer
+        return "custom", "passed", strategy.anima_composer, None
 
     except Exception as e:
         logger.error(
@@ -102,7 +104,7 @@ async def decide_and_generate_component(
             str(e)[:80],
             extra={"job_id": job_id},
         )
-        return "FadeText", "defaulted", None
+        return "FadeText", "defaulted", None, None
 
 
 async def generate_remotion_component(
@@ -114,12 +116,15 @@ async def generate_remotion_component(
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
     word_timestamps: list = None,
-) -> Tuple[str, str]:
+    previous_scene_tsx: Optional[str] = None,
+) -> Tuple[str, str, Optional[str]]:
     """Usa Gemini con System Instructions para generar código React/Remotion complejo."""
     import json
     from app.core.config import settings
     from app.core.resolutions import get_resolution
     from app.modules.llm.resolver import resolve_llm_credentials
+    from app.modules.llm.client import _send_chat_message_with_retry
+    from google.genai import types
 
     creds = resolve_llm_credentials(user_id)
     api_key = creds.api_key
@@ -127,13 +132,13 @@ async def generate_remotion_component(
 
     if not api_key:
         logger.warning("GEMINI_API_KEY no encontrada. Fallback a componente predeterminado.")
-        return "FadeText", "defaulted"
+        return "FadeText", "defaulted", None
 
     try:
         client = genai.Client(api_key=api_key)
         w, h = get_resolution(aspect_ratio)
 
-        system_instruction = (
+        base_instruction = (
             "Eres el director de animación SENIOR de AnimaFlow. Creas animaciones SVG 2D complejas en React + Remotion.\n"
             "Tu trabajo es comparable a motion graphics de Apple, Stripe o MrBeast intros — IMPACTANTES y DETALLADAS.\n\n"
             "════════════════════════════════════════\n"
@@ -168,6 +173,9 @@ async def generate_remotion_component(
             "- x={N}, y={N} → Posición en pantalla (centrado)\n\n"
             "EJEMPLO: <SubscribeButton color=\"#3b82f6\" textColor=\"#ffffff\" width={400} delay={30} />\n"
             "Esto crea un botón AZUL en vez del rojo default. USA ESTOS PROPS para adaptar el estilo a la marca.\n\n"
+        )
+        
+        component_library = (
             "════════════════════════════════════════\n"
             "LIBRERÍA DE COMPONENTES DISPONIBLES\n"
             "════════════════════════════════════════\n"
@@ -466,6 +474,15 @@ async def generate_remotion_component(
             "    Props: tier1, tier2, tier3, price1, price2, price3, highlightColor\n"
             "    Tres columnas de precios donde la central (Pro) hace pop-out.\n\n"
             "════════════════════════════════════════\n"
+            "- Nombre del componente exportado: SceneComponent (exacto).\n"
+            "- Props recibidos: text (string), durationInFrames (number), wordTimestamps (array de {word, start, end, startFrame}).\n"
+            "- DEBES importar los componentes desde '../../components/[Nombre]'. Solo importa los que uses.\n"
+            "- PROHIBIDO usar <svg> crudos.\n"
+            "- PROHIBIDO agregar librerías externas o Tailwind.\n\n"
+        )
+        
+        rules_block = (
+            "════════════════════════════════════════\n"
             "REGLAS ABSOLUTAS DE CÓDIGO\n"
             "════════════════════════════════════════\n"
             "- Nombre del componente exportado: SceneComponent (exacto).\n"
@@ -473,6 +490,9 @@ async def generate_remotion_component(
             "- DEBES importar los componentes desde '../../components/[Nombre]'. Solo importa los que uses.\n"
             "- PROHIBIDO usar <svg> crudos.\n"
             "- PROHIBIDO agregar librerías externas o Tailwind.\n\n"
+        )
+        
+        golden_example = (
             "════════════════════════════════════════\n"
             "GOLDEN EXAMPLE (ESTÁNDAR DE CALIDAD REQUERIDO)\n"
             "════════════════════════════════════════\n"
@@ -497,19 +517,36 @@ async def generate_remotion_component(
             "    );\n"
             "};\n\n"
         )
+        
+        if previous_scene_tsx:
+            system_instruction = base_instruction + rules_block
+        else:
+            system_instruction = base_instruction + component_library + rules_block + golden_example
 
         bg_color = visual_spec.backgroundColor
         txt_color = visual_spec.textColor
         
-        # Word timestamps to JSON
         word_timestamps_str = "[]"
         if word_timestamps:
-            # Inject startFrame into the word timestamps
             for wt in word_timestamps:
                 if "startFrame" not in wt:
                     wt["startFrame"] = int(wt["start"] * 30)
             word_timestamps_str = json.dumps(word_timestamps)
             
+        context_prompt = ""
+        if previous_scene_tsx:
+            context_prompt = (
+                "════════════════════════════════════════\n"
+                "CONTEXTO DE LA ESCENA ANTERIOR (¡MANTÉN LA COHERENCIA VISUAL!)\n"
+                "════════════════════════════════════════\n"
+                "Para la escena anterior generaste este código TSX:\n\n"
+                f"```tsx\n{previous_scene_tsx}\n```\n\n"
+                "INSTRUCCIÓN CRÍTICA: Como no te he pasado el catálogo completo de componentes, SOLO DEBES USAR los componentes que ya importaste en el código de la escena anterior (o primitivas básicas de React). "
+                "Debes mantener EXACTAMENTE el mismo estilo visual para esta nueva escena. "
+                "Reutiliza los mismos componentes de fondo (ej. GlobalVFX, Particles), la misma paleta de colores y el mismo estilo general. "
+                "Cambia ÚNICAMENTE el texto, los tiempos (delay/duración) y ajusta la animación principal para que encaje con el nuevo texto.\n\n"
+            )
+
         prompt = (
             "════════════════════════════════════════\n"
             "ESCENA A ANIMAR\n"
@@ -520,32 +557,40 @@ async def generate_remotion_component(
             f"Color base: fondo {bg_color} · texto {txt_color}\n"
             f"Aspect ratio: {aspect_ratio} (canvas {w}x{h} píxeles)\n"
             f"wordTimestamps: {word_timestamps_str}\n\n"
+            f"{context_prompt}"
             "DEVUELVE UNICAMENTE EL CODIGO TSX PLANO. SIN BLOQUES DE MARKDOWN. SOLO CODIGO."
         )
 
-        # Intentar con modelo principal con retry automático
         response = None
         try:
-            response = await _call_gemini_with_retry(
-                client, prompt, max_retries=3, model=model, system_instruction=system_instruction
+            # En lugar de usar system_instruction en la config (que puede saturar al modelo),
+            # usamos Context Priming: enviamos las reglas primero y esperamos un "OK".
+            chat = client.aio.chats.create(model=model)
+            
+            warmup_prompt = system_instruction + "\n\nLee estas instrucciones cuidadosamente. Si estás listo para empezar a animar, responde ÚNICAMENTE con la palabra 'OK'."
+            await _send_chat_message_with_retry(chat, warmup_prompt, max_retries=2)
+            
+            # Una vez el modelo está "caliente" y anclado en el contexto, enviamos la tarea
+            response = await _send_chat_message_with_retry(
+                chat, prompt, max_retries=3
             )
         except Exception as e:
-            # Fallback to secondary model if primary fails
-            logger.warning("Modelo principal %s saturado. Usando fallback.", model)
+            logger.warning("Modelo principal %s saturado o falló (%s). Usando fallback.", model, str(e))
             try:
-                response = await _call_gemini_with_retry(
-                    client, prompt, max_retries=1, model=model
+                chat = client.aio.chats.create(model=model)
+                await _send_chat_message_with_retry(chat, "Actúa como un experto en React y Remotion. Responde OK.", max_retries=1)
+                response = await _send_chat_message_with_retry(
+                    chat, prompt, max_retries=1
                 )
             except Exception as e2:
                 logger.warning(
                     "Fallback también falló (%s...). Usando componente por defecto FadeText.",
                     str(e2)[:60],
                 )
-                return "FadeText", "defaulted"
+                return "FadeText", "defaulted", None
 
         code = response.text.strip()
 
-        # Limpieza básica por si el LLM incluye bloques markdown
         if code.startswith("```tsx"):
             code = code[6:]
         elif code.startswith("```javascript"):
@@ -556,40 +601,28 @@ async def generate_remotion_component(
             code = code[:-3]
         code = code.strip()
 
-        # Post-procesamiento para evitar errores comunes en TSX generado
-        # 1. Corregir 'easing.' (minúscula) a 'Easing.' (mayúscula)
         code = re.sub(r"\beasing\.", "Easing.", code)
 
-        # 2. Asegurar que Easing está en el import de remotion
         if "from 'remotion'" in code and "Easing" not in code:
             code = code.replace(
                 "interpolate } from 'remotion'", "interpolate, Easing } from 'remotion'"
             )
 
-        # 3. Asegurar que React está importado
         if "import React" not in code and "from 'react'" not in code:
             code = "import React from 'react';\n" + code
 
-        # 4. Validar que no haya valores negativos en atributos SVG
         if "r={" in code and "Math.max" not in code:
             logger.warning("Posible valor negativo en radio SVG para escena %d", scene_index)
 
-        # 5. Corregir mismatches en interpolate()
         code = fix_interpolate_mismatch(code)
-
-        # 6. Envolver TODOS los r={{}} con Math.max(0, ...) si no lo tienen ya
         code = wrap_radius_with_math_max(code)
 
-        # 7. Fix double-brace Math.max errors
         code = re.sub(r"\{Math\.max\(0,\s*\{", "{Math.max(0, ", code)
         code = re.sub(r"\)\)\}\}", "))}", code)
         code = re.sub(r"\{Math\.max\(0,\s*\{", "{Math.max(0, ", code)
         code = re.sub(r"\)\)\}\}", "))}", code)
-
-        # 8. Fix unbalanced parentheses in Math.max
         code = re.sub(r"Math\.max\(0,\s*\{([^}]+)\)", r"Math.max(0, \1)", code)
 
-        # Guardar archivo físicamente en subdirectorio por usuario
         from app.core.config import settings
         generated_dir = os.path.join(settings.frontend_path, "src", "remotion", "generated")
         user_dir = os.path.join(generated_dir, f"user_{user_id or 'anonymous'}")
@@ -601,7 +634,6 @@ async def generate_remotion_component(
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(code)
             
-        # 9. Validar calidad de la escena generada
         from app.modules.remotion.scene_validator import validate_scene_tsx
         validation = validate_scene_tsx(code)
         
@@ -609,23 +641,21 @@ async def generate_remotion_component(
             error_msgs = "\n".join(validation["errors"] + validation["warnings"])
             logger.warning("Escena %d no pasó validación de calidad. Intentando curar. Errores: %s", scene_index, error_msgs)
             
-            # Intentar curarlo (escribirá encima del archivo si tiene éxito)
-            healed = await heal_remotion_component(user_id, job_id, scene_index, error_msgs)
-            if not healed:
+            healed_code = await heal_remotion_component(user_id, job_id, scene_index, error_msgs, chat)
+            if not healed_code:
                 logger.error("No se pudo curar la escena %d. Usando fallback.", scene_index)
-                return "FadeText", "defaulted"
+                return "FadeText", "defaulted", None
             
-            return f"Scene_{job_id}_{scene_index}", "healed"
+            return f"Scene_{job_id}_{scene_index}", "healed", healed_code
 
         logger.info("Componente TSX generado para escena %d -> %s (user: %s)", scene_index, file_name, user_id or 'anonymous', extra={"job_id": job_id})
-        return f"Scene_{job_id}_{scene_index}", "passed"
+        return f"Scene_{job_id}_{scene_index}", "passed", code
     except (TimeoutError, ValueError) as e:
         logger.error("Error programando componente para escena %d: %s", scene_index, e, extra={"job_id": job_id})
-        return "FadeText", "defaulted"
+        return "FadeText", "defaulted", None
     except Exception as e:
-        # Fallback: return default component on any unexpected error
         logger.exception("Error programando componente para escena %d: %s", scene_index, e, extra={"job_id": job_id})
-        return "FadeText", "defaulted"
+        return "FadeText", "defaulted", None
 
 
 async def heal_remotion_component(
@@ -633,19 +663,11 @@ async def heal_remotion_component(
     job_id: str,
     scene_index: int,
     error_message: str,
-) -> bool:
-    """Intenta curar un componente TSX que falló al compilar."""
+    chat=None,
+) -> Optional[str]:
     from app.core.config import settings
-    from app.modules.llm.resolver import resolve_llm_credentials
+    from app.modules.llm.client import _send_chat_message_with_retry
 
-    creds = resolve_llm_credentials(user_id)
-    api_key = creds.api_key
-    model = creds.model
-
-    if not api_key:
-        return False
-
-    # Leer el código actual
     generated_dir = os.path.join(settings.frontend_path, "src", "remotion", "generated")
     user_dir = os.path.join(generated_dir, f"user_{user_id or 'anonymous'}")
     file_name = f"Scene_{job_id}_{scene_index}.tsx"
@@ -653,13 +675,13 @@ async def heal_remotion_component(
 
     if not os.path.exists(file_path):
         logger.error("No se puede curar %s porque no existe", file_path)
-        return False
+        return None
 
     with open(file_path, "r", encoding="utf-8") as f:
         broken_code = f.read()
 
     prompt = (
-        "El siguiente código React/Remotion tiene errores técnicos o no cumple con las reglas de calidad:\n\n"
+        "El código React/Remotion que acabas de generar tiene errores técnicos o no cumple con las reglas de calidad:\n\n"
         f"ERRORES:\n{error_message}\n\n"
         "CÓDIGO ACTUAL:\n"
         "```tsx\n"
@@ -673,9 +695,8 @@ async def heal_remotion_component(
     )
 
     try:
-        client = genai.Client(api_key=api_key)
-        response = await _call_gemini_with_retry(
-            client, prompt, max_retries=2, model=model
+        response = await _send_chat_message_with_retry(
+            chat, prompt, max_retries=2
         )
         
         code = response.text.strip()
@@ -685,7 +706,6 @@ async def heal_remotion_component(
         if code.endswith("```"): code = code[:-3]
         code = code.strip()
         
-        # Post-procesamiento
         code = re.sub(r"\beasing\.", "Easing.", code)
         if "from 'remotion'" in code and "Easing" not in code:
             code = code.replace("interpolate } from 'remotion'", "interpolate, Easing } from 'remotion'")
@@ -698,7 +718,7 @@ async def heal_remotion_component(
             f.write(code)
 
         logger.info("Componente curado con éxito: %s", file_name, extra={"job_id": job_id})
-        return True
+        return code
     except Exception as e:
-        logger.error("Fallo la curación de %s: %s", file_name, e, extra={"job_id": job_id})
-        return False
+        logger.exception("Error intentando curar componente: %s", str(e), extra={"job_id": job_id})
+        return None

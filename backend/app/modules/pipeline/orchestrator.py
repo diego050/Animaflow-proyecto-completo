@@ -102,6 +102,7 @@ async def _process_chunks_async(
     user_id: Optional[str] = None,
 ) -> list[dict]:
     # Fase 2: Ya no generamos TTS aquí, solo llamamos a decide_and_generate_component con los timestamps
+    previous_scene_tsx = None
     for i, scene in enumerate(timeline_scenes):
         visual_spec = VisualSpecResult(
             media_query=scene.get("media_query", ""),
@@ -112,7 +113,7 @@ async def _process_chunks_async(
         logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
         
         # Pasamos los word_timestamps a la generación de componente
-        component_type_name, q_status, anima_composer_json = await decide_and_generate_component(
+        component_type_name, q_status, anima_composer_json, generated_tsx = await decide_and_generate_component(
             scene_index=i, 
             visual_spec=visual_spec, 
             text=scene["text"], 
@@ -120,8 +121,12 @@ async def _process_chunks_async(
             job_id=job_id, 
             aspect_ratio=aspect_ratio, 
             user_id=user_id,
-            word_timestamps=scene.get("word_timestamps", [])
+            word_timestamps=scene.get("word_timestamps", []),
+            previous_scene_tsx=previous_scene_tsx
         )
+        
+        if generated_tsx:
+            previous_scene_tsx = generated_tsx
         
         if i < len(timeline_scenes) - 1:
             await asyncio.sleep(4)
@@ -395,17 +400,7 @@ def run_pipeline_enrichment(
             groq_api_key = _get_user_api_key(user_id, "groq", db)
 
         try:
-            # Estado 2: Generando visuales con Gemini
-            job.status = "visuals_generating"
-            db.commit()
-
-            logger.info(
-                "Generating visual prompts in batch with Gemini...",
-                extra={"job_id": job_id},
-            )
-            batch_visuals = generate_batch_visuals_with_llm(
-                chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt, llm_model_override=job.llm_model
-            )
+            # (Visuals were already generated in phase 1 and approved by the user)
 
             # Estado 3: Procesando escenas (TTS + TSX)
             job.status = "processing_scenes"
@@ -425,11 +420,11 @@ def run_pipeline_enrichment(
             # Regenerar index.ts sin los archivos eliminados
             write_index_ts(job_id, timeline_scenes, user_id)
 
-            # Fase 2 finalizada, encolamos el render a MP4 para mantener el Dual Export
+            # Fase 2 finalizada, se queda en el preview. El MP4 se renderiza a demanda.
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
             job.result_spec = final_spec
             flag_modified(job, "result_spec")
-            job.status = "queued_render"
+            job.status = "completed"
             db.commit()
 
         except Exception as e:
