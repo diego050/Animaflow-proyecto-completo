@@ -64,8 +64,6 @@ def mock_external_services(tmp_path):
         "app.modules.pipeline.orchestrator.concat_scenes",
         return_value="http://test/final.mp4",
     ) as mock_concat, patch(
-        "app.modules.pipeline.orchestrator.write_index_ts"
-    ) as mock_index, patch(
         "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
     ):
         yield {
@@ -74,7 +72,6 @@ def mock_external_services(tmp_path):
             "component": mock_component,
             "render": mock_render,
             "concat": mock_concat,
-            "index": mock_index,
             "batch_visuals": batch_visuals,
         }
 
@@ -206,8 +203,6 @@ class TestPipelineIdempotency:
         ), patch(
             "app.modules.pipeline.orchestrator.concat_scenes",
             return_value="http://test/final.mp4",
-        ), patch(
-            "app.modules.pipeline.orchestrator.write_index_ts"
         ), patch(
             "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
         ):
