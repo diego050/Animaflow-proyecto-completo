@@ -61,22 +61,28 @@ def _call_llm_sync(
 
 
 async def _call_gemini_with_retry(
-    client, prompt: str, max_retries: int = 3, model: str = None
+    client, prompt: str, max_retries: int = 3, model: str = None, system_instruction: str = None
 ):
     """
     Llama a Gemini API con reintentos automáticos para errores transitorios (429, 503).
     Usa backoff exponencial: 3s → 6s → 12s
     """
     from app.core.config import settings
+    from google.genai import types
 
     if model is None:
         model = settings.GEMINI_MODEL
 
     for attempt in range(max_retries):
         try:
+            config = None
+            if system_instruction:
+                config = types.GenerateContentConfig(system_instruction=system_instruction)
+                
             response = await client.aio.models.generate_content(
                 model=model,
                 contents=prompt,
+                config=config,
             )
             return response
         except Exception as e:
