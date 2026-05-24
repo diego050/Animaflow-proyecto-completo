@@ -5,6 +5,7 @@ import { isTerminalStatus } from '../types/job';
 import { api } from '../api/client';
 import { useToastStore } from './useToastStore';
 import { useSettingsStore } from './useSettingsStore';
+import { subscribeToJob, type JobStreamEvent } from '../api/jobStream';
 
 export interface JobsState {
   jobs: JobSummary[];
@@ -282,7 +283,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     set({ pollingJobId: jobId });
 
     unsubscribeStream = subscribeToJob(jobId, {
-      onStatusChange: (data) => {
+      onStatusChange: (data: JobStreamEvent) => {
         set((state) => {
           const newSelectedJob = state.selectedJob?.job_id === jobId 
             ? { ...state.selectedJob, status: data.status, video_url: data.video_url || state.selectedJob.video_url, error_message: data.error_message || state.selectedJob.error_message } 
@@ -299,7 +300,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         get().refreshSelectedJob();
         get().stopPolling();
       },
-      onError: (errMessage) => {
+      onError: (errMessage: string) => {
         useToastStore.getState().addToast('error', `Stream error: ${errMessage}`);
         get().stopPolling();
       }

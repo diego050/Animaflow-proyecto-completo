@@ -168,7 +168,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
 
         <p className="text-text-secondary/40 text-[10px] mt-4 flex items-center gap-2">
           {focusedScene
-            ? focusedScene.type === 'custom' && (focusedScene as Spec)?.animaComposer
+            ? focusedScene.type === 'custom' && (focusedScene as Spec)?.anima_composer
               ? `Preview en vivo — AnimaComposer · Escena ${focusSceneIndex! + 1}`
               : `Preview MP4 individual — Escena ${focusSceneIndex! + 1}`
             : isReadyToRender 

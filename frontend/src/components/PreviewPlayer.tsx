@@ -26,7 +26,7 @@ export const PreviewPlayer = ({ spec, aspectRatio = "9:16", focusSceneIndex, vid
   const durationInFrames = Math.max(1, Math.round(totalDuration * 30));
 
   const focusedScene = focusSceneIndex != null ? spec.scenes[focusSceneIndex] : null;
-  const isCustomScene = focusedScene?.type === 'custom' && (focusedScene as Spec)?.animaComposer;
+  const isCustomScene = focusedScene?.type === 'custom' && (focusedScene as Spec)?.anima_composer;
 
   return (
     <div 
@@ -39,7 +39,7 @@ export const PreviewPlayer = ({ spec, aspectRatio = "9:16", focusSceneIndex, vid
           <Player
             component={AnimaComposer}
             inputProps={{
-              spec: (focusedScene as Spec).animaComposer!,
+              spec: (focusedScene as Spec).anima_composer!,
               text: focusedScene.text,
               durationInFrames: Math.round((focusedScene.duration_seconds || 5) * 30),
             }}
