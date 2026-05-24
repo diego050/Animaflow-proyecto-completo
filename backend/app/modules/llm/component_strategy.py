@@ -115,7 +115,8 @@ def generate_scene_composer(
             AnimaLayer(
                 type="component",
                 componentName="TextReveal",
-                props={"text": "{{text}}", "color": "#ffffff"}
+                text="{{text}}",
+                color="#ffffff"
             )
         ]
     )
