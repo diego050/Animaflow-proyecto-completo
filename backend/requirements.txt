@@ -19,6 +19,7 @@ setuptools>=68.0
 openai-whisper
 piper-tts==1.2.0
 ffmpeg-python==0.2.0
+pydub==0.25.1
 
 # Testing dependencies
 pytest==8.3.0
