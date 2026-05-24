@@ -33,6 +33,7 @@ async def decide_and_generate_component(
     job_id: str,
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
+    word_timestamps: list = None,
 ) -> Tuple[str, str, Optional[dict]]:
     """
     Decide la estrategia optima para una escena: componente existente o JSON AnimaComposer.
@@ -67,18 +68,23 @@ async def decide_and_generate_component(
         )
 
         if strategy.mode == "component":
-            # Para asegurar fondos animados y composiciones complejas,
-            # obligamos a usar el generador TSX aunque el LLM haya elegido un componente base.
+            # Delegamos la generación real del código al LLM, pasando la arquitectura dorada y timestamps.
             logger.info(
-                "Scene %d: LLM suggested '%s', generating full TSX for rich animation...",
+                "Scene %d: Generating complex React TSX component via LLM...",
                 scene_index,
-                strategy.component_name,
                 extra={"job_id": job_id},
             )
-            component_name, q_status = await generate_remotion_component(
-                scene_index, visual_spec, text, duration, job_id, aspect_ratio, user_id
+            type_name, q_status = await generate_remotion_component(
+                scene_index=scene_index,
+                visual_spec=visual_spec,
+                text=text,
+                duration=duration,
+                job_id=job_id,
+                aspect_ratio=aspect_ratio,
+                user_id=user_id,
+                word_timestamps=word_timestamps
             )
-            return component_name, q_status, None
+            return type_name, q_status, None
 
         # mode == "custom"
         logger.info(
@@ -91,16 +97,12 @@ async def decide_and_generate_component(
 
     except Exception as e:
         logger.error(
-            "Strategy decision failed for scene %d: %s. Falling back to generate_remotion_component().",
+            "Strategy decision failed for scene %d: %s. Falling back to simple component.",
             scene_index,
             str(e)[:80],
             extra={"job_id": job_id},
         )
-        # Fallback: usar generate_remotion_component() existente
-        component_name, q_status = await generate_remotion_component(
-            scene_index, visual_spec, text, duration, job_id, aspect_ratio, user_id
-        )
-        return component_name, q_status, None
+        return "FadeText", "defaulted", None
 
 
 async def generate_remotion_component(
@@ -111,8 +113,10 @@ async def generate_remotion_component(
     job_id: str,
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
+    word_timestamps: list = None,
 ) -> Tuple[str, str]:
-    """Usa Gemini para generar el código React/Remotion dinámico para una escena."""
+    """Usa Gemini con System Instructions para generar código React/Remotion complejo."""
+    import json
     from app.core.config import settings
     from app.core.resolutions import get_resolution
     from app.modules.llm.resolver import resolve_llm_credentials
@@ -129,30 +133,29 @@ async def generate_remotion_component(
         client = genai.Client(api_key=api_key)
         w, h = get_resolution(aspect_ratio)
 
-        prompt_header = (
+        system_instruction = (
             "Eres el director de animación SENIOR de AnimaFlow. Creas animaciones SVG 2D complejas en React + Remotion.\n"
             "Tu trabajo es comparable a motion graphics de Apple, Stripe o MrBeast intros — IMPACTANTES y DETALLADAS.\n\n"
-            "════════════════════════════════════════\n"
-            "ESCENA A ANIMAR\n"
-            "════════════════════════════════════════\n"
-            f'Texto del guion: "{text}"\n'
-            f'Descripción visual: "{visual_spec.media_query}"\n'
-            f"Duración: {duration} segundos ({round(duration * 30)} frames a 30fps)\n"
-            f"Color base: fondo {visual_spec.backgroundColor} · texto {visual_spec.textColor}\n"
-            f"Aspect ratio: {aspect_ratio} (canvas {w}x{h} píxeles)\n\n"
             "════════════════════════════════════════\n"
             "DIRECTRICES DEL DIRECTOR DE ARTE: TEXTO VS ANIMACIÓN\n"
             "════════════════════════════════════════\n"
             "Eres el Director de Arte. Tu tarea es ensamblar la escena usando EXACTAMENTE los componentes premium de nuestra librería.\n"
             "1. NO generes etiquetas <svg>, <rect> ni uses interpolate() manualmente. USA SOLO NUESTROS COMPONENTES.\n"
-            "2. REGLA DE ORO SOBRE EL TEXTO (CRÍTICO):\n"
+            "2. REGLA DE ORO SOBRE EL TEXTO (CRÍTICO): NUNCA QUEMES TEXTO EN DURO.\n"
+            "   - Está estrictamente prohibido escribir frases crudas dentro de las etiquetas (ej: MAL: <div>Loro</div>).\n"
+            "   - SIEMPRE usa la variable {text} inyectada por las props.\n"
+            "   - Si necesitas palabras específicas, usa JavaScript puro para extraerlas de {text} o busca la palabra en wordTimestamps.\n"
             "   - Si el texto es CORTO (< 8 palabras) e impactante → Usa componentes tipográficos grandes (TextReveal, GlitchTitle).\n"
-            "   - Si el texto es una PREGUNTA o PROBLEMA → Usa SearchEngineTyping o TextBubble.\n"
             "   - Si el texto describe una ACCIÓN o PROCESO → Prioriza animaciones visuales (primitivas, gráficos) y usa texto de apoyo.\n"
-            "   - Si el texto menciona NÚMEROS/DATOS → Usa Data Viz (CounterNumber, BarChartReveal) y minimiza el texto literal.\n"
-            "   - NUNCA transcribas literalmente todo el guion a texto visible. El narrador ya lo dice.\n"
             "3. LÍMITE DE COMPONENTES: Usa MÁXIMO 4 a 6 componentes por escena. Prioriza claridad visual sobre saturación.\n"
             "4. COMPOSICIÓN Y CONTINUIDAD: Combina primitivas inteligentemente. **CRÍTICO: Si el 'media_query' indica un cambio radical de ambiente o una transición dura (ej: glitch, wipe, blur), ESTÁS OBLIGADO a usar uno de los componentes de transición (ZoomBlurTransition, GlitchTransition, etc.) además de los componentes principales.**\n\n"
+            "════════════════════════════════════════\n"
+            "LA MAGIA DE LA SINCRONIZACIÓN (wordTimestamps)\n"
+            "════════════════════════════════════════\n"
+            "Recibes la prop 'wordTimestamps'. Úsala para disparar animaciones EXACTAMENTE en la palabra clave:\n"
+            "EJEMPLO:\n"
+            "  const claveFrame = wordTimestamps.find(w => w.word.toLowerCase().includes('secreto'))?.startFrame || 0;\n"
+            "  <RippleEffect delay={claveFrame} x={500} y={500} />\n\n"
             "════════════════════════════════════════\n"
             "PROPS UNIVERSALES (TODOS los componentes aceptan estas)\n"
             "════════════════════════════════════════\n"
@@ -466,40 +469,65 @@ async def generate_remotion_component(
             "REGLAS ABSOLUTAS DE CÓDIGO\n"
             "════════════════════════════════════════\n"
             "- Nombre del componente exportado: SceneComponent (exacto).\n"
-            "- Props recibidos: text (string), durationInFrames (number).\n"
+            "- Props recibidos: text (string), durationInFrames (number), wordTimestamps (array de {word, start, end, startFrame}).\n"
             "- DEBES importar los componentes desde '../../components/[Nombre]'. Solo importa los que uses.\n"
-            "- Sigue las 'DIRECTRICES DEL DIRECTOR DE ARTE' para decidir la composición tipográfica (0, 1 o más componentes de texto combinados).\n"
             "- PROHIBIDO usar <svg> crudos.\n"
             "- PROHIBIDO agregar librerías externas o Tailwind.\n\n"
-            "ESTRUCTURA BASE (REEMPLAZA LOS COLORES Y ESTILOS SEGÚN EL MEDIA_QUERY):\n"
+            "════════════════════════════════════════\n"
+            "GOLDEN EXAMPLE (ESTÁNDAR DE CALIDAD REQUERIDO)\n"
+            "════════════════════════════════════════\n"
+            "import React from 'react';\n"
+            "import { GlobalVFX } from '../../components/GlobalVFX';\n"
+            "import { RaysOfLight } from '../../components/RaysOfLight';\n"
+            "import { AnimatedShape } from '../../components/AnimatedShape';\n"
+            "import { MaskedReveal } from '../../components/MaskedReveal';\n"
+            "import { RippleEffect } from '../../components/RippleEffect';\n"
+            "\n"
+            "export const SceneComponent = ({ text, durationInFrames, wordTimestamps }) => {\n"
+            "    const loroFrame = wordTimestamps?.find(w => w.word.toLowerCase().includes('loro'))?.startFrame || 30;\n"
+            "    const menteFrame = wordTimestamps?.find(w => w.word.toLowerCase().includes('salud'))?.startFrame || 90;\n"
+            "    return (\n"
+            "        <div style={{ width: '100%', height: '100%', backgroundColor: '#0B2416', overflow: 'hidden', position: 'relative' }}>\n"
+            "            <GlobalVFX />\n"
+            "            <RaysOfLight color1=\"#FCD34D\" color2=\"#0B2416\" numRays={12} />\n"
+            "            <RippleEffect color=\"#F59E0B\" maxRadius={600} count={3} speed={2} x={540} y={960} delay={loroFrame} />\n"
+            "            <AnimatedShape shape=\"circle\" width={800} height={800} startX={540} startY={960} endX={540} endY={960} color=\"rgba(245, 158, 11, 0.1)\" delay={menteFrame} />\n"
+            "            <MaskedReveal content={<div style={{ color: '#FCD34D', fontSize: 120, fontWeight: 800, textAlign: 'center', lineHeight: 1.1 }}>{text}</div>} direction=\"up\" color=\"#FCD34D\" bgColor=\"transparent\" x={540} y={960} width={900} height={600} />\n"
+            "        </div>\n"
+            "    );\n"
+            "};\n\n"
         )
 
         bg_color = visual_spec.backgroundColor
         txt_color = visual_spec.textColor
-        prompt_code = (
-            "import React from 'react';\n"
-            "// Importa los componentes que hayas elegido\n"
-            "import { ParticleField } from '../../components/ParticleField';\n"
-            "import { SplitText } from '../../components/SplitText';\n\n"
-            "export const SceneComponent = ({ text, durationInFrames }) => {\n"
-            "    // Analiza el media_query y configura los colores adecuadamente.\n"
-            "    return (\n"
-            f"        <div style={{{{ width: '100%', height: '100%', backgroundColor: '{bg_color}', overflow: 'hidden' }}}}>\n"
-            f"            <ParticleField color1=\"{txt_color}\" color2=\"{bg_color}\" density={{50}} />\n"
-            f"            <SplitText topText=\"ANIMATION\" bottomText=\"SYSTEM\" revealedText={{text}} color=\"{txt_color}\" revealedColor=\"#10b981\" fontSize={{80}} x={{{w // 2}}} y={{{h // 2}}} delay={{15}} />\n"
-            "        </div>\n"
-            "    );\n"
-            "};\n\n"
+        
+        # Word timestamps to JSON
+        word_timestamps_str = "[]"
+        if word_timestamps:
+            # Inject startFrame into the word timestamps
+            for wt in word_timestamps:
+                if "startFrame" not in wt:
+                    wt["startFrame"] = int(wt["start"] * 30)
+            word_timestamps_str = json.dumps(word_timestamps)
+            
+        prompt = (
+            "════════════════════════════════════════\n"
+            "ESCENA A ANIMAR\n"
+            "════════════════════════════════════════\n"
+            f'Texto del guion: "{text}"\n'
+            f'Descripción visual: "{visual_spec.media_query}"\n'
+            f"Duración: {duration} segundos ({round(duration * 30)} frames a 30fps)\n"
+            f"Color base: fondo {bg_color} · texto {txt_color}\n"
+            f"Aspect ratio: {aspect_ratio} (canvas {w}x{h} píxeles)\n"
+            f"wordTimestamps: {word_timestamps_str}\n\n"
             "DEVUELVE UNICAMENTE EL CODIGO TSX PLANO. SIN BLOQUES DE MARKDOWN. SOLO CODIGO."
         )
-
-        prompt = prompt_header + prompt_code
 
         # Intentar con modelo principal con retry automático
         response = None
         try:
             response = await _call_gemini_with_retry(
-                client, prompt, max_retries=3, model=model
+                client, prompt, max_retries=3, model=model, system_instruction=system_instruction
             )
         except Exception as e:
             # Fallback to secondary model if primary fails

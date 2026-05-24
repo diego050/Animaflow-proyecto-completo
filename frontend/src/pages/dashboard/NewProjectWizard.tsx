@@ -139,7 +139,7 @@ export function NewProjectWizard() {
           setWizardStep(6);
         }
       } else if (wizardStep === 5) {
-        if (status === 'completed' || status === 'completed_video') {
+        if (status === 'completed' || status === 'completed_video' || status === 'queued_render') {
           setWizardStep(6);
         } else if (status === 'failed' || status === 'failed_render') {
           setWizardStep(6);

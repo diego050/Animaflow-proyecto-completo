@@ -97,139 +97,38 @@ def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
 
 async def _process_chunks_async(
     job_id: str,
-    chunks: list[str],
-    batch_visuals,
+    timeline_scenes: list[dict],
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
-    tts_provider: str = "local_piper",
-    tts_voice_id: str = "es_ES-carlfm-x_low",
-    tts_api_key: Optional[str] = None,
-    user_scenes: Optional[list[dict]] = None,
-    animation_only: bool = False,
-    groq_api_key: Optional[str] = None,
 ) -> list[dict]:
-    from app.core.resolutions import get_resolution
-
-    w, h = get_resolution(aspect_ratio)
-    timeline_scenes = []
-    current_start_time = 0.0
-
-    for i, chunk in enumerate(chunks):
-        if animation_only:
-            # Skip TTS completely
-            audio_path = None
-            word_timestamps = []
-            # Extract duration from user_scenes if available, else default to 7.0
-            if user_scenes and i < len(user_scenes) and user_scenes[i].get("duration_seconds"):
-                duration = float(user_scenes[i]["duration_seconds"])
-            else:
-                duration = 7.0
-            audio_url = None
-            logger.info("Animation only mode: skipped TTS for scene %d (duration: %.1f)", i + 1, duration, extra={"job_id": job_id})
-        else:
-            logger.info(
-                "Generating TTS for scene %d with provider %s...",
-                i + 1,
-                tts_provider,
-                extra={"job_id": job_id},
-            )
-
-            try:
-                tts_result = await generate_tts_with_timestamps(
-                    text=chunk,
-                    provider_name=tts_provider,
-                    voice_id=tts_voice_id,
-                    api_key=tts_api_key,
-                    language="es",
-                    groq_api_key=groq_api_key,
-                )
-                audio_path = tts_result["audio_path"]
-                word_timestamps = tts_result["word_timestamps"]
-                duration = tts_result["duration_seconds"]
-            except Exception as e:
-                logger.exception(
-                    "TTS failed for scene %d, using estimated duration fallback: %s",
-                    i + 1,
-                    e,
-                    extra={"job_id": job_id},
-                )
-                audio_path = None
-                word_timestamps = []
-                duration = max(3.0, len(chunk) / 15.0)
-
-            # Copy/symlink audio to standard location for serving
-            if audio_path and os.path.exists(audio_path):
-                os.makedirs(AUDIO_STORAGE, exist_ok=True)
-                ext = os.path.splitext(audio_path)[1]
-                if not ext:
-                    ext = ".mp3"
-                standard_name = f"{job_id}_{i}{ext}"
-                standard_path = os.path.join(AUDIO_STORAGE, standard_name)
-                try:
-                    shutil.move(audio_path, standard_path)
-                    audio_url = f"/api/audio/{standard_name}"
-                    logger.info(
-                        "Audio moved to standard location: %s",
-                        standard_path,
-                        extra={"job_id": job_id},
-                    )
-                except OSError as copy_err:
-                    logger.error(
-                        "Error copying audio: %s", copy_err, extra={"job_id": job_id}
-                    )
-                    audio_url = None
-            else:
-                audio_url = None
-
-        visual_spec = (
-            batch_visuals.scenes[i]
-            if i < len(batch_visuals.scenes)
-            else batch_visuals.scenes[-1]
+    # Fase 2: Ya no generamos TTS aquí, solo llamamos a decide_and_generate_component con los timestamps
+    for i, scene in enumerate(timeline_scenes):
+        visual_spec = VisualSpecResult(
+            media_query=scene.get("media_query", ""),
+            backgroundColor=scene.get("remotion_props", {}).get("backgroundColor", "#0f172a"),
+            textColor=scene.get("remotion_props", {}).get("textColor", "#38bdf8"),
         )
-
-        # Override media_query if user provided it in pre-defined scenes
-        if user_scenes and i < len(user_scenes) and user_scenes[i].get("media_query"):
-            visual_spec.media_query = user_scenes[i]["media_query"]
-
-        logger.info(
-            "Deciding component strategy for scene %d...",
-            i + 1,
-            extra={"job_id": job_id},
-        )
+        
+        logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
+        
+        # Pasamos los word_timestamps a la generación de componente
         component_type_name, q_status, anima_composer_json = await decide_and_generate_component(
-            i, visual_spec, chunk, duration, job_id, aspect_ratio, user_id
+            scene_index=i, 
+            visual_spec=visual_spec, 
+            text=scene["text"], 
+            duration=scene["duration_seconds"], 
+            job_id=job_id, 
+            aspect_ratio=aspect_ratio, 
+            user_id=user_id,
+            word_timestamps=scene.get("word_timestamps", [])
         )
-
-        if i < len(chunks) - 1:
+        
+        if i < len(timeline_scenes) - 1:
             await asyncio.sleep(4)
 
-        # AE script generation deferred to export step (saves tokens during iteration)
-        logger.info(
-            "AE script generation deferred to export step (scene %d)",
-            i + 1,
-            extra={"job_id": job_id},
-        )
-
-        timeline_scenes.append(
-            {
-                "start_time_seconds": round(current_start_time, 2),
-                "duration_seconds": round(duration, 2),
-                "text": chunk,
-                "type": component_type_name,
-                "media_query": visual_spec.media_query,
-                "quality_status": q_status,
-                "remotion_props": {
-                    "backgroundColor": visual_spec.backgroundColor,
-                    "textColor": visual_spec.textColor,
-                },
-                "sfx": [],
-                "audio_url": audio_url,
-                "word_timestamps": word_timestamps,
-                "ae_script_code": None,
-                "anima_composer": anima_composer_json,  # None si es Standard Library, dict si es custom
-            }
-        )
-        current_start_time += duration
+        scene["type"] = component_type_name
+        scene["quality_status"] = q_status
+        scene["anima_composer"] = anima_composer_json
 
     write_index_ts(job_id, timeline_scenes, user_id)
     return timeline_scenes
@@ -264,6 +163,7 @@ async def _regenerate_components_for_reformat(
             job_id=job_id,
             aspect_ratio=aspect_ratio,
             user_id=user_id,
+            word_timestamps=scene.get("word_timestamps", []),
         )
         scene["type"] = new_type
         scene["quality_status"] = q_status
@@ -288,13 +188,15 @@ def run_pipeline(
     system_prompt: Optional[str] = None,
     animation_only: bool = False,
 ):
-    """Fase 1: Segmenta el guion y pausa en 'segmented' para aprobación del usuario."""
+    """Fase 1: TTS global, segmentación por timestamps, y prompts visuales."""
+    from pydub import AudioSegment
+    from app.modules.segmentation.timestamp_splitter import split_by_timestamps
+
     with get_db_context() as db:
         job = db.query(JobModel).filter(JobModel.id == job_id).first()
         if not job:
             return
 
-        # Actualizar aspect_ratio del job
         job.aspect_ratio = aspect_ratio
         db.commit()
 
@@ -302,111 +204,101 @@ def run_pipeline(
         if reformatted_from:
             original = db.query(JobModel).filter(JobModel.id == reformatted_from).first()
             if original and original.result_spec:
-                logger.info(
-                    "Reformatting job %s from %s to aspect ratio %s",
-                    job_id,
-                    reformatted_from,
-                    aspect_ratio,
-                    extra={"job_id": job_id},
-                )
                 spec = copy.deepcopy(original.result_spec)
                 spec["aspect_ratio"] = aspect_ratio
-
                 timeline_scenes = spec.get("scenes", [])
                 if timeline_scenes:
-                    indices = None
-                    selection = "all"
-                    if scenes_to_reformat:
-                        indices = scenes_to_reformat.get("indices")
-                        selection = scenes_to_reformat.get("selection", "all")
-
-                    asyncio.run(
-                        _regenerate_components_for_reformat(
-                            job_id, timeline_scenes, aspect_ratio, user_id, indices
-                        )
-                    )
-
-                    # Add metadata about reformat
-                    spec["reformat_metadata"] = {
-                        "original_job_id": reformatted_from,
-                        "scene_selection": selection,
-                        "reformatted_scenes": indices if indices is not None else list(range(len(timeline_scenes))),
-                        "aspect_ratio": aspect_ratio,
-                    }
-
+                    indices = scenes_to_reformat.get("indices") if scenes_to_reformat else None
+                    asyncio.run(_regenerate_components_for_reformat(job_id, timeline_scenes, aspect_ratio, user_id, indices))
                 spec_obj = TimelineSpec(**spec)
                 job.result_spec = spec_obj.model_dump()
                 flag_modified(job, "result_spec")
                 job.status = "completed"
                 db.commit()
-                logger.info(
-                    "Reformat completed for job %s",
-                    job_id,
-                    extra={"job_id": job_id},
-                )
                 return
 
         try:
-            # Estado 1: Segmentación
             job.status = "segmenting"
             db.commit()
 
-            # 1. Fragmentación Lógica (Multi-Scene) — or use user-provided scenes
-            if scenes:
-                chunks = [s["text"] for s in scenes]
-                logger.info(
-                    "Using %d user-provided scenes (skipping auto-segmentation)",
-                    len(chunks),
-                    extra={"job_id": job_id},
+            groq_api_key = _get_user_api_key(user_id, "groq", db) if user_id else None
+            tts_key = tts_api_key or (_get_user_api_key(user_id, tts_provider, db) if user_id else None)
+
+            # 1. TTS COMPLETO PRIMERO
+            if not animation_only and not scenes:
+                logger.info("Generating global TTS for job %s...", job_id)
+                tts_result = asyncio.run(
+                    generate_tts_with_timestamps(
+                        text=script_text,
+                        provider_name=tts_provider,
+                        voice_id=tts_voice_id,
+                        api_key=tts_key,
+                        language="es",
+                        groq_api_key=groq_api_key,
+                    )
                 )
+                global_audio_path = tts_result["audio_path"]
+                word_timestamps = tts_result["word_timestamps"]
+                
+                # 2. Segmentación lógica con timestamps exactos
+                scenes_data = split_by_timestamps(word_timestamps)
+                chunks = [s["text"] for s in scenes_data]
+                
+                # Pre-cortar los audios para cada escena (Backward compatibility)
+                global_audio = AudioSegment.from_file(global_audio_path)
+                os.makedirs(AUDIO_STORAGE, exist_ok=True)
+                
+                for i, s_data in enumerate(scenes_data):
+                    start_ms = s_data["start_time_seconds"] * 1000
+                    end_ms = s_data["end_time_seconds"] * 1000
+                    chunk_audio = global_audio[start_ms:end_ms]
+                    
+                    ext = os.path.splitext(global_audio_path)[1] or ".mp3"
+                    chunk_name = f"{job_id}_{i}{ext}"
+                    chunk_path = os.path.join(AUDIO_STORAGE, chunk_name)
+                    chunk_audio.export(chunk_path, format=ext.replace(".", ""))
+                    s_data["audio_url"] = f"/api/audio/{chunk_name}"
             else:
-                chunks = split_text_into_chunks(script_text)
-                if not chunks:
-                    chunks = [script_text]
+                # Flujo animation_only o scenes provistas manualmente
+                chunks = [s["text"] for s in scenes] if scenes else split_text_into_chunks(script_text)
+                scenes_data = []
+                current_start = 0.0
+                for chunk in chunks:
+                    duration = max(3.0, len(chunk.split()) / 2.17)
+                    scenes_data.append({
+                        "text": chunk,
+                        "start_time_seconds": current_start,
+                        "duration_seconds": duration,
+                        "word_timestamps": [],
+                        "audio_url": None
+                    })
+                    current_start += duration
 
-                logger.info(
-                    "Script segmented into %d scenes (aspect_ratio: %s, tts_provider: %s)",
-                    len(chunks),
-                    aspect_ratio,
-                    tts_provider,
-                    extra={"job_id": job_id},
-                )
-
-            # Generate visual prompts for each chunk
+            # 3. Generar visuales con LLM (Ya conocemos las duraciones exactas)
+            logger.info("Generating batch visual prompts for %d scenes...", len(chunks))
             batch_visuals = generate_batch_visuals_with_llm(
                 chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt, llm_model_override=job.llm_model
             )
 
-            # Estimate duration based on word count (~130 words/minute = 2.17 words/second)
-            words_per_second = 2.17
-
+            # 4. Armar spec preliminar
             preliminary_scenes = []
-            current_start = 0.0
-
-            for i, chunk in enumerate(chunks):
-                word_count = len(chunk.split())
-                estimated_duration = max(3.0, word_count / words_per_second)  # Min 3 seconds
-
+            for i, s_data in enumerate(scenes_data):
                 visual = batch_visuals.scenes[i] if i < len(batch_visuals.scenes) else None
-
-                preliminary_scenes.append(
-                    {
-                        "start_time_seconds": round(current_start, 2),
-                        "duration_seconds": round(estimated_duration, 2),
-                        "text": chunk,
-                        "type": "pending",
-                        "media_query": visual.media_query if visual else "",
-                        "remotion_props": {
-                            "backgroundColor": visual.backgroundColor if visual else "#0f172a",
-                            "textColor": visual.textColor if visual else "#38bdf8",
-                        },
-                        "sfx": [],
-                        "audio_url": None,
-                        "word_timestamps": [],
-                        "ae_script_code": None,
-                    }
-                )
-                current_start += estimated_duration
+                preliminary_scenes.append({
+                    "start_time_seconds": round(s_data["start_time_seconds"], 2),
+                    "duration_seconds": round(s_data["duration_seconds"], 2),
+                    "text": s_data["text"],
+                    "type": "pending",
+                    "media_query": visual.media_query if visual else "",
+                    "remotion_props": {
+                        "backgroundColor": visual.backgroundColor if visual else "#0f172a",
+                        "textColor": visual.textColor if visual else "#38bdf8",
+                    },
+                    "sfx": [],
+                    "audio_url": s_data["audio_url"],
+                    "word_timestamps": s_data["word_timestamps"],
+                    "ae_script_code": None,
+                })
 
             # Save preliminary spec and pause for user approval
             preliminary_spec = {
@@ -422,12 +314,7 @@ def run_pipeline(
             job.status = "segmented"
             db.commit()
 
-            logger.info(
-                "Job %s paused at 'segmented' status awaiting user scene approval (%d scenes)",
-                job_id,
-                len(chunks),
-                extra={"job_id": job_id},
-            )
+            logger.info("Job %s paused at 'segmented' status awaiting user approval", job_id)
 
         except Exception as e:
             logger.exception("Pipeline segmentation failed: %s", e, extra={"job_id": job_id})
@@ -503,17 +390,10 @@ def run_pipeline_enrichment(
 
             timeline_scenes = asyncio.run(
                 _process_chunks_async(
-                    job_id,
-                    chunks,
-                    batch_visuals,
-                    aspect_ratio,
-                    user_id,
-                    tts_provider,
-                    tts_voice_id,
-                    tts_api_key,
-                    user_scenes=user_scenes,
-                    animation_only=animation_only,
-                    groq_api_key=groq_api_key,
+                    job_id=job_id,
+                    timeline_scenes=scenes,
+                    aspect_ratio=aspect_ratio,
+                    user_id=user_id,
                 )
             )
 
@@ -522,12 +402,11 @@ def run_pipeline_enrichment(
             # Regenerar index.ts sin los archivos eliminados
             write_index_ts(job_id, timeline_scenes, user_id)
 
-            # Fase 2 finalizada, se puede previsualizar en Remotion.
-            # El renderizado a MP4 ahora es a demanda del usuario.
+            # Fase 2 finalizada, encolamos el render a MP4 para mantener el Dual Export
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
             job.result_spec = final_spec
             flag_modified(job, "result_spec")
-            job.status = "completed"
+            job.status = "queued_render"
             db.commit()
 
         except Exception as e:
