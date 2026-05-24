@@ -125,6 +125,11 @@ async def _process_chunks_async(
         scene["type"] = "custom"
         scene["quality_status"] = "passed"
         scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
+        
+        # Pausa para evitar límites de RPM (Requests Per Minute) del plan gratuito de Gemini
+        if i < len(timeline_scenes) - 1:
+            await asyncio.sleep(4)
+            
     return timeline_scenes
 
 
