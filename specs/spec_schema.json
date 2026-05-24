@@ -115,7 +115,8 @@
             "text",
             "image",
             "group",
-            "particles"
+            "particles",
+            "component"
           ]
         },
         "x": {
@@ -245,6 +246,13 @@
               "type": "null"
             }
           ]
+        },
+        "componentName": {
+          "type": "string"
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": true
         }
       },
       "required": [

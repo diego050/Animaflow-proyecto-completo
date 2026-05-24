@@ -55,9 +55,8 @@ def mock_external_services(tmp_path):
         new_callable=AsyncMock,
         return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 5.0, "word_timestamps": []},
     ) as mock_tts, patch(
-        "app.modules.pipeline.orchestrator.decide_and_generate_component",
-        new_callable=AsyncMock,
-        return_value=("Scene_test", "passed", None, None),
+        "app.modules.pipeline.orchestrator.generate_scene_composer",
+        new_callable=AsyncMock
     ) as mock_component, patch(
         "app.modules.pipeline.orchestrator.render_single_scene",
         return_value="http://test/scene.mp4",
@@ -199,9 +198,8 @@ class TestPipelineIdempotency:
             new_callable=AsyncMock,
             return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 3.0, "word_timestamps": []},
         ), patch(
-            "app.modules.pipeline.orchestrator.decide_and_generate_component",
-            new_callable=AsyncMock,
-            return_value=("Scene_test", "passed", None, None),
+            "app.modules.pipeline.orchestrator.generate_scene_composer",
+            new_callable=AsyncMock
         ), patch(
             "app.modules.pipeline.orchestrator.render_single_scene",
             return_value="http://test/scene.mp4",

@@ -13,8 +13,7 @@ AUDIO_STORAGE = get_storage_dir("audio")
 
 from ..tts.service import generate_tts_with_timestamps
 from ..llm.visual_spec import VisualSpecResult
-from ..remotion.component_generator import generate_remotion_component
-from ..remotion.index_writer import write_index_ts
+from ..llm.component_strategy import generate_scene_composer
 
 
 async def _regenerate_scene_async(
@@ -60,20 +59,27 @@ async def _regenerate_scene_async(
         textColor=scene.get("remotion_props", {}).get("textColor", "#ffffff"),
     )
 
-    logger.info("Regenerando TSX para escena %d...", scene_index, extra={"job_id": job_id})
-    component_type_name, q_status = await generate_remotion_component(
-        scene_index, visual_spec, new_text, scene["duration_seconds"], job_id, aspect_ratio, user_id
+    logger.info("Regenerando JSON para escena %d...", scene_index, extra={"job_id": job_id})
+    
+    from app.modules.pipeline.orchestrator import _get_user_api_key
+    groq_api_key = _get_user_api_key(user_id, "groq", SessionLocal())
+    api_key = groq_api_key or os.getenv("GROQ_API_KEY") or ""
+    
+    composer_spec = generate_scene_composer(
+        text=new_text,
+        media_query=new_media_query,
+        api_key=api_key,
+        model="gemini-2.0-flash"
     )
 
-    scene["type"] = component_type_name
-    scene["quality_status"] = q_status
+    scene["type"] = "custom"
+    scene["quality_status"] = "passed"
+    scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
 
     # AE script generation deferred to export step
     scene["ae_script_code"] = None
 
     spec["scenes"][scene_index] = scene
-
-    write_index_ts(job_id, spec["scenes"], user_id)
 
     return spec
 

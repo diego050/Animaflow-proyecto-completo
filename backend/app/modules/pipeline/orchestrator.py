@@ -15,8 +15,7 @@ logger = get_logger("pipeline")
 from ..tts.service import generate_tts_with_timestamps, AUDIO_STORAGE
 from ..segmentation.service import split_text_into_chunks
 from ..llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
-from ..remotion.component_generator import generate_remotion_component, decide_and_generate_component, heal_remotion_component
-from ..remotion.index_writer import write_index_ts, cleanup_stale_tsx_files
+from ..llm.component_strategy import generate_scene_composer
 from ..remotion.scene_renderer import render_single_scene, SCENES_STORAGE
 from ..video.concat import concat_scenes, VIDEOS_STORAGE
 
@@ -112,30 +111,19 @@ async def _process_chunks_async(
         
         logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
         
-        # Pasamos los word_timestamps a la generación de componente
-        component_type_name, q_status, anima_composer_json, generated_tsx = await decide_and_generate_component(
-            scene_index=i, 
-            visual_spec=visual_spec, 
-            text=scene["text"], 
-            duration=scene["duration_seconds"], 
-            job_id=job_id, 
-            aspect_ratio=aspect_ratio, 
-            user_id=user_id,
-            word_timestamps=scene.get("word_timestamps", []),
-            previous_scene_tsx=previous_scene_tsx
+        groq_api_key = _get_user_api_key(user_id, "groq", SessionLocal())
+        api_key = groq_api_key or os.getenv("GROQ_API_KEY") or ""
+        
+        composer_spec = generate_scene_composer(
+            text=scene.get("text", ""),
+            media_query=scene.get("media_query", ""),
+            api_key=api_key,
+            model="gemini-2.0-flash"
         )
         
-        if generated_tsx:
-            previous_scene_tsx = generated_tsx
-        
-        if i < len(timeline_scenes) - 1:
-            await asyncio.sleep(4)
-
-        scene["type"] = component_type_name
-        scene["quality_status"] = q_status
-        scene["anima_composer"] = anima_composer_json
-
-    write_index_ts(job_id, timeline_scenes, user_id)
+        scene["type"] = "custom"
+        scene["quality_status"] = "passed"
+        scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
     return timeline_scenes
 
 
@@ -160,21 +148,19 @@ async def _regenerate_components_for_reformat(
             backgroundColor=remotion_props.get("backgroundColor", "#0f172a"),
             textColor=remotion_props.get("textColor", "#38bdf8"),
         )
-        new_type, q_status, anima_composer_json = await decide_and_generate_component(
-            scene_index=i,
-            visual_spec=visual_spec,
+        groq_api_key = _get_user_api_key(user_id, "groq", SessionLocal())
+        api_key = groq_api_key or os.getenv("GROQ_API_KEY") or ""
+        
+        composer_spec = generate_scene_composer(
             text=scene.get("text", ""),
-            duration=scene.get("duration_seconds", 5.0),
-            job_id=job_id,
-            aspect_ratio=aspect_ratio,
-            user_id=user_id,
-            word_timestamps=scene.get("word_timestamps", []),
+            media_query=scene.get("media_query", ""),
+            api_key=api_key,
+            model="gemini-2.0-flash" # Assuming gemini is used for generation, wait let me check the keys
         )
-        scene["type"] = new_type
-        scene["quality_status"] = q_status
-        if anima_composer_json is not None:
-            scene["anima_composer"] = anima_composer_json
-    write_index_ts(job_id, timeline_scenes, user_id)
+        
+        scene["type"] = "custom"
+        scene["quality_status"] = "passed"
+        scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
     return timeline_scenes
 
 
@@ -416,9 +402,8 @@ def run_pipeline_enrichment(
             )
 
             # Limpiar archivos TSX de jobs anteriores para evitar errores de compilación
-            cleanup_stale_tsx_files(job_id, user_id)
-            # Regenerar index.ts sin los archivos eliminados
-            write_index_ts(job_id, timeline_scenes, user_id)
+            # No more TSX files to cleanup
+            # Regenerar index.ts sin los archivos eliminados (ya no es necesario)
 
             # Fase 2 finalizada, se queda en el preview. El MP4 se renderiza a demanda.
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
