@@ -643,7 +643,7 @@ function renderSingleLayer(
       }
 
       // Merge props and resolve {{text}} placeholder if present
-      const mergedProps = {
+      const mergedProps: Record<string, any> = {
         ...layer.props,
         text: typeof layer.props?.text === 'string' 
           ? layer.props.text.replace('{{text}}', ctx.text) 
