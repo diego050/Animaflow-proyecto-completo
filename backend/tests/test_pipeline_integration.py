@@ -10,6 +10,12 @@ from unittest.mock import patch, AsyncMock, Mock
 from app.db.models import JobModel
 from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_approved
 from app.modules.llm.visual_spec import BatchVisualSpec, VisualSpecResult
+from app.schemas.spec import AnimaComposerSpec, AnimaBackground
+
+dummy_spec = AnimaComposerSpec(
+    background=AnimaBackground(color="#000000"),
+    layers=[]
+)
 
 @pytest.fixture
 def sample_script():
@@ -56,7 +62,7 @@ def mock_external_services(tmp_path):
         return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 5.0, "word_timestamps": []},
     ) as mock_tts, patch(
         "app.modules.pipeline.orchestrator.generate_scene_composer",
-        new_callable=AsyncMock
+        return_value=dummy_spec
     ) as mock_component, patch(
         "app.modules.pipeline.orchestrator.render_single_scene",
         return_value="http://test/scene.mp4",
@@ -196,7 +202,7 @@ class TestPipelineIdempotency:
             return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 3.0, "word_timestamps": []},
         ), patch(
             "app.modules.pipeline.orchestrator.generate_scene_composer",
-            new_callable=AsyncMock
+            return_value=dummy_spec
         ), patch(
             "app.modules.pipeline.orchestrator.render_single_scene",
             return_value="http://test/scene.mp4",
