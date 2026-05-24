@@ -59,7 +59,7 @@ class AnimValueAnimation(BaseModel):
     spring_config: Optional[SpringConfig] = Field(default=None, alias="springConfig")
 
 
-AnimValue = Union[float, AnimValueAnimation]
+AnimValue = float
 
 
 class AnimaBackground(BaseModel):
