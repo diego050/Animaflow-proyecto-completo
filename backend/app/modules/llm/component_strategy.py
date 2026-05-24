@@ -56,7 +56,12 @@ COMPONENTES DISPONIBLES (Standard Library):
 INSTRUCCIONES:
 Debes generar un JSON válido que describa el 'background' y una lista de 'layers'.
 Puedes combinar componentes de la Standard Library usando type: "component". 
-Aprovecha al máximo los componentes de la Standard Library pasándoles propiedades ("props").
+
+REGLAS DE ORO PARA EL DISEÑO:
+1. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
+2. **COHERENCIA TEMÁTICA ESTRICTA:** Solo elige componentes de la Standard Library si tienen una relación DIRECTA y LÓGICA con el guion. Si el video es un documental sobre peces, NO uses un "SubscribeButton" o "TinderSwipeCard". Usa tu juicio semántico: si no encaja perfecto con la vibra de la escena, no lo uses.
+3. **CREA DESDE CERO CON PRIMITIVAS:** No te limites solo a componentes prefabricados. Si la escena requiere algo único (como un marco, un contenedor de texto, o un adorno), CRÉALO tú mismo combinando capas primitivas (`rect`, `circle`, `text`, `group`) con animaciones (ej. `entry: "slide-up"`, `scale: {{"from": 0, "to": 1}}`). Mezcla primitivas y componentes.
+4. El texto hablado principal DEBE aparecer en pantalla de manera legible. Pásalo a tu componente de texto o primitiva de texto usando `"text": "{{text}}"`.
 
 Ejemplo de JSON esperado:
 {{
@@ -74,8 +79,9 @@ Ejemplo de JSON esperado:
       "type": "component",
       "componentName": "TextReveal",
       "text": "{{text}}", 
-      "fontSize": 80, 
-      "color": "#ffffff"
+      "fontSize": 60, 
+      "color": "#ffffff",
+      "y": -100
     }},
     {{
       "type": "particles",
@@ -86,10 +92,7 @@ Ejemplo de JSON esperado:
 }}
 
 IMPORTANTE: 
-- El texto hablado principal debe representarse idealmente con "{{text}}" en algún componente de texto o usar primitivas text.
-- Usa type: "component" siempre que un componente de la librería sirva (ej. TextReveal, Typewriter, ProductCardReveal).
-- Puedes apilar múltiples componentes.
-- Si un componente necesita propiedades adicionales (como speed, color, textColor, url), pásalas directamente como propiedades de la capa, en el mismo nivel que "type" y "componentName". La propiedad "props" NO existe.
+- Si un componente necesita propiedades adicionales (como speed, color, textColor, url, x, y), pásalas directamente como propiedades de la capa, en el mismo nivel que "type" y "componentName". La propiedad "props" NO existe.
 DEVUELVE SOLO JSON VALIDO, SIN MARKDOWN."""
 
 
