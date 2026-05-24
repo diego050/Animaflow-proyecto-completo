@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import type { ApiKeyProvider } from '../../types/auth';
 import { PROVIDER_LABELS } from '../../types/auth';
 
-const ALL_PROVIDERS: ApiKeyProvider[] = ['gemini', 'anthropic', 'openai', 'grok'];
+const ALL_PROVIDERS: ApiKeyProvider[] = ['gemini', 'anthropic', 'openai', 'grok', 'groq'];
 
 export function ApiKeysSection() {
   const { apiKeys, fetchApiKeys, createApiKey, deleteApiKey } = useAuthStore();

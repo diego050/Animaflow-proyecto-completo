@@ -309,8 +309,8 @@ export function NewProjectWizard() {
             <WizardStepProcessing 
               status={selectedJob?.status} 
               jobId={selectedJob?.job_id}
-              title="Renderizando Video Final"
-              description="Nuestros motores están uniendo todas las escenas para exportar tu proyecto. Esto puede demorar unos minutos."
+              title="Generando Previsualización"
+              description="Nuestros motores están construyendo los componentes visuales y el audio. Una vez completado, podrás ver el resultado y editarlo antes de renderizar el MP4."
             />
           </motion.div>
         )}
