@@ -128,12 +128,82 @@ def generate_scene_composer(
     try:
         client = genai.Client(api_key=api_key)
 
+        gemini_schema = {
+            "type": "OBJECT",
+            "properties": {
+                "version": {"type": "STRING"},
+                "background": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "type": {"type": "STRING"},
+                        "colors": {"type": "ARRAY", "items": {"type": "STRING"}},
+                        "angle": {"type": "NUMBER"},
+                        "center": {"type": "ARRAY", "items": {"type": "NUMBER"}}
+                    },
+                    "required": ["type", "colors"]
+                },
+                "layers": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "id": {"type": "STRING"},
+                            "type": {"type": "STRING"},
+                            "componentName": {"type": "STRING"},
+                            "x": {"type": "NUMBER"},
+                            "y": {"type": "NUMBER"},
+                            "scale": {"type": "NUMBER"},
+                            "rotation": {"type": "NUMBER"},
+                            "opacity": {"type": "NUMBER"},
+                            "width": {"type": "NUMBER"},
+                            "height": {"type": "NUMBER"},
+                            "borderRadius": {"type": "NUMBER"},
+                            "fill": {"type": "STRING"},
+                            "stroke": {"type": "STRING"},
+                            "strokeWidth": {"type": "NUMBER"},
+                            "r": {"type": "NUMBER"},
+                            "pathData": {"type": "STRING"},
+                            "text": {"type": "STRING"},
+                            "fontSize": {"type": "NUMBER"},
+                            "fontWeight": {"type": "NUMBER"},
+                            "letterSpacing": {"type": "NUMBER"},
+                            "textAlign": {"type": "STRING"},
+                            "src": {"type": "STRING"},
+                            "fit": {"type": "STRING"},
+                            "count": {"type": "INTEGER"},
+                            "shape": {"type": "STRING"},
+                            "spread": {"type": "NUMBER"},
+                            "colors": {"type": "ARRAY", "items": {"type": "STRING"}},
+                            "entry": {"type": "STRING"},
+                            "entryDelay": {"type": "NUMBER"},
+                            "filter": {"type": "STRING"},
+                            "color": {"type": "STRING"},
+                            "color1": {"type": "STRING"},
+                            "color2": {"type": "STRING"},
+                            "bgColor": {"type": "STRING"},
+                            "textColor": {"type": "STRING"},
+                            "speed": {"type": "NUMBER"},
+                            "delay": {"type": "NUMBER"},
+                            "intensity": {"type": "NUMBER"},
+                            "theme": {"type": "STRING"},
+                            "url": {"type": "STRING"},
+                            "query": {"type": "STRING"},
+                            "animation": {"type": "STRING"},
+                            "lineWidth": {"type": "NUMBER"}
+                        },
+                        "required": ["type"]
+                    }
+                }
+            },
+            "required": ["background", "layers"]
+        }
+
         response = client.models.generate_content(
             model=model,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                response_schema=AnimaComposerSpec,
+                response_schema=gemini_schema,
                 temperature=0.3,
             ),
         )
