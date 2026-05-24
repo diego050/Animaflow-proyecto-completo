@@ -242,7 +242,7 @@ def run_pipeline(
                 
                 # 2. Segmentación lógica con timestamps exactos (o fallback si no hay)
                 if word_timestamps:
-                    scenes_data = split_by_timestamps(word_timestamps)
+                    scenes_data = split_by_timestamps(word_timestamps, script_text=script_text)
                 else:
                     logger.warning("No word_timestamps returned by TTS (mock/test env). Falling back to text-based splitting.")
                     chunks_text = split_text_into_chunks(script_text)
