@@ -42,6 +42,7 @@ class JobCreate(BaseModel):
     design_md: Optional[str] = Field(default=None, description="Optional design.md content for custom visual instructions")
     system_prompt: Optional[str] = Field(default=None, description="Optional custom system prompt for LLM visual generation")
     animation_only: bool = Field(default=False, description="If true, skips TTS and Audio alignment")
+    model: Optional[str] = Field(default=None, description="Optional LLM model override")
 
 class JobDraftRequest(BaseModel):
     draft_data: Dict[str, Any]

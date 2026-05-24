@@ -54,6 +54,7 @@ async def create_job(
         aspect_ratio=job_in.aspect_ratio,
         tts_provider=job_in.tts_provider,
         tts_voice_id=job_in.tts_voice_id,
+        llm_model=job_in.model,
     )
     db.add(new_job)
     db.commit()
@@ -279,6 +280,7 @@ async def reformat_job(
         tts_provider=job.tts_provider,
         tts_voice_id=job.tts_voice_id,
         parent_job_id=job.id,
+        llm_model=job.llm_model,
     )
     db.add(new_job)
     db.commit()

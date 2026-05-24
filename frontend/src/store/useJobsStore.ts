@@ -279,6 +279,8 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   },
 
   startPolling: (jobId: string) => {
+    if (get().pollingJobId === jobId) return;
+    
     get().stopPolling();
     set({ pollingJobId: jobId });
 

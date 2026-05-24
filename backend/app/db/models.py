@@ -95,6 +95,7 @@ class JobModel(Base):
     parent_job_id = Column(String(36), ForeignKey("jobs.id"), nullable=True, index=True)
     tts_provider = Column(String(50), nullable=True, default="local_piper")
     tts_voice_id = Column(String(100), nullable=True, default="es_ES-carlfm-x_low")
+    llm_model = Column(String(100), nullable=True)
 
     user = relationship("User", back_populates="jobs")
 

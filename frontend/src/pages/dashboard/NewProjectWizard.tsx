@@ -127,24 +127,26 @@ export function NewProjectWizard() {
   ]);
 
   // Auto-advance based on job status
-  if (selectedJob) {
-    const status = selectedJob.status;
-    if (wizardStep === 3) {
-      if (status === 'segmented') {
-        setWizardStep(4);
-      } else if (status === 'completed' || status === 'completed_video') {
-        setWizardStep(6);
-      } else if (status === 'failed' || status === 'failed_render') {
-        setWizardStep(6);
-      }
-    } else if (wizardStep === 5) {
-      if (status === 'completed' || status === 'completed_video') {
-        setWizardStep(6);
-      } else if (status === 'failed' || status === 'failed_render') {
-        setWizardStep(6);
+  useEffect(() => {
+    if (selectedJob) {
+      const status = selectedJob.status;
+      if (wizardStep === 3) {
+        if (status === 'segmented') {
+          setWizardStep(4);
+        } else if (status === 'completed' || status === 'completed_video') {
+          setWizardStep(6);
+        } else if (status === 'failed' || status === 'failed_render') {
+          setWizardStep(6);
+        }
+      } else if (wizardStep === 5) {
+        if (status === 'completed' || status === 'completed_video') {
+          setWizardStep(6);
+        } else if (status === 'failed' || status === 'failed_render') {
+          setWizardStep(6);
+        }
       }
     }
-  }
+  }, [selectedJob?.status, wizardStep, setWizardStep]);
 
   const handleApproveScenes = async (scenes: Array<{
     text: string;

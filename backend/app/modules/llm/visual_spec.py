@@ -33,6 +33,7 @@ def generate_batch_visuals_with_llm(
     user_id: Optional[str] = None,
     design_md: Optional[str] = None,
     system_prompt: Optional[str] = None,
+    llm_model_override: Optional[str] = None,
 ) -> BatchVisualSpec:
     """Usa Gemini para generar un arreglo de escenas visuales para cada bloque de texto."""
     from app.core.config import settings
@@ -41,7 +42,7 @@ def generate_batch_visuals_with_llm(
 
     creds = resolve_llm_credentials(user_id)
     api_key = creds.api_key
-    model = creds.model
+    model = llm_model_override or creds.model or settings.GEMINI_MODEL
 
     if not api_key:
         logger.warning("GEMINI_API_KEY no encontrada. Fallback a escenas genéricas.")
@@ -109,7 +110,7 @@ Responde SOLO con JSON válido.
             try:
                 response = _call_llm_sync(
                     client,
-                    model=settings.GEMINI_MODEL,
+                    model=model,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
