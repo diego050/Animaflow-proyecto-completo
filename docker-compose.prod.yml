@@ -50,8 +50,8 @@ services:
 
   render-server:
     build:
-      context: ./servers
-      dockerfile: Dockerfile.render-server
+      context: ./
+      dockerfile: ./servers/Dockerfile.render-server
     ports:
       - "127.0.0.1:3001:3001"
     volumes:
