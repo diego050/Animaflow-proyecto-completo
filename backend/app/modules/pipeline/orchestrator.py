@@ -111,30 +111,19 @@ async def _process_chunks_async(
         
         logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
         
-        # Pasamos los word_timestamps a la generación de componente
-        component_type_name, q_status, anima_composer_json, generated_tsx = await decide_and_generate_component(
-            scene_index=i, 
-            visual_spec=visual_spec, 
-            text=scene["text"], 
-            duration=scene["duration_seconds"], 
-            job_id=job_id, 
-            aspect_ratio=aspect_ratio, 
-            user_id=user_id,
-            word_timestamps=scene.get("word_timestamps", []),
-            previous_scene_tsx=previous_scene_tsx
+        groq_api_key = _get_user_api_key(user_id, "groq", SessionLocal())
+        api_key = groq_api_key or os.getenv("GROQ_API_KEY") or ""
+        
+        composer_spec = generate_scene_composer(
+            text=scene.get("text", ""),
+            media_query=scene.get("media_query", ""),
+            api_key=api_key,
+            model="gemini-2.0-flash"
         )
         
-        if generated_tsx:
-            previous_scene_tsx = generated_tsx
-        
-        if i < len(timeline_scenes) - 1:
-            await asyncio.sleep(4)
-
-        scene["type"] = component_type_name
-        scene["quality_status"] = q_status
-        scene["anima_composer"] = anima_composer_json
-
-    write_index_ts(job_id, timeline_scenes, user_id)
+        scene["type"] = "custom"
+        scene["quality_status"] = "passed"
+        scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
     return timeline_scenes
 
 
