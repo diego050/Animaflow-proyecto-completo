@@ -240,8 +240,25 @@ def run_pipeline(
                 global_audio_path = tts_result["audio_path"]
                 word_timestamps = tts_result["word_timestamps"]
                 
-                # 2. Segmentación lógica con timestamps exactos
-                scenes_data = split_by_timestamps(word_timestamps)
+                # 2. Segmentación lógica con timestamps exactos (o fallback si no hay)
+                if word_timestamps:
+                    scenes_data = split_by_timestamps(word_timestamps)
+                else:
+                    logger.warning("No word_timestamps returned by TTS (mock/test env). Falling back to text-based splitting.")
+                    chunks_text = split_text_into_chunks(script_text)
+                    scenes_data = []
+                    current_start = 0.0
+                    for chunk in chunks_text:
+                        duration = max(3.0, len(chunk.split()) / 2.17)
+                        scenes_data.append({
+                            "text": chunk,
+                            "start_time_seconds": current_start,
+                            "end_time_seconds": current_start + duration,
+                            "duration_seconds": duration,
+                            "word_timestamps": []
+                        })
+                        current_start += duration
+                
                 chunks = [s["text"] for s in scenes_data]
                 
                 # Pre-cortar los audios para cada escena (Backward compatibility)
