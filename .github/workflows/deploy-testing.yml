@@ -30,10 +30,10 @@ jobs:
             
             # Rebuild and restart services with Docker
             docker compose -f docker-compose.prod.yml pull
-            # Rebuild only services that change frequently (skip worker-render, it's heavy)
-            docker compose -f docker-compose.prod.yml up -d --build api worker-default frontend
-            # Ensure worker-render is running (rebuild to pick up Dockerfile changes)
-            docker compose -f docker-compose.prod.yml up -d --build worker-render
+            # Rebuild only services that change frequently
+            docker compose -f docker-compose.prod.yml up -d --build api frontend
+            # Ensure render-server is running
+            docker compose -f docker-compose.prod.yml up -d --build render-server
             
             # Wait for Postgres to be ready
             echo "Waiting for Postgres to be ready..."
