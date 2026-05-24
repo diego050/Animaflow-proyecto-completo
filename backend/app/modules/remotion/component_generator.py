@@ -67,14 +67,18 @@ async def decide_and_generate_component(
         )
 
         if strategy.mode == "component":
+            # Para asegurar fondos animados y composiciones complejas,
+            # obligamos a usar el generador TSX aunque el LLM haya elegido un componente base.
             logger.info(
-                "Scene %d: Using Standard Library component '%s' (confidence: %.2f)",
+                "Scene %d: LLM suggested '%s', generating full TSX for rich animation...",
                 scene_index,
                 strategy.component_name,
-                strategy.confidence,
                 extra={"job_id": job_id},
             )
-            return strategy.component_name, "passed", None
+            component_name, q_status = await generate_remotion_component(
+                scene_index, visual_spec, text, duration, job_id, aspect_ratio, user_id
+            )
+            return component_name, q_status, None
 
         # mode == "custom"
         logger.info(
