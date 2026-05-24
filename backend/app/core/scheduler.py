@@ -14,7 +14,7 @@ from app.modules.pipeline.orchestrator import (
 )
 
 logger = get_logger("scheduler")
-render_adapter = RenderAdapter()
+render_adapter = RenderAdapter(render_server_url=settings.RENDER_SERVER_URL)
 
 class Scheduler:
     def __init__(self):

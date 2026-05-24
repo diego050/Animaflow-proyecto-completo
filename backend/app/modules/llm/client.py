@@ -106,3 +106,36 @@ async def _call_gemini_with_retry(
 
             logger.exception("LLM call failed after %d attempts", attempt + 1)
             raise
+
+
+async def _send_chat_message_with_retry(
+    chat, prompt: str, max_retries: int = 3
+):
+    """
+    Envía un mensaje a una sesión de chat de Gemini con reintentos automáticos para errores transitorios.
+    """
+    for attempt in range(max_retries):
+        try:
+            response = await chat.send_message(prompt)
+            return response
+        except Exception as e:
+            error_str = str(e)
+            is_retryable = any(
+                code in error_str
+                for code in ["429", "500", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL"]
+            )
+
+            if is_retryable and attempt < max_retries - 1:
+                wait_time = 3 * (2**attempt)
+                logger.warning(
+                    "Error transitorio en chat (%s...). Reintentando en %ds (intento %d/%d)",
+                    error_str[:60],
+                    wait_time,
+                    attempt + 1,
+                    max_retries,
+                )
+                await asyncio.sleep(wait_time)
+                continue
+
+            logger.exception("LLM chat message failed after %d attempts", attempt + 1)
+            raise
