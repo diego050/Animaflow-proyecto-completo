@@ -29,7 +29,7 @@ export const useDesignTemplatesStore = create<DesignTemplatesState>((set) => ({
     try {
       const templates = await api.get<DesignTemplate[]>('/api/design-templates');
       set({ templates, loading: false });
-    } catch (error: unknown) {
+    } catch (error: any) {
       set({ error: error.message, loading: false });
     }
   },
@@ -40,7 +40,7 @@ export const useDesignTemplatesStore = create<DesignTemplatesState>((set) => ({
       const newTemplate = await api.post<DesignTemplate>('/api/design-templates', { name, content });
       set((state) => ({ templates: [...state.templates, newTemplate], loading: false }));
       return newTemplate;
-    } catch (error: unknown) {
+    } catch (error: any) {
       set({ error: error.message, loading: false });
       throw error;
     }
@@ -55,7 +55,7 @@ export const useDesignTemplatesStore = create<DesignTemplatesState>((set) => ({
         loading: false,
       }));
       return updatedTemplate;
-    } catch (error: unknown) {
+    } catch (error: any) {
       set({ error: error.message, loading: false });
       throw error;
     }
@@ -69,7 +69,7 @@ export const useDesignTemplatesStore = create<DesignTemplatesState>((set) => ({
         templates: state.templates.filter((t) => t.id !== id),
         loading: false,
       }));
-    } catch (error: unknown) {
+    } catch (error: any) {
       set({ error: error.message, loading: false });
       throw error;
     }
