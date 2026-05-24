@@ -61,10 +61,37 @@ def split_by_timestamps(
         
         scenes.append({
             "text": chunk,
-            "start_time_seconds": round(scene_start, 3),
-            "end_time_seconds": round(scene_end, 3),
-            "duration_seconds": round(scene_end - scene_start, 3),
+            "core_start": scene_start,
+            "core_end": scene_end,
             "word_timestamps": chunk_wts
         })
+
+    # Ahora hacemos una segunda pasada para asegurar que los tiempos sean contiguos 
+    # y no se pierda el silencio entre escenas ni al principio/final.
+    if not scenes:
+        return []
+        
+    for i, scene in enumerate(scenes):
+        if i == 0:
+            start_time = 0.0
+        else:
+            # El inicio de esta escena es exactamente el final de la anterior
+            start_time = scenes[i - 1]["end_time_seconds"]
+            
+        if i == len(scenes) - 1:
+            # La última escena toma todo el silencio hasta el final del audio (le damos un margen generoso)
+            end_time = scene["core_end"] + 1.5 
+        else:
+            # El final de esta escena es exactamente en el medio del silencio entre esta escena y la siguiente
+            next_start = scenes[i + 1]["core_start"]
+            end_time = (scene["core_end"] + next_start) / 2.0
+            
+            # Si se solapan los timestamps (susurros rápidos), cortamos justo en el inicio de la siguiente
+            if end_time < scene["core_end"]:
+                end_time = next_start
+                
+        scene["start_time_seconds"] = round(start_time, 3)
+        scene["end_time_seconds"] = round(end_time, 3)
+        scene["duration_seconds"] = round(end_time - start_time, 3)
 
     return scenes
