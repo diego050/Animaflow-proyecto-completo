@@ -177,4 +177,5 @@ Cualquier cambio a spec.json requiere:
 3. Migración script para datos existentes
 4. Documentación en /docs/adr/ 
 
+
  
