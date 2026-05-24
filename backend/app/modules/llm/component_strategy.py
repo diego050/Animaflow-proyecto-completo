@@ -133,7 +133,7 @@ def generate_scene_composer(
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                response_schema=AnimaComposerSpec.model_json_schema(),
+                response_schema=AnimaComposerSpec,
                 temperature=0.3,
             ),
         )
