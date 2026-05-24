@@ -31,6 +31,70 @@ def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]
     return key_entry.api_key if key_entry else None
 
 
+def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
+    """Fase 2+3: Enriquecimiento y renderizado sincrónico (backward-compatible wrapper).
+    
+    Llama a run_pipeline_enrichment y luego renderiza cada escena.
+    Útil para tests y flujos sincrónicos; en producción el scheduler maneja
+    el renderizado vía SSE.
+    """
+    with get_db_context() as db:
+        job = db.query(JobModel).filter(JobModel.id == job_id).first()
+        if not job:
+            logger.warning("Job %s not found in approved pipeline", job_id)
+            return
+
+        if job.status not in ["segmented", "pending"]:
+            logger.warning(
+                "Job %s is in status '%s', expected 'segmented' or 'pending'",
+                job_id, job.status,
+            )
+            return
+
+        # Phase 2: Enrichment (reutiliza la función existente)
+        run_pipeline_enrichment(
+            job_id=job_id,
+            user_id=user_id,
+        )
+        db.refresh(job)
+
+        if job.status != "queued_render":
+            return
+
+        # Phase 3: Render sincrónico
+        try:
+            spec = job.result_spec
+            if not spec or not spec.get("scenes"):
+                job.status = "failed"
+                job.error_message = "No scenes to render"
+                db.commit()
+                return
+
+            timeline_scenes = spec["scenes"]
+            aspect_ratio = spec.get("aspect_ratio", "9:16")
+
+            video_paths = []
+            for i, scene in enumerate(timeline_scenes):
+                video_path = render_single_scene(
+                    job_id, i, scene, aspect_ratio, user_id
+                )
+                video_paths.append(video_path)
+
+            output_path = concat_scenes(video_paths, job_id, user_id)
+            job.video_url = output_path
+            job.status = "completed"
+            db.commit()
+
+        except Exception as e:
+            logger.exception(
+                "Approved pipeline render failed: %s", e,
+                extra={"job_id": job_id},
+            )
+            job.status = "failed"
+            job.error_message = str(e)
+            db.commit()
+
+
 async def _process_chunks_async(
     job_id: str,
     chunks: list[str],
