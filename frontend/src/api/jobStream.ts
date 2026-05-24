@@ -53,8 +53,7 @@ export function subscribeToJob(jobId: string, callbacks: StreamCallbacks) {
         try {
           const data = JSON.parse(messageEvent.data);
           if (data.error) {
-            errorMessage = data.error;
-            callbacks.onError(errorMessage);
+            callbacks.onError(data.error);
             close();
             return;
           }
