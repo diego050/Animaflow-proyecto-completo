@@ -112,14 +112,22 @@ async def _process_chunks_async(
         
         logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
         
-        gemini_api_key = _get_user_api_key(user_id, "gemini", SessionLocal())
-        api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
+        from app.modules.llm.resolver import resolve_llm_credentials
+        
+        try:
+            creds = resolve_llm_credentials(user_id, provider_override="gemini")
+            api_key = creds.api_key
+            model_to_use = creds.model
+        except Exception:
+            gemini_api_key = _get_user_api_key(user_id, "gemini", SessionLocal())
+            api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
+            model_to_use = llm_model
         
         composer_spec = generate_scene_composer(
             text=scene.get("text", ""),
             media_query=scene.get("media_query", ""),
             api_key=api_key,
-            model=llm_model
+            model=model_to_use
         )
         
         scene["type"] = "custom"
@@ -155,14 +163,22 @@ async def _regenerate_components_for_reformat(
             backgroundColor=remotion_props.get("backgroundColor", "#0f172a"),
             textColor=remotion_props.get("textColor", "#38bdf8"),
         )
-        gemini_api_key = _get_user_api_key(user_id, "gemini", SessionLocal())
-        api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
+        from app.modules.llm.resolver import resolve_llm_credentials
+        
+        try:
+            creds = resolve_llm_credentials(user_id, provider_override="gemini")
+            api_key = creds.api_key
+            model_to_use = creds.model
+        except Exception:
+            gemini_api_key = _get_user_api_key(user_id, "gemini", SessionLocal())
+            api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
+            model_to_use = llm_model
         
         composer_spec = generate_scene_composer(
             text=scene.get("text", ""),
             media_query=scene.get("media_query", ""),
             api_key=api_key,
-            model=llm_model
+            model=model_to_use
         )
         
         scene["type"] = "custom"
