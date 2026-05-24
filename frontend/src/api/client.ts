@@ -45,7 +45,14 @@ export async function apiFetch<T>(
         throw new Error('Session expired');
       }
       const data = await response.json().catch(() => ({}));
-      throw new Error(data.detail || `API error: ${response.status}`);
+      
+      // Handle FastAPI validation error array
+      let errorMessage = data.detail;
+      if (Array.isArray(data.detail)) {
+        errorMessage = data.detail.map((e: any) => e.msg).join(', ');
+      }
+      
+      throw new Error(errorMessage || `API error: ${response.status}`);
     }
 
     // Handle no-content responses
@@ -95,7 +102,14 @@ export async function apiUpload<T>(
         throw new Error('Session expired');
       }
       const data = await response.json().catch(() => ({}));
-      throw new Error(data.detail || `API error: ${response.status}`);
+      
+      // Handle FastAPI validation error array
+      let errorMessage = data.detail;
+      if (Array.isArray(data.detail)) {
+        errorMessage = data.detail.map((e: any) => e.msg).join(', ');
+      }
+      
+      throw new Error(errorMessage || `API error: ${response.status}`);
     }
 
     if (response.status === 204) return {} as T;
