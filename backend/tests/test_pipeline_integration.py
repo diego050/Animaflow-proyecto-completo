@@ -13,7 +13,7 @@ from app.modules.llm.visual_spec import BatchVisualSpec, VisualSpecResult
 from app.schemas.spec import AnimaComposerSpec, AnimaBackground
 
 dummy_spec = AnimaComposerSpec(
-    background=AnimaBackground(color="#000000"),
+    background=AnimaBackground(type="solid", colors=["#000000"]),
     layers=[]
 )
 
