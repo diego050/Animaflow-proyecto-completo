@@ -519,11 +519,12 @@ def run_pipeline_enrichment(
             # Regenerar index.ts sin los archivos eliminados
             write_index_ts(job_id, timeline_scenes, user_id)
 
-            # Encolar para la Fase 3: Renderizado
+            # Fase 2 finalizada, se puede previsualizar en Remotion.
+            # El renderizado a MP4 ahora es a demanda del usuario.
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
             job.result_spec = final_spec
             flag_modified(job, "result_spec")
-            job.status = "queued_render"
+            job.status = "completed"
             db.commit()
 
         except Exception as e:

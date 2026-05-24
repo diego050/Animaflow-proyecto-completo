@@ -62,7 +62,7 @@ export interface VoicePreviewResponse {
 // API Keys & LLM Settings — matches backend Pydantic schemas 1:1
 // ---------------------------------------------------------------------------
 
-export type ApiKeyProvider = 'gemini' | 'openai' | 'anthropic' | 'grok';
+export type ApiKeyProvider = 'gemini' | 'openai' | 'anthropic' | 'grok' | 'groq';
 
 export interface ApiKeyEntry {
   id: string;
@@ -123,4 +123,5 @@ export const PROVIDER_LABELS: Record<ApiKeyProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Claude',
   grok: 'Grok',
+  groq: 'Groq',
 };
