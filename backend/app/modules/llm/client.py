@@ -9,34 +9,55 @@ LLM_TIMEOUT = 580  # Justo debajo del timeout de RQ (600s)
 
 
 def _call_llm_sync(
-    client, model: str, contents: str, config=None, label: str = "LLM"
+    client, model: str, contents: str, config=None, label: str = "LLM", max_retries: int = 3
 ):
     """
-    Ejecuta una llamada síncrona a Gemini.
+    Ejecuta una llamada síncrona a Gemini con reintentos automáticos para errores transitorios.
     Usa directamente el cliente sincrónico para evitar problemas de "Event loop is closed"
     al llamar varias veces en la misma función.
     """
+    import time
     logger.info("Llamando a Gemini (model=%s)...", model, extra={"label": label})
 
-    try:
-        if config is not None:
-            response = client.models.generate_content(
-                model=model, contents=contents, config=config
+    for attempt in range(max_retries):
+        try:
+            if config is not None:
+                response = client.models.generate_content(
+                    model=model, contents=contents, config=config
+                )
+            else:
+                response = client.models.generate_content(
+                    model=model, contents=contents
+                )
+                
+            logger.info(
+                "Respuesta recibida (%d chars)",
+                len(response.text) if response.text else 0,
+                extra={"label": label},
             )
-        else:
-            response = client.models.generate_content(
-                model=model, contents=contents
+            return response
+        except Exception as e:
+            error_str = str(e)
+            is_retryable = any(
+                code in error_str
+                for code in ["429", "500", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL"]
             )
-            
-        logger.info(
-            "Respuesta recibida (%d chars)",
-            len(response.text) if response.text else 0,
-            extra={"label": label},
-        )
-        return response
-    except Exception as e:
-        logger.error("Error en llamada síncrona a Gemini: %s", str(e), extra={"label": label})
-        raise
+
+            if is_retryable and attempt < max_retries - 1:
+                wait_time = 3 * (2**attempt)
+                logger.warning(
+                    "Error transitorio en llamada síncrona (%s...). Reintentando en %ds (intento %d/%d)",
+                    error_str[:60],
+                    wait_time,
+                    attempt + 1,
+                    max_retries,
+                    extra={"label": label}
+                )
+                time.sleep(wait_time)
+                continue
+
+            logger.error("Error en llamada síncrona a Gemini: %s", str(e), extra={"label": label})
+            raise
 
 
 async def _call_gemini_with_retry(
