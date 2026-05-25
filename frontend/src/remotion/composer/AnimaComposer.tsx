@@ -202,7 +202,7 @@ function renderSingleLayer(
 
       // Envolver con entry si no hay soporte nativo
       element = (
-        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
           {element}
         </AnimatedWrapper>
       );
@@ -240,7 +240,7 @@ function renderSingleLayer(
 
       // Entry wrapper
       element = (
-        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
           {element}
         </AnimatedWrapper>
       );
@@ -276,7 +276,7 @@ function renderSingleLayer(
       );
 
       element = (
-        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
           {element}
         </AnimatedWrapper>
       );
@@ -340,7 +340,7 @@ function renderSingleLayer(
       );
 
       element = (
-        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
           {element}
         </AnimatedWrapper>
       );
@@ -369,7 +369,7 @@ function renderSingleLayer(
       );
 
       element = (
-        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
           {element}
         </AnimatedWrapper>
       );
@@ -398,7 +398,7 @@ function renderSingleLayer(
       );
 
       element = (
-        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
           {element}
         </AnimatedWrapper>
       );
@@ -434,7 +434,7 @@ function renderSingleLayer(
       element = <ComponentToRender {...mergedProps} />;
 
       element = (
-        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
           {element}
         </AnimatedWrapper>
       );
