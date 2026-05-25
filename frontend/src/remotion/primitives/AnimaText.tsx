@@ -240,8 +240,8 @@ export const AnimaText: React.FC<AnimaTextProps> = ({
   // -----------------------------------------------------------------------
   const style: React.CSSProperties = {
     position: 'absolute',
-    left: resolvedX,
-    top: resolvedY,
+    left: `calc(50% + ${resolvedX}px)`,
+    top: `calc(50% + ${resolvedY}px)`,
     fontSize,
     fontWeight,
     color,

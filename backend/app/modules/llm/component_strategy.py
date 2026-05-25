@@ -5,6 +5,8 @@ El LLM evalúa cada escena y decide cómo animarla usando una combinación
 de componentes de la Standard Library y primitivas básicas.
 Todo se retorna como un AnimaComposerSpec válido.
 """
+import json
+import re
 from typing import Any
 from google import genai
 from google.genai import types
@@ -12,6 +14,11 @@ from app.core.logging import get_logger
 from app.schemas.spec import AnimaComposerSpec, AnimaBackground, AnimaLayer
 
 logger = get_logger("llm.strategy")
+
+
+def _sanitize_llm_json(raw: str) -> str:
+    """Truncate numbers with excessive decimal places from LLM output."""
+    return re.sub(r'(\d+\.\d{6})\d+', r'\1', raw)
 
 
 # ── Canvas dimensions helper ─────────────────────────────────────────────────
@@ -417,6 +424,9 @@ def generate_scene_composer(
         logger.info("Generated AnimaComposerSpec for scene.")
         # Retornamos parseando a nuestro modelo Pydantic para validar
         try:
+            if isinstance(result, str):
+                result = _sanitize_llm_json(result)
+                result = json.loads(result)
             if isinstance(result, dict):
                 return AnimaComposerSpec(**result)
             else:

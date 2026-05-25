@@ -100,7 +100,7 @@ export const AnimaPath: React.FC<AnimaPathProps> = ({
   // Construir transform: la posición se aplica como translate para que
   // el path pueda dibujarse en coordenadas absolutas sin re-posicionarlo.
   const transform = [
-    `translate(${resolvedX}px, ${resolvedY}px)`,
+    `translate(calc(50% + ${resolvedX}px), calc(50% + ${resolvedY}px))`,
     `scale(${resolvedScale})`,
     `rotate(${resolvedRotation}deg)`,
   ].join(' ');

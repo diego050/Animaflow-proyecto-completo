@@ -110,8 +110,8 @@ export const AnimaRect: React.FC<AnimaRectProps> = ({
   // Construir estilos inline — sin Tailwind, sin Framer Motion
   const style: React.CSSProperties = {
     position: 'absolute',
-    left: resolvedX,
-    top: resolvedY,
+    left: `calc(50% + ${resolvedX}px)`,
+    top: `calc(50% + ${resolvedY}px)`,
     width,
     height,
     backgroundColor: fill,
