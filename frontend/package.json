@@ -12,6 +12,7 @@
     "generate:index": "tsx scripts/generate-index.ts"
   },
   "dependencies": {
+    "remotion-animated": "^1.0.0",
     "@remotion/cli": "^4.0.459",
     "@remotion/player": "^4.0.459",
     "@tailwindcss/postcss": "^4.3.0",

@@ -163,7 +163,7 @@ Debes generar un JSON válido que describa el 'background' y una lista de 'layer
 Puedes usar componentes de la lista anterior usando type: "component" y componentName: "NOMBRE_EXACTO".
 
 REGLAS DE ORO PARA EL DISEÑO:
-1. **CREA DESDE CERO CON PRIMITIVAS:** No te limites solo a componentes prefabricados. Si la escena requiere algo único (como un marco, un contenedor de texto, o un adorno), CRÉALO tú mismo combinando capas primitivas (`rect`, `circle`, `text`, `group`) con animaciones (ej. `entry: "slide-up"`, `scale: {{"from": 0, "to": 1}}`). Mezcla primitivas y componentes.
+1. **CREA DESDE CERO CON PRIMITIVAS:** No te limites solo a componentes prefabricados. Si la escena requiere algo único (como un marco, un contenedor de texto, o un adorno), CRÉALO tú mismo combinando capas primitivas (`rect`, `circle`, `text`, `group`) con animaciones de entrada (ej. `entry: "slide-up"`). Mezcla primitivas y componentes.
 2. **COHERENCIA TEMÁTICA ESTRICTA:** Solo elige componentes de la Standard Library si tienen una relación DIRECTA y LÓGICA con el guion. Si el video es un documental sobre peces, NO uses un "SubscribeButton" o "TinderSwipeCard". Usa tu juicio semántico: si no encaja perfecto con la vibra de la escena, no lo uses.
 3. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
 4. El texto hablado principal DEBE aparecer en pantalla de manera legible. Pásalo a tu componente de texto o primitiva de texto usando `"text": "{{text}}"`.
@@ -221,6 +221,19 @@ Ejemplo de estructura JSON esperada:
     }}
   ]
 }}
+
+ANIMACIONES DE ENTRADA (entry):
+Usa la propiedad `entry` para animaciones de entrada simples. Valores válidos:
+- "fade-in": aparece gradualmente
+- "slide-up": entra desde abajo hacia arriba
+- "slide-down": entra desde arriba hacia abajo
+- "slide-left": entra desde la derecha hacia la izquierda
+- "slide-right": entra desde la izquierda hacia la derecha
+- "scale-in": aparece con efecto de escala
+- "spring-in": aparece con efecto de resorte
+- "bounce-in": aparece con efecto de rebote
+Opcionalmente agrega `entryDelay` (en segundos) para retrasar la animación.
+Ejemplo: `"entry": "slide-up", "entryDelay": 0.5`
 
 IMPORTANTE:
 - Si un componente necesita propiedades adicionales (como speed, color, textColor, url, x, y), pásalas directamente como propiedades de la capa, en el mismo nivel que "type" y "componentName". La propiedad "props" NO existe.
