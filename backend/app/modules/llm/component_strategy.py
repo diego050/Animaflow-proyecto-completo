@@ -221,7 +221,27 @@ def generate_scene_composer(
             label="LLM Component Strategy"
         )
 
+        # DEBUG: Log the raw text response
+        raw_text = response.text if response.text else "(empty)"
+        logger.info(
+            "RAW Gemini response for scene composer (%d chars): %s",
+            len(raw_text),
+            raw_text[:1500],
+        )
+
         result = response.parsed
+
+        # DEBUG: Log the parsed result
+        if result is not None:
+            result_str = str(result)
+            logger.info(
+                "Parsed result type: %s, length: %d, preview: %s",
+                type(result).__name__,
+                len(result_str),
+                result_str[:1500],
+            )
+        else:
+            logger.warning("response.parsed is None")
 
         if result is None:
             logger.warning("LLM returned empty response. Defaulting to fallback.")
