@@ -131,7 +131,7 @@ def generate_scene_composer(
     try:
         from app.modules.llm.client import _call_llm_sync
         # Configurar cliente con un timeout estricto de 120 segundos
-        client = genai.Client(api_key=api_key, http_options={'timeout': 120.0})
+        client = genai.Client(api_key=api_key)
 
         gemini_schema = {
             "type": "OBJECT",
