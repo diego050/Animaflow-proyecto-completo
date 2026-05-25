@@ -48,7 +48,17 @@ def _build_strategy_prompt(
 
 TEXTO DE LA ESCENA: "{text}"
 DESCRIPCION VISUAL: "{media_query}"
-TEMA VISUAL: Extrae el sujeto/objeto principal de la descripcion visual y úsalo como inspiración para crear primitivas custom (ej: si el tema es "peces", crea formas orgánicas con paths; si es "tecnología", crea líneas geométricas con rects).
+
+PASO 1 - IDENTIFICA EL SUJETO: Lee el texto y la descripción visual. ¿Cuál es el objeto/sujeto/tema principal de esta escena? (ej: un perro, una manzana, el dinero, un corazón, un planeta, etc.)
+
+PASO 2 - CREA UNA FORMA CUSTOM: Basándote en el sujeto identificado, crea AL MENOS UNA primitiva custom (usando type: "circle", "rect", "path", o "group") que represente visualmente ese sujeto. Piensa en formas simples pero reconocibles:
+- Si es un animal: usa círculos para huellas, paths para siluetas
+- Si es un objeto: usa rects y circles para su forma básica
+- Si es un concepto abstracto: usa formas geométricas que lo evoquen (flechas para progreso, círculos concéntricos para impacto, etc.)
+- Si es un alimento: usa formas orgánicas con paths curvos
+- Si es tecnología: usa líneas rectas, grids, círculos con radios
+
+No necesitas que sea perfecto, pero debe ser RECONOCIBLE y temáticamente relevante.
 
 Tienes acceso a primitivas básicas (rect, circle, image) y a componentes complejos de nuestra Standard Library.
 COMPONENTES DISPONIBLES (Standard Library):
@@ -64,7 +74,7 @@ REGLAS DE ORO PARA EL DISEÑO:
 3. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
 4. El texto hablado principal DEBE aparecer en pantalla de manera legible. Pásalo a tu componente de texto o primitiva de texto usando `"text": "{{text}}"`.
 
-REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path). No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
+REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path) que represente el sujeto principal de la escena. No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
 
 Ejemplo de estructura JSON esperada:
 {{

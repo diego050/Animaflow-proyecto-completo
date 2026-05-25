@@ -44,7 +44,7 @@ def split_by_timestamps(
             
             # Cortamos cuando hayamos acumulado el texto de este chunk
             # Usamos 90% de coincidencia para tolerar que Whisper omita alguna palabra
-            if len(accumulated) >= len(norm_chunk) * 0.95:
+            if len(accumulated) >= len(norm_chunk) * 0.98:
                 break
                 
         # Si es el último chunk, metemos cualquier timestamp sobrante por seguridad
@@ -83,7 +83,7 @@ def split_by_timestamps(
             end_time = scene["core_end"] + 1.5 
         else:
             # Use core_end + small buffer instead of midpoint to avoid cutting audio
-            end_time = scene["core_end"] + 0.4
+            end_time = scene["core_end"] + 0.8
             
             # If next scene starts before our buffer, use the gap midpoint as fallback
             next_start = scenes[i + 1]["core_start"]
