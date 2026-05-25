@@ -50,7 +50,7 @@ def infer_role(name: str) -> str:
         return "social"
     
     # UI elements
-    if any(kw in name_lower for kw in ["notification", "toast", "loading", "spinner", "timer", "countdown", "badge", "pill", "button", "selector", "browser", "phone", "terminal", "code", "calendar", "search", "message", "bubble", "lower", "third", "promo", "banner", "flash", "sale", "pricing", "table", "feature", "unlock", "checklist", "size", "app", "store", "music", "player", "podcast", "guest", "card", "testimonial", "review", "breaking", "news", "ticker", "alert", "cursor", "click", "emoji", "float", "floating", "tinder", "swipe", "product", "shopping", "cart", "git", "commit", "frame", "media", "lottie", "api", "request", "flow"]):
+    if any(kw in name_lower for kw in ["notification", "toast", "loading", "spinner", "timer", "countdown", "badge", "pill", "button", "selector", "browser", "phone", "terminal", "code", "calendar", "search", "message", "bubble", "lower", "third", "promo", "banner", "flash", "sale", "pricing", "table", "feature", "unlock", "checklist", "size", "app", "store", "music", "player", "podcast", "guest", "card", "testimonial", "review", "breaking", "news", "ticker", "alert", "cursor", "click", "emoji", "float", "floating", "tinder", "swipe", "product", "shopping", "cart", "git", "commit", "frame", "media", "api", "request", "flow"]):
         return "ui"
     
     # Decorative effects

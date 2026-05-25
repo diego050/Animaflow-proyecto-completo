@@ -35,7 +35,6 @@ import { InstagramPost } from './components/InstagramPost';
 import { KineticBackground } from './components/KineticBackground';
 import { LightLeakTransition } from './components/LightLeakTransition';
 import { LoadingSpinner } from './components/LoadingSpinner';
-import { LottieAnimation } from './components/LottieAnimation';
 import { LowerThird } from './components/LowerThird';
 import { MaskedReveal } from './components/MaskedReveal';
 import { MediaFrame } from './components/MediaFrame';
@@ -123,7 +122,6 @@ export const COMPONENT_NAMES = [
   'KineticBackground',
   'LightLeakTransition',
   'LoadingSpinner',
-  'LottieAnimation',
   'LowerThird',
   'MaskedReveal',
   'MediaFrame',
@@ -212,7 +210,6 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   KineticBackground,
   LightLeakTransition,
   LoadingSpinner,
-  LottieAnimation,
   LowerThird,
   MaskedReveal,
   MediaFrame,

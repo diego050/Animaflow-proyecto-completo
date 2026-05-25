@@ -215,7 +215,6 @@ posProp.setTemporalEaseAtKey(1, [KeyframeEase(30, true)], [KeyframeEase(30, fals
 
 ## Futuras Mejoras
 
-- [ ] **Lottie JSON:** Exportar a formato Lottie para web
 - [ ] **Premiere Pro:** Exportar a .prproj (Premiere)
 - [ ] **Final Cut Pro:** Exportar a .fcpxml (Final Cut)
 - [ ] **DaVinci Resolve:** Exportar a .drp (DaVinci)

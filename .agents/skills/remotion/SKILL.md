@@ -278,10 +278,6 @@ See [rules/images.md](rules/images.md) for sizing and positioning images, dynami
 
 See [rules/light-leaks.md](rules/light-leaks.md) for light leak overlay effects using `@remotion/light-leaks`.
 
-## Lottie animations
-
-See [rules/lottie.md](rules/lottie.md) for embedding Lottie animations in Remotion.
-
 ## HTML in canvas
 
 See [rules/html-in-canvas.md](rules/html-in-canvas.md) if you need to render HTML into a `<canvas>` to apply 2D or WebGL effects via `<HtmlInCanvas>`.

@@ -651,12 +651,6 @@ def parse_components_from_tsx(tsx_code: str) -> Dict[str, Any]:
     })
     if result: components['ProgressPill'] = result
 
-    result = _detect_and_parse(tsx_code, 'LottieAnimation', {
-        'lottieUrl': '', 'loop': True, 'speed': 1.0, 'x': 540.0, 'y': 540.0,
-        'width': 400.0, 'height': 400.0, 'delay': 0,
-    })
-    if result: components['LottieAnimation'] = result
-
     # ════════════════════════════════════════
     # FIXES AUDITORÍA SPRINT 4: TEXTO AVANZADO
     # ════════════════════════════════════════
