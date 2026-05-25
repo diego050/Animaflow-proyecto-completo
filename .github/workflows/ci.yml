@@ -94,9 +94,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: 9.15.0
+          run_install: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -146,9 +147,10 @@ jobs:
           ruff check . || true  # Don't fail, just report
           black --check . || true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: 9.15.0
+          run_install: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
