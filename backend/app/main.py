@@ -1,3 +1,5 @@
+import sys
+sys.set_int_max_str_digits(0)
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
