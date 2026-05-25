@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey, Text, Integer, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from app.db.session import Base
 from app.core.encryption import encrypt_value, decrypt_value
 import uuid
@@ -268,3 +269,34 @@ class CommunityComponent(Base):
     # Relationships
     author = relationship("User", foreign_keys=[author_id], lazy="joined")
     reviewer = relationship("User", foreign_keys=[reviewer_id], lazy="joined")
+
+
+class ComponentModel(Base):
+    """
+    Component model for reusable animation components with semantic search support.
+
+    Stores component metadata, TSX path, props schema, and OpenAI text embeddings
+    for vector similarity search during scene generation.
+    """
+
+    __tablename__ = "components"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), unique=True, nullable=False, index=True)
+    slug = Column(String(255), unique=True, nullable=False, index=True)
+    category = Column(String(100), nullable=False, index=True)
+    description = Column(Text, nullable=False)
+    tags = Column(ARRAY(String(100)), server_default="{}")
+    tsx_path = Column(String(500), nullable=False)
+    props_schema = Column(JSONB, server_default="{}")
+    embedding = Column(JSONB, nullable=True)
+    is_active = Column(Boolean, server_default="true")
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc)
+    )
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+    )
