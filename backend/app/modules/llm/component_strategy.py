@@ -256,13 +256,17 @@ def generate_scene_composer(
 
     # Fallback default si hay error
     default_fallback = AnimaComposerSpec(
-        background=AnimaBackground(type="solid", colors=["#000000"]),
+        background=AnimaBackground(type="solid", colors=["#0f172a"]),
         layers=[
             AnimaLayer(
-                type="component",
-                componentName="TextReveal",
+                type="text",
                 text="{{text}}",
-                color="#ffffff"
+                fontSize=48,
+                color="#ffffff",
+                x=0,
+                y=0,
+                textAlign="center",
+                entry="fade-in"
             )
         ]
     )
@@ -298,46 +302,46 @@ def generate_scene_composer(
                             "id": {"type": "STRING"},
                             "type": {"type": "STRING"},
                             "componentName": {"type": "STRING"},
-                            "x": {"type": "NUMBER"},
-                            "y": {"type": "NUMBER"},
-                            "scale": {"type": "NUMBER"},
-                            "rotation": {"type": "NUMBER"},
-                            "opacity": {"type": "NUMBER"},
-                            "width": {"type": "NUMBER"},
-                            "height": {"type": "NUMBER"},
-                            "borderRadius": {"type": "NUMBER"},
+                            "x": {"type": "NUMBER", "minimum": -1000, "maximum": 1000},
+                            "y": {"type": "NUMBER", "minimum": -1000, "maximum": 1000},
+                            "scale": {"type": "NUMBER", "minimum": 0.1, "maximum": 10},
+                            "rotation": {"type": "NUMBER", "minimum": -360, "maximum": 360},
+                            "opacity": {"type": "NUMBER", "minimum": 0, "maximum": 1},
+                            "width": {"type": "NUMBER", "minimum": 10, "maximum": 1920},
+                            "height": {"type": "NUMBER", "minimum": 10, "maximum": 1920},
+                            "borderRadius": {"type": "NUMBER", "minimum": 0, "maximum": 500},
                             "fill": {"type": "STRING"},
                             "stroke": {"type": "STRING"},
-                            "strokeWidth": {"type": "NUMBER"},
-                            "r": {"type": "NUMBER"},
+                            "strokeWidth": {"type": "NUMBER", "minimum": 0, "maximum": 20},
+                            "r": {"type": "NUMBER", "minimum": 5, "maximum": 500},
                             "pathData": {"type": "STRING"},
                             "text": {"type": "STRING"},
-                            "fontSize": {"type": "NUMBER"},
-                            "fontWeight": {"type": "NUMBER"},
-                            "letterSpacing": {"type": "NUMBER"},
+                            "fontSize": {"type": "NUMBER", "minimum": 12, "maximum": 120},
+                            "fontWeight": {"type": "NUMBER", "minimum": 100, "maximum": 900},
+                            "letterSpacing": {"type": "NUMBER", "minimum": -10, "maximum": 20},
                             "textAlign": {"type": "STRING"},
                             "src": {"type": "STRING"},
                             "fit": {"type": "STRING"},
-                            "count": {"type": "INTEGER"},
+                            "count": {"type": "INTEGER", "minimum": 1, "maximum": 200},
                             "shape": {"type": "STRING"},
-                            "spread": {"type": "NUMBER"},
+                            "spread": {"type": "NUMBER", "minimum": 0, "maximum": 500},
                             "colors": {"type": "ARRAY", "items": {"type": "STRING"}},
                             "entry": {"type": "STRING"},
-                            "entryDelay": {"type": "NUMBER"},
+                            "entryDelay": {"type": "NUMBER", "minimum": 0, "maximum": 10},
                             "filter": {"type": "STRING"},
                             "color": {"type": "STRING"},
                             "color1": {"type": "STRING"},
                             "color2": {"type": "STRING"},
                             "bgColor": {"type": "STRING"},
                             "textColor": {"type": "STRING"},
-                            "speed": {"type": "NUMBER"},
-                            "delay": {"type": "NUMBER"},
-                            "intensity": {"type": "NUMBER"},
+                            "speed": {"type": "NUMBER", "minimum": 0.01, "maximum": 10},
+                            "delay": {"type": "NUMBER", "minimum": 0, "maximum": 10},
+                            "intensity": {"type": "NUMBER", "minimum": 0, "maximum": 1},
                             "theme": {"type": "STRING"},
                             "url": {"type": "STRING"},
                             "query": {"type": "STRING"},
                             "animation": {"type": "STRING"},
-                            "lineWidth": {"type": "NUMBER"}
+                            "lineWidth": {"type": "NUMBER", "minimum": 0, "maximum": 20}
                         },
                         "required": ["type"]
                     }
@@ -399,11 +403,14 @@ def generate_scene_composer(
 
         logger.info("Generated AnimaComposerSpec for scene.")
         # Retornamos parseando a nuestro modelo Pydantic para validar
-        if isinstance(result, dict):
-             return AnimaComposerSpec(**result)
-        else:
-             # Si ya es un objeto (por el SDK parsing), lo convertimos
-             return AnimaComposerSpec.model_validate(result)
+        try:
+            if isinstance(result, dict):
+                return AnimaComposerSpec(**result)
+            else:
+                return AnimaComposerSpec.model_validate(result)
+        except Exception as parse_error:
+            logger.warning("Pydantic parse failed: %s. Using fallback.", parse_error)
+            return default_fallback
 
     except Exception as e:
         logger.warning(
