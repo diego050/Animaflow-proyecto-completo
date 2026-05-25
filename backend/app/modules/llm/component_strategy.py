@@ -48,6 +48,7 @@ def _build_strategy_prompt(
 
 TEXTO DE LA ESCENA: "{text}"
 DESCRIPCION VISUAL: "{media_query}"
+TEMA VISUAL: Extrae el sujeto/objeto principal de la descripcion visual y úsalo como inspiración para crear primitivas custom (ej: si el tema es "peces", crea formas orgánicas con paths; si es "tecnología", crea líneas geométricas con rects).
 
 Tienes acceso a primitivas básicas (rect, circle, image) y a componentes complejos de nuestra Standard Library.
 COMPONENTES DISPONIBLES (Standard Library):
@@ -58,35 +59,40 @@ Debes generar un JSON válido que describa el 'background' y una lista de 'layer
 Puedes combinar componentes de la Standard Library usando type: "component". 
 
 REGLAS DE ORO PARA EL DISEÑO:
-1. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
+1. **CREA DESDE CERO CON PRIMITIVAS:** No te limites solo a componentes prefabricados. Si la escena requiere algo único (como un marco, un contenedor de texto, o un adorno), CRÉALO tú mismo combinando capas primitivas (`rect`, `circle`, `text`, `group`) con animaciones (ej. `entry: "slide-up"`, `scale: {{"from": 0, "to": 1}}`). Mezcla primitivas y componentes.
 2. **COHERENCIA TEMÁTICA ESTRICTA:** Solo elige componentes de la Standard Library si tienen una relación DIRECTA y LÓGICA con el guion. Si el video es un documental sobre peces, NO uses un "SubscribeButton" o "TinderSwipeCard". Usa tu juicio semántico: si no encaja perfecto con la vibra de la escena, no lo uses.
-3. **CREA DESDE CERO CON PRIMITIVAS:** No te limites solo a componentes prefabricados. Si la escena requiere algo único (como un marco, un contenedor de texto, o un adorno), CRÉALO tú mismo combinando capas primitivas (`rect`, `circle`, `text`, `group`) con animaciones (ej. `entry: "slide-up"`, `scale: {{"from": 0, "to": 1}}`). Mezcla primitivas y componentes.
+3. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
 4. El texto hablado principal DEBE aparecer en pantalla de manera legible. Pásalo a tu componente de texto o primitiva de texto usando `"text": "{{text}}"`.
 
-Ejemplo de JSON esperado:
+REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path). No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
+
+Ejemplo de estructura JSON esperada:
 {{
   "background": {{
-    "type": "solid",
-    "colors": ["#0f172a"]
+    "type": "gradient",
+    "colors": ["#0f172a", "#1e293b"]
   }},
   "layers": [
     {{
       "type": "component",
-      "componentName": "KineticBackground",
-      "color1": "#38bdf8"
-    }},
-    {{
-      "type": "component",
-      "componentName": "TextReveal",
-      "text": "{{text}}", 
-      "fontSize": 60, 
-      "color": "#ffffff",
+      "componentName": "NOMBRE_DEL_COMPONENTE_ELEGIDO",
+      "prop1": "valor",
       "y": -100
     }},
     {{
-      "type": "particles",
-      "count": 30,
-      "colors": ["#ffffff", "#38bdf8"]
+      "type": "rect",
+      "width": 400,
+      "height": 4,
+      "fill": "#38bdf8",
+      "entry": "slide-right"
+    }},
+    {{
+      "type": "text",
+      "text": "{{text}}",
+      "fontSize": 60,
+      "color": "#ffffff",
+      "y": 100,
+      "entry": "fade-in"
     }}
   ]
 }}
