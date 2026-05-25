@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { useCurrentFrame, useVideoConfig, spring, interpolate, Easing } from 'remotion';
+import { useCurrentFrame, useVideoConfig } from 'remotion';
 
 import { AnimaRect } from '../primitives/AnimaRect';
 import { AnimaCircle } from '../primitives/AnimaCircle';
@@ -22,6 +22,7 @@ import { AnimaGroup } from '../primitives/AnimaGroup';
 import { AnimaParticles } from '../primitives/AnimaParticles';
 import { AnimaGradient } from '../primitives/AnimaGradient';
 import { COMPONENT_REGISTRY } from '../registry';
+import { AnimatedWrapper } from '../AnimatedWrapper';
 
 import type { AnimValue } from '../primitives/types';
 
@@ -124,196 +125,6 @@ interface RenderContext {
 }
 
 // ---------------------------------------------------------------------------
-// Entry animation helper
-// ---------------------------------------------------------------------------
-
-/**
- * Valores calculados de animación de entrada.
- */
-interface EntryValues {
-  opacity: number;
-  scale: number;
-  yOffset: number;
-  xOffset: number;
-}
-
-/**
- * Duración en frames de las animaciones de entrada (~1s a 30fps).
- */
-const ENTRY_DURATION = 30;
-
-/**
- * computeEntry — Calcula los valores de animación de entrada para un frame dado.
- *
- * Retorna un objeto con opacity, scale, yOffset, xOffset que se combinan
- * con las props del layer para producir la animación de entrada.
- *
- * Si el entry es `null`, retorna valores neutros (opacity=1, scale=1, offsets=0).
- * Si la animación ya completó (rawProgress >= 1), también retorna valores neutros.
- */
-function computeEntry(
-  entry: LayerSpec['entry'],
-  entryDelay: number | undefined,
-  frame: number,
-  fps: number,
-): EntryValues {
-  if (!entry) {
-    return { opacity: 1, scale: 1, yOffset: 0, xOffset: 0 };
-  }
-
-  const delay = entryDelay ?? 0;
-  const adjustedFrame = Math.max(0, frame - delay);
-  const rawProgress = Math.min(1, Math.max(0, adjustedFrame / ENTRY_DURATION));
-
-  // Si la entrada ya se completó, retornar valores neutros
-  if (rawProgress >= 1) {
-    return { opacity: 1, scale: 1, yOffset: 0, xOffset: 0 };
-  }
-
-  switch (entry) {
-    case 'fade-in': {
-      const progress = Easing.out(Easing.sin)(rawProgress);
-      return { opacity: progress, scale: 1, yOffset: 0, xOffset: 0 };
-    }
-
-    case 'slide-up': {
-      const progress = Easing.out(Easing.sin)(rawProgress);
-      return {
-        opacity: progress,
-        scale: 1,
-        yOffset: interpolate(progress, [0, 1], [50, 0]),
-        xOffset: 0,
-      };
-    }
-
-    case 'slide-down': {
-      const progress = Easing.out(Easing.sin)(rawProgress);
-      return {
-        opacity: progress,
-        scale: 1,
-        yOffset: interpolate(progress, [0, 1], [-50, 0]),
-        xOffset: 0,
-      };
-    }
-
-    case 'slide-left': {
-      const progress = Easing.out(Easing.sin)(rawProgress);
-      return {
-        opacity: progress,
-        scale: 1,
-        yOffset: 0,
-        xOffset: interpolate(progress, [0, 1], [50, 0]),
-      };
-    }
-
-    case 'slide-right': {
-      const progress = Easing.out(Easing.sin)(rawProgress);
-      return {
-        opacity: progress,
-        scale: 1,
-        yOffset: 0,
-        xOffset: interpolate(progress, [0, 1], [-50, 0]),
-      };
-    }
-
-    case 'scale-in': {
-      const progress = Easing.out(Easing.back(1.7))(rawProgress);
-      return {
-        opacity: progress,
-        scale: interpolate(progress, [0, 1], [0, 1]),
-        yOffset: 0,
-        xOffset: 0,
-      };
-    }
-
-    case 'bounce-in': {
-      const progress = Easing.elastic(1)(rawProgress);
-      return {
-        opacity: Math.min(1, progress),
-        scale: progress,
-        yOffset: 0,
-        xOffset: 0,
-      };
-    }
-
-    case 'spring-in': {
-      const spr = spring({
-        frame: adjustedFrame,
-        fps,
-        config: { damping: 12, stiffness: 80, mass: 1 },
-      });
-      return {
-        opacity: Math.min(1, spr),
-        scale: Math.min(1, spr),
-        yOffset: 0,
-        xOffset: 0,
-      };
-    }
-
-    default:
-      return { opacity: 1, scale: 1, yOffset: 0, xOffset: 0 };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// EntryWrapper
-// ---------------------------------------------------------------------------
-
-/**
- * EntryWrapper — Envuelve una primitiva hijo para aplicar la animación de
- * entrada (opacity + transform) a primitivas que no tienen soporte nativo
- * de entry (rect, circle, path, image, group, particles).
- *
- * Usa `position: relative` para NO crear un nuevo containing block, de modo
- * que los hijos con `position: absolute` sigan referenciando al contenedor
- * principal de la escena.
- *
- * Cuando la animación se completa (entryValues neutros), se omite el wrapper
- * para evitar divs innecesarios en el árbol.
- */
-const EntryWrapper: React.FC<{
-  entry: LayerSpec['entry'];
-  entryDelay: number | undefined;
-  frame: number;
-  fps: number;
-  children: React.ReactNode;
-}> = ({ entry, entryDelay, frame, fps, children }) => {
-  const ev = computeEntry(entry, entryDelay, frame, fps);
-
-  // Si la animación está completa o no hay entry, omitir wrapper
-  if (
-    !entry ||
-    (ev.opacity >= 1 &&
-      ev.scale >= 1 &&
-      ev.yOffset === 0 &&
-      ev.xOffset === 0)
-  ) {
-    return <>{children}</>;
-  }
-
-  const transforms: string[] = [];
-  if (ev.xOffset !== 0 || ev.yOffset !== 0) {
-    transforms.push(`translate(${ev.xOffset}px, ${ev.yOffset}px)`);
-  }
-  if (ev.scale !== 1) {
-    transforms.push(`scale(${ev.scale})`);
-  }
-
-  const style: React.CSSProperties = {
-    position: 'relative',
-    opacity: ev.opacity,
-    pointerEvents: 'none',
-    boxSizing: 'border-box',
-  };
-
-  if (transforms.length > 0) {
-    style.transform = transforms.join(' ');
-  }
-
-  return <div style={style}>{children}</div>;
-};
-
-// ---------------------------------------------------------------------------
 // FilterWrapper
 // ---------------------------------------------------------------------------
 
@@ -391,14 +202,9 @@ function renderSingleLayer(
 
       // Envolver con entry si no hay soporte nativo
       element = (
-        <EntryWrapper
-          entry={layer.entry}
-          entryDelay={layer.entryDelay}
-          frame={ctx.frame}
-          fps={ctx.fps}
-        >
+        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
           {element}
-        </EntryWrapper>
+        </AnimatedWrapper>
       );
 
       // Envolver con filter si está definido
@@ -434,14 +240,9 @@ function renderSingleLayer(
 
       // Entry wrapper
       element = (
-        <EntryWrapper
-          entry={layer.entry}
-          entryDelay={layer.entryDelay}
-          frame={ctx.frame}
-          fps={ctx.fps}
-        >
+        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
           {element}
-        </EntryWrapper>
+        </AnimatedWrapper>
       );
 
       element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
@@ -475,14 +276,9 @@ function renderSingleLayer(
       );
 
       element = (
-        <EntryWrapper
-          entry={layer.entry}
-          entryDelay={layer.entryDelay}
-          frame={ctx.frame}
-          fps={ctx.fps}
-        >
+        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
           {element}
-        </EntryWrapper>
+        </AnimatedWrapper>
       );
 
       element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
@@ -544,14 +340,9 @@ function renderSingleLayer(
       );
 
       element = (
-        <EntryWrapper
-          entry={layer.entry}
-          entryDelay={layer.entryDelay}
-          frame={ctx.frame}
-          fps={ctx.fps}
-        >
+        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
           {element}
-        </EntryWrapper>
+        </AnimatedWrapper>
       );
 
       element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
@@ -578,14 +369,9 @@ function renderSingleLayer(
       );
 
       element = (
-        <EntryWrapper
-          entry={layer.entry}
-          entryDelay={layer.entryDelay}
-          frame={ctx.frame}
-          fps={ctx.fps}
-        >
+        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
           {element}
-        </EntryWrapper>
+        </AnimatedWrapper>
       );
 
       element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
@@ -612,14 +398,9 @@ function renderSingleLayer(
       );
 
       element = (
-        <EntryWrapper
-          entry={layer.entry}
-          entryDelay={layer.entryDelay}
-          frame={ctx.frame}
-          fps={ctx.fps}
-        >
+        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
           {element}
-        </EntryWrapper>
+        </AnimatedWrapper>
       );
 
       element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
@@ -653,14 +434,9 @@ function renderSingleLayer(
       element = <ComponentToRender {...mergedProps} />;
 
       element = (
-        <EntryWrapper
-          entry={layer.entry}
-          entryDelay={layer.entryDelay}
-          frame={ctx.frame}
-          fps={ctx.fps}
-        >
+        <AnimatedWrapper entry={layer.entry} delay={layer.entryDelay ?? 0}>
           {element}
-        </EntryWrapper>
+        </AnimatedWrapper>
       );
 
       element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
