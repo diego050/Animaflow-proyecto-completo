@@ -40,9 +40,36 @@ AVAILABLE_COMPONENTS: list[str] = [
 def _build_strategy_prompt(
     text: str,
     media_query: str,
-    available_components: list[str],
+    available_components: list[dict],
 ) -> str:
-    components_list = "\n".join(f"- {name}" for name in sorted(available_components))
+    # Group components by role
+    by_role = {}
+    for comp in available_components:
+        role = comp.get("role", "general")
+        if role not in by_role:
+            by_role[role] = []
+        by_role[role].append(comp)
+
+    # Format as structured list
+    role_emojis = {
+        "background": "🎨",
+        "text": "📝",
+        "transition": "🔄",
+        "ui": "🖥️",
+        "dataviz": "📊",
+        "decorative": "✨",
+        "social": "📱",
+        "general": "📦",
+    }
+
+    components_list_parts = []
+    for role, comps in by_role.items():
+        emoji = role_emojis.get(role, "📦")
+        role_title = role.upper()
+        names = ", ".join([c["name"] for c in comps])
+        components_list_parts.append(f"{emoji} {role_title}: {names}")
+
+    components_list = "\n".join(components_list_parts)
 
     return f"""Eres el director de escena de AnimaFlow. Tu trabajo es diseñar la composición de UNA escena de video devolviendo un JSON AnimaComposerSpec.
 
@@ -61,12 +88,12 @@ PASO 2 - CREA UNA FORMA CUSTOM: Basándote en el sujeto identificado, crea AL ME
 No necesitas que sea perfecto, pero debe ser RECONOCIBLE y temáticamente relevante.
 
 Tienes acceso a primitivas básicas (rect, circle, image) y a componentes complejos de nuestra Standard Library.
-COMPONENTES DISPONIBLES (Standard Library):
+COMPONENTES DISPONIBLES PARA ESTA ESCENA (organizados por rol):
 {components_list}
 
 INSTRUCCIONES:
 Debes generar un JSON válido que describa el 'background' y una lista de 'layers'.
-Puedes combinar componentes de la Standard Library usando type: "component". 
+Puedes usar componentes de la lista anterior usando type: "component" y componentName: "NOMBRE_EXACTO".
 
 REGLAS DE ORO PARA EL DISEÑO:
 1. **CREA DESDE CERO CON PRIMITIVAS:** No te limites solo a componentes prefabricados. Si la escena requiere algo único (como un marco, un contenedor de texto, o un adorno), CRÉALO tú mismo combinando capas primitivas (`rect`, `circle`, `text`, `group`) con animaciones (ej. `entry: "slide-up"`, `scale: {{"from": 0, "to": 1}}`). Mezcla primitivas y componentes.
@@ -83,7 +110,7 @@ Analiza la continuidad entre esta escena y la siguiente (si la hay).
 - Si las escenas fluyen naturalmente sin corte brusco: usa "NONE" o "GradientOverlay".
 
 Incluye "out_transition" en tu JSON solo si quieres una transición al final de esta escena.
-Ejemplo: "out_transition": {"type": "ZoomBlurTransition", "duration_frames": 15}
+Ejemplo: "out_transition": {{"type": "ZoomBlurTransition", "duration_frames": 15}}
 
 Ejemplo de estructura JSON esperada:
 {{
@@ -116,7 +143,7 @@ Ejemplo de estructura JSON esperada:
   ]
 }}
 
-IMPORTANTE: 
+IMPORTANTE:
 - Si un componente necesita propiedades adicionales (como speed, color, textColor, url, x, y), pásalas directamente como propiedades de la capa, en el mismo nivel que "type" y "componentName". La propiedad "props" NO existe.
 DEVUELVE SOLO JSON VALIDO, SIN MARKDOWN."""
 
@@ -126,14 +153,25 @@ DEVUELVE SOLO JSON VALIDO, SIN MARKDOWN."""
 def generate_scene_composer(
     text: str,
     media_query: str,
-    available_components: list[str] | None = None,
+    available_components: list[dict] | None = None,
     api_key: str = "",
     model: str = "gemini-2.0-flash",
+    db=None,  # NEW: SQLAlchemy session for vector search
 ) -> AnimaComposerSpec:
     """
     Pregunta al LLM por la composición AnimaComposer (JSON) de la escena.
     """
-    components = available_components or AVAILABLE_COMPONENTS
+    if db is not None:
+        # Use intelligent vector search with diversity quotas
+        from app.services.embedding import get_relevant_components
+        relevant = get_relevant_components(db, text, media_query, top_k=10)
+        components = relevant  # Already list[dict] from _format_component
+        component_names = [c["name"] for c in relevant]
+        logger.info("Vector search returned %d relevant components: %s", len(component_names), component_names[:5])
+    else:
+        # Fallback to hardcoded list (for tests/backward compat)
+        fallback = available_components or [{"name": n, "role": "general", "category": "general", "description": ""} for n in AVAILABLE_COMPONENTS]
+        components = fallback
     prompt = _build_strategy_prompt(text, media_query, components)
 
     # Fallback default si hay error

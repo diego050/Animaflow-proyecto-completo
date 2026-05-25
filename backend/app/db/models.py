@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey, Text, Integer, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import JSONB
 from app.db.session import Base
 from app.core.encryption import encrypt_value, decrypt_value
 import uuid
@@ -287,7 +287,7 @@ class ComponentModel(Base):
     category = Column(String(100), nullable=False, index=True)
     role = Column(String(50), nullable=False, server_default="general", index=True)
     description = Column(Text, nullable=False)
-    tags = Column(ARRAY(String(100)), server_default="{}")
+    tags = Column(JSON, server_default="[]")
     tsx_path = Column(String(500), nullable=False)
     props_schema = Column(JSONB, server_default="{}")
     embedding = Column(JSONB, nullable=True)
