@@ -146,13 +146,16 @@ jobs:
           ruff check . || true  # Don't fail, just report
           black --check . || true
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Install pnpm
-        run: npm install -g pnpm@9.15.0
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install frontend
         run: |
