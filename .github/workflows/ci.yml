@@ -109,7 +109,7 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd frontend
-          pnpm install --frozen-lockfile
+          pnpm install --frozen-lockfile --ignore-scripts=false
 
       - name: OWASP Dependency-Check (Frontend)
         continue-on-error: true
@@ -162,7 +162,7 @@ jobs:
       - name: Install frontend
         run: |
           cd frontend
-          pnpm install --frozen-lockfile
+          pnpm install --frozen-lockfile --ignore-scripts=false
 
       - name: Lint frontend
         run: |
