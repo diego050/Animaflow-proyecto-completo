@@ -179,25 +179,26 @@ export function WizardStepInfo({
             </button>
           </div>
 
-          {/* Number Input */}
+          {/* Number Input - Free typing, no restrictions */}
           <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min={durationUnit === 'seconds' ? 10 : 22}
-              max={durationUnit === 'seconds' ? 120 : 260}
-              value={durationUnit === 'seconds' ? targetDurationSeconds : Math.round(targetDurationSeconds * 2.17)}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                // Allow empty or partial input, validate on blur if needed, but min/max bounds can just clamp.
-                if (durationUnit === 'seconds') {
-                  onDurationChange(Math.max(10, Math.min(120, val)));
-                } else {
-                  onDurationChange(Math.max(10, Math.min(120, Math.round(val / 2.17))));
-                }
-              }}
-              className="bg-surface-lowest border border-border-tech rounded-lg px-4 py-2 text-sm text-text-primary focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none w-24 text-center transition-colors"
-            />
-            <span className="text-sm font-semibold text-text-secondary">
+            <div className="relative flex-1 max-w-xs">
+              <input
+                type="number"
+                value={durationUnit === 'seconds' ? targetDurationSeconds : Math.round(targetDurationSeconds * 2.17)}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (isNaN(val) || val < 0) return;
+                  if (durationUnit === 'seconds') {
+                    onDurationChange(val);
+                  } else {
+                    onDurationChange(Math.round(val / 2.17));
+                  }
+                }}
+                placeholder={durationUnit === 'seconds' ? '15' : '30'}
+                className="w-full bg-surface-lowest border border-border-tech rounded-lg px-4 py-2.5 text-sm text-text-primary focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none text-center transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+            <span className="text-sm font-semibold text-text-secondary whitespace-nowrap">
               {durationUnit === 'seconds' ? 'segundos' : 'palabras'}
             </span>
           </div>
@@ -205,8 +206,8 @@ export function WizardStepInfo({
           {/* Equivalente en la otra unidad */}
           <p className="text-xs text-text-secondary/60 mt-1">
             {durationUnit === 'seconds'
-              ? `≈ ${Math.round(targetDurationSeconds * 2.17)} palabras · ${Math.ceil(targetDurationSeconds / 7)} escenas`
-              : `≈ ${Math.round(targetDurationSeconds)} segundos · ${Math.ceil(targetDurationSeconds / 7)} escenas`
+              ? `≈ ${Math.round(targetDurationSeconds * 2.17)} palabras · ${Math.max(1, Math.ceil(targetDurationSeconds / 7))} escenas`
+              : `≈ ${Math.round(targetDurationSeconds)} segundos · ${Math.max(1, Math.ceil(targetDurationSeconds / 7))} escenas`
             }
           </p>
         </div>

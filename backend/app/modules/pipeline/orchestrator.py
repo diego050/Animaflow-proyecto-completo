@@ -244,63 +244,110 @@ def run_pipeline(
             groq_api_key = _get_user_api_key(user_id, "groq", db) if user_id else None
             tts_key = tts_api_key or (_get_user_api_key(user_id, tts_provider, db) if user_id else None)
 
-            # 1. TTS COMPLETO PRIMERO
+            # 1. SPLIT TEXT FIRST, THEN GENERATE TTS PER SCENE
             if not animation_only and not scenes:
-                logger.info("Generating global TTS for job %s...", job_id)
-                tts_result = asyncio.run(
-                    generate_tts_with_timestamps(
-                        text=script_text,
-                        provider_name=tts_provider,
-                        voice_id=tts_voice_id,
-                        api_key=tts_key,
-                        language="es",
-                        groq_api_key=groq_api_key,
-                    )
-                )
-                global_audio_path = tts_result["audio_path"]
-                word_timestamps = tts_result["word_timestamps"]
+                chunks = split_text_into_chunks(script_text)
+                GAP_MS = 300  # 300ms gap between scenes
                 
-                # 2. Segmentación lógica con timestamps exactos (o fallback si no hay)
-                if word_timestamps:
-                    scenes_data = split_by_timestamps(word_timestamps, script_text=script_text)
-                else:
-                    logger.warning("No word_timestamps returned by TTS (mock/test env). Falling back to text-based splitting.")
-                    chunks_text = split_text_into_chunks(script_text)
-                    scenes_data = []
-                    current_start = 0.0
-                    for chunk in chunks_text:
-                        duration = max(3.0, len(chunk.split()) / 2.17)
-                        scenes_data.append({
-                            "text": chunk,
-                            "start_time_seconds": current_start,
-                            "end_time_seconds": current_start + duration,
-                            "duration_seconds": duration,
-                            "word_timestamps": []
-                        })
-                        current_start += duration
+                logger.info("Generating per-scene TTS for %d scenes (job %s)...", len(chunks), job_id)
                 
-                chunks = [s["text"] for s in scenes_data]
+                scene_audios = []
+                all_word_timestamps = []
+                current_offset = 0.0
                 
-                # Pre-cortar los audios para cada escena (Backward compatibility)
-                if not os.path.exists(global_audio_path):
-                    # In test environments, TTS is mocked and returns non-existent paths like 'http://test/audio.mp3'
-                    logger.warning("Global audio file not found (mock/test environment): %s. Skipping slicing.", global_audio_path)
-                    for i, s_data in enumerate(scenes_data):
-                        s_data["audio_url"] = f"/api/audio/mock_{job_id}_{i}.mp3"
-                else:
-                    global_audio = AudioSegment.from_file(global_audio_path)
-                    os.makedirs(AUDIO_STORAGE, exist_ok=True)
-                    
-                    for i, s_data in enumerate(scenes_data):
-                        start_ms = s_data["start_time_seconds"] * 1000
-                        end_ms = s_data["end_time_seconds"] * 1000
-                        chunk_audio = global_audio[start_ms:end_ms]
+                for i, chunk in enumerate(chunks):
+                    logger.info("  Scene %d/%d: generating TTS...", i + 1, len(chunks))
+                    try:
+                        tts_result = asyncio.run(
+                            generate_tts_with_timestamps(
+                                text=chunk,
+                                provider_name=tts_provider,
+                                voice_id=tts_voice_id,
+                                api_key=tts_key,
+                                language="es",
+                                groq_api_key=groq_api_key,
+                            )
+                        )
                         
-                        ext = os.path.splitext(global_audio_path)[1] or ".mp3"
+                        # Offset timestamps by current position in combined timeline
+                        scene_wts = []
+                        for wt in tts_result.get("word_timestamps", []):
+                            offset_wt = {
+                                "word": wt["word"],
+                                "start": round(wt["start"] + current_offset, 3),
+                                "end": round(wt["end"] + current_offset, 3),
+                            }
+                            scene_wts.append(offset_wt)
+                            all_word_timestamps.append(offset_wt)
+                        
+                        scene_audios.append({
+                            "path": tts_result["audio_path"],
+                            "duration": tts_result["duration_seconds"],
+                            "word_timestamps": scene_wts,
+                        })
+                        
+                        current_offset += tts_result["duration_seconds"] + (GAP_MS / 1000)
+                    except Exception as e:
+                        logger.warning("TTS failed for scene %d: %s. Using silent placeholder.", i + 1, e)
+                        scene_audios.append({
+                            "path": None,
+                            "duration": max(3.0, len(chunk.split()) / 2.17),
+                            "word_timestamps": [],
+                        })
+                        current_offset += scene_audios[-1]["duration"] + (GAP_MS / 1000)
+                
+                # 2. Build scenes_data with contiguous timing
+                scenes_data = []
+                current_start = 0.0
+                
+                for i, scene_audio in enumerate(scene_audios):
+                    chunk = chunks[i]
+                    scene_wts = scene_audio["word_timestamps"]
+                    scene_duration = scene_audio["duration"]
+                    
+                    # Calculate end time: last word end + buffer, or full duration
+                    last_word_end_relative = scene_wts[-1]["end"] - current_start if scene_wts else 0
+                    core_end = current_start + last_word_end_relative
+                    
+                    if i == len(chunks) - 1:
+                        # Last scene: generous buffer to end
+                        end_time = core_end + 1.5
+                    else:
+                        # Not last: buffer but respect next scene start
+                        next_scene_start = current_start + scene_duration + (GAP_MS / 1000)
+                        end_time = core_end + 1.2
+                        
+                        if end_time > next_scene_start:
+                            gap = next_scene_start - core_end
+                            if gap < 0.3:
+                                end_time = core_end + (gap / 2)
+                            else:
+                                end_time = core_end + 0.3
+                    
+                    scenes_data.append({
+                        "text": chunk,
+                        "start_time_seconds": round(current_start, 3),
+                        "end_time_seconds": round(end_time, 3),
+                        "duration_seconds": round(end_time - current_start, 3),
+                        "word_timestamps": scene_wts,
+                    })
+                    
+                    current_start = next_scene_start if i < len(chunks) - 1 else end_time
+                
+                # 3. Save per-scene audio files (copy from TTS output)
+                os.makedirs(AUDIO_STORAGE, exist_ok=True)
+                for i, scene_audio in enumerate(scene_audios):
+                    src_path = scene_audio["path"]
+                    if src_path and os.path.exists(src_path):
+                        ext = os.path.splitext(src_path)[1] or ".mp3"
                         chunk_name = f"{job_id}_{i}{ext}"
                         chunk_path = os.path.join(AUDIO_STORAGE, chunk_name)
-                        chunk_audio.export(chunk_path, format=ext.replace(".", ""))
-                        s_data["audio_url"] = f"/api/audio/{chunk_name}"
+                        shutil.copy2(src_path, chunk_path)
+                        scenes_data[i]["audio_url"] = f"/api/audio/{chunk_name}"
+                    else:
+                        scenes_data[i]["audio_url"] = f"/api/audio/mock_{job_id}_{i}.mp3"
+                
+                logger.info("Per-scene TTS complete: %d scenes, %d total words", len(scenes_data), len(all_word_timestamps))
             else:
                 # Flujo animation_only o scenes provistas manualmente
                 chunks = [s["text"] for s in scenes] if scenes else split_text_into_chunks(script_text)
