@@ -285,6 +285,7 @@ class ComponentModel(Base):
     name = Column(String(255), unique=True, nullable=False, index=True)
     slug = Column(String(255), unique=True, nullable=False, index=True)
     category = Column(String(100), nullable=False, index=True)
+    role = Column(String(50), nullable=False, server_default="general", index=True)
     description = Column(Text, nullable=False)
     tags = Column(ARRAY(String(100)), server_default="{}")
     tsx_path = Column(String(500), nullable=False)

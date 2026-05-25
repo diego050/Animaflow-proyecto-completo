@@ -203,11 +203,21 @@ class AnimaLayer(BaseAnimaLayer):
     children: Optional[List[AnimaChildLayer]] = None
 
 
+class OutTransition(BaseModel):
+    type: Literal[
+        "ZoomBlurTransition", "WipeTransition", "LightLeakTransition",
+        "GlitchTransition", "GradientOverlay", "NONE"
+    ]
+    duration_frames: int = Field(default=15, ge=5, le=60)
+    target_scene: Optional[str] = None  # ID of the next scene
+
+
 class AnimaComposerSpec(BaseModel):
     model_config = {"extra": "forbid"}
     version: str = Field(default="1.0")
     background: AnimaBackground
     layers: List[AnimaLayer]
+    out_transition: Optional[OutTransition] = Field(default=None)
 
 
 # ─── Core Spec ───────────────────────────────────────────────────────────

@@ -1,9 +1,10 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig, Sequence, Audio } from "remotion";
 import React from "react";
-import type { TimelineSpec } from "../types/spec";
+import type { TimelineSpec, Spec } from "../types/spec";
 import { useAuthStore } from "../store/useAuthStore";
 import { AnimaComposer } from './composer/AnimaComposer';
 import { COMPONENT_REGISTRY } from './registry';
+import { TransitionWrapper } from './transitions/TransitionWrapper';
 
 interface FallbackSceneProps {
   text: string;
@@ -35,7 +36,7 @@ interface DynamicSceneProps {
   durationInFrames: number;
   fallbackBg: string;
   fallbackColor: string;
-  animaComposer?: any;
+  animaComposer?: Spec['anima_composer'];
 }
 
 interface SceneProps {
@@ -44,8 +45,6 @@ interface SceneProps {
   [key: string]: unknown;
 }
 type SceneComponent = React.ComponentType<SceneProps>;
-
-// Dynamic scene mapper is removed, using Standard Library directly
 
 const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, animaComposer }: DynamicSceneProps) => {
   if (type === 'custom' && animaComposer) {
@@ -82,27 +81,77 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
   const { fps } = useVideoConfig();
   const token = useAuthStore.getState().token;
 
+  // Pre-calculate cumulative frame offsets including transition durations
+  // so that each scene and transition starts at the correct absolute frame.
+  let cumulativeFrame = 0;
+  const sceneOffsets: number[] = [];
+  const transitionOffsets: { sceneIndex: number; fromFrame: number; durationFrames: number; fromScene: Spec; toScene: Spec }[] = [];
+
+  for (let i = 0; i < spec.scenes.length; i++) {
+    const scene = spec.scenes[i];
+    const durationInFrames = Math.max(1, Math.round(scene.duration_seconds * fps));
+
+    sceneOffsets.push(cumulativeFrame);
+    cumulativeFrame += durationInFrames;
+
+    // Check for outgoing transition
+    const transition = scene.anima_composer?.out_transition;
+    const nextScene = spec.scenes[i + 1];
+
+    if (transition && transition.type !== 'NONE' && nextScene && nextScene.anima_composer) {
+      transitionOffsets.push({
+        sceneIndex: i,
+        fromFrame: cumulativeFrame,
+        durationFrames: transition.duration_frames,
+        fromScene: scene,
+        toScene: nextScene,
+      });
+      cumulativeFrame += transition.duration_frames;
+    }
+  }
+
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       {spec.scenes.map((scene, index) => {
-        const fromFrame = Math.round(scene.start_time_seconds * fps);
+        const fromFrame = sceneOffsets[index];
         const durationInFrames = Math.max(1, Math.round(scene.duration_seconds * fps));
         const audioUrlWithToken = scene.audio_url && token
           ? `${scene.audio_url}?token=${token}`
           : scene.audio_url;
 
         return (
-          <Sequence key={index} from={fromFrame} durationInFrames={durationInFrames}>
-            <DynamicScene
-               type={scene.type}
-               text={scene.text}
-               durationInFrames={durationInFrames}
-                fallbackBg={String(scene.remotion_props?.backgroundColor || "#000")}
-                fallbackColor={String(scene.remotion_props?.textColor || "#fff")}
-                animaComposer={scene.anima_composer}
-            />
-            {audioUrlWithToken && <Audio src={audioUrlWithToken} />}
-          </Sequence>
+          <React.Fragment key={index}>
+            <Sequence from={fromFrame} durationInFrames={durationInFrames}>
+              <DynamicScene
+                 type={scene.type}
+                 text={scene.text}
+                 durationInFrames={durationInFrames}
+                  fallbackBg={String(scene.remotion_props?.backgroundColor || "#000")}
+                  fallbackColor={String(scene.remotion_props?.textColor || "#fff")}
+                  animaComposer={scene.anima_composer}
+              />
+              {audioUrlWithToken && <Audio src={audioUrlWithToken} />}
+            </Sequence>
+
+            {/* Render transition after this scene if present */}
+            {transitionOffsets
+              .filter((t) => t.sceneIndex === index)
+              .map((t, ti) => (
+                <Sequence
+                  key={`transition-${index}-${ti}`}
+                  from={t.fromFrame}
+                  durationInFrames={t.durationFrames}
+                  name={`transition-${index}`}
+                >
+                  <TransitionWrapper
+                    fromSpec={t.fromScene.anima_composer!}
+                    toSpec={t.toScene.anima_composer!}
+                    type={t.fromScene.anima_composer!.out_transition!.type}
+                    durationFrames={t.durationFrames}
+                  />
+                </Sequence>
+              ))}
+          </React.Fragment>
         );
       })}
     </AbsoluteFill>
