@@ -1,6 +1,5 @@
 import React from 'react';
 import { Animated, Move, Scale, Fade } from 'remotion-animated';
-import { Easing } from 'remotion';
 
 export type EntryType =
   | 'fade-in'
@@ -34,31 +33,31 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({ entry, delay =
     case 'slide-up':
       animations = [
         Fade({ to: 1, initial: 0, start: delayFrames, duration }),
-        Move({ y: 0, initialY: 50, start: delayFrames, duration, ease: Easing.out(Easing.sin) }),
+        Move({ y: 0, initialY: 50, start: delayFrames, duration }),
       ];
       break;
     case 'slide-down':
       animations = [
         Fade({ to: 1, initial: 0, start: delayFrames, duration }),
-        Move({ y: 0, initialY: -50, start: delayFrames, duration, ease: Easing.out(Easing.sin) }),
+        Move({ y: 0, initialY: -50, start: delayFrames, duration }),
       ];
       break;
     case 'slide-left':
       animations = [
         Fade({ to: 1, initial: 0, start: delayFrames, duration }),
-        Move({ x: 0, initialX: 50, start: delayFrames, duration, ease: Easing.out(Easing.sin) }),
+        Move({ x: 0, initialX: 50, start: delayFrames, duration }),
       ];
       break;
     case 'slide-right':
       animations = [
         Fade({ to: 1, initial: 0, start: delayFrames, duration }),
-        Move({ x: 0, initialX: -50, start: delayFrames, duration, ease: Easing.out(Easing.sin) }),
+        Move({ x: 0, initialX: -50, start: delayFrames, duration }),
       ];
       break;
     case 'scale-in':
       animations = [
         Fade({ to: 1, initial: 0, start: delayFrames, duration }),
-        Scale({ by: 1, initial: 0, start: delayFrames, duration, ease: Easing.out(Easing.back(1.7)) }),
+        Scale({ by: 1, initial: 0, start: delayFrames, duration }),
       ];
       break;
     case 'spring-in':
