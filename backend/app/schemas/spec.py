@@ -95,7 +95,7 @@ class AnimaBackground(BaseModel):
 
 
 class BaseAnimaLayer(BaseModel):
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "ignore"}
 
     @model_validator(mode="before")
     @classmethod
@@ -208,20 +208,32 @@ class BaseAnimaLayer(BaseModel):
     lineWidth: Optional[float] = None
 
 class AnimaChildLayer(BaseAnimaLayer):
-    pass
+    @model_validator(mode="before")
+    @classmethod
+    def set_position_defaults(cls, data: Any) -> Any:
+        """Set default x=0, y=0 for child layers."""
+        if isinstance(data, dict):
+            if data.get("x") is None:
+                data["x"] = 0
+            if data.get("y") is None:
+                data["y"] = 0
+        return data
 
 class AnimaLayer(BaseAnimaLayer):
     children: Optional[List[AnimaChildLayer]] = None
 
     @model_validator(mode="before")
     @classmethod
-    def set_text_defaults(cls, data: Any) -> Any:
-        """Set default x=0, y=0 for text layers to prevent top-left positioning."""
-        if isinstance(data, dict) and data.get("type") == "text":
+    def set_position_defaults(cls, data: Any) -> Any:
+        """Set default x=0, y=0 for ALL layers to prevent top-left positioning."""
+        if isinstance(data, dict):
             if data.get("x") is None:
                 data["x"] = 0
             if data.get("y") is None:
                 data["y"] = 0
+            # Center text by default
+            if data.get("type") == "text" and data.get("textAlign") is None:
+                data["textAlign"] = "center"
         return data
 
 
