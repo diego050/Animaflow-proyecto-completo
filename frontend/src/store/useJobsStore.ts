@@ -297,6 +297,11 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
           return { selectedJob: newSelectedJob, jobs: newJobs };
         });
+
+        // When status becomes 'segmented', fetch full job data (includes result_spec with scenes)
+        if (data.status === 'segmented') {
+          get().selectJob(jobId);
+        }
       },
       onComplete: () => {
         get().refreshSelectedJob();
