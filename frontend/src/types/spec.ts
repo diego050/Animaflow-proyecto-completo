@@ -79,10 +79,16 @@ export interface AnimaLayer {
   lineWidth?: number;
 }
 
+export interface OutTransition {
+  type: 'ZoomBlurTransition' | 'WipeTransition' | 'LightLeakTransition' | 'GlitchTransition' | 'GradientOverlay' | 'NONE';
+  duration_frames: number;
+}
+
 export interface AnimaComposerSpec {
   version?: string;
   background: AnimaBackground;
   layers: AnimaLayer[];
+  out_transition?: OutTransition;
 }
 
 export interface Spec {

@@ -76,6 +76,15 @@ REGLAS DE ORO PARA EL DISEÑO:
 
 REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path) que represente el sujeto principal de la escena. No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
 
+TRANSICIONES DE SALIDA (out_transition):
+Analiza la continuidad entre esta escena y la siguiente (si la hay).
+- Si hay un cambio drástico de tema o emoción: usa "ZoomBlurTransition" o "GlitchTransition".
+- Si hay continuidad visual pero cambio de contenido: usa "WipeTransition" o "LightLeakTransition".
+- Si las escenas fluyen naturalmente sin corte brusco: usa "NONE" o "GradientOverlay".
+
+Incluye "out_transition" en tu JSON solo si quieres una transición al final de esta escena.
+Ejemplo: "out_transition": {"type": "ZoomBlurTransition", "duration_frames": 15}
+
 Ejemplo de estructura JSON esperada:
 {{
   "background": {{
@@ -214,6 +223,19 @@ def generate_scene_composer(
                         },
                         "required": ["type"]
                     }
+                },
+                "out_transition": {
+                    "type": "OBJECT",
+                    "nullable": True,
+                    "properties": {
+                        "type": {
+                            "type": "STRING",
+                            "enum": ["ZoomBlurTransition", "WipeTransition", "LightLeakTransition", "GlitchTransition", "GradientOverlay", "NONE"]
+                        },
+                        "duration_frames": {"type": "INTEGER"},
+                        "target_scene": {"type": "STRING", "nullable": True}
+                    },
+                    "required": ["type"]
                 }
             },
             "required": ["background", "layers"]

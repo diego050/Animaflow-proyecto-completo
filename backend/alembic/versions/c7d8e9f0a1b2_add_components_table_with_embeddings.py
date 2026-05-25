@@ -1,7 +1,7 @@
 """Add Component model with embedding support
 
 Revision ID: c7d8e9f0a1b2
-Revises: a1b2c3d4e5f6
+Revises: 4def2g036362
 Create Date: 2026-05-25
 
 """
@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 
 # revision identifiers, used by Alembic.
 revision = 'c7d8e9f0a1b2'
-down_revision = 'a1b2c3d4e5f6'
+down_revision = '4def2g036362'
 branch_labels = None
 depends_on = None
 
@@ -24,6 +24,7 @@ def upgrade():
         sa.Column('name', sa.String(length=255), nullable=False),
         sa.Column('slug', sa.String(length=255), nullable=False),
         sa.Column('category', sa.String(length=100), nullable=False),
+        sa.Column('role', sa.String(length=50), nullable=False, server_default='general'),
         sa.Column('description', sa.Text(), nullable=False),
         sa.Column('tags', ARRAY(sa.String(length=100)), server_default='{}'),
         sa.Column('tsx_path', sa.String(length=500), nullable=False),
@@ -39,12 +40,14 @@ def upgrade():
     op.create_index(op.f('ix_components_name'), 'components', ['name'], unique=True)
     op.create_index(op.f('ix_components_slug'), 'components', ['slug'], unique=True)
     op.create_index(op.f('ix_components_category'), 'components', ['category'], unique=False)
+    op.create_index(op.f('ix_components_role'), 'components', ['role'], unique=False)
     op.create_index(op.f('ix_components_is_active'), 'components', ['is_active'], unique=False)
     op.execute('CREATE INDEX idx_components_tags ON components USING GIN (tags)')
 
 
 def downgrade():
     op.drop_index(op.f('ix_components_is_active'), table_name='components')
+    op.drop_index(op.f('ix_components_role'), table_name='components')
     op.drop_index(op.f('ix_components_category'), table_name='components')
     op.drop_index(op.f('ix_components_slug'), table_name='components')
     op.drop_index(op.f('ix_components_name'), table_name='components')
