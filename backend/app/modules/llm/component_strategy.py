@@ -167,6 +167,11 @@ REGLAS DE ORO PARA EL DISEÑO:
 2. **COHERENCIA TEMÁTICA ESTRICTA:** Solo elige componentes de la Standard Library si tienen una relación DIRECTA y LÓGICA con el guion. Si el video es un documental sobre peces, NO uses un "SubscribeButton" o "TinderSwipeCard". Usa tu juicio semántico: si no encaja perfecto con la vibra de la escena, no lo uses.
 3. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
 4. El texto hablado principal DEBE aparecer en pantalla de manera legible. Pásalo a tu componente de texto o primitiva de texto usando `"text": "{{text}}"`.
+5. **POSICIONAMIENTO OBLIGATORIO:** TODO layer de tipo `text`, `path`, `rect`, `circle` DEBE tener las propiedades `x` e `y` explícitas. NUNCA las omitas.
+   - Para texto centrado: `"x": 0, "y": 0`
+   - Para paths centrados: `"x": 0, "y": 0`
+   - Para rects centrados: `"x": 0, "y": 0`
+   - Si quieres mover algo: ajusta x/y pero SIEMPRE inclúyelos.
 
 REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path) que represente el sujeto principal de la escena. No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
 
@@ -193,6 +198,7 @@ Ejemplo de estructura JSON esperada:
       "type": "component",
       "componentName": "NOMBRE_DEL_COMPONENTE_ELEGIDO",
       "prop1": "valor",
+      "x": 0,
       "y": -100
     }},
     {{
@@ -200,6 +206,8 @@ Ejemplo de estructura JSON esperada:
       "width": 400,
       "height": 4,
       "fill": "#38bdf8",
+      "x": 0,
+      "y": 50,
       "entry": "slide-right"
     }},
     {{
@@ -207,7 +215,8 @@ Ejemplo de estructura JSON esperada:
       "text": "{{text}}",
       "fontSize": 60,
       "color": "#ffffff",
-      "y": 100,
+      "x": 0,
+      "y": 0,
       "entry": "fade-in"
     }}
   ]

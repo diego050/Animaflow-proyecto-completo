@@ -213,6 +213,17 @@ class AnimaChildLayer(BaseAnimaLayer):
 class AnimaLayer(BaseAnimaLayer):
     children: Optional[List[AnimaChildLayer]] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def set_text_defaults(cls, data: Any) -> Any:
+        """Set default x=0, y=0 for text layers to prevent top-left positioning."""
+        if isinstance(data, dict) and data.get("type") == "text":
+            if data.get("x") is None:
+                data["x"] = 0
+            if data.get("y") is None:
+                data["y"] = 0
+        return data
+
 
 class OutTransition(BaseModel):
     type: Literal[

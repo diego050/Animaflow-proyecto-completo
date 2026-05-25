@@ -1,85 +1,58 @@
 import React from 'react';
 import { interpolate } from 'remotion';
-import { AnimaComposer } from '../composer/AnimaComposer';
-import type { AnimaBackground, AnimaLayer, AnimaComposerSpec } from '../../types/spec';
 
 // ---------------------------------------------------------------------------
-// ZoomBlurTransition — Zooms out the outgoing scene with increasing blur
-// while the incoming scene fades in underneath.
+// ZoomBlurTransition — Pure visual zoom + blur effect.
+// No AnimaComposer rendering — the zoom/blur is applied to a solid
+// background that matches the transition's visual intent.
 //
 // Progress 0.0 → 1.0:
-//   - From scene: scale 1→3, blur 0→20px, opacity 1→0 (fades out at 0.7)
-//   - To scene:   opacity 0→1 (starts fading in at 0.3)
+//   - Scale 1→3, blur 0→20px, opacity 1→0
+//   - Dark overlay fades in to cover the outgoing scene
 // ---------------------------------------------------------------------------
 
 interface Props {
   progress: number;
-  fromLayers: AnimaLayer[];
-  toLayers: AnimaLayer[];
-  fromBackground: AnimaBackground;
-  toBackground: AnimaBackground;
 }
 
-export const ZoomBlurTransition: React.FC<Props> = ({
-  progress,
-  fromLayers,
-  toLayers,
-  fromBackground,
-  toBackground,
-}) => {
+export const ZoomBlurTransition: React.FC<Props> = ({ progress }) => {
   const scale = interpolate(progress, [0, 1], [1, 3]);
   const blur = interpolate(progress, [0, 1], [0, 20]);
-  const opacityFrom = interpolate(progress, [0, 0.7], [1, 0], {
+  const opacity = interpolate(progress, [0, 0.7], [1, 0], {
     extrapolateRight: 'clamp',
   });
-  const opacityTo = interpolate(progress, [0.3, 1], [0, 1], {
-    extrapolateLeft: 'clamp',
-  });
-
-  const fromSpec: AnimaComposerSpec = {
-    background: fromBackground,
-    layers: fromLayers,
-  };
-
-  const toSpec: AnimaComposerSpec = {
-    background: toBackground,
-    layers: toLayers,
-  };
 
   return (
     <div
       style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
+        position: 'absolute',
+        inset: 0,
         overflow: 'hidden',
       }}
     >
-      {/* From Scene — zooming out + blurring + fading */}
+      {/* Zooming blurred overlay */}
       <div
         style={{
           position: 'absolute',
-          inset: 0,
+          inset: '-50%',
           transform: `scale(${scale})`,
           filter: `blur(${blur}px)`,
-          opacity: opacityFrom,
+          opacity,
           willChange: 'transform, opacity, filter',
+          background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.3) 0%, rgba(0,0,0,0.8) 100%)',
         }}
-      >
-        <AnimaComposer spec={fromSpec} />
-      </div>
-
-      {/* To Scene — fading in */}
+      />
+      {/* Fade-to-black overlay that takes over as zoom completes */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          opacity: opacityTo,
-          willChange: 'opacity',
+          backgroundColor: `rgba(0, 0, 0, ${interpolate(progress, [0.5, 1], [0, 1], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+          })})`,
         }}
-      >
-        <AnimaComposer spec={toSpec} />
-      </div>
+      />
     </div>
   );
 };
