@@ -1,73 +1,64 @@
 import React from 'react';
 import { interpolate } from 'remotion';
-import { AnimaComposer } from '../composer/AnimaComposer';
-import type { AnimaBackground, AnimaLayer, AnimaComposerSpec } from '../../types/spec';
 
 // ---------------------------------------------------------------------------
-// GradientOverlay — Stub: simple cross-fade.
-// TODO: Implement a gradient overlay that transitions between the two
-// scene backgrounds with a smooth color interpolation.
+// GradientOverlay — Smooth color gradient transition between scenes.
+// No AnimaComposer rendering — interpolates between two gradient stops
+// to create a flowing color transition driven by progress (0→1).
 // ---------------------------------------------------------------------------
 
 interface Props {
   progress: number;
-  fromLayers: AnimaLayer[];
-  toLayers: AnimaLayer[];
-  fromBackground: AnimaBackground;
-  toBackground: AnimaBackground;
 }
 
-export const GradientOverlay: React.FC<Props> = ({
-  progress,
-  fromLayers,
-  toLayers,
-  fromBackground,
-  toBackground,
-}) => {
-  const opacityFrom = interpolate(progress, [0, 1], [1, 0], {
-    extrapolateRight: 'clamp',
-  });
-  const opacityTo = interpolate(progress, [0, 1], [0, 1], {
-    extrapolateLeft: 'clamp',
-  });
+export const GradientOverlay: React.FC<Props> = ({ progress }) => {
+  // Gradient shifts from warm to cool as progress advances
+  const r1 = Math.round(interpolate(progress, [0, 1], [255, 30]));
+  const g1 = Math.round(interpolate(progress, [0, 1], [140, 60]));
+  const b1 = Math.round(interpolate(progress, [0, 1], [80, 180]));
 
-  const fromSpec: AnimaComposerSpec = {
-    background: fromBackground,
-    layers: fromLayers,
-  };
+  const r2 = Math.round(interpolate(progress, [0, 1], [255, 100]));
+  const g2 = Math.round(interpolate(progress, [0, 1], [200, 40]));
+  const b2 = Math.round(interpolate(progress, [0, 1], [120, 120]));
 
-  const toSpec: AnimaComposerSpec = {
-    background: toBackground,
-    layers: toLayers,
-  };
+  // Overlay opacity peaks mid-transition
+  const overlayOpacity = Math.sin(progress * Math.PI) * 0.85;
 
   return (
     <div
       style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
+        position: 'absolute',
+        inset: 0,
         overflow: 'hidden',
       }}
     >
+      {/* Gradient overlay */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          opacity: opacityFrom,
+          background: `linear-gradient(135deg, 
+            rgba(${r1}, ${g1}, ${b1}, ${overlayOpacity}) 0%, 
+            rgba(${r2}, ${g2}, ${b2}, ${overlayOpacity}) 50%, 
+            rgba(${r1}, ${g1}, ${b1}, ${overlayOpacity * 0.5}) 100%)`,
         }}
-      >
-        <AnimaComposer spec={fromSpec} />
-      </div>
+      />
+
+      {/* Soft center bloom */}
       <div
         style={{
           position: 'absolute',
-          inset: 0,
-          opacity: opacityTo,
+          top: '50%',
+          left: '50%',
+          width: '80%',
+          height: '80%',
+          transform: 'translate(-50%, -50%)',
+          background: `radial-gradient(ellipse at center, 
+            rgba(255, 255, 255, ${overlayOpacity * 0.3}) 0%, 
+            transparent 70%)`,
+          filter: 'blur(30px)',
         }}
-      >
-        <AnimaComposer spec={toSpec} />
-      </div>
+      />
     </div>
   );
 };

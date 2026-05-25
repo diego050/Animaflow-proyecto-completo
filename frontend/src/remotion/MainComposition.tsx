@@ -144,8 +144,6 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
                   name={`transition-${index}`}
                 >
                   <TransitionWrapper
-                    fromSpec={t.fromScene.anima_composer!}
-                    toSpec={t.toScene.anima_composer!}
                     type={t.fromScene.anima_composer!.out_transition!.type}
                     durationFrames={t.durationFrames}
                   />

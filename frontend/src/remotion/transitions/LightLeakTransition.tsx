@@ -1,73 +1,52 @@
 import React from 'react';
 import { interpolate } from 'remotion';
-import { AnimaComposer } from '../composer/AnimaComposer';
-import type { AnimaBackground, AnimaLayer, AnimaComposerSpec } from '../../types/spec';
 
 // ---------------------------------------------------------------------------
-// LightLeakTransition — Stub: simple cross-fade.
-// TODO: Implement light leak effect using a warm gradient overlay that
-// sweeps across the screen with additive blending.
+// LightLeakTransition — Warm gradient overlay that sweeps across the screen.
+// No AnimaComposer rendering — pure visual effect driven by progress (0→1).
 // ---------------------------------------------------------------------------
 
 interface Props {
   progress: number;
-  fromLayers: AnimaLayer[];
-  toLayers: AnimaLayer[];
-  fromBackground: AnimaBackground;
-  toBackground: AnimaBackground;
 }
 
-export const LightLeakTransition: React.FC<Props> = ({
-  progress,
-  fromLayers,
-  toLayers,
-  fromBackground,
-  toBackground,
-}) => {
-  const opacityFrom = interpolate(progress, [0, 1], [1, 0], {
+export const LightLeakTransition: React.FC<Props> = ({ progress }) => {
+  // Light leak sweeps from left to right
+  const leakPosition = interpolate(progress, [0, 1], [-0.3, 1.3], {
     extrapolateRight: 'clamp',
-  });
-  const opacityTo = interpolate(progress, [0, 1], [0, 1], {
     extrapolateLeft: 'clamp',
   });
 
-  const fromSpec: AnimaComposerSpec = {
-    background: fromBackground,
-    layers: fromLayers,
-  };
-
-  const toSpec: AnimaComposerSpec = {
-    background: toBackground,
-    layers: toLayers,
-  };
+  const intensity = Math.sin(progress * Math.PI); // 0→1→0 curve
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        overflow: 'hidden',
-      }}
-    >
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+      {/* Warm light sweep */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: `${leakPosition * 100}%`,
+          width: '60%',
+          height: '100%',
+          background: `linear-gradient(90deg, 
+            transparent 0%, 
+            rgba(255, 200, 100, ${intensity * 0.6}) 30%, 
+            rgba(255, 255, 220, ${intensity * 0.8}) 50%, 
+            rgba(255, 200, 100, ${intensity * 0.6}) 70%, 
+            transparent 100%)`,
+          filter: 'blur(40px)',
+          transform: 'translateX(-50%)',
+        }}
+      />
+      {/* White flash at peak */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          opacity: opacityFrom,
+          backgroundColor: `rgba(255, 255, 255, ${intensity * 0.15})`,
         }}
-      >
-        <AnimaComposer spec={fromSpec} />
-      </div>
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          opacity: opacityTo,
-        }}
-      >
-        <AnimaComposer spec={toSpec} />
-      </div>
+      />
     </div>
   );
 };

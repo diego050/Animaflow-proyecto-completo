@@ -1,73 +1,59 @@
 import React from 'react';
 import { interpolate } from 'remotion';
-import { AnimaComposer } from '../composer/AnimaComposer';
-import type { AnimaBackground, AnimaLayer, AnimaComposerSpec } from '../../types/spec';
 
 // ---------------------------------------------------------------------------
-// WipeTransition — Stub: simple cross-fade.
-// TODO: Implement directional wipe (left-to-right, top-to-bottom, etc.)
-// using clip-path or mask animation.
+// WipeTransition — Directional wipe effect (left-to-right).
+// No AnimaComposer rendering — uses clip-path animation to reveal
+// the target scene. Pure visual effect driven by progress (0→1).
 // ---------------------------------------------------------------------------
 
 interface Props {
   progress: number;
-  fromLayers: AnimaLayer[];
-  toLayers: AnimaLayer[];
-  fromBackground: AnimaBackground;
-  toBackground: AnimaBackground;
 }
 
-export const WipeTransition: React.FC<Props> = ({
-  progress,
-  fromLayers,
-  toLayers,
-  fromBackground,
-  toBackground,
-}) => {
-  const opacityFrom = interpolate(progress, [0, 1], [1, 0], {
+export const WipeTransition: React.FC<Props> = ({ progress }) => {
+  // Wipe reveals from left to right
+  const wipePercentage = interpolate(progress, [0, 1], [0, 100], {
     extrapolateRight: 'clamp',
-  });
-  const opacityTo = interpolate(progress, [0, 1], [0, 1], {
     extrapolateLeft: 'clamp',
   });
 
-  const fromSpec: AnimaComposerSpec = {
-    background: fromBackground,
-    layers: fromLayers,
-  };
-
-  const toSpec: AnimaComposerSpec = {
-    background: toBackground,
-    layers: toLayers,
-  };
+  // Edge glow for polish
+  const edgeGlow = Math.sin(progress * Math.PI) * 0.5;
 
   return (
     <div
       style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
+        position: 'absolute',
+        inset: 0,
         overflow: 'hidden',
       }}
     >
+      {/* Wipe edge glow */}
       <div
         style={{
           position: 'absolute',
-          inset: 0,
-          opacity: opacityFrom,
+          top: 0,
+          left: `${wipePercentage}%`,
+          width: '4px',
+          height: '100%',
+          backgroundColor: `rgba(255, 255, 255, ${edgeGlow})`,
+          filter: 'blur(2px)',
+          boxShadow: `0 0 20px rgba(255, 255, 255, ${edgeGlow * 0.5})`,
         }}
-      >
-        <AnimaComposer spec={fromSpec} />
-      </div>
+      />
+
+      {/* Wipe overlay — covers the "from" scene as it progresses */}
       <div
         style={{
           position: 'absolute',
-          inset: 0,
-          opacity: opacityTo,
+          top: 0,
+          left: 0,
+          width: `${wipePercentage}%`,
+          height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 1)',
         }}
-      >
-        <AnimaComposer spec={toSpec} />
-      </div>
+      />
     </div>
   );
 };

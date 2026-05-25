@@ -82,13 +82,18 @@ def split_by_timestamps(
             # La última escena toma todo el silencio hasta el final del audio (le damos un margen generoso)
             end_time = scene["core_end"] + 1.5 
         else:
-            # Use core_end + small buffer instead of midpoint to avoid cutting audio
-            end_time = scene["core_end"] + 0.8
+            # Use core_end + generous buffer
+            end_time = scene["core_end"] + 1.2
             
-            # If next scene starts before our buffer, use the gap midpoint as fallback
+            # If next scene starts before our buffer, use a minimum 0.3s gap
             next_start = scenes[i + 1]["core_start"]
             if end_time > next_start:
-                end_time = (scene["core_end"] + next_start) / 2.0
+                # Ensure at least 0.3s gap between scenes
+                gap = next_start - scene["core_end"]
+                if gap < 0.3:
+                    end_time = scene["core_end"] + (gap / 2)  # midpoint only if gap is tiny
+                else:
+                    end_time = scene["core_end"] + 0.3  # minimum safe gap
                 
         scene["start_time_seconds"] = round(start_time, 3)
         scene["end_time_seconds"] = round(end_time, 3)

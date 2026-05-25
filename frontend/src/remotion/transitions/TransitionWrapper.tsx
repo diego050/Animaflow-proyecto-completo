@@ -5,7 +5,6 @@ import { WipeTransition } from './WipeTransition';
 import { LightLeakTransition } from './LightLeakTransition';
 import { GlitchTransition } from './GlitchTransition';
 import { GradientOverlay } from './GradientOverlay';
-import type { AnimaComposerSpec } from '../../types/spec';
 
 export { ZoomBlurTransition } from './ZoomBlurTransition';
 export { WipeTransition } from './WipeTransition';
@@ -19,24 +18,19 @@ export { GradientOverlay } from './GradientOverlay';
 // Receives the spec of the outgoing scene and the incoming scene, maps the
 // transition type to the appropriate component, and drives the animation
 // via a normalized progress value (0 → 1).
+//
+// NOTE: Transitions are now pure visual effects (overlays, gradients, blurs,
+// wipes) that do NOT render full scenes. They only receive `progress`.
 // ---------------------------------------------------------------------------
 
 interface TransitionWrapperProps {
-  fromSpec: AnimaComposerSpec;
-  toSpec: AnimaComposerSpec;
   type: string;
   durationFrames: number;
 }
 
 const TRANSITION_MAP: Record<
   string,
-  React.ComponentType<{
-    progress: number;
-    fromLayers: AnimaComposerSpec['layers'];
-    toLayers: AnimaComposerSpec['layers'];
-    fromBackground: AnimaComposerSpec['background'];
-    toBackground: AnimaComposerSpec['background'];
-  }>
+  React.ComponentType<{ progress: number }>
 > = {
   ZoomBlurTransition,
   WipeTransition,
@@ -46,8 +40,6 @@ const TRANSITION_MAP: Record<
 };
 
 export const TransitionWrapper: React.FC<TransitionWrapperProps> = ({
-  fromSpec,
-  toSpec,
   type,
   durationFrames,
 }) => {
@@ -57,17 +49,9 @@ export const TransitionWrapper: React.FC<TransitionWrapperProps> = ({
   const TransitionComponent = TRANSITION_MAP[type];
 
   if (!TransitionComponent) {
-    // Fallback: no transition — render the target scene directly
+    // Fallback: no transition
     return null;
   }
 
-  return (
-    <TransitionComponent
-      progress={progress}
-      fromLayers={fromSpec.layers}
-      toLayers={toSpec.layers}
-      fromBackground={fromSpec.background}
-      toBackground={toSpec.background}
-    />
-  );
+  return <TransitionComponent progress={progress} />;
 };
