@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Union, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SFX(BaseModel):
@@ -63,14 +63,78 @@ AnimValue = float
 
 
 class AnimaBackground(BaseModel):
-    type: Literal["solid", "linear-gradient", "radial-gradient"]
+    type: Literal["solid", "linear-gradient", "radial-gradient", "linear", "radial", "gradient"]
     colors: List[str] = Field(..., min_length=1)
     angle: float = Field(default=0)
     center: Optional[List[float]] = Field(default=None, min_length=2, max_length=2)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _clamp_numeric_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        for field in ("angle",):
+            if field in data:
+                try:
+                    val = float(data[field])
+                    if abs(val) > 360:
+                        data[field] = val % 360
+                except (ValueError, TypeError, OverflowError):
+                    data[field] = 0.0
+        return data
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def normalize_bg_type(cls, v: str) -> str:
+        mapping = {
+            "linear": "linear-gradient",
+            "radial": "radial-gradient",
+            "gradient": "linear-gradient",
+        }
+        return mapping.get(v, v)
+
 
 class BaseAnimaLayer(BaseModel):
     model_config = {"extra": "forbid"}
+
+    @model_validator(mode="before")
+    @classmethod
+    def _clamp_numeric_fields(cls, data: Any) -> Any:
+        """Clamp absurd numeric values from Gemini to reasonable ranges."""
+        if not isinstance(data, dict):
+            return data
+        
+        # Fields that should be clamped to 0-10000
+        clamp_fields = [
+            "lineWidth", "fontSize", "fontWeight", "letterSpacing",
+            "width", "height", "borderRadius", "r", "strokeWidth",
+            "x", "y", "scale", "rotation", "opacity",
+            "count", "spread", "entryDelay", "speed", "delay", "intensity",
+        ]
+        
+        for field in clamp_fields:
+            if field in data:
+                try:
+                    val = float(data[field])
+                    if val > 10000:
+                        data[field] = 10000.0
+                    elif val < -10000:
+                        data[field] = -10000.0
+                    else:
+                        data[field] = val
+                except (ValueError, TypeError, OverflowError):
+                    # If it can't be converted, set to a safe default
+                    if field in ("fontSize", "fontWeight"):
+                        data[field] = 48.0
+                    elif field in ("width", "height"):
+                        data[field] = 400.0
+                    elif field in ("r", "strokeWidth", "lineWidth", "borderRadius"):
+                        data[field] = 2.0
+                    else:
+                        data[field] = 0.0
+        
+        return data
+
     id: Optional[str] = None
     type: Literal["rect", "circle", "path", "text", "image", "group", "particles", "component"]
     x: Optional[AnimValue] = None
