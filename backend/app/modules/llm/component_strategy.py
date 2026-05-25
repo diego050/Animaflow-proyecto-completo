@@ -109,15 +109,33 @@ def _build_strategy_prompt(
     half_w = width // 2
     half_h = height // 2
 
+    # Calculate safe zones dynamically
+    safe_margin_x = int(width * 0.1)  # 10% margin from edges
+    safe_margin_y = int(height * 0.1)
+    max_font_size = int(min(width, height) * 0.06)  # 6% of smallest dimension
+    
+    text_safe_zone = f"""- **TEXTO:** El texto debe estar dentro del "Safe Zone" para no cortarse en los bordes.
+  - Rango seguro X: entre -{half_w - safe_margin_x} y {half_w - safe_margin_x}.
+  - Rango seguro Y: entre -{half_h - safe_margin_y} y {half_h - safe_margin_y}.
+  - Si usas `textAlign: "center"`, `x: 0` es el centro perfecto.
+  - Si quieres texto a la izquierda: usa `x: -{int(half_w * 0.7)}` a `-{int(half_w * 0.5)}`.
+  - Si quieres texto a la derecha: usa `x: {int(half_w * 0.5)}` a `{int(half_w * 0.7)}`.
+  - fontSize máximo: {max_font_size} (valores mayores se salen del canvas)."""
+
     positioning_rules = f"""REGLAS DE POSICIONAMIENTO (CANVAS {width}x{height}, formato {aspect_ratio}):
 - El centro del canvas es (0, 0). Los bordes son aproximadamente x: ±{half_w}, y: ±{half_h}.
 - Para centrar un elemento: usa x: 0, y: 0.
 - Para texto principal: usa y: {int(-half_h * 0.2)} a y: {int(half_h * 0.2)} (zona central, legible).
 - Para elementos decorativos: distribúyelos en y: {int(-half_h * 0.6)} a y: {int(half_h * 0.6)}, x: {int(-half_w * 0.5)} a x: {int(half_w * 0.5)}.
-- NUNCA uses coordenadas menores a {int(min(width, height) * 0.05)} en paths SVG (serían invisibles en {width}x{height}).
+- **CRÍTICO PARA PATHS SVG:** Las coordenadas dentro de `pathData` son PÍXELES ABSOLUTOS del canvas.
+  - El centro del canvas es ({width // 2}, {height // 2}).
+  - Si quieres un círculo en el centro, el path debe empezar cerca de M {width // 2}, {height // 2}.
+  - M 100,100 dibuja en la esquina superior izquierda (invisible o cortado).
+  - Usa coordenadas grandes: M 400,800 es mejor que M 50,50.
 - Para círculos: r: {int(min(width, height) * 0.1)} a r: {int(min(width, height) * 0.3)} es visible.
 - Para rects: width: {int(width * 0.2)}-{int(width * 0.8)}, height: {int(height * 0.01)}-{int(height * 0.15)}.
 - Usa transform: "translate(x, y)" o las propiedades x/y del layer para posicionar.
+{text_safe_zone}
 """
 
     return f"""Eres el director de escena de AnimaFlow. Tu trabajo es diseñar la composición de UNA escena de video devolviendo un JSON AnimaComposerSpec.

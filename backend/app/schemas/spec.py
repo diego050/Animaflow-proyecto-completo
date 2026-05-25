@@ -133,13 +133,13 @@ class BaseAnimaLayer(BaseModel):
                 try:
                     val = float(data[field])
                     if val > max_val:
-                        data[field] = max_val
+                        data[field] = float(max_val)
                     elif val < min_val:
-                        data[field] = min_val
+                        data[field] = float(min_val)
                     else:
                         data[field] = val
                 except (ValueError, TypeError, OverflowError):
-                    data[field] = default
+                    data[field] = float(default)
         
         return data
 
@@ -169,7 +169,10 @@ class BaseAnimaLayer(BaseModel):
     shape: Optional[Literal["circle", "rect", "star"]] = None
     spread: Optional[float] = None
     colors: Optional[List[str]] = None
-    entry: Optional[Literal["fade-in", "slide-up", "slide-down", "slide-left", "slide-right", "scale-in", "spring-in"]] = None
+    entry: Optional[Literal[
+        "fade-in", "slide-up", "slide-down", "slide-left", "slide-right", 
+        "scale-in", "spring-in", "zoom-in", "zoom-out", "rotate-in", "bounce-in"
+    ]] = None
     entryDelay: float = Field(default=0)
     filter: Optional[str] = None
     componentName: Optional[Literal[

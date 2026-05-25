@@ -1,308 +1,322 @@
-pi-1  | 04:43:01 [animaflow.tts.whisper] INFO: Transcribing audio with Groq: /app/storage/audio/piper/808720281387.wav
-api-1  | 04:43:02 [animaflow.tts.whisper] INFO: Extracted 37 word timestamps
-api-1  | 04:43:03 [animaflow.tts.service] INFO: TTS complete: /app/storage/audio/piper/808720281387.wav (11.42s, 37 words)
-api-1  | 04:43:03 [animaflow.pipeline] INFO: Generating batch visual prompts for 3 scenes...
-api-1  | 04:43:03 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
-api-1  | 04:43:07 [animaflow.llm] INFO: Respuesta recibida (1121 chars)
-api-1  | 04:43:07 [animaflow.pipeline] INFO: Job 374ade7d-ab81-4ea6-8332-f65a473e1fad paused at 'segmented' status awaiting user approval
-api-1  | INFO:     172.16.2.5:37818 - "GET /api/jobs HTTP/1.1" 200 OK
-api-1  | INFO:     172.16.2.5:37820 - "GET /api/jobs/374ade7d-ab81-4ea6-8332-f65a473e1fad HTTP/1.1" 200 OK
-api-1  | INFO:     127.0.0.1:60530 - "GET /health HTTP/1.1" 200 OK
-api-1  | INFO:     172.16.2.5:35000 - "POST /api/jobs/374ade7d-ab81-4ea6-8332-f65a473e1fad/approve-scenes HTTP/1.1" 200 OK
-api-1  | INFO:     172.16.2.5:35010 - "GET /api/jobs/374ade7d-ab81-4ea6-8332-f65a473e1fad HTTP/1.1" 200 OK
-api-1  | INFO:     172.16.2.5:35022 - "GET /api/jobs HTTP/1.1" 200 OK
-api-1  | INFO:     127.0.0.1:39518 - "GET /health HTTP/1.1" 200 OK
-api-1  | 04:44:07 [animaflow.scheduler] INFO: Scheduler picked up job 374ade7d-ab81-4ea6-8332-f65a473e1fad for phase enrichment
-api-1  | 04:44:07 [animaflow.pipeline] INFO: Deciding component strategy for scene 1...
-api-1  | 04:44:08 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['RaysOfLight', 'GlobalVFX', 'Typewriter', 'HighlightText', 'AnimatedIcon']
-api-1  | 04:44:08 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['RaysOfLight', 'GlobalVFX', 'Typewriter', 'HighlightText', 'AnimatedIcon']
-api-1  | 04:44:08 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
-api-1  | 04:44:11 [animaflow.llm] INFO: Respuesta recibida (941 chars)
-api-1  | 04:44:11 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (941 chars): {
+ | INFO:     127.0.0.1:56058 - "GET /health HTTP/1.1" 200 OK
+api-1 has been recreated
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [1]
+api-1 exited with code 0
+api-1  | INFO:     Started server process [1]
+api-1  | INFO:     Waiting for application startup.
+api-1  | 05:11:20 [animaflow.scheduler] INFO: Starting PG Scheduler with asyncpg LISTEN...
+api-1  | INFO:     Application startup complete.
+api-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+api-1  | INFO:     127.0.0.1:42304 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:58388 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:50834 - "GET /api/api-keys/me/settings HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:37638 - "GET /api/voices/ HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:37658 - "GET /api/auth/me HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:37650 - "GET /api/api-keys/me/settings HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:37660 - "GET /api/auth/me HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:47094 - "GET /health HTTP/1.1" 200 OK
+api-1  | 05:12:30 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
+api-1  | 05:12:31 [animaflow.llm] INFO: Respuesta recibida (310 chars)
+api-1  | 05:12:31 [animaflow.llm] WARNING: Script length mismatch: estimated 23.0s, target 15s. Regenerating...
+api-1  | 05:12:31 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
+api-1  | 05:12:32 [animaflow.llm] INFO: Respuesta recibida (215 chars)
+api-1  | 05:12:32 [animaflow.llm] INFO: Retry result: 15.2s (target: 15s)
+api-1  | INFO:     172.16.2.5:58040 - "POST /api/jobs/generate-script HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:52370 - "POST /api/jobs/ HTTP/1.1" 201 Created
+api-1  | 05:12:44 [animaflow.scheduler] INFO: Scheduler picked up job 4e8be384-fd41-4cac-a4c0-3ff411d57fa1 for phase segmentation
+api-1  | 05:12:44 [animaflow.pipeline] INFO: Generating global TTS for job 4e8be384-fd41-4cac-a4c0-3ff411d57fa1...
+api-1  | 05:12:44 [animaflow.tts.service] INFO: Generating TTS with provider: local_piper
+api-1  | INFO:     172.16.2.5:52372 - "GET /api/jobs HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:52380 - "GET /api/jobs/4e8be384-fd41-4cac-a4c0-3ff411d57fa1/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3ODAxODkyMzR9.iHu3Y4bqzDSTcPjc6uxcTpSIoBhbw7qx3QZ_pZAVjk4 HTTP/1.1" 200 OK
+api-1  | 05:12:47 [animaflow.tts.piper] INFO: Piper audio generated: /app/storage/audio/piper/377170517945.wav
+api-1  | 05:12:47 [animaflow.tts.service] INFO: Extracting timestamps with Groq API...
+api-1  | 05:12:47 [animaflow.tts.whisper] INFO: Transcribing audio with Groq: /app/storage/audio/piper/377170517945.wav
+api-1  | 05:12:47 [animaflow.tts.whisper] INFO: Extracted 34 word timestamps
+api-1  | 05:12:48 [animaflow.tts.service] INFO: TTS complete: /app/storage/audio/piper/377170517945.wav (12.16s, 34 words)
+api-1  | 05:12:48 [animaflow.pipeline] INFO: Generating batch visual prompts for 2 scenes...
+api-1  | 05:12:48 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
+api-1  | 05:12:49 [animaflow.llm] INFO: Respuesta recibida (830 chars)
+api-1  | 05:12:49 [animaflow.pipeline] INFO: Job 4e8be384-fd41-4cac-a4c0-3ff411d57fa1 paused at 'segmented' status awaiting user approval
+api-1  | INFO:     127.0.0.1:35942 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:42896 - "GET /api/jobs HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:42908 - "GET /api/jobs/4e8be384-fd41-4cac-a4c0-3ff411d57fa1 HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:35944 - "POST /api/jobs/4e8be384-fd41-4cac-a4c0-3ff411d57fa1/approve-scenes HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:35946 - "GET /api/jobs/4e8be384-fd41-4cac-a4c0-3ff411d57fa1 HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:35950 - "GET /api/jobs HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:56978 - "GET /health HTTP/1.1" 200 OK
+api-1  | 05:13:49 [animaflow.scheduler] INFO: Scheduler picked up job 4e8be384-fd41-4cac-a4c0-3ff411d57fa1 for phase enrichment
+api-1  | 05:13:49 [animaflow.pipeline] INFO: Deciding component strategy for scene 1...
+api-1  | 05:13:50 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['AbstractWave', 'RaysOfLight', 'HighlightText', 'TextSwap', 'RippleEffect']
+api-1  | 05:13:50 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['AbstractWave', 'RaysOfLight', 'HighlightText', 'TextSwap', 'RippleEffect']
+api-1  | 05:13:50 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
+api-1  | INFO:     127.0.0.1:38492 - "GET /health HTTP/1.1" 200 OK
+api-1  | 05:13:53 [animaflow.llm] INFO: Respuesta recibida (1321 chars)
+api-1  | 05:13:53 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1321 chars): {
 api-1  |   "version": "1.0",
 api-1  |   "background": {
-api-1  |     "type": "gradient",
-api-1  |     "colors": ["#1a1a1a", "#2d2d2d"],
+api-1  |     "type": "linear-gradient",
+api-1  |     "colors": ["#000b1a", "#002b4d"],
 api-1  |     "angle": 180
 api-1  |   },
 api-1  |   "layers": [
 api-1  |     {
 api-1  |       "type": "component",
 api-1  |       "componentName": "RaysOfLight",
-api-1  |       "opacity": 0.4
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "circle",
-api-1  |       "x": 0,
-api-1  |       "y": -150,
-api-1  |       "r": 80,
-api-1  |       "color": "#f59e0b",
-api-1  |       "animation": "pulse",
-api-1  |       "lineWidth": 0
+api-1  |       "color": "#06b6d4",
+api-1  |       "intensity": 0.3,
+api-1  |       "animation": "slow-float"
 api-1  |     },
 api-1  |     {
 api-1  |       "type": "path",
-api-1  |       "pathData": "M -50 0 Q 0 -50 50 0 Q 0 50 -50 0",
-api-1  |       "color": "#d97706",
-api-1  |       "animation": "float",
+api-1  |       "pathData": "M 100,100 C 200,50 300,50 400,100 C 450,200 450,300 400,400 C 300,450 200,450 100,400 C 50,300 50,200 100,100 Z",
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 0.5,
+api-1  |       "color": "#0891b2",
+api-1  |       "lineWidth": 200
+api-1  |     },
+api-1  |     {
+api-1  |       "type": "circle",
+api-1  |       "r": 150,
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 0.8,
+api-1  |       "color": "#06b6d4",
+api-1  |       "animation": "pulse",
 api-1  |       "lineWidth": 2
 api-1  |     },
 api-1  |     {
-api-1  |       "type": "component",
-api-1  |       "componentName": "Typewriter",
-api-1  |       "text": "¿Sabías que tu perro te manipula con la mirada? Y no, no es solo por comida...",
-api-1  |       "fontSize": 42,
-api-1  |       "textColor": "#ffffff",
-api-1  |       "speed": 0.05,
-api-1  |       "delay": 0.5,
+api-1  |       "type": "text",
+api-1  |       "text": "¿Sabías que los peces se reconocen en el espejo? Sí, tienen autoconciencia, algo que antes creíamos exclusivo de humanos.",
+api-1  |       "fontSize": 48,
+api-1  |       "fontWeight": 600,
+api-1  |       "color": "#a5f3fc",
+api-1  |       "textColor": "#a5f3fc",
 api-1  |       "lineWidth": 800
+api-1  |     },
+api-1  |     {
+api-1  |       "type": "component",
+api-1  |       "componentName": "RippleEffect",
+api-1  |       "color": "#22d3ee",
+api-1  |       "intensity": 0.5,
+api-1  |       "animation": "slow",
+api-1  |       "lineWidth": 2
 api-1  |     }
 api-1  |   ],
 api-1  |   "out_transition": {
 api-1  |     "type": "LightLeakTransition",
-api-1  |     "duration_frames": 30
+api-1  |     "duration_frames": 15
 api-1  |   }
 api-1  | }
-api-1  | 04:44:11 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (941 chars): {
+api-1  | 05:13:53 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1321 chars): {
 api-1  |   "version": "1.0",
 api-1  |   "background": {
-api-1  |     "type": "gradient",
-api-1  |     "colors": ["#1a1a1a", "#2d2d2d"],
+api-1  |     "type": "linear-gradient",
+api-1  |     "colors": ["#000b1a", "#002b4d"],
 api-1  |     "angle": 180
 api-1  |   },
 api-1  |   "layers": [
 api-1  |     {
 api-1  |       "type": "component",
 api-1  |       "componentName": "RaysOfLight",
-api-1  |       "opacity": 0.4
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "circle",
-api-1  |       "x": 0,
-api-1  |       "y": -150,
-api-1  |       "r": 80,
-api-1  |       "color": "#f59e0b",
-api-1  |       "animation": "pulse",
-api-1  |       "lineWidth": 0
+api-1  |       "color": "#06b6d4",
+api-1  |       "intensity": 0.3,
+api-1  |       "animation": "slow-float"
 api-1  |     },
 api-1  |     {
 api-1  |       "type": "path",
-api-1  |       "pathData": "M -50 0 Q 0 -50 50 0 Q 0 50 -50 0",
-api-1  |       "color": "#d97706",
-api-1  |       "animation": "float",
+api-1  |       "pathData": "M 100,100 C 200,50 300,50 400,100 C 450,200 450,300 400,400 C 300,450 200,450 100,400 C 50,300 50,200 100,100 Z",
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 0.5,
+api-1  |       "color": "#0891b2",
+api-1  |       "lineWidth": 200
+api-1  |     },
+api-1  |     {
+api-1  |       "type": "circle",
+api-1  |       "r": 150,
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 0.8,
+api-1  |       "color": "#06b6d4",
+api-1  |       "animation": "pulse",
 api-1  |       "lineWidth": 2
+api-1  |     },
+api-1  |     {
+api-1  |       "type": "text",
+api-1  |       "text": "¿Sabías que los peces se reconocen en el espejo? Sí, tienen autoconciencia, algo que antes creíamos exclusivo de humanos.",
+api-1  |       "fontSize": 48,
+api-1  |       "fontWeight": 600,
+api-1  |       "color": "#a5f3fc",
+api-1  |       "textColor": "#a5f3fc",
+api-1  |       "lineWidth": 800
+api-1  |     },
+api-1  |     {
+api-1  |       "type": "component",
+api-1  |       "componentName": "RippleEffect",
+api-1  |       "color": "#22d3ee",
+api-1  |       "intensity": 0.5,
+api-1  |       "animation": "slow",
+api-1  |       "lineWidth": 2
+api-1  |     }
+api-1  |   ],
+api-1  |   "out_transition": {
+api-1  |     "type": "LightLeakTransition",
+api-1  |     "duration_frames": 15
+api-1  |   }
+api-1  | }
+api-1  | 05:13:53 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 1043, preview: {'version': '1.0', 'background': {'type': 'linear-gradient', 'colors': ['#000b1a', '#002b4d'], 'angle': 180}, 'layers': [{'type': 'component', 'componentName': 'RaysOfLight', 'color': '#06b6d4', 'intensity': 0.3, 'animation': 'slow-float'}, {'type': 'path', 'pathData': 'M 100,100 C 200,50 300,50 400,100 C 450,200 450,300 400,400 C 300,450 200,450 100,400 C 50,300 50,200 100,100 Z', 'entry': 'fade-in', 'entryDelay': 0.5, 'color': '#0891b2', 'lineWidth': 200}, {'type': 'circle', 'r': 150, 'entry': 'fade-in', 'entryDelay': 0.8, 'color': '#06b6d4', 'animation': 'pulse', 'lineWidth': 2}, {'type': 'text', 'text': '¿Sabías que los peces se reconocen en el espejo? Sí, tienen autoconciencia, algo que antes creíamos exclusivo de humanos.', 'fontSize': 48, 'fontWeight': 600, 'color': '#a5f3fc', 'textColor': '#a5f3fc', 'lineWidth': 800}, {'type': 'component', 'componentName': 'RippleEffect', 'color': '#22d3ee', 'intensity': 0.5, 'animation': 'slow', 'lineWidth': 2}], 'out_transition': {'type': 'LightLeakTransition', 'duration_frames': 15}}
+api-1  | 05:13:53 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 1043, preview: {'version': '1.0', 'background': {'type': 'linear-gradient', 'colors': ['#000b1a', '#002b4d'], 'angle': 180}, 'layers': [{'type': 'component', 'componentName': 'RaysOfLight', 'color': '#06b6d4', 'intensity': 0.3, 'animation': 'slow-float'}, {'type': 'path', 'pathData': 'M 100,100 C 200,50 300,50 400,100 C 450,200 450,300 400,400 C 300,450 200,450 100,400 C 50,300 50,200 100,100 Z', 'entry': 'fade-in', 'entryDelay': 0.5, 'color': '#0891b2', 'lineWidth': 200}, {'type': 'circle', 'r': 150, 'entry': 'fade-in', 'entryDelay': 0.8, 'color': '#06b6d4', 'animation': 'pulse', 'lineWidth': 2}, {'type': 'text', 'text': '¿Sabías que los peces se reconocen en el espejo? Sí, tienen autoconciencia, algo que antes creíamos exclusivo de humanos.', 'fontSize': 48, 'fontWeight': 600, 'color': '#a5f3fc', 'textColor': '#a5f3fc', 'lineWidth': 800}, {'type': 'component', 'componentName': 'RippleEffect', 'color': '#22d3ee', 'intensity': 0.5, 'animation': 'slow', 'lineWidth': 2}], 'out_transition': {'type': 'LightLeakTransition', 'duration_frames': 15}}
+api-1  | 05:13:53 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
+api-1  | 05:13:53 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
+api-1  | 05:13:57 [animaflow.pipeline] INFO: Deciding component strategy for scene 2...
+api-1  | 05:13:57 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['RaysOfLight', 'AbstractWave', 'HighlightText', 'Typewriter', 'RippleEffect']
+api-1  | 05:13:57 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['RaysOfLight', 'AbstractWave', 'HighlightText', 'Typewriter', 'RippleEffect']
+api-1  | 05:13:57 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
+api-1  | INFO:     127.0.0.1:60584 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:44466 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:38248 - "GET /api/jobs/4e8be384-fd41-4cac-a4c0-3ff411d57fa1 HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:38250 - "GET /api/auth/me HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:38260 - "GET /api/jobs/4e8be384-fd41-4cac-a4c0-3ff411d57fa1/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3ODAxODkyMzR9.iHu3Y4bqzDSTcPjc6uxcTpSIoBhbw7qx3QZ_pZAVjk4 HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:38262 - "GET /api/auth/me HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:59350 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:44052 - "GET /health HTTP/1.1" 200 OK
+api-1  | 05:16:21 [animaflow.llm] WARNING: Error transitorio en llamada síncrona (503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This mo...). Reintentando en 3s (intento 1/3)
+api-1  | INFO:     127.0.0.1:38980 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:36324 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:47130 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:48802 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:39984 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:41732 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:51542 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:44578 - "GET /api/jobs/4e8be384-fd41-4cac-a4c0-3ff411d57fa1 HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:44586 - "GET /api/auth/me HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:44598 - "GET /api/jobs/4e8be384-fd41-4cac-a4c0-3ff411d57fa1/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3ODAxODkyMzR9.iHu3Y4bqzDSTcPjc6uxcTpSIoBhbw7qx3QZ_pZAVjk4 HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:44602 - "GET /api/auth/me HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:54474 - "GET /api/audio/4e8be384-fd41-4cac-a4c0-3ff411d57fa1_0.wav?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3ODAxODkyMzR9.iHu3Y4bqzDSTcPjc6uxcTpSIoBhbw7qx3QZ_pZAVjk4 HTTP/1.1" 206 Partial Content
+api-1  | 05:19:45 [animaflow.llm] WARNING: Error transitorio en llamada síncrona (503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This mo...). Reintentando en 6s (intento 2/3)
+api-1  | INFO:     127.0.0.1:44792 - "GET /health HTTP/1.1" 200 OK
+api-1  | 05:20:02 [animaflow.llm] INFO: Respuesta recibida (1162 chars)
+api-1  | 05:20:02 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1162 chars): {
+api-1  |   "version": "1.0",
+api-1  |   "background": {
+api-1  |     "type": "linear-gradient",
+api-1  |     "colors": ["#020617", "#0f172a"],
+api-1  |     "angle": 180
+api-1  |   },
+api-1  |   "layers": [
+api-1  |     {
+api-1  |       "type": "component",
+api-1  |       "componentName": "RaysOfLight",
+api-1  |       "intensity": 0.8,
+api-1  |       "theme": "ocean",
+api-1  |       "animation": "pulse"
+api-1  |     },
+api-1  |     {
+api-1  |       "type": "circle",
+api-1  |       "r": 250,
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 0.5,
+api-1  |       "color": "transparent",
+api-1  |       "lineWidth": 400.00000000000006
+api-1  |     },
+api-1  |     {
+api-1  |       "type": "circle",
+api-1  |       "r": 150,
+api-1  |       "entry": "zoom-in",
+api-1  |       "entryDelay": 1,
+api-1  |       "color": "#e2e8f0",
+api-1  |       "lineWidth": 20
 api-1  |     },
 api-1  |     {
 api-1  |       "type": "component",
 api-1  |       "componentName": "Typewriter",
-api-1  |       "text": "¿Sabías que tu perro te manipula con la mirada? Y no, no es solo por comida...",
-api-1  |       "fontSize": 42,
-api-1  |       "textColor": "#ffffff",
+api-1  |       "text": "La próxima vez que mires tu pecera... recuerda, ellos te están observando también. ¡Sígueme!",
+api-1  |       "fontSize": 48,
+api-1  |       "textColor": "#f8fafc",
 api-1  |       "speed": 0.05,
 api-1  |       "delay": 0.5,
 api-1  |       "lineWidth": 800
+api-1  |     },
+api-1  |     {
+api-1  |       "type": "component",
+api-1  |       "componentName": "SubscribeButton",
+api-1  |       "y": 400,
+api-1  |       "entry": "slide-up",
+api-1  |       "entryDelay": 2
 api-1  |     }
 api-1  |   ],
 api-1  |   "out_transition": {
 api-1  |     "type": "LightLeakTransition",
-api-1  |     "duration_frames": 30
+api-1  |     "duration_frames": 15
 api-1  |   }
 api-1  | }
-api-1  | 04:44:11 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 721, preview: {'version': '1.0', 'background': {'type': 'gradient', 'colors': ['#1a1a1a', '#2d2d2d'], 'angle': 180}, 'layers': [{'type': 'component', 'componentName': 'RaysOfLight', 'opacity': 0.4}, {'type': 'circle', 'x': 0, 'y': -150, 'r': 80, 'color': '#f59e0b', 'animation': 'pulse', 'lineWidth': 0}, {'type': 'path', 'pathData': 'M -50 0 Q 0 -50 50 0 Q 0 50 -50 0', 'color': '#d97706', 'animation': 'float', 'lineWidth': 2}, {'type': 'component', 'componentName': 'Typewriter', 'text': '¿Sabías que tu perro te manipula con la mirada? Y no, no es solo por comida...', 'fontSize': 42, 'textColor': '#ffffff', 'speed': 0.05, 'delay': 0.5, 'lineWidth': 800}], 'out_transition': {'type': 'LightLeakTransition', 'duration_frames': 30}}
-api-1  | 04:44:11 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 721, preview: {'version': '1.0', 'background': {'type': 'gradient', 'colors': ['#1a1a1a', '#2d2d2d'], 'angle': 180}, 'layers': [{'type': 'component', 'componentName': 'RaysOfLight', 'opacity': 0.4}, {'type': 'circle', 'x': 0, 'y': -150, 'r': 80, 'color': '#f59e0b', 'animation': 'pulse', 'lineWidth': 0}, {'type': 'path', 'pathData': 'M -50 0 Q 0 -50 50 0 Q 0 50 -50 0', 'color': '#d97706', 'animation': 'float', 'lineWidth': 2}, {'type': 'component', 'componentName': 'Typewriter', 'text': '¿Sabías que tu perro te manipula con la mirada? Y no, no es solo por comida...', 'fontSize': 42, 'textColor': '#ffffff', 'speed': 0.05, 'delay': 0.5, 'lineWidth': 800}], 'out_transition': {'type': 'LightLeakTransition', 'duration_frames': 30}}
-api-1  | 04:44:11 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | 04:44:11 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | 04:44:15 [animaflow.pipeline] INFO: Deciding component strategy for scene 2...
-api-1  | 04:44:15 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['FloatingBlobs', 'GlobalVFX', 'HighlightText', 'TextReveal', 'AnimatedIcon']
-api-1  | 04:44:15 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['FloatingBlobs', 'GlobalVFX', 'HighlightText', 'TextReveal', 'AnimatedIcon']
-api-1  | 04:44:15 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
-api-1  | INFO:     127.0.0.1:54846 - "GET /health HTTP/1.1" 200 OK
-api-1  | 04:44:27 [animaflow.llm] INFO: Respuesta recibida (948 chars)
-api-1  | 04:44:27 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (948 chars): {
+api-1  | 05:20:02 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1162 chars): {
 api-1  |   "version": "1.0",
 api-1  |   "background": {
-api-1  |     "type": "solid",
-api-1  |     "colors": ["#262626"]
+api-1  |     "type": "linear-gradient",
+api-1  |     "colors": ["#020617", "#0f172a"],
+api-1  |     "angle": 180
 api-1  |   },
 api-1  |   "layers": [
 api-1  |     {
 api-1  |       "type": "component",
-api-1  |       "componentName": "GlobalVFX",
-api-1  |       "intensity": 0.5,
-api-1  |       "animation": "float"
+api-1  |       "componentName": "RaysOfLight",
+api-1  |       "intensity": 0.8,
+api-1  |       "theme": "ocean",
+api-1  |       "animation": "pulse"
+api-1  |     },
+api-1  |     {
+api-1  |       "type": "circle",
+api-1  |       "r": 250,
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 0.5,
+api-1  |       "color": "transparent",
+api-1  |       "lineWidth": 400.00000000000006
 api-1  |     },
 api-1  |     {
 api-1  |       "type": "circle",
 api-1  |       "r": 150,
-api-1  |       "color": "#FFD700",
-api-1  |       "intensity": 0.2,
-api-1  |       "animation": "pulse",
-api-1  |       "lineWidth": 2
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "circle",
-api-1  |       "r": 80,
-api-1  |       "color": "#FFFFFF",
-api-1  |       "animation": "float",
-api-1  |       "lineWidth": 1
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "text",
-api-1  |       "text": "es algo mucho más profundo. Es amor puro. Al mirarte, ambos liberan oxitocina.",
-api-1  |       "fontSize": 48,
-api-1  |       "color": "#FFD700",
-api-1  |       "textColor": "#FFD700",
-api-1  |       "lineWidth": 0.5
+api-1  |       "entry": "zoom-in",
+api-1  |       "entryDelay": 1,
+api-1  |       "color": "#e2e8f0",
+api-1  |       "lineWidth": 20
 api-1  |     },
 api-1  |     {
 api-1  |       "type": "component",
-api-1  |       "componentName": "EmojiFloat",
-api-1  |       "y": 200,
-api-1  |       "speed": 0.5
+api-1  |       "componentName": "Typewriter",
+api-1  |       "text": "La próxima vez que mires tu pecera... recuerda, ellos te están observando también. ¡Sígueme!",
+api-1  |       "fontSize": 48,
+api-1  |       "textColor": "#f8fafc",
+api-1  |       "speed": 0.05,
+api-1  |       "delay": 0.5,
+api-1  |       "lineWidth": 800
+api-1  |     },
+api-1  |     {
+api-1  |       "type": "component",
+api-1  |       "componentName": "SubscribeButton",
+api-1  |       "y": 400,
+api-1  |       "entry": "slide-up",
+api-1  |       "entryDelay": 2
 api-1  |     }
 api-1  |   ],
 api-1  |   "out_transition": {
 api-1  |     "type": "LightLeakTransition",
-api-1  |     "duration_frames": 30
+api-1  |     "duration_frames": 15
 api-1  |   }
 api-1  | }
-api-1  | 04:44:27 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (948 chars): {
-api-1  |   "version": "1.0",
-api-1  |   "background": {
-api-1  |     "type": "solid",
-api-1  |     "colors": ["#262626"]
-api-1  |   },
-api-1  |   "layers": [
-api-1  |     {
-api-1  |       "type": "component",
-api-1  |       "componentName": "GlobalVFX",
-api-1  |       "intensity": 0.5,
-api-1  |       "animation": "float"
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "circle",
-api-1  |       "r": 150,
-api-1  |       "color": "#FFD700",
-api-1  |       "intensity": 0.2,
-api-1  |       "animation": "pulse",
-api-1  |       "lineWidth": 2
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "circle",
-api-1  |       "r": 80,
-api-1  |       "color": "#FFFFFF",
-api-1  |       "animation": "float",
-api-1  |       "lineWidth": 1
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "text",
-api-1  |       "text": "es algo mucho más profundo. Es amor puro. Al mirarte, ambos liberan oxitocina.",
-api-1  |       "fontSize": 48,
-api-1  |       "color": "#FFD700",
-api-1  |       "textColor": "#FFD700",
-api-1  |       "lineWidth": 0.5
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "component",
-api-1  |       "componentName": "EmojiFloat",
-api-1  |       "y": 200,
-api-1  |       "speed": 0.5
-api-1  |     }
-api-1  |   ],
-api-1  |   "out_transition": {
-api-1  |     "type": "LightLeakTransition",
-api-1  |     "duration_frames": 30
-api-1  |   }
-api-1  | }
-api-1  | 04:44:27 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 710, preview: {'version': '1.0', 'background': {'type': 'solid', 'colors': ['#262626']}, 'layers': [{'type': 'component', 'componentName': 'GlobalVFX', 'intensity': 0.5, 'animation': 'float'}, {'type': 'circle', 'r': 150, 'color': '#FFD700', 'intensity': 0.2, 'animation': 'pulse', 'lineWidth': 2}, {'type': 'circle', 'r': 80, 'color': '#FFFFFF', 'animation': 'float', 'lineWidth': 1}, {'type': 'text', 'text': 'es algo mucho más profundo. Es amor puro. Al mirarte, ambos liberan oxitocina.', 'fontSize': 48, 'color': '#FFD700', 'textColor': '#FFD700', 'lineWidth': 0.5}, {'type': 'component', 'componentName': 'EmojiFloat', 'y': 200, 'speed': 0.5}], 'out_transition': {'type': 'LightLeakTransition', 'duration_frames': 30}}
-api-1  | 04:44:27 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 710, preview: {'version': '1.0', 'background': {'type': 'solid', 'colors': ['#262626']}, 'layers': [{'type': 'component', 'componentName': 'GlobalVFX', 'intensity': 0.5, 'animation': 'float'}, {'type': 'circle', 'r': 150, 'color': '#FFD700', 'intensity': 0.2, 'animation': 'pulse', 'lineWidth': 2}, {'type': 'circle', 'r': 80, 'color': '#FFFFFF', 'animation': 'float', 'lineWidth': 1}, {'type': 'text', 'text': 'es algo mucho más profundo. Es amor puro. Al mirarte, ambos liberan oxitocina.', 'fontSize': 48, 'color': '#FFD700', 'textColor': '#FFD700', 'lineWidth': 0.5}, {'type': 'component', 'componentName': 'EmojiFloat', 'y': 200, 'speed': 0.5}], 'out_transition': {'type': 'LightLeakTransition', 'duration_frames': 30}}
-api-1  | 04:44:27 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | 04:44:27 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | 04:44:31 [animaflow.pipeline] INFO: Deciding component strategy for scene 3...
-api-1  | 04:44:31 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['WaveformVisualizer', 'GlobalVFX', 'HighlightText', 'CodeBlockHighlight', 'AnimatedIcon']
-api-1  | 04:44:31 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['WaveformVisualizer', 'GlobalVFX', 'HighlightText', 'CodeBlockHighlight', 'AnimatedIcon']
-api-1  | 04:44:31 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
-api-1  | 04:44:35 [animaflow.llm] INFO: Respuesta recibida (779 chars)
-api-1  | 04:44:35 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (779 chars): {
-api-1  |   "version": "1.0",
-api-1  |   "background": {
-api-1  |     "type": "solid",
-api-1  |     "colors": ["#1a1a1a"]
-api-1  |   },
-api-1  |   "layers": [
-api-1  |     {
-api-1  |       "id": "paw-print-shape",
-api-1  |       "type": "path",
-api-1  |       "pathData": "M50 50 C 50 20, 80 20, 80 50 C 80 80, 50 80, 50 50 Z",
-api-1  |       "color": "#475569",
-api-1  |       "animation": "pulse",
-api-1  |       "lineWidth": 0
-api-1  |     },
-api-1  |     {
-api-1  |       "id": "main-text",
-api-1  |       "type": "text",
-api-1  |       "text": "¡Sígueme para entender mejor a tu mejor amigo!",
-api-1  |       "fontSize": 48,
-api-1  |       "color": "#f8fafc",
-api-1  |       "animation": "pulse",
-api-1  |       "lineWidth": 0
-api-1  |     },
-api-1  |     {
-api-1  |       "id": "cta-button",
-api-1  |       "type": "component",
-api-1  |       "componentName": "SubscribeButton",
-api-1  |       "y": 200,
-api-1  |       "entry": "slide-up"
-api-1  |     }
-api-1  |   ],
-api-1  |   "out_transition": {
-api-1  |     "type": "WipeTransition",
-api-1  |     "duration_frames": 20
-api-1  |   }
-api-1  | }
-api-1  | 04:44:35 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (779 chars): {
-api-1  |   "version": "1.0",
-api-1  |   "background": {
-api-1  |     "type": "solid",
-api-1  |     "colors": ["#1a1a1a"]
-api-1  |   },
-api-1  |   "layers": [
-api-1  |     {
-api-1  |       "id": "paw-print-shape",
-api-1  |       "type": "path",
-api-1  |       "pathData": "M50 50 C 50 20, 80 20, 80 50 C 80 80, 50 80, 50 50 Z",
-api-1  |       "color": "#475569",
-api-1  |       "animation": "pulse",
-api-1  |       "lineWidth": 0
-api-1  |     },
-api-1  |     {
-api-1  |       "id": "main-text",
-api-1  |       "type": "text",
-api-1  |       "text": "¡Sígueme para entender mejor a tu mejor amigo!",
-api-1  |       "fontSize": 48,
-api-1  |       "color": "#f8fafc",
-api-1  |       "animation": "pulse",
-api-1  |       "lineWidth": 0
-api-1  |     },
-api-1  |     {
-api-1  |       "id": "cta-button",
-api-1  |       "type": "component",
-api-1  |       "componentName": "SubscribeButton",
-api-1  |       "y": 200,
-api-1  |       "entry": "slide-up"
-api-1  |     }
-api-1  |   ],
-api-1  |   "out_transition": {
-api-1  |     "type": "WipeTransition",
-api-1  |     "duration_frames": 20
-api-1  |   }
-api-1  | }
-api-1  | 04:44:35 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 603, preview: {'version': '1.0', 'background': {'type': 'solid', 'colors': ['#1a1a1a']}, 'layers': [{'id': 'paw-print-shape', 'type': 'path', 'pathData': 'M50 50 C 50 20, 80 20, 80 50 C 80 80, 50 80, 50 50 Z', 'color': '#475569', 'animation': 'pulse', 'lineWidth': 0}, {'id': 'main-text', 'type': 'text', 'text': '¡Sígueme para entender mejor a tu mejor amigo!', 'fontSize': 48, 'color': '#f8fafc', 'animation': 'pulse', 'lineWidth': 0}, {'id': 'cta-button', 'type': 'component', 'componentName': 'SubscribeButton', 'y': 200, 'entry': 'slide-up'}], 'out_transition': {'type': 'WipeTransition', 'duration_frames': 20}}
-api-1  | 04:44:35 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 603, preview: {'version': '1.0', 'background': {'type': 'solid', 'colors': ['#1a1a1a']}, 'layers': [{'id': 'paw-print-shape', 'type': 'path', 'pathData': 'M50 50 C 50 20, 80 20, 80 50 C 80 80, 50 80, 50 50 Z', 'color': '#475569', 'animation': 'pulse', 'lineWidth': 0}, {'id': 'main-text', 'type': 'text', 'text': '¡Sígueme para entender mejor a tu mejor amigo!', 'fontSize': 48, 'color': '#f8fafc', 'animation': 'pulse', 'lineWidth': 0}, {'id': 'cta-button', 'type': 'component', 'componentName': 'SubscribeButton', 'y': 200, 'entry': 'slide-up'}], 'out_transition': {'type': 'WipeTransition', 'duration_frames': 20}}
-api-1  | 04:44:35 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | 04:44:35 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | INFO:     172.16.2.5:48416 - "GET /api/jobs/374ade7d-ab81-4ea6-8332-f65a473e1fad HTTP/1.1" 200 OK
-api-1  | INFO:     172.16.2.5:60216 - "GET /api/audio/374ade7d-ab81-4ea6-8332-f65a473e1fad_0.wav?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3ODAxODkyMzR9.iHu3Y4bqzDSTcPjc6uxcTpSIoBhbw7qx3QZ_pZAVjk4 HTTP/1.1" 206 Partial Content
-api-1  | INFO:     127.0.0.1:37960 - "GET /health HTTP/1.1" 200 OK
-api-1  | INFO:     172.16.2.5:33766 - "GET /api/audio/374ade7d-ab81-4ea6-8332-f65a473e1fad_1.wav?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3ODAxODkyMzR9.iHu3Y4bqzDSTcPjc6uxcTpSIoBhbw7qx3QZ_pZAVjk4 HTTP/1.1" 206 Partial Content
-api-1  | INFO:     172.16.2.5:33782 - "GET /api/audio/374ade7d-ab81-4ea6-8332-f65a473e1fad_2.wav?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3ODAxODkyMzR9.iHu3Y4bqzDSTcPjc6uxcTpSIoBhb
+api-1  | 05:20:02 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 890, preview: {'version': '1.0', 'background': {'type': 'linear-gradient', 'colors': ['#020617', '#0f172a'], 'angle': 180}, 'layers': [{'type': 'component', 'componentName': 'RaysOfLight', 'intensity': 0.8, 'theme': 'ocean', 'animation': 'pulse'}, {'type': 'circle', 'r': 250, 'entry': 'fade-in', 'entryDelay': 0.5, 'color': 'transparent', 'lineWidth': 400.00000000000006}, {'type': 'circle', 'r': 150, 'entry': 'zoom-in', 'entryDelay': 1, 'color': '#e2e8f0', 'lineWidth': 20}, {'type': 'component', 'componentName': 'Typewriter', 'text': 'La próxima vez que mires tu pecera... recuerda, ellos te están observando también. ¡Sígueme!', 'fontSize': 48, 'textColor': '#f8fafc', 'speed': 0.05, 'delay': 0.5, 'lineWidth': 800}, {'type': 'component', 'componentName': 'SubscribeButton', 'y': 400, 'entry': 'slide-up', 'entryDelay': 2}], 'out_transition': {'type': 'LightLeakTransition', 'duration_frames': 15}}
+api-1  | 05:20:02 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 890, preview: {'version': '1.0', 'background': {'type': 'linear-gradient', 'colors': ['#020617', '#0f172a'], 'angle': 180}, 'layers': [{'type': 'component', 'componentName': 'RaysOfLight', 'intensity': 0.8, 'theme': 'ocean', 'animation': 'pulse'}, {'type': 'circle', 'r': 250, 'entry': 'fade-in', 'entryDelay': 0.5, 'color': 'transparent', 'lineWidth': 400.00000000000006}, {'type': 'circle', 'r': 150, 'entry': 'zoom-in', 'entryDelay': 1, 'color': '#e2e8f0', 'lineWidth': 20}, {'type': 'component', 'componentName': 'Typewriter', 'text': 'La próxima vez que mires tu pecera... recuerda, ellos te están observando también. ¡Sígueme!', 'fontSize': 48, 'textColor': '#f8fafc', 'speed': 0.05, 'delay': 0.5, 'lineWidth': 800}, {'type': 'component', 'componentName': 'SubscribeButton', 'y': 400, 'entry': 'slide-up', 'entryDelay': 2}], 'out_transition': {'type': 'LightLeakTransition', 'duration_frames': 15}}
+api-1  | 05:20:02 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
+api-1  | 05:20:02 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
+api-1  | 05:20:02 [animaflow.llm.strategy] WARNING: Error en strategy decision: 1 validation error for AnimaComposerSpec
+api-1  | layers.2.entry
+api-1  |   Input should be 'fade-in', 'slide-up', 'sl. Defaulting to fallback.
+api-1  | 05:20:02 [animaflow.llm.strategy] WARNING: Error en strategy decision: 1 validation error for AnimaComposerSpec
+api-1  | layers.2.entry
+api-1  |   Input should be 'fade-in', 'slide-up', 'sl. Defaulting to fallback.
+api-1  | INFO:     172.16.2.5:55386 - "GET /api/jobs/4e8be384-fd41-4cac-a4c0-3ff411d57fa1 HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:49424 - "GET /api/audio/4e8be384-fd41-4cac-a4c0-3ff411d57fa1_0.wav?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3ODAxODkyMzR9.iHu3Y4bqzDSTcPjc6uxcTpSIoBhbw7qx3QZ_pZAVjk4 HTTP/1.1" 206 Partial Content
+api-1  | INFO:     172.16.2.5:49428 - "GET /api/audio/4e8be384-fd41-4cac-a4c0-3ff411d57fa1_1.wav?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3ODAxODkyMzR9.iHu3Y4bqzDSTcPjc6uxcTpSIoBhbw7qx3QZ_pZAVjk4 HTTP/1.1" 206 Partial Content
+api-1  | INFO:     127.0.0.1:36372 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:49440 - "GET /api/audio/4e8be384-fd41-4cac-a4c0-3ff411d57fa1_0.wav?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MzQzODgyOC00NmNhLTQ5N2UtYjRkOC1kNTBlYjdkMjViYmMiLCJleHAiOjE3ODAxODkyMzR9.iHu3Y4bqzDSTcPjc6uxcTpSIoBhbw7qx3QZ_pZAVjk4 HTTP/1.1" 206 Partial Content
+api-1  | INFO:     127.0.0.1:55640 - "GET /health HTTP/1.1" 200 OK

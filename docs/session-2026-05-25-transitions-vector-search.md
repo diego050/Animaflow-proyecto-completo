@@ -71,8 +71,8 @@ Major improvements to AnimaFlow's component selection, transition system, audio 
 
 ### 4.1 Components Table with Embeddings
 **Created:** `components` table with:
-- `id`, `name`, `slug`, `role`, `category`, `description`, `tags` (JSON), `tsx_path`, `props_schema` (JSONB), `embedding` (JSONB), `is_active`
-- Indexes: name, slug, category, role, GIN on tags
+- `id`, `name`, `slug`, `role`, `category`, `description`, `tags` (JSON), `tsx_path`, `props_schema` (JSON), `embedding` (JSON), `is_active`
+- Indexes: name, slug, category, role
 **Files:** `backend/alembic/versions/c7d8e9f0a1b2_add_components_table_with_embeddings.py`, `backend/app/db/models.py`
 
 ### 4.2 Role & Category System
@@ -134,22 +134,37 @@ Major improvements to AnimaFlow's component selection, transition system, audio 
 
 ---
 
-## 6. Alembic Migration Chain Fix
+## 6. Dynamic Canvas & Positioning
+
+### 6.1 Dynamic Dimensions
+**Changed:** Canvas dimensions in prompt are now calculated dynamically from `aspect_ratio` (supports presets like "9:16" and custom "500x800")
+**Files:** `backend/app/modules/llm/component_strategy.py`
+
+### 6.2 Text Safe Zones
+**Changed:** Text positioning rules use dynamic safe zones (10% margin) based on canvas width/height to prevent overflow
+**Files:** `backend/app/modules/llm/component_strategy.py`
+
+### 6.3 SVG Positioning
+**Changed:** Explicit instructions for absolute pixel coordinates in SVG paths (center reference)
+**Files:** `backend/app/modules/llm/component_strategy.py`
+
+---
+
+## 7. Alembic Migration Chain Fix
 **Problem:** Multiple head revisions due to incorrect `down_revision`
 **Fix:** Updated `c7d8e9f0a1b2` to point to actual head `4def2g036362`
 **Files:** `backend/alembic/versions/c7d8e9f0a1b2_add_components_table_with_embeddings.py`
 
 ---
 
-## 7. Test Compatibility Fix
-**Problem:** `ARRAY` type not supported in SQLite (used in tests)
-**Fix:** Changed `tags` column from `ARRAY(String(100))` to `JSON`
+## 8. Test Compatibility Fix
+**Problem:** `ARRAY` and `JSONB` types not supported in SQLite (used in tests)
+**Fix:** Changed `tags` from `ARRAY` to `JSON`, `props_schema`/`embedding` from `JSONB` to `JSON`
 **Files:** `backend/app/db/models.py`, migration file
 
 ---
 
 ## Deployment Commands
-
 ```bash
 cd /opt/animaflow
 git add -A
@@ -160,7 +175,6 @@ docker exec animaflow-api-1 python scripts/seed_components.py
 ```
 
 ## Verification
-
 ```bash
 # Check components in DB
 docker exec animaflow-api-1 python -c "
