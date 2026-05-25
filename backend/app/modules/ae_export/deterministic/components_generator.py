@@ -1939,20 +1939,6 @@ def generate_component_script(
         parts.append(f'ppL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
         parts.append('')
 
-    if 'LottieAnimation' in parsed_components:
-        props = parsed_components['LottieAnimation']
-        parts.append('// LottieAnimation')
-        parts.append('var laL = comp.layers.addText();')
-        parts.append('laL.name = "LottieAnimation";')
-        parts.append('var laP = laL.property("Source Text");')
-        parts.append('var laD = laP.value;')
-        parts.append('laD.text = "Lottie Animation Component\\n" + "' + props.get("lottieUrl", "") + '";')
-        parts.append('laD.fontSize = 30;')
-        parts.append('laD.fillColor = [0.9, 0.9, 0.9];')
-        parts.append('laP.setValue(laD);')
-        parts.append(f'laL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
-
     # ════════════════════════════════════════
     # FIXES AUDITORÍA SPRINT 4: TEXTO AVANZADO
     # ════════════════════════════════════════

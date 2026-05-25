@@ -11,7 +11,6 @@ Se añadieron componentes diseñados para resolver huecos narrativos frecuentes:
 *   **`RippleEffect`**: Anillos concéntricos expansivos configurables (`maxRadius`, `speed`). Ideal para atraer la atención ("click aquí" o "radar").
 *   **`MaskedReveal`**: Sistema avanzado de máscaras en React (`overflow: hidden` combinado con traslación direccional) para emular "Track Mattes", permitiendo que el texto aparezca deslizándose desde el vacío.
 *   **`ProgressPill`**: Una barra de progreso sólida de extremo a extremo que se interpola desde `startPercent` a `endPercent`.
-*   **`LottieAnimation`**: Un componente wrapper para soportar futuras animaciones Lottie (`.json`) complejas (ej. personajes corriendo), cerrando la brecha entre el código puro y la animación vectorial tradicional.
 
 ### 2. Integración Total con el Backend
 Al igual que en el Sprint 4, estas 5 piezas de Lego se integraron profundamente en el ecosistema:
