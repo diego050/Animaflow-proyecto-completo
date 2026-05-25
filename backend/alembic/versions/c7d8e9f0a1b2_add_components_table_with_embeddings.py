@@ -7,7 +7,6 @@ Create Date: 2026-05-25
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
 
 
 # revision identifiers, used by Alembic.
@@ -28,8 +27,8 @@ def upgrade():
         sa.Column('description', sa.Text(), nullable=False),
         sa.Column('tags', sa.JSON, server_default='[]'),
         sa.Column('tsx_path', sa.String(length=500), nullable=False),
-        sa.Column('props_schema', JSONB, server_default='{}'),
-        sa.Column('embedding', JSONB, nullable=True),
+        sa.Column('props_schema', sa.JSON, server_default='{}'),
+        sa.Column('embedding', sa.JSON, nullable=True),
         sa.Column('is_active', sa.Boolean(), server_default='true'),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
