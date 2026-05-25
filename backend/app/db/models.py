@@ -1,7 +1,6 @@
 from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey, Text, Integer, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.dialects.postgresql import JSONB
 from app.db.session import Base
 from app.core.encryption import encrypt_value, decrypt_value
 import uuid
@@ -289,8 +288,8 @@ class ComponentModel(Base):
     description = Column(Text, nullable=False)
     tags = Column(JSON, server_default="[]")
     tsx_path = Column(String(500), nullable=False)
-    props_schema = Column(JSONB, server_default="{}")
-    embedding = Column(JSONB, nullable=True)
+    props_schema = Column(JSON, server_default="{}")
+    embedding = Column(JSON, nullable=True)
     is_active = Column(Boolean, server_default="true")
     created_at = Column(
         DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc)
