@@ -303,9 +303,13 @@ function renderSingleLayer(
           scale={layer.scale}
           rotation={layer.rotation}
           opacity={layer.opacity}
-          entry={layer.entry as AnimaTextEntry}
-          entryDelay={layer.entryDelay}
         />
+      );
+
+      element = (
+        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
+          {element}
+        </AnimatedWrapper>
       );
 
       element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
@@ -537,17 +541,4 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
   );
 };
 
-// ---------------------------------------------------------------------------
-// Tipo entry compatible con AnimaTextProps
-// AnimaText soporta un subconjunto de valores de entry (sin slide-left,
-// slide-right, bounce-in). Para esos casos, el entry se ignora silenciosamente
-// y la capa se renderiza sin animación de entrada.
-// ---------------------------------------------------------------------------
 
-type AnimaTextEntry =
-  | 'fade-in'
-  | 'slide-up'
-  | 'slide-down'
-  | 'scale-in'
-  | 'spring-in'
-  | null;

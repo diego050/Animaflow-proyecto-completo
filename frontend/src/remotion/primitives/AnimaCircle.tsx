@@ -105,8 +105,8 @@ export const AnimaCircle: React.FC<AnimaCircleProps> = ({
   // Construir estilos inline — sin Tailwind, sin Framer Motion
   const style: React.CSSProperties = {
     position: 'absolute',
-    left: resolvedCx,
-    top: resolvedCy,
+    left: `calc(50% + ${resolvedCx}px)`,
+    top: `calc(50% + ${resolvedCy}px)`,
     width: diameter,
     height: diameter,
     backgroundColor: fill,

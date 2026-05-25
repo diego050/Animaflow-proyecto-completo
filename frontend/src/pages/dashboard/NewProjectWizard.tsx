@@ -110,6 +110,8 @@ export function NewProjectWizard() {
       setWizardData({ generatedJobId: jobId });
       setWizardStep(3);
       startPolling(jobId);
+      // Update URL so refresh doesn't lose context
+      window.history.replaceState({}, '', `/dashboard/project/${jobId}`);
     } catch {
       setError('Error creando el proyecto. Intenta de nuevo.');
     } finally {

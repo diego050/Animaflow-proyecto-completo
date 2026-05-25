@@ -200,8 +200,8 @@ export const AnimaParticles: React.FC<AnimaParticlesProps> = ({
 
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
-    left: resolvedX,
-    top: resolvedY,
+    left: `calc(50% + ${resolvedX}px)`,
+    top: `calc(50% + ${resolvedY}px)`,
     transform: [
       'translate(-50%, -50%)',
       `scale(${resolvedScale})`,
