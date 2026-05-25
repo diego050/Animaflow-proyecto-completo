@@ -100,6 +100,7 @@ async def _process_chunks_async(
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
     llm_model: str = "gemini-2.0-flash",
+    db: Session = None,
 ) -> list[dict]:
     # Fase 2: Ya no generamos TTS aquí, solo llamamos a decide_and_generate_component con los timestamps
     previous_scene_tsx = None
@@ -127,7 +128,8 @@ async def _process_chunks_async(
             text=scene.get("text", ""),
             media_query=scene.get("media_query", ""),
             api_key=api_key,
-            model=model_to_use
+            model=model_to_use,
+            db=db,
         )
         
         scene["type"] = "custom"
@@ -148,6 +150,7 @@ async def _regenerate_components_for_reformat(
     user_id: Optional[str] = None,
     scene_indices: Optional[list[int]] = None,
     llm_model: str = "gemini-2.0-flash",
+    db: Session = None,
 ) -> list[dict]:
     """Regenerate Remotion components for specified scenes with a new aspect ratio.
     If scene_indices is None, regenerate all scenes.
@@ -178,7 +181,8 @@ async def _regenerate_components_for_reformat(
             text=scene.get("text", ""),
             media_query=scene.get("media_query", ""),
             api_key=api_key,
-            model=model_to_use
+            model=model_to_use,
+            db=db,
         )
         
         scene["type"] = "custom"
@@ -223,7 +227,7 @@ def run_pipeline(
                 timeline_scenes = spec.get("scenes", [])
                 if timeline_scenes:
                     indices = scenes_to_reformat.get("indices") if scenes_to_reformat else None
-                    asyncio.run(_regenerate_components_for_reformat(job_id, timeline_scenes, aspect_ratio, user_id, indices, job.llm_model or "gemini-2.0-flash"))
+                    asyncio.run(_regenerate_components_for_reformat(job_id, timeline_scenes, aspect_ratio, user_id, indices, job.llm_model or "gemini-2.0-flash", db=db))
                 spec_obj = TimelineSpec(**spec)
                 job.result_spec = spec_obj.model_dump()
                 flag_modified(job, "result_spec")
@@ -422,6 +426,7 @@ def run_pipeline_enrichment(
                     aspect_ratio=aspect_ratio,
                     user_id=user_id,
                     llm_model=job.llm_model or "gemini-2.0-flash",
+                    db=db,
                 )
             )
 

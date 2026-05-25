@@ -23,6 +23,7 @@ async def _regenerate_scene_async(
     new_media_query: str,
     new_text: str,
     user_id: Optional[str] = None,
+    db=None,
 ) -> dict:
     from app.core.resolutions import get_resolution
 
@@ -69,7 +70,8 @@ async def _regenerate_scene_async(
         text=new_text,
         media_query=new_media_query,
         api_key=api_key,
-        model="gemini-2.0-flash"
+        model="gemini-2.0-flash",
+        db=db,
     )
 
     scene["type"] = "custom"
@@ -95,14 +97,15 @@ def regenerate_single_scene_sync(
     """Sync wrapper that also persists changes to DB."""
     from sqlalchemy.orm.attributes import flag_modified
 
-    updated_spec = asyncio.run(
-        _regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text, user_id)
-    )
-
-    # Persist to DB — the RQ worker receives a serialized copy, so we must
-    # open our own session and write back.
+    # Open DB session first so vector search can use it during regeneration
     db = SessionLocal()
     try:
+        updated_spec = asyncio.run(
+            _regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text, user_id, db=db)
+        )
+
+        # Persist to DB — the RQ worker receives a serialized copy, so we must
+        # write back using the same session.
         job = db.query(JobModel).filter(JobModel.id == job_id).first()
         if job:
             job.result_spec = updated_spec

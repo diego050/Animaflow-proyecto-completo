@@ -7,7 +7,7 @@ Create Date: 2026-05-25
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 # revision identifiers, used by Alembic.
@@ -26,7 +26,7 @@ def upgrade():
         sa.Column('category', sa.String(length=100), nullable=False),
         sa.Column('role', sa.String(length=50), nullable=False, server_default='general'),
         sa.Column('description', sa.Text(), nullable=False),
-        sa.Column('tags', ARRAY(sa.String(length=100)), server_default='{}'),
+        sa.Column('tags', sa.JSON, server_default='[]'),
         sa.Column('tsx_path', sa.String(length=500), nullable=False),
         sa.Column('props_schema', JSONB, server_default='{}'),
         sa.Column('embedding', JSONB, nullable=True),
@@ -42,7 +42,6 @@ def upgrade():
     op.create_index(op.f('ix_components_category'), 'components', ['category'], unique=False)
     op.create_index(op.f('ix_components_role'), 'components', ['role'], unique=False)
     op.create_index(op.f('ix_components_is_active'), 'components', ['is_active'], unique=False)
-    op.execute('CREATE INDEX idx_components_tags ON components USING GIN (tags)')
 
 
 def downgrade():
@@ -51,5 +50,4 @@ def downgrade():
     op.drop_index(op.f('ix_components_category'), table_name='components')
     op.drop_index(op.f('ix_components_slug'), table_name='components')
     op.drop_index(op.f('ix_components_name'), table_name='components')
-    op.execute('DROP INDEX IF EXISTS idx_components_tags')
     op.drop_table('components')
