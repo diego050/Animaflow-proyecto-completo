@@ -13,6 +13,39 @@ from app.schemas.spec import AnimaComposerSpec, AnimaBackground, AnimaLayer
 
 logger = get_logger("llm.strategy")
 
+
+# ── Canvas dimensions helper ─────────────────────────────────────────────────
+
+def _get_canvas_dimensions(aspect_ratio: str) -> tuple[int, int]:
+    """Get canvas dimensions for a given aspect ratio or custom size."""
+    # Standard presets
+    presets = {
+        "9:16": (1080, 1920),
+        "16:9": (1920, 1080),
+        "1:1": (1080, 1080),
+        "4:5": (1080, 1350),
+        "4:3": (1440, 1080),
+        "3:4": (1080, 1440),
+    }
+
+    # Check if it's a standard preset
+    if aspect_ratio in presets:
+        return presets[aspect_ratio]
+
+    # Check if it's a custom size in format "WxH" (e.g., "500x800")
+    if "x" in aspect_ratio.lower():
+        try:
+            parts = aspect_ratio.lower().split("x")
+            w, h = int(parts[0]), int(parts[1])
+            if 100 <= w <= 4096 and 100 <= h <= 4096:
+                return (w, h)
+        except (ValueError, IndexError):
+            pass
+
+    # Fallback
+    return (1080, 1920)
+
+
 # ── Catálogo de componentes disponibles ──────────────────────────────────────
 # Mantener sincronizado con frontend/src/remotion/registry.ts
 AVAILABLE_COMPONENTS: list[str] = [
@@ -41,6 +74,7 @@ def _build_strategy_prompt(
     text: str,
     media_query: str,
     available_components: list[dict],
+    aspect_ratio: str = "9:16",
 ) -> str:
     # Group components by role
     by_role = {}
@@ -70,6 +104,21 @@ def _build_strategy_prompt(
         components_list_parts.append(f"{emoji} {role_title}: {names}")
 
     components_list = "\n".join(components_list_parts)
+
+    width, height = _get_canvas_dimensions(aspect_ratio)
+    half_w = width // 2
+    half_h = height // 2
+
+    positioning_rules = f"""REGLAS DE POSICIONAMIENTO (CANVAS {width}x{height}, formato {aspect_ratio}):
+- El centro del canvas es (0, 0). Los bordes son aproximadamente x: ±{half_w}, y: ±{half_h}.
+- Para centrar un elemento: usa x: 0, y: 0.
+- Para texto principal: usa y: {int(-half_h * 0.2)} a y: {int(half_h * 0.2)} (zona central, legible).
+- Para elementos decorativos: distribúyelos en y: {int(-half_h * 0.6)} a y: {int(half_h * 0.6)}, x: {int(-half_w * 0.5)} a x: {int(half_w * 0.5)}.
+- NUNCA uses coordenadas menores a {int(min(width, height) * 0.05)} en paths SVG (serían invisibles en {width}x{height}).
+- Para círculos: r: {int(min(width, height) * 0.1)} a r: {int(min(width, height) * 0.3)} es visible.
+- Para rects: width: {int(width * 0.2)}-{int(width * 0.8)}, height: {int(height * 0.01)}-{int(height * 0.15)}.
+- Usa transform: "translate(x, y)" o las propiedades x/y del layer para posicionar.
+"""
 
     return f"""Eres el director de escena de AnimaFlow. Tu trabajo es diseñar la composición de UNA escena de video devolviendo un JSON AnimaComposerSpec.
 
@@ -103,9 +152,12 @@ REGLAS DE ORO PARA EL DISEÑO:
 
 REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path) que represente el sujeto principal de la escena. No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
 
+{positioning_rules}
+
 TRANSICIONES DE SALIDA (out_transition):
 Analiza la continuidad entre esta escena y la siguiente (si la hay).
 - Si hay un cambio drástico de tema o emoción: usa "ZoomBlurTransition" o "GlitchTransition".
+- IMPORTANTE: Usa duration_frames entre 10 y 15 (0.3-0.5 segundos). Transiciones largas (>20 frames) cortan el audio.
 - Si hay continuidad visual pero cambio de contenido: usa "WipeTransition" o "LightLeakTransition".
 - Si las escenas fluyen naturalmente sin corte brusco: usa "NONE" o "GradientOverlay".
 
@@ -157,6 +209,7 @@ def generate_scene_composer(
     api_key: str = "",
     model: str = "gemini-2.0-flash",
     db=None,  # NEW: SQLAlchemy session for vector search
+    aspect_ratio: str = "9:16",
 ) -> AnimaComposerSpec:
     """
     Pregunta al LLM por la composición AnimaComposer (JSON) de la escena.
@@ -172,7 +225,7 @@ def generate_scene_composer(
         # Fallback to hardcoded list (for tests/backward compat)
         fallback = available_components or [{"name": n, "role": "general", "category": "general", "description": ""} for n in AVAILABLE_COMPONENTS]
         components = fallback
-    prompt = _build_strategy_prompt(text, media_query, components)
+    prompt = _build_strategy_prompt(text, media_query, components, aspect_ratio)
 
     # Fallback default si hay error
     default_fallback = AnimaComposerSpec(

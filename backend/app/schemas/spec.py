@@ -104,34 +104,42 @@ class BaseAnimaLayer(BaseModel):
         if not isinstance(data, dict):
             return data
         
-        # Fields that should be clamped to 0-10000
-        clamp_fields = [
-            "lineWidth", "fontSize", "fontWeight", "letterSpacing",
-            "width", "height", "borderRadius", "r", "strokeWidth",
-            "x", "y", "scale", "rotation", "opacity",
-            "count", "spread", "entryDelay", "speed", "delay", "intensity",
-        ]
+        # Field-specific limits: (min, max, default)
+        field_limits = {
+            "lineWidth": (0, 20, 2),
+            "strokeWidth": (0, 20, 2),
+            "fontSize": (12, 120, 48),
+            "fontWeight": (100, 900, 400),
+            "width": (10, 1920, 400),
+            "height": (10, 1920, 200),
+            "r": (5, 500, 50),
+            "borderRadius": (0, 500, 0),
+            "x": (-1000, 1000, 0),
+            "y": (-1000, 1000, 0),
+            "scale": (0.1, 10, 1),
+            "rotation": (-360, 360, 0),
+            "opacity": (0, 1, 1),
+            "entryDelay": (0, 10, 0),
+            "speed": (0.01, 10, 1),
+            "delay": (0, 10, 0),
+            "intensity": (0, 1, 0.5),
+            "count": (1, 200, 10),
+            "spread": (0, 500, 50),
+            "letterSpacing": (-10, 20, 0),
+        }
         
-        for field in clamp_fields:
+        for field, (min_val, max_val, default) in field_limits.items():
             if field in data:
                 try:
                     val = float(data[field])
-                    if val > 10000:
-                        data[field] = 10000.0
-                    elif val < -10000:
-                        data[field] = -10000.0
+                    if val > max_val:
+                        data[field] = max_val
+                    elif val < min_val:
+                        data[field] = min_val
                     else:
                         data[field] = val
                 except (ValueError, TypeError, OverflowError):
-                    # If it can't be converted, set to a safe default
-                    if field in ("fontSize", "fontWeight"):
-                        data[field] = 48.0
-                    elif field in ("width", "height"):
-                        data[field] = 400.0
-                    elif field in ("r", "strokeWidth", "lineWidth", "borderRadius"):
-                        data[field] = 2.0
-                    else:
-                        data[field] = 0.0
+                    data[field] = default
         
         return data
 

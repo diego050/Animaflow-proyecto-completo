@@ -130,6 +130,7 @@ async def _process_chunks_async(
             api_key=api_key,
             model=model_to_use,
             db=db,
+            aspect_ratio=aspect_ratio,
         )
         
         scene["type"] = "custom"
@@ -183,6 +184,7 @@ async def _regenerate_components_for_reformat(
             api_key=api_key,
             model=model_to_use,
             db=db,
+            aspect_ratio=aspect_ratio,
         )
         
         scene["type"] = "custom"
