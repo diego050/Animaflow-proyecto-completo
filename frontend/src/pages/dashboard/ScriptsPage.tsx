@@ -30,7 +30,9 @@ export function ScriptsPage() {
   }, [fetchJobs]);
 
   useEffect(() => {
-    fetchScripts();
+    if (jobs.length > 0) {
+      fetchScripts(jobs);
+    }
   }, [fetchScripts, jobs]);
 
   // Filter scripts by search

@@ -347,9 +347,13 @@ export function VideosPage() {
                         className="w-full h-full object-cover"
                         muted
                         preload="metadata"
-                        onLoadStart={(e) => {
+                        onLoadedData={(e) => {
                           const video = e.target as HTMLVideoElement;
-                          video.currentTime = 1; // Seek to 1s for thumbnail
+                          video.currentTime = Math.min(1, video.duration * 0.1);
+                          video.pause();
+                        }}
+                        onSeeked={(e) => {
+                          const video = e.target as HTMLVideoElement;
                           video.pause();
                         }}
                       />
@@ -456,7 +460,7 @@ export function VideosPage() {
 
       {/* Preview Modal */}
       <AnimatePresence>
-        {previewJob && previewJob.video_url && (
+        {previewJob && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -480,16 +484,23 @@ export function VideosPage() {
                   <X size={18} />
                 </button>
 
-                <video
-                  src={
-                    previewJob.video_url.startsWith('http')
-                      ? previewJob.video_url
-                      : `${API_BASE}${previewJob.video_url}`
-                  }
-                  className="w-full max-h-[80vh] object-contain bg-black"
-                  controls
-                  autoPlay
-                />
+                {previewJob.video_url ? (
+                  <video
+                    src={
+                      previewJob.video_url.startsWith('http')
+                        ? previewJob.video_url
+                        : `${API_BASE}${previewJob.video_url}`
+                    }
+                    className="w-full max-h-[80vh] object-contain bg-black"
+                    controls
+                    autoPlay
+                  />
+                ) : (
+                  <div className="w-full aspect-video bg-surface-container flex flex-col items-center justify-center gap-3">
+                    <Film size={48} className="text-text-secondary/30" />
+                    <p className="text-sm text-text-secondary">Video no disponible para este proyecto</p>
+                  </div>
+                )}
                 <div className="p-4">
                   <p className="text-sm text-text-primary font-medium line-clamp-2 mb-1">
                     {previewJob.script_text}

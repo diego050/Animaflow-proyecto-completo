@@ -1,337 +1,288 @@
-pi-1  | 01:10:34 [animaflow.llm] INFO: Respuesta recibida (907 chars)
-api-1  | 01:10:34 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (907 chars): {
+api-1  | 02:11:27 [animaflow.scheduler] INFO: Scheduler picked up job eb21b2f5-2359-4a4a-a1f6-dc55d84ace13 for phase enrichment
+api-1  | 02:11:27 [animaflow.pipeline] INFO: Deciding component strategy for scene 1...
+api-1  | INFO:     172.16.2.5:40658 - "GET /api/jobs/eb21b2f5-2359-4a4a-a1f6-dc55d84ace13/logs HTTP/1.1" 200 OK
+api-1  | 02:11:28 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['GlobalVFX', 'RaysOfLight', 'HighlightText', 'TextReveal', 'AnimatedIcon']
+api-1  | 02:11:28 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['GlobalVFX', 'RaysOfLight', 'HighlightText', 'TextReveal', 'AnimatedIcon']
+api-1  | 02:11:28 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
+api-1  | INFO:     172.16.2.5:48232 - "GET /api/jobs/eb21b2f5-2359-4a4a-a1f6-dc55d84ace13/logs HTTP/1.1" 200 OK
+api-1  | 02:11:32 [animaflow.llm] INFO: Respuesta recibida (1598 chars)
+api-1  | 02:11:32 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1598 chars): {
 api-1  |   "version": "1.0",
 api-1  |   "background": {
-api-1  |     "type": "gradient",
-api-1  |     "colors": ["#1a120b", "#3d2b1f", "#1a120b"],
-api-1  |     "angle": 45
+api-1  |     "type": "linear-gradient",
+api-1  |     "colors": ["#1a1a1a", "#0a0a0a"],
+api-1  |     "angle": 180
 api-1  |   },
 api-1  |   "layers": [
 api-1  |     {
-api-1  |       "type": "component",
-api-1  |       "componentName": "RaysOfLight",
-api-1  |       "color": "#ffcc00",
-api-1  |       "intensity": 0.3,
-api-1  |       "animation": "slow-pulse"
-api-1  |     },
-api-1  |     {
+api-1  |       "id": "eye-pupil-left",
 api-1  |       "type": "circle",
-api-1  |       "r": 200,
-api-1  |       "lineWidth": 20
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "path",
-api-1  |       "pathData": "M 440,860 Q 540,760 640,860 Q 540,960 440,860",
-api-1  |       "color": "#d4af37",
-api-1  |       "lineWidth": 8
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "component",
-api-1  |       "componentName": "Typewriter",
-api-1  |       "text": "¿Sabías que tu perro te manipula cada vez que te mira? No es por hambre...",
-api-1  |       "fontSize": 48,
-api-1  |       "textColor": "#f5e6ca",
-api-1  |       "speed": 0.05,
-api-1  |       "delay": 0.5,
+api-1  |       "x": -150,
+api-1  |       "y": -200,
+api-1  |       "r": 80,
+api-1  |       "entry": "scale-in",
+api-1  |       "entryDelay": 0.2,
+api-1  |       "color": "#000000",
 api-1  |       "lineWidth": 0
-api-1  |     }
-api-1  |   ],
-api-1  |   "out_transition": {
-api-1  |     "type": "LightLeakTransition",
-api-1  |     "duration_frames": 12
-api-1  |   }
-api-1  | }
-api-1  | 01:10:34 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (907 chars): {
-api-1  |   "version": "1.0",
-api-1  |   "background": {
-api-1  |     "type": "gradient",
-api-1  |     "colors": ["#1a120b", "#3d2b1f", "#1a120b"],
-api-1  |     "angle": 45
-api-1  |   },
-api-1  |   "layers": [
-api-1  |     {
-api-1  |       "type": "component",
-api-1  |       "componentName": "RaysOfLight",
-api-1  |       "color": "#ffcc00",
-api-1  |       "intensity": 0.3,
-api-1  |       "animation": "slow-pulse"
 api-1  |     },
 api-1  |     {
+api-1  |       "id": "eye-iris-left",
 api-1  |       "type": "circle",
-api-1  |       "r": 200,
-api-1  |       "lineWidth": 20
+api-1  |       "x": -150,
+api-1  |       "y": -200,
+api-1  |       "r": 120,
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 0.1,
+api-1  |       "color": "#b45309",
+api-1  |       "lineWidth": 5
 api-1  |     },
 api-1  |     {
-api-1  |       "type": "path",
-api-1  |       "pathData": "M 440,860 Q 540,760 640,860 Q 540,960 440,860",
-api-1  |       "color": "#d4af37",
-api-1  |       "lineWidth": 8
-api-1  |     },
-api-1  |     {
-api-1  |       "type": "component",
-api-1  |       "componentName": "Typewriter",
-api-1  |       "text": "¿Sabías que tu perro te manipula cada vez que te mira? No es por hambre...",
-api-1  |       "fontSize": 48,
-api-1  |       "textColor": "#f5e6ca",
-api-1  |       "speed": 0.05,
-api-1  |       "delay": 0.5,
+api-1  |       "id": "eye-pupil-right",
+api-1  |       "type": "circle",
+api-1  |       "x": 150,
+api-1  |       "y": -200,
+api-1  |       "r": 80,
+api-1  |       "entry": "scale-in",
+api-1  |       "entryDelay": 0.2,
+api-1  |       "color": "#000000",
 api-1  |       "lineWidth": 0
-api-1  |     }
-api-1  |   ],
-api-1  |   "out_transition": {
-api-1  |     "type": "LightLeakTransition",
-api-1  |     "duration_frames": 12
-api-1  |   }
-api-1  | }
-api-1  | 01:10:34 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 705, preview: {'version': '1.0', 'background': {'type': 'gradient', 'colors': ['#1a120b', '#3d2b1f', '#1a120b'], 'angle': 45}, 'layers': [{'type': 'component', 'componentName': 'RaysOfLight', 'color': '#ffcc00', 'intensity': 0.3, 'animation': 'slow-pulse'}, {'type': 'circle', 'r': 200, 'lineWidth': 20}, {'type': 'path', 'pathData': 'M 440,860 Q 540,760 640,860 Q 540,960 440,860', 'color': '#d4af37', 'lineWidth': 8}, {'type': 'component', 'componentName': 'Typewriter', 'text': '¿Sabías que tu perro te manipula cada vez que te mira? No es por hambre...', 'fontSize': 48, 'textColor': '#f5e6ca', 'speed': 0.05, 'delay': 0.5, 'lineWidth': 0}], 'out_transition': {'type': 'LightLeakTransition', 'duration_frames': 12}}
-api-1  | 01:10:34 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 705, preview: {'version': '1.0', 'background': {'type': 'gradient', 'colors': ['#1a120b', '#3d2b1f', '#1a120b'], 'angle': 45}, 'layers': [{'type': 'component', 'componentName': 'RaysOfLight', 'color': '#ffcc00', 'intensity': 0.3, 'animation': 'slow-pulse'}, {'type': 'circle', 'r': 200, 'lineWidth': 20}, {'type': 'path', 'pathData': 'M 440,860 Q 540,760 640,860 Q 540,960 440,860', 'color': '#d4af37', 'lineWidth': 8}, {'type': 'component', 'componentName': 'Typewriter', 'text': '¿Sabías que tu perro te manipula cada vez que te mira? No es por hambre...', 'fontSize': 48, 'textColor': '#f5e6ca', 'speed': 0.05, 'delay': 0.5, 'lineWidth': 0}], 'out_transition': {'type': 'LightLeakTransition', 'duration_frames': 12}}
-api-1  | 01:10:34 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | 01:10:34 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | INFO:     127.0.0.1:46794 - "GET /health HTTP/1.1" 200 OK
-api-1  | INFO:     172.16.2.5:58736 - "GET /api/jobs/ad6ba5e1-cb03-4423-8028-bbe15b5cc784/logs HTTP/1.1" 200 OK
-api-1  | INFO:     172.16.2.5:58752 - "GET /api/jobs/ad6ba5e1-cb03-4423-8028-bbe15b5cc784/logs HTTP/1.1" 200 OK
-api-1  | 01:10:38 [animaflow.pipeline] INFO: Deciding component strategy for scene 2...
-api-1  | INFO:     172.16.2.5:54952 - "GET /api/jobs/ad6ba5e1-cb03-4423-8028-bbe15b5cc784/logs HTTP/1.1" 200 OK
-api-1  | 01:10:38 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['GlobalVFX', 'RaysOfLight', 'HighlightText', 'CodeBlockHighlight', 'AnimatedIcon']
-api-1  | 01:10:38 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['GlobalVFX', 'RaysOfLight', 'HighlightText', 'CodeBlockHighlight', 'AnimatedIcon']
-api-1  | 01:10:38 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
-api-1  | 01:10:44 [animaflow.llm] INFO: Respuesta recibida (1162 chars)
-api-1  | 01:10:44 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1162 chars): {
-api-1  |   "version": "1.0",
-api-1  |   "background": {
-api-1  |     "type": "radial",
-api-1  |     "colors": ["#451a03", "#171717"],
-api-1  |     "center": [540, 960]
-api-1  |   },
-api-1  |   "layers": [
+api-1  |     },
 api-1  |     {
-api-1  |       "id": "heart-pulse",
+api-1  |       "id": "eye-iris-right",
 api-1  |       "type": "circle",
-api-1  |       "r": 200,
+api-1  |       "x": 150,
+api-1  |       "y": -200,
+api-1  |       "r": 120,
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 0.1,
+api-1  |       "color": "#b45309",
+api-1  |       "lineWidth": 5
+api-1  |     },
+api-1  |     {
+api-1  |       "id": "main-text",
+api-1  |       "type": "component",
+api-1  |       "componentName": "TextReveal",
+api-1  |       "x": 0,
+api-1  |       "y": 200,
+api-1  |       "text": "¿Sabías que tu perro te manipula con la mirada? Y no, no es por comida...",
+api-1  |       "fontSize": 48,
 api-1  |       "color": "#fbbf24",
-api-1  |       "color1": "#991b1b",
-api-1  |       "color2": "#451a03",
 api-1  |       "animation": "pulse",
 api-1  |       "lineWidth": 0
 api-1  |     },
 api-1  |     {
-api-1  |       "id": "main-text",
-api-1  |       "type": "text",
-api-1  |       "text": "es algo mucho más profundo. Esa cara bonita activa el amor puro en tu cerebro.",
-api-1  |       "fontSize": 48,
-api-1  |       "fontWeight": 600,
-api-1  |       "color": "#fef3c7",
-api-1  |       "textColor": "#fef3c7",
-api-1  |       "lineWidth": 0
-api-1  |     },
-api-1  |     {
-api-1  |       "id": "visual-accent",
-api-1  |       "type": "path",
-api-1  |       "pathData": "M 540 960 C 540 800 700 800 700 960 C 700 1120 540 1200 540 1200 C 540 1200 380 1120 380 960 C 380 800 540 800 540 960 Z",
-api-1  |       "color": "#f87171",
-api-1  |       "lineWidth": 0
-api-1  |     },
-api-1  |     {
-api-1  |       "id": "component-ripple",
+api-1  |       "id": "decorative-glow",
 api-1  |       "type": "component",
-api-1  |       "componentName": "RippleEffect",
+api-1  |       "componentName": "RaysOfLight",
 api-1  |       "x": 0,
-api-1  |       "y": 0,
-api-1  |       "color": "#fbbf24",
-api-1  |       "intensity": 0.5
-api-1  |     }
-api-1  |   ],
-api-1  |   "out_transition": {
-api-1  |     "type": "GradientOverlay",
-api-1  |     "duration_frames": 12
-api-1  |   }
-api-1  | }
-api-1  | 01:10:44 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1162 chars): {
+api-1  |       "y": -200,
+api-1  |       "intensity": 0.4,
+api-1  |       "theme": "ambe
+api-1  | 02:11:32 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1598 chars): {
 api-1  |   "version": "1.0",
 api-1  |   "background": {
-api-1  |     "type": "radial",
-api-1  |     "colors": ["#451a03", "#171717"],
-api-1  |     "center": [540, 960]
+api-1  |     "type": "linear-gradient",
+api-1  |     "colors": ["#1a1a1a", "#0a0a0a"],
+api-1  |     "angle": 180
 api-1  |   },
 api-1  |   "layers": [
 api-1  |     {
-api-1  |       "id": "heart-pulse",
+api-1  |       "id": "eye-pupil-left",
 api-1  |       "type": "circle",
-api-1  |       "r": 200,
+api-1  |       "x": -150,
+api-1  |       "y": -200,
+api-1  |       "r": 80,
+api-1  |       "entry": "scale-in",
+api-1  |       "entryDelay": 0.2,
+api-1  |       "color": "#000000",
+api-1  |       "lineWidth": 0
+api-1  |     },
+api-1  |     {
+api-1  |       "id": "eye-iris-left",
+api-1  |       "type": "circle",
+api-1  |       "x": -150,
+api-1  |       "y": -200,
+api-1  |       "r": 120,
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 0.1,
+api-1  |       "color": "#b45309",
+api-1  |       "lineWidth": 5
+api-1  |     },
+api-1  |     {
+api-1  |       "id": "eye-pupil-right",
+api-1  |       "type": "circle",
+api-1  |       "x": 150,
+api-1  |       "y": -200,
+api-1  |       "r": 80,
+api-1  |       "entry": "scale-in",
+api-1  |       "entryDelay": 0.2,
+api-1  |       "color": "#000000",
+api-1  |       "lineWidth": 0
+api-1  |     },
+api-1  |     {
+api-1  |       "id": "eye-iris-right",
+api-1  |       "type": "circle",
+api-1  |       "x": 150,
+api-1  |       "y": -200,
+api-1  |       "r": 120,
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 0.1,
+api-1  |       "color": "#b45309",
+api-1  |       "lineWidth": 5
+api-1  |     },
+api-1  |     {
+api-1  |       "id": "main-text",
+api-1  |       "type": "component",
+api-1  |       "componentName": "TextReveal",
+api-1  |       "x": 0,
+api-1  |       "y": 200,
+api-1  |       "text": "¿Sabías que tu perro te manipula con la mirada? Y no, no es por comida...",
+api-1  |       "fontSize": 48,
 api-1  |       "color": "#fbbf24",
-api-1  |       "color1": "#991b1b",
-api-1  |       "color2": "#451a03",
 api-1  |       "animation": "pulse",
 api-1  |       "lineWidth": 0
 api-1  |     },
 api-1  |     {
-api-1  |       "id": "main-text",
-api-1  |       "type": "text",
-api-1  |       "text": "es algo mucho más profundo. Esa cara bonita activa el amor puro en tu cerebro.",
-api-1  |       "fontSize": 48,
-api-1  |       "fontWeight": 600,
-api-1  |       "color": "#fef3c7",
-api-1  |       "textColor": "#fef3c7",
-api-1  |       "lineWidth": 0
-api-1  |     },
-api-1  |     {
-api-1  |       "id": "visual-accent",
-api-1  |       "type": "path",
-api-1  |       "pathData": "M 540 960 C 540 800 700 800 700 960 C 700 1120 540 1200 540 1200 C 540 1200 380 1120 380 960 C 380 800 540 800 540 960 Z",
-api-1  |       "color": "#f87171",
-api-1  |       "lineWidth": 0
-api-1  |     },
-api-1  |     {
-api-1  |       "id": "component-ripple",
+api-1  |       "id": "decorative-glow",
 api-1  |       "type": "component",
-api-1  |       "componentName": "RippleEffect",
+api-1  |       "componentName": "RaysOfLight",
 api-1  |       "x": 0,
-api-1  |       "y": 0,
-api-1  |       "color": "#fbbf24",
-api-1  |       "intensity": 0.5
-api-1  |     }
-api-1  |   ],
-api-1  |   "out_transition": {
-api-1  |     "type": "GradientOverlay",
-api-1  |     "duration_frames": 12
-api-1  |   }
-api-1  | }
-api-1  | 01:10:44 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 912, preview: {'version': '1.0', 'background': {'type': 'radial', 'colors': ['#451a03', '#171717'], 'center': [540, 960]}, 'layers': [{'id': 'heart-pulse', 'type': 'circle', 'r': 200, 'color': '#fbbf24', 'color1': '#991b1b', 'color2': '#451a03', 'animation': 'pulse', 'lineWidth': 0}, {'id': 'main-text', 'type': 'text', 'text': 'es algo mucho más profundo. Esa cara bonita activa el amor puro en tu cerebro.', 'fontSize': 48, 'fontWeight': 600, 'color': '#fef3c7', 'textColor': '#fef3c7', 'lineWidth': 0}, {'id': 'visual-accent', 'type': 'path', 'pathData': 'M 540 960 C 540 800 700 800 700 960 C 700 1120 540 1200 540 1200 C 540 1200 380 1120 380 960 C 380 800 540 800 540 960 Z', 'color': '#f87171', 'lineWidth': 0}, {'id': 'component-ripple', 'type': 'component', 'componentName': 'RippleEffect', 'x': 0, 'y': 0, 'color': '#fbbf24', 'intensity': 0.5}], 'out_transition': {'type': 'GradientOverlay', 'duration_frames': 12}}
-api-1  | 01:10:44 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 912, preview: {'version': '1.0', 'background': {'type': 'radial', 'colors': ['#451a03', '#171717'], 'center': [540, 960]}, 'layers': [{'id': 'heart-pulse', 'type': 'circle', 'r': 200, 'color': '#fbbf24', 'color1': '#991b1b', 'color2': '#451a03', 'animation': 'pulse', 'lineWidth': 0}, {'id': 'main-text', 'type': 'text', 'text': 'es algo mucho más profundo. Esa cara bonita activa el amor puro en tu cerebro.', 'fontSize': 48, 'fontWeight': 600, 'color': '#fef3c7', 'textColor': '#fef3c7', 'lineWidth': 0}, {'id': 'visual-accent', 'type': 'path', 'pathData': 'M 540 960 C 540 800 700 800 700 960 C 700 1120 540 1200 540 1200 C 540 1200 380 1120 380 960 C 380 800 540 800 540 960 Z', 'color': '#f87171', 'lineWidth': 0}, {'id': 'component-ripple', 'type': 'component', 'componentName': 'RippleEffect', 'x': 0, 'y': 0, 'color': '#fbbf24', 'intensity': 0.5}], 'out_transition': {'type': 'GradientOverlay', 'duration_frames': 12}}
-api-1  | 01:10:44 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | 01:10:44 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | 01:10:48 [animaflow.pipeline] INFO: Deciding component strategy for scene 3...
-api-1  | 01:10:48 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['GlobalVFX', 'AbstractWave', 'TextReveal', 'HighlightText', 'AnimatedIcon']
-api-1  | 01:10:48 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['GlobalVFX', 'AbstractWave', 'TextReveal', 'HighlightText', 'AnimatedIcon']
-api-1  | 01:10:48 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
-api-1  | INFO:     172.16.2.5:37826 - "GET /api/jobs/ad6ba5e1-cb03-4423-8028-bbe15b5cc784/logs HTTP/1.1" 200 OK
-api-1  | INFO:     127.0.0.1:45858 - "GET /health HTTP/1.1" 200 OK
-api-1  | 01:11:12 [animaflow.llm] INFO: Respuesta recibida (1365 chars)
-api-1  | 01:11:12 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1365 chars): {
+api-1  |       "y": -200,
+api-1  |       "intensity": 0.4,
+api-1  |       "theme": "ambe
+api-1  | 02:11:32 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 1178, preview: {'version': '1.0', 'background': {'type': 'linear-gradient', 'colors': ['#1a1a1a', '#0a0a0a'], 'angle': 180}, 'layers': [{'id': 'eye-pupil-left', 'type': 'circle', 'x': -150, 'y': -200, 'r': 80, 'entry': 'scale-in', 'entryDelay': 0.2, 'color': '#000000', 'lineWidth': 0}, {'id': 'eye-iris-left', 'type': 'circle', 'x': -150, 'y': -200, 'r': 120, 'entry': 'fade-in', 'entryDelay': 0.1, 'color': '#b45309', 'lineWidth': 5}, {'id': 'eye-pupil-right', 'type': 'circle', 'x': 150, 'y': -200, 'r': 80, 'entry': 'scale-in', 'entryDelay': 0.2, 'color': '#000000', 'lineWidth': 0}, {'id': 'eye-iris-right', 'type': 'circle', 'x': 150, 'y': -200, 'r': 120, 'entry': 'fade-in', 'entryDelay': 0.1, 'color': '#b45309', 'lineWidth': 5}, {'id': 'main-text', 'type': 'component', 'componentName': 'TextReveal', 'x': 0, 'y': 200, 'text': '¿Sabías que tu perro te manipula con la mirada? Y no, no es por comida...', 'fontSize': 48, 'color': '#fbbf24', 'animation': 'pulse', 'lineWidth': 0}, {'id': 'decorative-glow', 'type': 'component', 'componentName': 'RaysOfLight', 'x': 0, 'y': -200, 'intensity': 0.4, 'theme': 'amber'}], 'out_transition': {'type': 'GradientOverlay', 'duration_frames': 15}}
+api-1  | 02:11:32 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 1178, preview: {'version': '1.0', 'background': {'type': 'linear-gradient', 'colors': ['#1a1a1a', '#0a0a0a'], 'angle': 180}, 'layers': [{'id': 'eye-pupil-left', 'type': 'circle', 'x': -150, 'y': -200, 'r': 80, 'entry': 'scale-in', 'entryDelay': 0.2, 'color': '#000000', 'lineWidth': 0}, {'id': 'eye-iris-left', 'type': 'circle', 'x': -150, 'y': -200, 'r': 120, 'entry': 'fade-in', 'entryDelay': 0.1, 'color': '#b45309', 'lineWidth': 5}, {'id': 'eye-pupil-right', 'type': 'circle', 'x': 150, 'y': -200, 'r': 80, 'entry': 'scale-in', 'entryDelay': 0.2, 'color': '#000000', 'lineWidth': 0}, {'id': 'eye-iris-right', 'type': 'circle', 'x': 150, 'y': -200, 'r': 120, 'entry': 'fade-in', 'entryDelay': 0.1, 'color': '#b45309', 'lineWidth': 5}, {'id': 'main-text', 'type': 'component', 'componentName': 'TextReveal', 'x': 0, 'y': 200, 'text': '¿Sabías que tu perro te manipula con la mirada? Y no, no es por comida...', 'fontSize': 48, 'color': '#fbbf24', 'animation': 'pulse', 'lineWidth': 0}, {'id': 'decorative-glow', 'type': 'component', 'componentName': 'RaysOfLight', 'x': 0, 'y': -200, 'intensity': 0.4, 'theme': 'amber'}], 'out_transition': {'type': 'GradientOverlay', 'duration_frames': 15}}
+api-1  | 02:11:32 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
+api-1  | 02:11:32 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
+api-1  | INFO:     172.16.2.5:48234 - "GET /api/jobs/eb21b2f5-2359-4a4a-a1f6-dc55d84ace13/logs HTTP/1.1" 200 OK
+api-1  | INFO:     127.0.0.1:56848 - "GET /health HTTP/1.1" 200 OK
+api-1  | INFO:     172.16.2.5:48248 - "GET /api/jobs/eb21b2f5-2359-4a4a-a1f6-dc55d84ace13/logs HTTP/1.1" 200 OK
+api-1  | 02:11:36 [animaflow.pipeline] INFO: Deciding component strategy for scene 2...
+api-1  | INFO:     172.16.2.5:48264 - "GET /api/jobs/eb21b2f5-2359-4a4a-a1f6-dc55d84ace13/logs HTTP/1.1" 200 OK
+api-1  | 02:11:36 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['GlobalVFX', 'RaysOfLight', 'CodeBlockHighlight', 'HighlightText', 'AnimatedIcon']
+api-1  | 02:11:36 [animaflow.llm.strategy] INFO: Vector search returned 10 relevant components: ['GlobalVFX', 'RaysOfLight', 'CodeBlockHighlight', 'HighlightText', 'AnimatedIcon']
+api-1  | 02:11:36 [animaflow.llm] INFO: Llamando a Gemini (model=gemini-3.1-flash-lite)...
+api-1  | INFO:     172.16.2.5:32968 - "GET /api/jobs/eb21b2f5-2359-4a4a-a1f6-dc55d84ace13/logs HTTP/1.1" 200 OK
+api-1  | 02:11:39 [animaflow.llm] INFO: Respuesta recibida (1547 chars)
+api-1  | 02:11:39 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1547 chars): {
 api-1  |   "version": "1.0",
 api-1  |   "background": {
-api-1  |     "type": "gradient",
-api-1  |     "colors": ["#f8fafc", "#e2e8f0"],
+api-1  |     "type": "linear",
+api-1  |     "colors": ["#262626", "#171717"],
 api-1  |     "angle": 180
 api-1  |   },
 api-1  |   "layers": [
 api-1  |     {
 api-1  |       "type": "component",
-api-1  |       "componentName": "GlobalVFX",
-api-1  |       "intensity": 0.2,
-api-1  |       "theme": "warm"
+api-1  |       "componentName": "RaysOfLight",
+api-1  |       "x": 0,
+api-1  |       "y": 0,
+api-1  |       "opacity": 0.3
 api-1  |     },
 api-1  |     {
-api-1  |       "id": "paw-print-icon",
+api-1  |       "id": "heart-shape-1",
 api-1  |       "type": "path",
-api-1  |       "pathData": "M 540 400 C 500 400 480 420 480 450 C 480 480 500 500 540 500 C 580 500 600 480 600 450 C 600 420 580 400 540 400 Z",
-api-1  |       "color": "#fb923c",
-api-1  |       "lineWidth": 0
+api-1  |       "x": -150,
+api-1  |       "y": -300,
+api-1  |       "pathData": "M 540 960 C 500 900 400 900 400 1000 C 400 1100 540 1200 540 1200 C 540 1200 680 1100 680 1000 C 680 900 580 900 540 960 Z",
+api-1  |       "entry": "scale-in",
+api-1  |       "entryDelay": 0.2,
+api-1  |       "color": "#fbbf24",
+api-1  |       "intensity": 0.5
 api-1  |     },
 api-1  |     {
-api-1  |       "id": "main-text",
+api-1  |       "id": "heart-shape-2",
+api-1  |       "type": "path",
+api-1  |       "x": 200,
+api-1  |       "y": 200,
+api-1  |       "pathData": "M 540 960 C 500 900 400 900 400 1000 C 400 1100 540 1200 540 1200 C 540 1200 680 1100 680 1000 C 680 900 580 900 540 960 Z",
+api-1  |       "entry": "scale-in",
+api-1  |       "entryDelay": 0.5,
+api-1  |       "color": "#fbbf24",
+api-1  |       "intensity": 0.3
+api-1  |     },
+api-1  |     {
 api-1  |       "type": "text",
-api-1  |       "text": "Sígueme para saber más sobre tu mejor amigo.",
+api-1  |       "x": 0,
+api-1  |       "y": 0,
+api-1  |       "text": "Es algo mucho más profundo. Están diseñados biológicamente para amarte. ¡Sígueme para ver más perritos adorables!",
 api-1  |       "fontSize": 48,
 api-1  |       "fontWeight": 700,
-api-1  |       "color": "#1e293b",
-api-1  |       "color1": "#1e293b",
-api-1  |       "color2": "#fb923c",
-api-1  |       "textColor": "#1e293b",
+api-1  |       "color": "#fbbf24",
+api-1  |       "textColor": "#fbbf24",
+api-1  |       "animation": "slide-left",
 api-1  |       "lineWidth": 0
-api-1  |     },
-api-1  |     {
-api-1  |       "id": "cta-button",
-api-1  |       "type": "rect",
-api-1  |       "width": 300,
-api-1  |       "height": 80,
-api-1  |       "borderRadius": 40,
-api-1  |       "fill": "#1e293b",
-api-1  |       "stroke": "#fb923c",
-api-1  |       "strokeWidth": 4,
-api-1  |       "entry": "slide-up",
-api-1  |       "entryDelay": 0.5,
-api-1  |       "textColor": "#ffffff",
-api-1  |       "lineWidth": 4
 api-1  |     },
 api-1  |     {
 api-1  |       "type": "component",
 api-1  |       "componentName": "SubscribeButton",
 api-1  |       "x": 0,
-api-1  |       "y": 300,
-api-1  |       "entry": "scale-in",
-api-1  |       "entryDelay": 0.8
+api-1  |       "y": 400,
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 1.5
 api-1  |     }
 api-1  |   ],
 api-1  |   "out_transition": {
-api-1  |     "type": "WipeTransition",
-api-1  |     "duration_frames": 12
-api-1  |   }
-api-1  | }
-api-1  | 01:11:12 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1365 chars): {
+api-1  |     "type": "W
+api-1  | 02:11:39 [animaflow.llm.strategy] INFO: RAW Gemini response for scene composer (1547 chars): {
 api-1  |   "version": "1.0",
 api-1  |   "background": {
-api-1  |     "type": "gradient",
-api-1  |     "colors": ["#f8fafc", "#e2e8f0"],
+api-1  |     "type": "linear",
+api-1  |     "colors": ["#262626", "#171717"],
 api-1  |     "angle": 180
 api-1  |   },
 api-1  |   "layers": [
 api-1  |     {
 api-1  |       "type": "component",
-api-1  |       "componentName": "GlobalVFX",
-api-1  |       "intensity": 0.2,
-api-1  |       "theme": "warm"
+api-1  |       "componentName": "RaysOfLight",
+api-1  |       "x": 0,
+api-1  |       "y": 0,
+api-1  |       "opacity": 0.3
 api-1  |     },
 api-1  |     {
-api-1  |       "id": "paw-print-icon",
+api-1  |       "id": "heart-shape-1",
 api-1  |       "type": "path",
-api-1  |       "pathData": "M 540 400 C 500 400 480 420 480 450 C 480 480 500 500 540 500 C 580 500 600 480 600 450 C 600 420 580 400 540 400 Z",
-api-1  |       "color": "#fb923c",
-api-1  |       "lineWidth": 0
+api-1  |       "x": -150,
+api-1  |       "y": -300,
+api-1  |       "pathData": "M 540 960 C 500 900 400 900 400 1000 C 400 1100 540 1200 540 1200 C 540 1200 680 1100 680 1000 C 680 900 580 900 540 960 Z",
+api-1  |       "entry": "scale-in",
+api-1  |       "entryDelay": 0.2,
+api-1  |       "color": "#fbbf24",
+api-1  |       "intensity": 0.5
 api-1  |     },
 api-1  |     {
-api-1  |       "id": "main-text",
+api-1  |       "id": "heart-shape-2",
+api-1  |       "type": "path",
+api-1  |       "x": 200,
+api-1  |       "y": 200,
+api-1  |       "pathData": "M 540 960 C 500 900 400 900 400 1000 C 400 1100 540 1200 540 1200 C 540 1200 680 1100 680 1000 C 680 900 580 900 540 960 Z",
+api-1  |       "entry": "scale-in",
+api-1  |       "entryDelay": 0.5,
+api-1  |       "color": "#fbbf24",
+api-1  |       "intensity": 0.3
+api-1  |     },
+api-1  |     {
 api-1  |       "type": "text",
-api-1  |       "text": "Sígueme para saber más sobre tu mejor amigo.",
+api-1  |       "x": 0,
+api-1  |       "y": 0,
+api-1  |       "text": "Es algo mucho más profundo. Están diseñados biológicamente para amarte. ¡Sígueme para ver más perritos adorables!",
 api-1  |       "fontSize": 48,
 api-1  |       "fontWeight": 700,
-api-1  |       "color": "#1e293b",
-api-1  |       "color1": "#1e293b",
-api-1  |       "color2": "#fb923c",
-api-1  |       "textColor": "#1e293b",
+api-1  |       "color": "#fbbf24",
+api-1  |       "textColor": "#fbbf24",
+api-1  |       "animation": "slide-left",
 api-1  |       "lineWidth": 0
-api-1  |     },
-api-1  |     {
-api-1  |       "id": "cta-button",
-api-1  |       "type": "rect",
-api-1  |       "width": 300,
-api-1  |       "height": 80,
-api-1  |       "borderRadius": 40,
-api-1  |       "fill": "#1e293b",
-api-1  |       "stroke": "#fb923c",
-api-1  |       "strokeWidth": 4,
-api-1  |       "entry": "slide-up",
-api-1  |       "entryDelay": 0.5,
-api-1  |       "textColor": "#ffffff",
-api-1  |       "lineWidth": 4
 api-1  |     },
 api-1  |     {
 api-1  |       "type": "component",
 api-1  |       "componentName": "SubscribeButton",
 api-1  |       "x": 0,
-api-1  |       "y": 300,
-api-1  |       "entry": "scale-in",
-api-1  |       "entryDelay": 0.8
+api-1  |       "y": 400,
+api-1  |       "entry": "fade-in",
+api-1  |       "entryDelay": 1.5
 api-1  |     }
 api-1  |   ],
 api-1  |   "out_transition": {
-api-1  |     "type": "WipeTransition",
-api-1  |     "duration_frames": 12
-api-1  |   }
-api-1  | }
-api-1  | 01:11:12 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 1051, preview: {'version': '1.0', 'background': {'type': 'gradient', 'colors': ['#f8fafc', '#e2e8f0'], 'angle': 180}, 'layers': [{'type': 'component', 'componentName': 'GlobalVFX', 'intensity': 0.2, 'theme': 'warm'}, {'id': 'paw-print-icon', 'type': 'path', 'pathData': 'M 540 400 C 500 400 480 420 480 450 C 480 480 500 500 540 500 C 580 500 600 480 600 450 C 600 420 580 400 540 400 Z', 'color': '#fb923c', 'lineWidth': 0}, {'id': 'main-text', 'type': 'text', 'text': 'Sígueme para saber más sobre tu mejor amigo.', 'fontSize': 48, 'fontWeight': 700, 'color': '#1e293b', 'color1': '#1e293b', 'color2': '#fb923c', 'textColor': '#1e293b', 'lineWidth': 0}, {'id': 'cta-button', 'type': 'rect', 'width': 300, 'height': 80, 'borderRadius': 40, 'fill': '#1e293b', 'stroke': '#fb923c', 'strokeWidth': 4, 'entry': 'slide-up', 'entryDelay': 0.5, 'textColor': '#ffffff', 'lineWidth': 4}, {'type': 'component', 'componentName': 'SubscribeButton', 'x': 0, 'y': 300, 'entry': 'scale-in', 'entryDelay': 0.8}], 'out_transition': {'type': 'WipeTransition', 'duration_frames': 12}}
-api-1  | 01:11:12 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 1051, preview: {'version': '1.0', 'background': {'type': 'gradient', 'colors': ['#f8fafc', '#e2e8f0'], 'angle': 180}, 'layers': [{'type': 'component', 'componentName': 'GlobalVFX', 'intensity': 0.2, 'theme': 'warm'}, {'id': 'paw-print-icon', 'type': 'path', 'pathData': 'M 540 400 C 500 400 480 420 480 450 C 480 480 500 500 540 500 C 580 500 600 480 600 450 C 600 420 580 400 540 400 Z', 'color': '#fb923c', 'lineWidth': 0}, {'id': 'main-text', 'type': 'text', 'text': 'Sígueme para saber más sobre tu mejor amigo.', 'fontSize': 48, 'fontWeight': 700, 'color': '#1e293b', 'color1': '#1e293b', 'color2': '#fb923c', 'textColor': '#1e293b', 'lineWidth': 0}, {'id': 'cta-button', 'type': 'rect', 'width': 300, 'height': 80, 'borderRadius': 40, 'fill': '#1e293b', 'stroke': '#fb923c', 'strokeWidth': 4, 'entry': 'slide-up', 'entryDelay': 0.5, 'textColor': '#ffffff', 'lineWidth': 4}, {'type': 'component', 'componentName': 'SubscribeButton', 'x': 0, 'y': 300, 'entry': 'scale-in', 'entryDelay': 0.8}], 'out_transition': {'type': 'WipeTransition', 'duration_frames': 12}}
-api-1  | 01:11:12 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | 01:11:12 [animaflow.llm.strategy] INFO: Generated AnimaComposerSpec for scene.
-api-1  | INFO:     172.16.2.5:56250 - "GET /api/jobs/ad6ba5e1-cb03-4423-8028-bbe15b5cc784 HTTP/1.1" 200 OK
-api-1  | INFO:     172.16.2.5:33592 - "GET /api/jobs/ad6ba5e1-cb03-4423-8028-bbe15b5cc784 HTTP/1.1" 200 OK
+api-1  |     "type": "W
+api-1  | 02:11:39 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 1221, preview: {'version': '1.0', 'background': {'type': 'linear', 'colors': ['#262626', '#171717'], 'angle': 180}, 'layers': [{'type': 'component', 'componentName': 'RaysOfLight', 'x': 0, 'y': 0, 'opacity': 0.3}, {'id': 'heart-shape-1', 'type': 'path', 'x': -150, 'y': -300, 'pathData': 'M 540 960 C 500 900 400 900 400 1000 C 400 1100 540 1200 540 1200 C 540 1200 680 1100 680 1000 C 680 900 580 900 540 960 Z', 'entry': 'scale-in', 'entryDelay': 0.2, 'color': '#fbbf24', 'intensity': 0.5}, {'id': 'heart-shape-2', 'type': 'path', 'x': 200, 'y': 200, 'pathData': 'M 540 960 C 500 900 400 900 400 1000 C 400 1100 540 1200 540 1200 C 540 1200 680 1100 680 1000 C 680 900 580 900 540 960 Z', 'entry': 'scale-in', 'entryDelay': 0.5, 'color': '#fbbf24', 'intensity': 0.3}, {'type': 'text', 'x': 0, 'y': 0, 'text': 'Es algo mucho más profundo. Están diseñados biológicamente para amarte. ¡Sígueme para ver más perritos adorables!', 'fontSize': 48, 'fontWeight': 700, 'color': '#fbbf24', 'textColor': '#fbbf24', 'animation': 'slide-left', 'lineWidth': 0}, {'type': 'component', 'componentName': 'SubscribeButton', 'x': 0, 'y': 400, 'entry': 'fade-in', 'entryDelay': 1.5}], 'out_transition': {'type': 'WipeTransition', 'duration_frames': 12}}
+api-1  | 02:11:39 [animaflow.llm.strategy] INFO: Parsed result type: dict, length: 1221, preview: {'version': '1.0', 'background': {'type': 'linear', 'colors': ['#262626', '#171717'], 'angle': 180}, 'layers': [{'type': 'component', 'componentName': 'RaysOfLight', 'x': 0, 'y': 0, 'opacity': 0.3}, {'id': 'heart-shape-1', 'type': 'path', 'x': -150, 'y': -300, 'pathData': 'M 540 960 C 500 900 400 900 400 1000 C 400 1100 540 1200 540 1200 C 540 1200 680 1100 680 1000 C 680 900 580 900 540 960 Z', 'entry': 'scale-in', 'entryDelay': 0.2, 'color': '#fbbf24', 'intensity': 0.5}, {'id': 'heart-shape-2', 'type': 'path', 'x': 200, 'y': 200, 'pathData': 'M 540 960 C 500 900 400 900 400 1000 C 400 1100 540 1200 540 1200 C 540 1200 680 1100 680 1000 C 680 900 580 900 540 960 Z', 'entry': 'scale-in', 'entryDelay': 0.5, 'color': '#fbbf24', 'intensity': 0.3}, {'type': 'text', 'x': 0, 'y': 0, 'text': 'Es algo mucho más profundo. Están diseñados biológicamente para amarte. ¡Sígueme para ver más perritos adorables!', 'fontSize': 48, 'fontWeight': 700, 'color': '#fbbf24', 'textColor': '#fbbf24', 'animation': 'slide-left', 'lineWidth': 0}, {'type': 'component', 'componentName': 'SubscribeButton', 'x': 0, 'y': 400, 'entry': 'fade-in', 'entryDelay': 1.5}], 'out_transition': {'type': 'WipeTransition', 'duration_frames': 12}}
