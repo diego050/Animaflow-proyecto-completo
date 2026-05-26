@@ -17,6 +17,7 @@ export function ScriptsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<Script | null>(null);
   const [viewMode, setViewMode] = useState<'plain' | 'with-direction'>('plain');
+  const [scenePrompts, setScenePrompts] = useState<string[]>([]);
 
   // New/edit form state
   const [formName, setFormName] = useState('');
@@ -53,12 +54,30 @@ export function ScriptsPage() {
     [navigate],
   );
 
-  const handleCardClick = useCallback((script: Script) => {
+  const handleCardClick = useCallback(async (script: Script) => {
     setEditingScript(script);
     setFormName(script.name);
     setFormContent(script.content);
     setFormAspectRatio(script.aspectRatio);
     setViewMode('plain');
+    setScenePrompts([]); // Reset
+
+    // If derived from a project, fetch the job detail to get per-scene prompts
+    if (script.sourceJobId) {
+      try {
+        await useJobsStore.getState().selectJob(script.sourceJobId);
+        const jobDetail = useJobsStore.getState().selectedJob;
+        if (jobDetail?.result_spec?.scenes) {
+          const prompts = jobDetail.result_spec.scenes.map(
+            (s) => s.media_query || ''
+          );
+          setScenePrompts(prompts);
+        }
+      } catch {
+        // Silently fail — prompts will just be empty
+      }
+    }
+
     setModalOpen(true);
   }, []);
 
@@ -78,6 +97,7 @@ export function ScriptsPage() {
     setFormContent('');
     setFormAspectRatio('9:16');
     setViewMode('plain');
+    setScenePrompts([]);
     setModalOpen(true);
   };
 
@@ -337,9 +357,19 @@ export function ScriptsPage() {
                         Escena {i + 1}
                       </span>
                     </div>
-                    <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap mb-2">
                       {scene}
                     </p>
+                    {scenePrompts[i] && (
+                      <div className="mt-2 pt-2 border-t border-border-tech/30">
+                        <p className="text-[10px] uppercase tracking-wider text-emerald-400/50 font-semibold mb-1">
+                          Prompt Visual
+                        </p>
+                        <p className="text-xs text-emerald-400/80 font-mono leading-relaxed">
+                          {scenePrompts[i]}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

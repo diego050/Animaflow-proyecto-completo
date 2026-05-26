@@ -92,6 +92,12 @@ export interface LayerSpec {
   entry?: 'fade-in' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'scale-in' | 'bounce-in' | 'spring-in' | null;
   entryDelay?: number;
 
+  // -- exit animations ---------------------------------------------------
+  exit?: 'fade-out' | 'slide-up-out' | 'slide-down-out' | 'slide-left-out' | 'slide-right-out' | 'scale-out' | 'spring-out' | 'bounce-out' | null;
+  exitDelay?: number;
+  entryDuration?: number;
+  exitDuration?: number;
+
   // -- CSS filter (ej: 'blur(5px)', 'brightness(1.2)') --------------------
   filter?: string | null;
 }
@@ -202,7 +208,13 @@ function renderSingleLayer(
 
       // Envolver con entry si no hay soporte nativo
       element = (
-        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper
+          entry={layer.entry ?? null}
+          exit={layer.exit ?? null}
+          delay={layer.entryDelay ?? 0}
+          entryDuration={layer.entryDuration ?? 30}
+          exitDuration={layer.exitDuration ?? 30}
+        >
           {element}
         </AnimatedWrapper>
       );
@@ -240,7 +252,13 @@ function renderSingleLayer(
 
       // Entry wrapper
       element = (
-        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper
+          entry={layer.entry ?? null}
+          exit={layer.exit ?? null}
+          delay={layer.entryDelay ?? 0}
+          entryDuration={layer.entryDuration ?? 30}
+          exitDuration={layer.exitDuration ?? 30}
+        >
           {element}
         </AnimatedWrapper>
       );
@@ -276,7 +294,13 @@ function renderSingleLayer(
       );
 
       element = (
-        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper
+          entry={layer.entry ?? null}
+          exit={layer.exit ?? null}
+          delay={layer.entryDelay ?? 0}
+          entryDuration={layer.entryDuration ?? 30}
+          exitDuration={layer.exitDuration ?? 30}
+        >
           {element}
         </AnimatedWrapper>
       );
@@ -307,7 +331,13 @@ function renderSingleLayer(
       );
 
       element = (
-        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper
+          entry={layer.entry ?? null}
+          exit={layer.exit ?? null}
+          delay={layer.entryDelay ?? 0}
+          entryDuration={layer.entryDuration ?? 30}
+          exitDuration={layer.exitDuration ?? 30}
+        >
           {element}
         </AnimatedWrapper>
       );
@@ -344,7 +374,13 @@ function renderSingleLayer(
       );
 
       element = (
-        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper
+          entry={layer.entry ?? null}
+          exit={layer.exit ?? null}
+          delay={layer.entryDelay ?? 0}
+          entryDuration={layer.entryDuration ?? 30}
+          exitDuration={layer.exitDuration ?? 30}
+        >
           {element}
         </AnimatedWrapper>
       );
@@ -373,7 +409,13 @@ function renderSingleLayer(
       );
 
       element = (
-        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper
+          entry={layer.entry ?? null}
+          exit={layer.exit ?? null}
+          delay={layer.entryDelay ?? 0}
+          entryDuration={layer.entryDuration ?? 30}
+          exitDuration={layer.exitDuration ?? 30}
+        >
           {element}
         </AnimatedWrapper>
       );
@@ -402,7 +444,13 @@ function renderSingleLayer(
       );
 
       element = (
-        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper
+          entry={layer.entry ?? null}
+          exit={layer.exit ?? null}
+          delay={layer.entryDelay ?? 0}
+          entryDuration={layer.entryDuration ?? 30}
+          exitDuration={layer.exitDuration ?? 30}
+        >
           {element}
         </AnimatedWrapper>
       );
@@ -438,7 +486,13 @@ function renderSingleLayer(
       element = <ComponentToRender {...mergedProps} />;
 
       element = (
-        <AnimatedWrapper entry={layer.entry ?? null} delay={layer.entryDelay ?? 0}>
+        <AnimatedWrapper
+          entry={layer.entry ?? null}
+          exit={layer.exit ?? null}
+          delay={layer.entryDelay ?? 0}
+          entryDuration={layer.entryDuration ?? 30}
+          exitDuration={layer.exitDuration ?? 30}
+        >
           {element}
         </AnimatedWrapper>
       );

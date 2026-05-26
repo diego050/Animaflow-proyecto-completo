@@ -61,8 +61,12 @@ export interface AnimaLayer {
   shape?: 'circle' | 'rect' | 'star';
   spread?: number;
   colors?: string[];
-  entry?: 'fade-in' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'scale-in' | 'spring-in' | null;
+  entry?: 'fade-in' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'scale-in' | 'spring-in' | 'bounce-in' | null;
   entryDelay?: number;
+  entryDuration?: number;
+  exit?: 'fade-out' | 'slide-up-out' | 'slide-down-out' | 'slide-left-out' | 'slide-right-out' | 'scale-out' | 'spring-out' | 'bounce-out' | null;
+  exitDelay?: number;
+  exitDuration?: number;
   filter?: string | null;
   color?: string;
   color1?: string;

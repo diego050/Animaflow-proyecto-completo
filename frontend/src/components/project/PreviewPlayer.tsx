@@ -1,12 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { SkipForward, SkipBack, Play } from 'lucide-react';
+import { SkipForward, SkipBack, Play, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Player } from '@remotion/player';
+import type { PlayerRef } from '@remotion/player';
 import { SceneWrapper } from '../../remotion/SceneRoot';
 import { MainComposition } from '../../remotion/MainComposition';
 import type { TimelineSpec, Spec } from '../../types/spec';
-import { useAuthStore } from '../../store/useAuthStore';
 import { SceneTimelineBar } from './SceneTimelineBar';
+import { SceneEditor } from './SceneEditor';
 
 interface PreviewPlayerProps {
   spec: TimelineSpec;
@@ -16,14 +17,23 @@ interface PreviewPlayerProps {
   focusSceneIndex?: number | null;
   onClearFocus?: () => void;
   onFocusScene?: (index: number) => void;
+  onSceneSpecChange?: (sceneIndex: number, updatedScene: Spec) => void;
 }
 
-export function PreviewPlayer({ spec, isReadyToRender, aspectRatio, focusSceneIndex, onClearFocus, onFocusScene }: PreviewPlayerProps) {
+export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focusSceneIndex, onClearFocus, onFocusScene, onSceneSpecChange }: PreviewPlayerProps) {
   const totalDuration = spec.scenes.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0);
   const sceneCount = spec.scenes.length;
   const videoRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<PlayerRef>(null);
+  const [showEditor, setShowEditor] = useState(false);
 
   const focusedScene = focusSceneIndex != null ? spec.scenes[focusSceneIndex] : null;
+
+  const handleSceneSpecChange = useCallback((updatedScene: Spec) => {
+    if (focusSceneIndex != null && onFocusScene) {
+      onSceneSpecChange?.(focusSceneIndex, updatedScene);
+    }
+  }, [focusSceneIndex, onFocusScene, onSceneSpecChange]);
 
   const isLandscape = aspectRatio === '16:9';
   const compWidth = isLandscape ? 1920 : 1080;
@@ -33,18 +43,13 @@ export function PreviewPlayer({ spec, isReadyToRender, aspectRatio, focusSceneIn
 
   // Determinamos contenedor
 
-  // Effect to handle seeking when focusSceneIndex changes
+  // Effect to handle seeking in the full video when a scene is clicked (isReadyToRender mode)
   useEffect(() => {
-    if (focusSceneIndex != null && videoRef.current && isReadyToRender) {
+    if (focusSceneIndex != null && isReadyToRender && playerRef.current) {
       const scene = spec.scenes[focusSceneIndex];
       if (scene) {
-        // Use a small timeout to ensure video is loaded
-        setTimeout(() => {
-          if (videoRef.current) {
-            videoRef.current.currentTime = scene.start_time_seconds ?? 0;
-            videoRef.current.play().catch(e => console.warn('Autoplay prevented:', e));
-          }
-        }, 100);
+        const startFrame = Math.round((scene.start_time_seconds ?? 0) * 30);
+        playerRef.current.seekTo(startFrame);
       }
     }
   }, [focusSceneIndex, isReadyToRender, spec.scenes]);
@@ -123,7 +128,21 @@ export function PreviewPlayer({ spec, isReadyToRender, aspectRatio, focusSceneIn
         )}
 
         <div className={`w-full ${containerWidthClass} ${aspectClass} bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50`}>
-          {focusedScene ? (
+          {isReadyToRender ? (
+            /* Full video with audio - seek to scene on click */
+            <Player
+              ref={playerRef}
+              component={MainComposition}
+              inputProps={{ spec }}
+              durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
+              compositionWidth={compWidth}
+              compositionHeight={compHeight}
+              fps={30}
+              controls
+              style={{ width: '100%', height: '100%' }}
+            />
+          ) : focusedScene ? (
+            /* Pre-render: show individual scene preview (no audio yet) */
             <Player
               component={SceneWrapper}
               inputProps={{
@@ -142,9 +161,7 @@ export function PreviewPlayer({ spec, isReadyToRender, aspectRatio, focusSceneIn
           ) : (
             <Player
               component={MainComposition}
-              inputProps={{
-                spec: spec,
-              }}
+              inputProps={{ spec }}
               durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
               compositionWidth={compWidth}
               compositionHeight={compHeight}
@@ -161,13 +178,13 @@ export function PreviewPlayer({ spec, isReadyToRender, aspectRatio, focusSceneIn
         </div>
 
         <p className="text-text-secondary/40 text-[10px] mt-4 flex items-center gap-2">
-          {focusedScene
-            ? focusedScene.type === 'custom' && (focusedScene as Spec)?.anima_composer
-              ? `Preview en vivo — AnimaComposer · Escena ${focusSceneIndex! + 1}`
-              : `Preview MP4 individual — Escena ${focusSceneIndex! + 1}`
-            : isReadyToRender 
-              ? 'Video MP4 final'
-              : 'Selecciona una escena'}
+          {isReadyToRender
+            ? (focusedScene != null ? `Video completo · Escena ${focusSceneIndex! + 1} seleccionada` : 'Video MP4 final')
+            : (focusedScene != null
+              ? (focusedScene.type === 'custom' && (focusedScene as Spec)?.anima_composer
+                ? `Preview en vivo — AnimaComposer · Escena ${focusSceneIndex! + 1}`
+                : `Preview individual — Escena ${focusSceneIndex! + 1}`)
+              : 'Selecciona una escena')}
           <span className="bg-surface-elevated px-1.5 py-0.5 rounded text-[9px]">Espacio para play/pause</span>
         </p>
       </div>
@@ -193,40 +210,65 @@ export function PreviewPlayer({ spec, isReadyToRender, aspectRatio, focusSceneIn
           </div>
         </div>
 
-        {/* Desktop scene list (hidden on mobile) */}
+        {/* Desktop scene list / editor (hidden on mobile) */}
         <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-3">Escenas</h3>
-          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-            {spec.scenes.map((scene, idx) => {
-              const isFocused = focusSceneIndex === idx;
-              return (
-                <div
-                  key={idx}
-                  onClick={() => onFocusScene?.(idx)}
-                  className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                    isFocused
-                      ? 'bg-mint-precision/10 border border-mint-precision/30'
-                      : 'bg-surface-lowest/50 hover:bg-surface-elevated'
-                  }`}
-                >
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
-                    isFocused
-                      ? 'text-deep-slate bg-mint-precision'
-                      : 'text-mint-precision bg-mint-precision/10'
-                  }`}>
-                    {idx + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs text-text-primary truncate">{scene.text}</p>
-                    <p className="text-[10px] text-text-secondary/40">{scene.duration_seconds}s</p>
-                  </div>
-                  {isFocused && (
-                    <Play size={12} className="text-mint-precision shrink-0 mt-1 ml-auto" />
-                  )}
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-text-primary">
+              {showEditor && focusSceneIndex != null ? `Editor — Escena ${focusSceneIndex + 1}` : 'Escenas'}
+            </h3>
+            {focusSceneIndex != null && (
+              <button
+                onClick={() => setShowEditor(!showEditor)}
+                className="p-1.5 rounded-md text-text-secondary/50 hover:text-mint-precision hover:bg-mint-precision/10 transition-colors"
+                title={showEditor ? 'Cerrar editor' : 'Abrir editor'}
+              >
+                {showEditor ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
+              </button>
+            )}
           </div>
+
+          {showEditor && focusSceneIndex != null ? (
+            <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
+              <SceneEditor
+                scene={spec.scenes[focusSceneIndex]}
+                sceneIndex={focusSceneIndex}
+                jobId={jobId}
+                onSpecChange={handleSceneSpecChange}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              {spec.scenes.map((scene, idx) => {
+                const isFocused = focusSceneIndex === idx;
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => onFocusScene?.(idx)}
+                    className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                      isFocused
+                        ? 'bg-mint-precision/10 border border-mint-precision/30'
+                        : 'bg-surface-lowest/50 hover:bg-surface-elevated'
+                    }`}
+                  >
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
+                      isFocused
+                        ? 'text-deep-slate bg-mint-precision'
+                        : 'text-mint-precision bg-mint-precision/10'
+                    }`}>
+                      {idx + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs text-text-primary truncate">{scene.text}</p>
+                      <p className="text-[10px] text-text-secondary/40">{scene.duration_seconds}s</p>
+                    </div>
+                    {isFocused && (
+                      <Play size={12} className="text-mint-precision shrink-0 mt-1 ml-auto" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -338,16 +338,29 @@ export function ProjectDetail() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         hasSpec={!!spec}
+        isSegmented={selectedJob.status === 'segmented'}
       />
 
       <div className="min-h-[400px]">
         {activeTab === 'script' && spec && (
           <div className="space-y-4">
+            {/* Processing state after approval */}
+            {(selectedJob.status === 'queued_enrichment' || selectedJob.status === 'visuals_generating' || selectedJob.status === 'processing_scenes') && (
+              <div className="bg-mint-precision/10 border border-mint-precision/20 rounded-xl p-6 text-center">
+                <Loader2 size={32} className="animate-spin mx-auto text-mint-precision mb-3" />
+                <h3 className="text-mint-precision font-bold text-sm mb-1">Generando Audio y Visuales</h3>
+                <p className="text-text-secondary text-xs">
+                  Estamos creando el audio TTS y los componentes visuales para cada escena. Esto puede tomar unos minutos.
+                </p>
+              </div>
+            )}
+
+            {/* Scene approval banner (only when segmented) */}
             {selectedJob.status === 'segmented' && (
               <div className="bg-mint-precision/10 border border-mint-precision/20 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
                 <div>
                   <h3 className="text-mint-precision font-bold text-sm">Escenas pendientes de aprobación</h3>
-                  <p className="text-text-secondary text-xs mt-1">Revisa el guión y los prompts visuales. Una vez aprobados, comenzará la generación de componentes y el renderizado.</p>
+                  <p className="text-text-secondary text-xs mt-1">Revisa el guión y los prompts visuales. Una vez aprobados, comenzará la generación de audio y componentes.</p>
                 </div>
                 <button
                   onClick={handleApprove}
@@ -359,6 +372,8 @@ export function ProjectDetail() {
                 </button>
               </div>
             )}
+
+            {/* Scene timeline */}
             <SceneTimeline
             spec={localSpec ?? spec}
             jobId={jobId}
@@ -400,13 +415,21 @@ export function ProjectDetail() {
         {activeTab === 'preview' && spec && (
           <ErrorBoundary>
             <PreviewPlayer
-              spec={spec}
+              spec={localSpec ?? spec}
               jobId={jobId}
               isReadyToRender={isReadyToRender}
               aspectRatio={spec.aspect_ratio}
               focusSceneIndex={focusSceneIndex}
               onClearFocus={() => setFocusSceneIndex(null)}
               onFocusScene={(idx: number) => setFocusSceneIndex(idx)}
+              onSceneSpecChange={(sceneIndex, updatedScene) => {
+                setLocalSpec(prev => {
+                  if (!prev) return prev;
+                  const newScenes = [...prev.scenes];
+                  newScenes[sceneIndex] = updatedScene;
+                  return { ...prev, scenes: newScenes };
+                });
+              }}
             />
           </ErrorBoundary>
         )}
