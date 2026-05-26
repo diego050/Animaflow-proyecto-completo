@@ -11,7 +11,6 @@ import {
   Loader2,
   CheckCircle2,
   FileCode,
-  ExternalLink,
   X,
 } from 'lucide-react';
 import { useJobsStore } from '../../store/useJobsStore';
@@ -26,22 +25,28 @@ import {
 import { JobCardSkeleton } from '../../components/dashboard/JobCardSkeleton';
 import type { JobSummary } from '../../types/job';
 import { apiFetch, API_BASE } from '../../api/client';
+import { PreviewPlayer } from '../../components/PreviewPlayer';
 
 type FilterType = 'all' | 'completed' | 'rendering' | 'failed';
 
 export function VideosPage() {
   const navigate = useNavigate();
-  const { jobs, jobsLoading, jobsError, fetchJobs } = useJobsStore();
+  const { jobs, jobsLoading, jobsError, fetchJobs, selectedJob, selectedJobLoading } = useJobsStore();
   const { addToast } = useToastStore();
   const { resetWizard } = useWizardStore();
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [previewJob, setPreviewJob] = useState<JobSummary | null>(null);
+  const [interactivePreviewJobId, setInteractivePreviewJobId] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
+
+  const fetchJobDetailForPreview = async (jobId: string) => {
+    await useJobsStore.getState().selectJob(jobId);
+  };
 
   const filteredJobs = useMemo(() => {
     let result = jobs;
@@ -333,13 +338,12 @@ export function VideosPage() {
               <div
                 className="relative aspect-video bg-surface-container cursor-pointer overflow-hidden"
                 onClick={() => {
-                  // Completed jobs with MP4 → open preview modal
-                  // Completed jobs without MP4 → navigate to project detail (has Remotion player)
-                  // Non-completed jobs → navigate to project detail
+                  // All card clicks open the preview modal — never navigate away
                   if (isCompletedStatus(job.status) && job.video_url) {
                     setPreviewJob(job);
                   } else {
-                    navigate(`/dashboard/project/${job.job_id}`);
+                    setInteractivePreviewJobId(job.job_id);
+                    fetchJobDetailForPreview(job.job_id);
                   }
                 }}
               >
@@ -417,16 +421,10 @@ export function VideosPage() {
                   {isCompletedStatus(job.status) && job.video_url && (
                     <>
                       <button
-                        onClick={() => setPreviewJob(job)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors"
-                      >
-                        <Play size={12} />
-                        Ver
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleDownloadMP4(job.job_id, job.video_url!)
-                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadMP4(job.job_id, job.video_url!);
+                        }}
                         disabled={downloading === job.job_id}
                         className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors disabled:opacity-50"
                       >
@@ -438,7 +436,10 @@ export function VideosPage() {
                         MP4
                       </button>
                       <button
-                        onClick={() => handleDownloadAE(job.job_id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadAE(job.job_id);
+                        }}
                         disabled={downloading === job.job_id}
                         className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors disabled:opacity-50"
                       >
@@ -448,27 +449,18 @@ export function VideosPage() {
                   )}
                   {isCompletedStatus(job.status) && !job.video_url && (
                     <button
-                      onClick={() =>
-                        navigate(`/dashboard/project/${job.job_id}`)
-                      }
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-mint-precision/10 text-mint-precision rounded-lg text-xs font-medium hover:bg-mint-precision/20 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadAE(job.job_id);
+                      }}
+                      disabled={downloading === job.job_id}
+                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors disabled:opacity-50"
                     >
-                      <Play size={12} />
-                      Preview Interactivo
+                      <FileCode size={12} />
+                      AE
                     </button>
                   )}
-                  {!isCompletedStatus(job.status) && (
-                    <button
-                      onClick={() =>
-                        navigate(`/dashboard/project/${job.job_id}`)
-                      }
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors"
-                    >
-                      <ExternalLink size={12} />
-                      Ver detalle
-                    </button>
-                  )}
-                  </div>
+                </div>
                 </div>
               </motion.div>
           ))}
@@ -477,68 +469,131 @@ export function VideosPage() {
 
       {/* Preview Modal */}
       <AnimatePresence>
-        {previewJob && (
+        {(previewJob || interactivePreviewJobId) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setPreviewJob(null)}
+            onClick={() => {
+              setPreviewJob(null);
+              setInteractivePreviewJobId(null);
+            }}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative max-w-lg w-full"
+              className="relative max-w-2xl w-full"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="bg-surface-highest rounded-2xl overflow-hidden border border-border-tech relative">
                 {/* Close button */}
                 <button
-                  onClick={() => setPreviewJob(null)}
+                  onClick={() => {
+                    setPreviewJob(null);
+                    setInteractivePreviewJobId(null);
+                  }}
                   className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-black/70 transition-all"
                 >
                   <X size={18} />
                 </button>
 
-                {previewJob.video_url ? (
-                  <video
-                    src={
-                      previewJob.video_url.startsWith('http')
-                        ? previewJob.video_url
-                        : `${API_BASE}${previewJob.video_url}`
-                    }
-                    className="w-full max-h-[80vh] object-contain bg-black"
-                    controls
-                    autoPlay
-                  />
-                ) : (
-                  <div className="w-full aspect-video bg-surface-container flex flex-col items-center justify-center gap-4 p-6">
-                    <Film size={48} className="text-text-secondary/30" />
-                    <p className="text-sm text-text-secondary text-center max-w-xs">
-                      Este proyecto tiene un preview interactivo con Remotion.
-                      Abre el detalle del proyecto para verlo.
-                    </p>
-                    <button
-                      onClick={() => {
-                        setPreviewJob(null);
-                        navigate(`/dashboard/project/${previewJob.job_id}`);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-mint-precision/10 text-mint-precision rounded-lg text-sm font-medium hover:bg-mint-precision/20 transition-colors"
-                    >
-                      <ExternalLink size={14} />
-                      Abrir Preview Interactivo
-                    </button>
-                  </div>
-                )}
-                <div className="p-4">
-                  <p className="text-sm text-text-primary font-medium line-clamp-2 mb-1">
-                    {previewJob.script_text}
-                  </p>
-                  <p className="text-xs text-text-secondary/50">
-                    {previewJob.aspect_ratio || '9:16'} ·{' '}
-                    {formatDate(previewJob.created_at)}
-                  </p>
+                {/* Content area */}
+                <div className="flex flex-col items-center">
+                  {/* Case 1: Direct video preview (has video_url) */}
+                  {previewJob?.video_url && (
+                    <>
+                      <video
+                        src={
+                          previewJob.video_url.startsWith('http')
+                            ? previewJob.video_url
+                            : `${API_BASE}${previewJob.video_url}`
+                        }
+                        className="w-full max-h-[70vh] object-contain bg-black"
+                        controls
+                        autoPlay
+                      />
+                      <div className="p-4 w-full">
+                        <p className="text-sm text-text-primary font-medium line-clamp-2 mb-1">
+                          {previewJob.script_text}
+                        </p>
+                        <p className="text-xs text-text-secondary/50">
+                          {previewJob.aspect_ratio || '9:16'} · {formatDate(previewJob.created_at)}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Case 2: Interactive preview (Remotion or loading or no preview) */}
+                  {interactivePreviewJobId && !previewJob && (
+                    <div className="w-full p-6">
+                      {selectedJobLoading ? (
+                        <div className="flex flex-col items-center justify-center py-20 gap-4">
+                          <Loader2 size={32} className="animate-spin text-mint-precision" />
+                          <p className="text-sm text-text-secondary">Cargando preview...</p>
+                        </div>
+                      ) : selectedJob?.result_spec ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <PreviewPlayer
+                            spec={selectedJob.result_spec}
+                            aspectRatio={
+                              jobs.find((j) => j.job_id === interactivePreviewJobId)?.aspect_ratio || '9:16'
+                            }
+                          />
+                          <div className="w-full text-center">
+                            <p className="text-sm text-text-primary font-medium line-clamp-2 mb-1">
+                              {jobs.find((j) => j.job_id === interactivePreviewJobId)?.script_text || ''}
+                            </p>
+                            <p className="text-xs text-text-secondary/50">
+                              {jobs.find((j) => j.job_id === interactivePreviewJobId)?.aspect_ratio || '9:16'} ·{' '}
+                              {formatDate(
+                                jobs.find((j) => j.job_id === interactivePreviewJobId)?.created_at || '',
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      ) : selectedJob?.video_url ? (
+                        // Fallback: job has video_url from detail fetch
+                        <video
+                          src={
+                            selectedJob.video_url.startsWith('http')
+                              ? selectedJob.video_url
+                              : `${API_BASE}${selectedJob.video_url}`
+                          }
+                          className="w-full max-h-[70vh] object-contain bg-black"
+                          controls
+                          autoPlay
+                        />
+                      ) : (
+                        // No preview available
+                        <div className="flex flex-col items-center justify-center py-16 gap-4">
+                          <Film size={48} className="text-text-secondary/30" />
+                          {isFailedStatus(selectedJob?.status || '') ? (
+                            <>
+                              <p className="text-sm text-red-400 text-center max-w-xs">
+                                Este proyecto falló durante el renderizado.
+                              </p>
+                              {selectedJob?.error_message && (
+                                <p className="text-xs text-text-secondary/50 text-center max-w-sm font-mono bg-surface-lowest p-3 rounded-lg">
+                                  {selectedJob.error_message}
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm text-text-secondary text-center max-w-xs">
+                                Este proyecto aún está en proceso. El preview estará disponible cuando se complete el renderizado.
+                              </p>
+                              <div className="flex items-center gap-2">
+                                {getStatusBadge(selectedJob?.status || '')}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
