@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { SkipForward, SkipBack, Play, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { SkipForward, SkipBack, Play, MessageSquare } from 'lucide-react';
 import { Player } from '@remotion/player';
 import type { PlayerRef } from '@remotion/player';
 import { SceneWrapper } from '../../remotion/SceneRoot';
 import { MainComposition } from '../../remotion/MainComposition';
 import type { TimelineSpec, Spec } from '../../types/spec';
 import { SceneTimelineBar } from './SceneTimelineBar';
-import { SceneEditor } from './SceneEditor';
+import { SceneInlineEditor } from './SceneInlineEditor';
+import { ChatPanel } from './SceneEditor/ChatPanel';
+import { editScene } from '../../api/sceneEdit';
 
 interface PreviewPlayerProps {
   spec: TimelineSpec;
@@ -25,15 +27,8 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
   const sceneCount = spec.scenes.length;
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<PlayerRef>(null);
-  const [showEditor, setShowEditor] = useState(false);
 
   const focusedScene = focusSceneIndex != null ? spec.scenes[focusSceneIndex] : null;
-
-  const handleSceneSpecChange = useCallback((updatedScene: Spec) => {
-    if (focusSceneIndex != null && onFocusScene) {
-      onSceneSpecChange?.(focusSceneIndex, updatedScene);
-    }
-  }, [focusSceneIndex, onFocusScene, onSceneSpecChange]);
 
   const isLandscape = aspectRatio === '16:9';
   const compWidth = isLandscape ? 1920 : 1080;
@@ -190,85 +185,81 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
       </div>
 
       {/* Project info sidebar - stacked on mobile, sidebar on desktop */}
-      <div className="w-full lg:w-72 space-y-4">
+      <div className="w-full lg:w-80 space-y-4">
         {/* Desktop info card (hidden on mobile) */}
         <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-4">Información del proyecto</h3>
+          <h3 className="text-sm font-semibold text-text-primary mb-4">
+            Informacion del proyecto
+          </h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs text-text-secondary/50">Escenas</span>
-              <span className="text-sm font-semibold text-text-primary">{sceneCount}</span>
+              <span className="text-sm font-semibold text-text-primary">
+                {sceneCount}
+              </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-text-secondary/50">Duración total</span>
-              <span className="text-sm font-semibold text-text-primary">{totalDuration.toFixed(1)}s</span>
+              <span className="text-xs text-text-secondary/50">
+                Duracion total
+              </span>
+              <span className="text-sm font-semibold text-text-primary">
+                {totalDuration.toFixed(1)}s
+              </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-text-secondary/50">Relación de aspecto</span>
-              <span className="text-sm font-semibold text-mint-precision">{aspectRatio || '9:16'}</span>
+              <span className="text-xs text-text-secondary/50">
+                Relacion de aspecto
+              </span>
+              <span className="text-sm font-semibold text-mint-precision">
+                {aspectRatio || '9:16'}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Desktop scene list / editor (hidden on mobile) */}
-        <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl p-5">
-          <div className="flex items-center justify-between mb-3">
+        {/* All scenes editor (always visible) */}
+        <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl overflow-hidden">
+          <div className="p-4 border-b border-border-tech/50">
             <h3 className="text-sm font-semibold text-text-primary">
-              {showEditor && focusSceneIndex != null ? `Editor — Escena ${focusSceneIndex + 1}` : 'Escenas'}
+              Editor de Escenas
             </h3>
-            {focusSceneIndex != null && (
-              <button
-                onClick={() => setShowEditor(!showEditor)}
-                className="p-1.5 rounded-md text-text-secondary/50 hover:text-mint-precision hover:bg-mint-precision/10 transition-colors"
-                title={showEditor ? 'Cerrar editor' : 'Abrir editor'}
-              >
-                {showEditor ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
-              </button>
-            )}
           </div>
-
-          {showEditor && focusSceneIndex != null ? (
-            <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
-              <SceneEditor
-                scene={spec.scenes[focusSceneIndex]}
-                sceneIndex={focusSceneIndex}
+          <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+            {spec.scenes.map((scene, idx) => (
+              <SceneInlineEditor
+                key={idx}
+                scene={scene}
+                sceneIndex={idx}
                 jobId={jobId}
-                onSpecChange={handleSceneSpecChange}
+                isFocused={focusSceneIndex === idx}
+                onSpecChange={onSceneSpecChange}
               />
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-              {spec.scenes.map((scene, idx) => {
-                const isFocused = focusSceneIndex === idx;
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => onFocusScene?.(idx)}
-                    className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                      isFocused
-                        ? 'bg-mint-precision/10 border border-mint-precision/30'
-                        : 'bg-surface-lowest/50 hover:bg-surface-elevated'
-                    }`}
-                  >
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
-                      isFocused
-                        ? 'text-deep-slate bg-mint-precision'
-                        : 'text-mint-precision bg-mint-precision/10'
-                    }`}>
-                      {idx + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-xs text-text-primary truncate">{scene.text}</p>
-                      <p className="text-[10px] text-text-secondary/40">{scene.duration_seconds}s</p>
-                    </div>
-                    {isFocused && (
-                      <Play size={12} className="text-mint-precision shrink-0 mt-1 ml-auto" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+            ))}
+          </div>
+        </div>
+
+        {/* Chat panel (always visible at bottom) */}
+        <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl overflow-hidden">
+          <div className="p-4 border-b border-border-tech/50">
+            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+              <MessageSquare size={14} className="text-mint-precision" />
+              Asistente IA
+            </h3>
+          </div>
+          <div className="h-64">
+            <ChatPanel
+              onSend={async (prompt) => {
+                // Use the first scene as default, or let LLM figure it out
+                const targetScene = focusSceneIndex ?? 0;
+                return editScene(jobId, targetScene, {
+                  mode: 'conversational',
+                  prompt,
+                });
+              }}
+              disabled={false}
+              jobId={jobId}
+            />
+          </div>
         </div>
       </div>
     </div>

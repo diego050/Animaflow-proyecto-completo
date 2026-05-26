@@ -28,6 +28,7 @@ from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_enrichm
 from app.core.file_logger import JobFileLogger
 
 from pydantic import BaseModel
+from sqlalchemy.orm.attributes import flag_modified
 
 
 class SceneEditRequest(BaseModel):
@@ -137,7 +138,6 @@ async def update_draft(
     if "script" in draft_in.draft_data:
         job.script_text = draft_in.draft_data["script"]
         
-    from sqlalchemy.orm.attributes import flag_modified
     flag_modified(job, "result_spec")
     db.commit()
     return JobResponse(job_id=job.id, status=job.status, result_spec=job.result_spec, error_message=job.error_message)
@@ -223,7 +223,6 @@ async def approve_scenes(
     current_spec["approved"] = True
     job.result_spec = current_spec
     job.status = "queued_enrichment"
-    from sqlalchemy.orm.attributes import flag_modified
     flag_modified(job, "result_spec")
     db.commit()
 
@@ -260,11 +259,12 @@ async def get_job_history(
     Returns messages in chronological order.
     """
     # Verify job ownership
-    job = db.query(JobModel).filter(JobModel.id == job_id).first()
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id,
+        JobModel.user_id == current_user.id,
+    ).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    if job.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not your job")
 
     messages = await get_history(db, job_id, limit=limit)
 
@@ -614,7 +614,7 @@ async def trigger_scene_regenerate(
 async def edit_scene(
     job_id: str,
     scene_index: int,
-    request: SceneEditRequest,
+    body: SceneEditRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -656,14 +656,14 @@ async def edit_scene(
     scene_spec = scenes[scene_index]
 
     try:
-        if request.mode == "manual":
-            if not request.changes:
+        if body.mode == "manual":
+            if not body.changes:
                 raise HTTPException(status_code=400, detail="changes required for manual mode")
             # Apply manual changes
-            apply_manual_changes(scene_spec, request.changes)
-            explanation = f"Applied {len(request.changes)} manual changes"
-        elif request.mode == "conversational":
-            if not request.prompt:
+            apply_manual_changes(scene_spec, body.changes)
+            explanation = f"Applied {len(body.changes)} manual changes"
+        elif body.mode == "conversational":
+            if not body.prompt:
                 raise HTTPException(status_code=400, detail="Prompt is required for conversational mode")
 
             # Step 1: Save user message to history
@@ -672,7 +672,7 @@ async def edit_scene(
                 job_id=job_id,
                 user_id=current_user.id,
                 role="user",
-                content=request.prompt,
+                content=body.prompt,
                 metadata={"mode": "conversational"},
             )
 
@@ -680,11 +680,11 @@ async def edit_scene(
             history = await get_history(db, job_id, limit=15)
 
             # Step 3: Classify intent WITH history
-            intent = await classify_intent(request.prompt, history=history)
+            intent = await classify_intent(body.prompt, history=history)
 
             if intent == "query":
                 # Answer without sending full spec
-                answer = await answer_query(request.prompt, history=history)
+                answer = await answer_query(body.prompt, history=history)
 
                 # Save AI response
                 await save_message(
@@ -708,9 +708,9 @@ async def edit_scene(
                 # For now, treat as edit (future implementation)
                 pass
 
-            # intent == "edit" → proceed with full editing flow WITH history
+            # intent == "edit" → proceed with editing flow WITH history
             scene_spec, explanation = await apply_conversational_changes(
-                scene_spec, request.prompt, history=history
+                scene_spec, body.prompt, history=history
             )
         else:
             raise HTTPException(status_code=400, detail="Invalid mode. Use 'manual' or 'conversational'")
@@ -727,15 +727,15 @@ async def edit_scene(
 
         # Build applied changes list for response
         applied_changes = []
-        if request.mode == "manual":
-            for change in request.changes:
+        if body.mode == "manual":
+            for change in body.changes:
                 applied_changes.append({
                     "field_path": change["field_path"],
                     "new_value": change["value"],
                 })
 
         # Save AI response to history (conversational mode)
-        if request.mode == "conversational":
+        if body.mode == "conversational":
             await save_message(
                 db=db,
                 job_id=job_id,
