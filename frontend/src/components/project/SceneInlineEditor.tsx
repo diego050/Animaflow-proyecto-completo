@@ -86,6 +86,7 @@ export function SceneInlineEditor({
   );
 
   const handleReorderLayer = useCallback((index: number, direction: number) => {
+    if (!composer) return;
     const newIndex = index + direction;
     if (!composer.layers || newIndex < 0 || newIndex >= composer.layers.length) return;
 
@@ -93,7 +94,7 @@ export function SceneInlineEditor({
     [newLayers[index], newLayers[newIndex]] = [newLayers[newIndex], newLayers[index]];
 
     handleFieldChange('anima_composer.layers', newLayers);
-  }, [composer.layers, handleFieldChange]);
+  }, [composer, handleFieldChange]);
 
   // Compute center coordinates based on aspect ratio
   const centerX = aspectRatio === '16:9' ? 960 : 540;
