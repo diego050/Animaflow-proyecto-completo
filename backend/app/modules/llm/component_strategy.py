@@ -280,8 +280,8 @@ REGLAS DE ORO PARA EL DISEÑO:
    - `"x": 0, "y": 200` = abajo del centro
    - `"x": -200, "y": 0` = izquierda del centro
    - `"x": 200, "y": 0` = derecha del centro
-   - EJEMPLO CORRECTO: `{"type": "text", "text": "Hola", "x": 0, "y": 0}`
-   - EJEMPLO INCORRECTO: `{"type": "text", "text": "Hola"}` ← FALTA x/y, INVÁLIDO
+    - EJEMPLO CORRECTO: {{"type": "text", "text": "Hola", "x": 0, "y": 0}}
+    - EJEMPLO INCORRECTO: {{"type": "text", "text": "Hola"}} ← FALTA x/y, INVÁLIDO
 6. **FORMATO NUMÉRICO ESTRICTO:** Para `lineWidth`, usa SOLO números ENTEROS (0, 1, 2, 3... 20). NUNCA uses decimales. Ejemplos válidos: `0`, `4`, `10`. Ejemplos INVÁLIDOS: `0.5`, `4.5`, `10.25`.
 
 REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path) que represente el sujeto principal de la escena. No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
