@@ -13,7 +13,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 logger = get_logger("pipeline")
 
-from ..tts.service import generate_tts_with_timestamps, AUDIO_STORAGE
+from ..tts.service import AUDIO_STORAGE
 from ..segmentation.service import split_text_into_chunks
 from ..llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
 from ..llm.component_strategy import generate_scene_composer
@@ -108,20 +108,90 @@ async def _process_chunks_async(
     llm_model: str = "gemini-2.0-flash",
     db: Session = None,
 ) -> list[dict]:
-    # Fase 2: Ya no generamos TTS aquí, solo llamamos a decide_and_generate_component con los timestamps
+    """Fase 2: Genera TTS por escena + componentes visuales (anima_composer)."""
+    from ..tts.service import generate_tts_with_timestamps
+    from app.modules.llm.resolver import resolve_llm_credentials
+
     previous_scene_tsx = None
+    current_offset = 0.0
+    GAP_MS = 300  # 300ms gap between scenes
+
+    # Resolve TTS credentials once
+    tts_provider = "local_piper"
+    tts_voice_id = "es_ES-carlfm-x_low"
+    tts_key = None
+    groq_api_key = None
+    if user_id:
+        tts_key = _get_user_api_key(user_id, tts_provider, SessionLocal())
+        groq_api_key = _get_user_api_key(user_id, "groq", SessionLocal())
+
     for i, scene in enumerate(timeline_scenes):
-        JobFileLogger.log(job_id, "INFO", f"Generando escena {i+1}/{len(timeline_scenes)}...")
+        JobFileLogger.log(job_id, "INFO", f"Procesando escena {i+1}/{len(timeline_scenes)}...")
+
+        # ── Step 1: Generate TTS for this scene ──
+        scene_text = scene.get("text", "")
+        if scene_text and not scene.get("audio_url"):
+            logger.info("  Scene %d/%d: generating TTS...", i + 1, len(timeline_scenes))
+            try:
+                tts_result = await generate_tts_with_timestamps(
+                    text=scene_text,
+                    provider_name=tts_provider,
+                    voice_id=tts_voice_id,
+                    api_key=tts_key,
+                    language="es",
+                    groq_api_key=groq_api_key,
+                )
+
+                duration = tts_result.get("duration_seconds", 0)
+                scene["duration_seconds"] = round(duration, 2)
+                scene["start_time_seconds"] = round(current_offset, 2)
+
+                # Save audio file and set URL
+                audio_path = tts_result.get("audio_path")
+                if audio_path and os.path.exists(audio_path):
+                    os.makedirs(AUDIO_STORAGE, exist_ok=True)
+                    ext = os.path.splitext(audio_path)[1] or ".mp3"
+                    chunk_name = f"{job_id}_{i}{ext}"
+                    chunk_path = os.path.join(AUDIO_STORAGE, chunk_name)
+                    shutil.copy2(audio_path, chunk_path)
+                    scene["audio_url"] = f"/api/audio/{chunk_name}"
+
+                # Offset word timestamps to global timeline
+                scene_wts = []
+                for wt in tts_result.get("word_timestamps", []):
+                    scene_wts.append({
+                        "word": wt["word"],
+                        "start": round(wt["start"] + current_offset, 3),
+                        "end": round(wt["end"] + current_offset, 3),
+                    })
+                scene["word_timestamps"] = scene_wts
+
+                current_offset += duration + (GAP_MS / 1000)
+
+            except Exception as e:
+                logger.warning("TTS failed for scene %d: %s. Using estimated duration.", i + 1, e)
+                word_count = len(scene_text.split())
+                estimated_duration = max(3.0, word_count / 2.17)
+                scene["duration_seconds"] = round(estimated_duration, 2)
+                scene["start_time_seconds"] = round(current_offset, 2)
+                scene["audio_url"] = None
+                scene["word_timestamps"] = []
+                current_offset += estimated_duration + (GAP_MS / 1000)
+        else:
+            # Scene already has audio_url (e.g., from manual upload) — just update timing
+            duration = scene.get("duration_seconds", 3.0)
+            scene["start_time_seconds"] = round(current_offset, 2)
+            current_offset += duration + (GAP_MS / 1000)
+
+        # ── Step 2: Generate anima_composer (visual component spec) ──
         visual_spec = VisualSpecResult(
             media_query=scene.get("media_query", ""),
             backgroundColor=scene.get("remotion_props", {}).get("backgroundColor", "#0f172a"),
             textColor=scene.get("remotion_props", {}).get("textColor", "#38bdf8"),
         )
-        
+
         logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
-        
-        from app.modules.llm.resolver import resolve_llm_credentials
-        
+
         try:
             creds = resolve_llm_credentials(user_id, provider_override="gemini")
             api_key = creds.api_key
@@ -130,7 +200,7 @@ async def _process_chunks_async(
             gemini_api_key = _get_user_api_key(user_id, "gemini", SessionLocal())
             api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
             model_to_use = llm_model
-        
+
         composer_spec = generate_scene_composer(
             text=scene.get("text", ""),
             media_query=scene.get("media_query", ""),
@@ -139,14 +209,15 @@ async def _process_chunks_async(
             db=db,
             aspect_ratio=aspect_ratio,
         )
-        
+
         scene["type"] = "custom"
         scene["quality_status"] = "passed"
         scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
-        
+
         # Pausa para evitar límites de RPM (Requests Per Minute) del plan gratuito de Gemini
         if i < len(timeline_scenes) - 1:
             await asyncio.sleep(4)
+
     JobFileLogger.log(job_id, "INFO", "Componentes generados. Finalizando...")
     return timeline_scenes
 
@@ -215,10 +286,10 @@ def run_pipeline(
     system_prompt: Optional[str] = None,
     animation_only: bool = False,
 ):
-    """Fase 1: TTS global, segmentación por timestamps, y prompts visuales."""
-    from pydub import AudioSegment
-    from app.modules.segmentation.timestamp_splitter import split_by_timestamps
+    """Fase 1: Segmentación de texto + prompts visuales (SIN TTS).
 
+    El TTS se genera después de la aprobación del usuario (Fase 2).
+    """
     with get_db_context() as db:
         job = db.query(JobModel).filter(JobModel.id == job_id).first()
         if not job:
@@ -249,145 +320,38 @@ def run_pipeline(
             db.commit()
             JobFileLogger.log(job_id, "INFO", "Segmentando texto...")
 
-            groq_api_key = _get_user_api_key(user_id, "groq", db) if user_id else None
-            tts_key = tts_api_key or (_get_user_api_key(user_id, tts_provider, db) if user_id else None)
-
-            # 1. SPLIT TEXT FIRST, THEN GENERATE TTS PER SCENE
+            # 1. Split text into ~7s chunks (~15 words each)
             if not animation_only and not scenes:
                 chunks = split_text_into_chunks(script_text)
-                GAP_MS = 300  # 300ms gap between scenes
-                
-                logger.info("Generating per-scene TTS for %d scenes (job %s)...", len(chunks), job_id)
-                JobFileLogger.log(job_id, "INFO", "Generando TTS...")
-                
-                scene_audios = []
-                all_word_timestamps = []
-                current_offset = 0.0
-                
-                for i, chunk in enumerate(chunks):
-                    logger.info("  Scene %d/%d: generating TTS...", i + 1, len(chunks))
-                    try:
-                        tts_result = asyncio.run(
-                            generate_tts_with_timestamps(
-                                text=chunk,
-                                provider_name=tts_provider,
-                                voice_id=tts_voice_id,
-                                api_key=tts_key,
-                                language="es",
-                                groq_api_key=groq_api_key,
-                            )
-                        )
-                        
-                        # Offset timestamps by current position in combined timeline
-                        scene_wts = []
-                        for wt in tts_result.get("word_timestamps", []):
-                            offset_wt = {
-                                "word": wt["word"],
-                                "start": round(wt["start"] + current_offset, 3),
-                                "end": round(wt["end"] + current_offset, 3),
-                            }
-                            scene_wts.append(offset_wt)
-                            all_word_timestamps.append(offset_wt)
-                        
-                        scene_audios.append({
-                            "path": tts_result["audio_path"],
-                            "duration": tts_result["duration_seconds"],
-                            "word_timestamps": scene_wts,
-                        })
-                        
-                        current_offset += tts_result["duration_seconds"] + (GAP_MS / 1000)
-                    except Exception as e:
-                        logger.warning("TTS failed for scene %d: %s. Using silent placeholder.", i + 1, e)
-                        scene_audios.append({
-                            "path": None,
-                            "duration": max(3.0, len(chunk.split()) / 2.17),
-                            "word_timestamps": [],
-                        })
-                        current_offset += scene_audios[-1]["duration"] + (GAP_MS / 1000)
-                
-                # 2. Build scenes_data with contiguous timing
-                scenes_data = []
-                current_start = 0.0
-                
-                for i, scene_audio in enumerate(scene_audios):
-                    chunk = chunks[i]
-                    scene_wts = scene_audio["word_timestamps"]
-                    scene_duration = scene_audio["duration"]
-                    
-                    # Calculate end time: last word end + buffer, or full duration
-                    last_word_end_relative = scene_wts[-1]["end"] - current_start if scene_wts else 0
-                    core_end = current_start + last_word_end_relative
-                    
-                    if i == len(chunks) - 1:
-                        # Last scene: generous buffer to end
-                        end_time = core_end + 1.5
-                    else:
-                        # Not last: buffer but respect next scene start
-                        next_scene_start = current_start + scene_duration + (GAP_MS / 1000)
-                        end_time = core_end + 1.2
-                        
-                        if end_time > next_scene_start:
-                            gap = next_scene_start - core_end
-                            if gap < 0.3:
-                                end_time = core_end + (gap / 2)
-                            else:
-                                end_time = core_end + 0.3
-                    
-                    scenes_data.append({
-                        "text": chunk,
-                        "start_time_seconds": round(current_start, 3),
-                        "end_time_seconds": round(end_time, 3),
-                        "duration_seconds": round(end_time - current_start, 3),
-                        "word_timestamps": scene_wts,
-                    })
-                    
-                    current_start = next_scene_start if i < len(chunks) - 1 else end_time
-                
-                # 3. Save per-scene audio files (copy from TTS output)
-                os.makedirs(AUDIO_STORAGE, exist_ok=True)
-                for i, scene_audio in enumerate(scene_audios):
-                    src_path = scene_audio["path"]
-                    if src_path and os.path.exists(src_path):
-                        ext = os.path.splitext(src_path)[1] or ".mp3"
-                        chunk_name = f"{job_id}_{i}{ext}"
-                        chunk_path = os.path.join(AUDIO_STORAGE, chunk_name)
-                        shutil.copy2(src_path, chunk_path)
-                        scenes_data[i]["audio_url"] = f"/api/audio/{chunk_name}"
-                    else:
-                        scenes_data[i]["audio_url"] = f"/api/audio/mock_{job_id}_{i}.mp3"
-                
-                logger.info("Per-scene TTS complete: %d scenes, %d total words", len(scenes_data), len(all_word_timestamps))
             else:
-                # Flujo animation_only o scenes provistas manualmente
                 chunks = [s["text"] for s in scenes] if scenes else split_text_into_chunks(script_text)
-                scenes_data = []
-                current_start = 0.0
-                for chunk in chunks:
-                    duration = max(3.0, len(chunk.split()) / 2.17)
-                    scenes_data.append({
-                        "text": chunk,
-                        "start_time_seconds": current_start,
-                        "duration_seconds": duration,
-                        "word_timestamps": [],
-                        "audio_url": None
-                    })
-                    current_start += duration
 
-            # 3. Generar visuales con LLM (Ya conocemos las duraciones exactas)
+            logger.info("Text split into %d chunks for job %s", len(chunks), job_id)
+            JobFileLogger.log(job_id, "INFO", f"Texto segmentado en {len(chunks)} escenas")
+
+            # 2. Generate visual prompts (media_query) via LLM — NO TTS yet
             logger.info("Generating batch visual prompts for %d scenes...", len(chunks))
             JobFileLogger.log(job_id, "INFO", "Generando prompts visuales...")
             batch_visuals = generate_batch_visuals_with_llm(
                 chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt, llm_model_override=job.llm_model
             )
 
-            # 4. Armar spec preliminar
+            # 3. Build scenes with estimated durations (no real audio yet)
+            #    ~2.17 words/sec → duration = word_count / 2.17, minimum 3s
+            ESTIMATED_WPS = 2.17
+            GAP_SECONDS = 0.3  # 300ms gap between scenes
             preliminary_scenes = []
-            for i, s_data in enumerate(scenes_data):
+            current_start = 0.0
+
+            for i, chunk in enumerate(chunks):
+                word_count = len(chunk.split())
+                estimated_duration = max(3.0, word_count / ESTIMATED_WPS)
                 visual = batch_visuals.scenes[i] if i < len(batch_visuals.scenes) else None
+
                 preliminary_scenes.append({
-                    "start_time_seconds": round(s_data["start_time_seconds"], 2),
-                    "duration_seconds": round(s_data["duration_seconds"], 2),
-                    "text": s_data["text"],
+                    "start_time_seconds": round(current_start, 2),
+                    "duration_seconds": round(estimated_duration, 2),
+                    "text": chunk,
                     "type": "pending",
                     "media_query": visual.media_query if visual else "",
                     "remotion_props": {
@@ -395,10 +359,12 @@ def run_pipeline(
                         "textColor": visual.textColor if visual else "#38bdf8",
                     },
                     "sfx": [],
-                    "audio_url": s_data["audio_url"],
-                    "word_timestamps": s_data["word_timestamps"],
+                    "audio_url": None,
+                    "word_timestamps": [],
                     "ae_script_code": None,
                 })
+
+                current_start += estimated_duration + GAP_SECONDS
 
             # Save preliminary spec and pause for user approval
             preliminary_spec = {
@@ -439,7 +405,7 @@ def run_pipeline_enrichment(
         if not job:
             return
 
-        if job.status not in ["segmented", "visuals_generating", "pending"]:
+        if job.status not in ["segmented", "visuals_generating", "queued_enrichment", "pending"]:
             logger.warning(
                 "Job %s is not in 'segmented' or 'visuals_generating' status (current: %s), skipping approval pipeline",
                 job_id,
