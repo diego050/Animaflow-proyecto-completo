@@ -15,6 +15,7 @@ export interface WizardData {
   skippedReview: boolean;
   wizardMode: 'own-script' | 'ai-generate' | 'animation-only' | null;
   ownScriptMode: 'with-prompts' | 'text-only' | null;
+  designTemplateId: string;
   scenes: Array<{text: string; media_query: string; duration_seconds?: number}>;
   designMd: string;
   targetDurationSeconds: number;
@@ -43,6 +44,7 @@ export const useWizardStore = create<WizardState>((set) => ({
     customHeight: 1920,
     templateId: 'viral_shorts',
     customPrompt: '',
+    designTemplateId: '',
     skippedReview: false,
     wizardMode: null,
     ownScriptMode: null,
@@ -74,6 +76,7 @@ export const useWizardStore = create<WizardState>((set) => ({
         customHeight: 1920,
         templateId: 'viral_shorts',
         customPrompt: '',
+        designTemplateId: '',
         skippedReview: false,
         wizardMode: null,
         ownScriptMode: null,

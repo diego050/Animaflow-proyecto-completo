@@ -17,9 +17,10 @@ export interface MediaState {
 
 export const useMediaStore = create<MediaState>((set) => ({
   scripts: [],
-  scriptsLoading: false,
+  scriptsLoading: true,
 
   fetchScripts: (jobsOverride?: JobSummary[]) => {
+    set({ scriptsLoading: true });
     const jobs = jobsOverride ?? useJobsStore.getState().jobs;
     const derivedScripts: Script[] = jobs
       .filter(
@@ -35,6 +36,10 @@ export const useMediaStore = create<MediaState>((set) => ({
         aspectRatio: j.aspect_ratio || '9:16',
         createdAt: j.created_at,
         sourceJobId: j.job_id,
+        // JobSummary doesn't include result_spec, so use script_text as the
+        // creative-direction prompt. If full media_query is needed later,
+        // fetchScripts should call /api/jobs/{id} for each completed job.
+        prompt: j.script_text,
       }));
 
     set(() => ({

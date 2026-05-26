@@ -24,16 +24,17 @@ export function ScriptsPage() {
   
   const [scriptToDelete, setScriptToDelete] = useState<string | null>(null);
 
-  // Fetch scripts when component mounts
+  // Fetch jobs on mount if store is empty
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
-
-  useEffect(() => {
-    if (jobs.length > 0) {
-      fetchScripts(jobs);
+    if (jobs.length === 0) {
+      fetchJobs();
     }
-  }, [fetchScripts, jobs]);
+  }, [jobs.length, fetchJobs]);
+
+  // Derive scripts from jobs once jobs are available
+  useEffect(() => {
+    fetchScripts(jobs);
+  }, [jobs, fetchScripts]);
 
   // Filter scripts by search
   const filteredScripts = scripts.filter(

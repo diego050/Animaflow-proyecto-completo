@@ -9,6 +9,28 @@ import { isCompletedStatus } from '../../types/job';
 import type { JobSummary } from '../../types/job';
 import { API_BASE } from '../../api/client';
 
+// ---------------------------------------------------------------------------
+// localStorage helpers for tracking downloaded jobs
+// ---------------------------------------------------------------------------
+const STORAGE_KEY = 'animaflow_downloaded_jobs';
+
+const getDownloadedIds = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const markAsDownloaded = (jobId: string): string[] => {
+  const ids = getDownloadedIds();
+  if (!ids.includes(jobId)) {
+    ids.push(jobId);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+  }
+  return ids;
+};
+
 interface JobFamily {
   rootId: string;
   jobs: JobSummary[];
@@ -23,16 +45,19 @@ export function DownloadsPage() {
   const [viewingSpec, setViewingSpec] = useState<Record<string, unknown> | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  const [downloadedIds, setDownloadedIds] = useState<string[]>(getDownloadedIds);
 
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
 
-  // Filter to completed jobs only
-  const completedJobs = jobs.filter((j) => isCompletedStatus(j.status));
+  // Filter to completed jobs that have been downloaded at least once
+  const downloadedJobs = jobs.filter(
+    (j) => isCompletedStatus(j.status) && downloadedIds.includes(j.job_id),
+  );
 
   // Filter by search
-  const filteredJobs = completedJobs.filter(
+  const filteredJobs = downloadedJobs.filter(
     (j) =>
       j.script_text.toLowerCase().includes(search.toLowerCase()) ||
       j.job_id.toLowerCase().includes(search.toLowerCase()),
@@ -60,6 +85,7 @@ export function DownloadsPage() {
       setDownloadingId(jobId);
       try {
         await downloadAEExport(jobId);
+        setDownloadedIds(markAsDownloaded(jobId));
         addToast('success', 'Exportación iniciada. Se descargará automáticamente.');
       } catch {
         addToast('error', 'Error al descargar la exportación para After Effects.');
@@ -75,6 +101,7 @@ export function DownloadsPage() {
       setDownloadingId(jobId);
       try {
         await downloadSpecJson(jobId);
+        setDownloadedIds(markAsDownloaded(jobId));
         addToast('success', 'Descarga de spec.json iniciada');
       } catch {
         addToast('error', 'Error al descargar el spec.json.');
@@ -115,6 +142,7 @@ export function DownloadsPage() {
       a.download = `animaflow_${job.job_id}.mp4`;
       a.click();
       URL.revokeObjectURL(blobUrl);
+      setDownloadedIds(markAsDownloaded(job.job_id));
     } catch {
       addToast('error', 'Error descargando el video MP4.');
     }
@@ -168,8 +196,8 @@ export function DownloadsPage() {
             </h2>
             <p className="text-text-secondary text-sm max-w-sm">
               {search
-                ? 'No se encontraron proyectos con ese término de búsqueda.'
-                : 'Los proyectos completados aparecerán aquí con sus archivos descargables.'}
+                ? 'No se encontraron proyectos descargados con ese término de búsqueda.'
+                : 'Descarga archivos de proyectos completados y aparecerán aquí.'}
             </p>
           </motion.div>
         ) : (
