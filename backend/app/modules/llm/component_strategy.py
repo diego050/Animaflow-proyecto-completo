@@ -179,6 +179,7 @@ REGLAS DE ORO PARA EL DISEÑO:
    - Para paths centrados: `"x": 0, "y": 0`
    - Para rects centrados: `"x": 0, "y": 0`
    - Si quieres mover algo: ajusta x/y pero SIEMPRE inclúyelos.
+6. **FORMATO NUMÉRICO ESTRICTO:** Para `lineWidth`, usa SOLO números con máximo 2 decimales. Ejemplos válidos: `0.5`, `4.5`, `10`. Ejemplos INVÁLIDOS: `0.5000000001`, `4.5000000000000001`. NUNCA repitas decimales infinitamente.
 
 REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path) que represente el sujeto principal de la escena. No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
 
@@ -276,17 +277,28 @@ def generate_scene_composer(
 
     # Fallback default si hay error
     default_fallback = AnimaComposerSpec(
-        background=AnimaBackground(type="solid", colors=["#0f172a"]),
+        background=AnimaBackground(type="radial-gradient", colors=["#1a1a2e", "#16213e"]),
         layers=[
+            AnimaLayer(
+                type="rect",
+                width=300,
+                height=4,
+                fill="#e94560",
+                x=0,
+                y=-60,
+                entry="slide-right",
+                entryDelay=0.2
+            ),
             AnimaLayer(
                 type="text",
                 text="{{text}}",
                 fontSize=48,
                 color="#ffffff",
                 x=0,
-                y=0,
+                y=60,
                 textAlign="center",
-                entry="fade-in"
+                entry="slide-up",
+                entryDelay=0.5
             )
         ]
     )
@@ -403,6 +415,11 @@ def generate_scene_composer(
             raw_text[:1500],
         )
 
+        # Reject corrupted responses (Gemini loop bug)
+        if len(raw_text) > 10000:
+            logger.warning("Response too long (%d chars), likely corrupted. Defaulting to fallback.", len(raw_text))
+            return default_fallback
+
         result = response.parsed
 
         # DEBUG: Log the parsed result
@@ -428,6 +445,10 @@ def generate_scene_composer(
                 result = _sanitize_llm_json(result)
                 result = json.loads(result)
             if isinstance(result, dict):
+                # Sanitize lineWidth to prevent floating point corruption
+                for layer in result.get("layers", []):
+                    if "lineWidth" in layer and isinstance(layer["lineWidth"], (int, float)):
+                        layer["lineWidth"] = round(float(layer["lineWidth"]), 2)
                 return AnimaComposerSpec(**result)
             else:
                 return AnimaComposerSpec.model_validate(result)
