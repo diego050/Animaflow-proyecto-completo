@@ -23,6 +23,7 @@ import {
   isCompletedStatus,
   isFailedStatus,
 } from '../../types/job';
+import { JobCardSkeleton } from '../../components/dashboard/JobCardSkeleton';
 import type { JobSummary } from '../../types/job';
 import { apiFetch, API_BASE } from '../../api/client';
 
@@ -260,10 +261,12 @@ export function VideosPage() {
         </div>
       </div>
 
-      {/* Loading */}
+      {/* Loading — skeleton grid to prevent flash of empty state */}
       {jobsLoading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 size={32} className="text-mint-precision animate-spin" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <JobCardSkeleton key={i} />
+          ))}
         </div>
       )}
 
@@ -283,8 +286,8 @@ export function VideosPage() {
         </div>
       )}
 
-      {/* Empty state */}
-      {!jobsLoading && !jobsError && filteredJobs.length === 0 && (
+      {/* Empty state — only show when not loading and no jobs */}
+      {!jobsLoading && !jobsError && jobs.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -315,146 +318,144 @@ export function VideosPage() {
         </motion.div>
       )}
 
-      {/* Video Grid */}
-      {!jobsLoading && filteredJobs.length > 0 && (
+      {/* Video Grid — only show when not loading and jobs exist */}
+      {!jobsLoading && jobs.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <AnimatePresence>
-            {filteredJobs.map((job, i) => (
-              <motion.div
-                key={job.job_id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="group bg-surface-high border border-border-tech rounded-xl overflow-hidden hover:border-mint-precision/30 transition-all"
+          {filteredJobs.map((job, i) => (
+            <motion.div
+              key={job.job_id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="group bg-surface-high border border-border-tech rounded-xl overflow-hidden hover:border-mint-precision/30 transition-all"
+            >
+              {/* Thumbnail — video frame as cover */}
+              <div
+                className="relative aspect-video bg-surface-container cursor-pointer overflow-hidden"
+                onClick={() =>
+                  isCompletedStatus(job.status)
+                    ? setPreviewJob(job)
+                    : navigate(`/dashboard/project/${job.job_id}`)
+                }
               >
-                {/* Thumbnail — video frame as cover */}
-                <div
-                  className="relative aspect-video bg-surface-container cursor-pointer overflow-hidden"
-                  onClick={() =>
-                    isCompletedStatus(job.status)
-                      ? setPreviewJob(job)
-                      : navigate(`/dashboard/project/${job.job_id}`)
-                  }
-                >
-                  {job.video_url ? (
-                    <>
-                      <video
-                        src={
-                          job.video_url.startsWith('http')
-                            ? job.video_url
-                            : `${API_BASE}${job.video_url}`
-                        }
-                        className="w-full h-full object-cover"
-                        muted
-                        preload="metadata"
-                        onLoadedData={(e) => {
-                          const video = e.target as HTMLVideoElement;
-                          video.currentTime = Math.min(1, video.duration * 0.1);
-                          video.pause();
-                        }}
-                        onSeeked={(e) => {
-                          const video = e.target as HTMLVideoElement;
-                          video.pause();
-                        }}
-                      />
-                      {/* Play overlay on hover */}
-                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center group-hover:bg-mint-precision/20 group-hover:border-mint-precision/40 transition-all">
-                          <Play size={20} className="text-white/80 group-hover:text-mint-precision fill-white/80 group-hover:fill-mint-precision transition-colors ml-0.5" />
-                        </div>
+                {job.video_url ? (
+                  <>
+                    <video
+                      src={
+                        job.video_url.startsWith('http')
+                          ? job.video_url
+                          : `${API_BASE}${job.video_url}`
+                      }
+                      className="w-full h-full object-cover"
+                      muted
+                      preload="metadata"
+                      onLoadedData={(e) => {
+                        const video = e.target as HTMLVideoElement;
+                        video.currentTime = Math.min(1, video.duration * 0.1);
+                        video.pause();
+                      }}
+                      onSeeked={(e) => {
+                        const video = e.target as HTMLVideoElement;
+                        video.pause();
+                      }}
+                    />
+                    {/* Play overlay on hover */}
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center group-hover:bg-mint-precision/20 group-hover:border-mint-precision/40 transition-all">
+                        <Play size={20} className="text-white/80 group-hover:text-mint-precision fill-white/80 group-hover:fill-mint-precision transition-colors ml-0.5" />
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      {/* Fallback for no video */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-surface-container" />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                        <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-                          <Play size={20} className="text-white/60 ml-0.5" />
-                        </div>
-                        <span className="text-[10px] text-text-secondary/40 font-mono uppercase tracking-wider">
-                          {job.aspect_ratio || '9:16'}
-                        </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Fallback for no video */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-surface-container" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                      <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                        <Play size={20} className="text-white/60 ml-0.5" />
                       </div>
-                    </>
-                  )}
+                      <span className="text-[10px] text-text-secondary/40 font-mono uppercase tracking-wider">
+                        {job.aspect_ratio || '9:16'}
+                      </span>
+                    </div>
+                  </>
+                )}
 
-                  {/* Status badge */}
-                  <div className="absolute top-2 left-2">
-                    {getStatusBadge(job.status)}
-                  </div>
-
-                  {/* Aspect ratio badge */}
-                  <div className="absolute top-2 right-2">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-black/50 text-white/80 backdrop-blur-sm">
-                      {job.aspect_ratio || '9:16'}
-                    </span>
-                  </div>
+                {/* Status badge */}
+                <div className="absolute top-2 left-2">
+                  {getStatusBadge(job.status)}
                 </div>
 
-                {/* Info */}
-                <div className="p-3">
-                  <p className="text-sm text-text-primary font-medium line-clamp-2 mb-2">
-                    {job.script_text?.slice(0, 80)}
-                    {(job.script_text?.length || 0) > 80 ? '...' : ''}
-                  </p>
+                {/* Aspect ratio badge */}
+                <div className="absolute top-2 right-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-black/50 text-white/80 backdrop-blur-sm">
+                    {job.aspect_ratio || '9:16'}
+                  </span>
+                </div>
+              </div>
 
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-text-secondary/50">
-                      {formatDate(job.created_at)}
-                    </span>
-                  </div>
+              {/* Info */}
+              <div className="p-3">
+                <p className="text-sm text-text-primary font-medium line-clamp-2 mb-2">
+                  {job.script_text?.slice(0, 80)}
+                  {(job.script_text?.length || 0) > 80 ? '...' : ''}
+                </p>
 
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    {isCompletedStatus(job.status) && job.video_url && (
-                      <>
-                        <button
-                          onClick={() => setPreviewJob(job)}
-                          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors"
-                        >
-                          <Play size={12} />
-                          Ver
-                        </button>
-                        <button
-                          onClick={() =>
-                            handleDownloadMP4(job.job_id, job.video_url!)
-                          }
-                          disabled={downloading === job.job_id}
-                          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors disabled:opacity-50"
-                        >
-                          {downloading === job.job_id ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <Download size={12} />
-                          )}
-                          MP4
-                        </button>
-                        <button
-                          onClick={() => handleDownloadAE(job.job_id)}
-                          disabled={downloading === job.job_id}
-                          className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors disabled:opacity-50"
-                        >
-                          <FileCode size={12} />
-                        </button>
-                      </>
-                    )}
-                    {!isCompletedStatus(job.status) && (
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-text-secondary/50">
+                    {formatDate(job.created_at)}
+                  </span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  {isCompletedStatus(job.status) && job.video_url && (
+                    <>
                       <button
-                        onClick={() =>
-                          navigate(`/dashboard/project/${job.job_id}`)
-                        }
+                        onClick={() => setPreviewJob(job)}
                         className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors"
                       >
-                        <ExternalLink size={12} />
-                        Ver detalle
+                        <Play size={12} />
+                        Ver
                       </button>
-                    )}
+                      <button
+                        onClick={() =>
+                          handleDownloadMP4(job.job_id, job.video_url!)
+                        }
+                        disabled={downloading === job.job_id}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors disabled:opacity-50"
+                      >
+                        {downloading === job.job_id ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <Download size={12} />
+                        )}
+                        MP4
+                      </button>
+                      <button
+                        onClick={() => handleDownloadAE(job.job_id)}
+                        disabled={downloading === job.job_id}
+                        className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors disabled:opacity-50"
+                      >
+                        <FileCode size={12} />
+                      </button>
+                    </>
+                  )}
+                  {!isCompletedStatus(job.status) && (
+                    <button
+                      onClick={() =>
+                        navigate(`/dashboard/project/${job.job_id}`)
+                      }
+                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-surface-highest text-text-secondary rounded-lg text-xs font-medium hover:text-text-primary hover:bg-surface-container transition-colors"
+                    >
+                      <ExternalLink size={12} />
+                      Ver detalle
+                    </button>
+                  )}
                   </div>
                 </div>
               </motion.div>
-            ))}
-          </AnimatePresence>
+          ))}
         </div>
       )}
 

@@ -73,7 +73,7 @@ let unsubscribeStream: (() => void) | null = null;
 
 export const useJobsStore = create<JobsState>((set, get) => ({
   jobs: [],
-  jobsLoading: false,
+  jobsLoading: true,
   jobsError: null,
   selectedJob: null,
   selectedJobLoading: false,
