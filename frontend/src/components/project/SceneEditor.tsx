@@ -37,7 +37,7 @@ export function SceneEditor({
           changes,
         });
         onSpecChange(response.updated_scene as unknown as Spec);
-        setLastExplanation(response.explanation);
+        setLastExplanation(response.explanation ?? response.answer ?? null);
         setWarnings(response.warnings);
         addToast('success', response.explanation || 'Cambios aplicados');
         return response;
