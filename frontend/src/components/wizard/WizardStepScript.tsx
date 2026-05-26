@@ -86,7 +86,6 @@ export function WizardStepScript({
               rows={3}
             />
           </div>
-          <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
         </div>
       )}
     </div>
@@ -127,9 +126,37 @@ export function WizardStepScript({
 
         {(!ownScriptMode || ownScriptMode === 'text-only') ? (
           <div>
-            <label className="block text-text-secondary text-sm font-medium mb-2">
-              Tu guión
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-text-secondary text-sm font-medium">
+                Tu guión
+              </label>
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".txt,.md"
+                  className="hidden"
+                  id="own-script-file-upload"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      const text = event.target?.result as string;
+                      onInfoChange(info ? info + '\n\n' + text : text);
+                    };
+                    reader.readAsText(file);
+                    e.target.value = '';
+                  }}
+                />
+                <label
+                  htmlFor="own-script-file-upload"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-high text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated cursor-pointer transition-colors"
+                >
+                  <Upload size={14} />
+                  Subir guión (.md, .txt)
+                </label>
+              </div>
+            </div>
             <textarea
               value={info}
               onChange={(e) => onInfoChange(e.target.value)}
@@ -198,6 +225,11 @@ export function WizardStepScript({
             </button>
           </div>
         )}
+
+        {/* Design.md section - always visible */}
+        <div className="border-t border-border-tech/50 pt-4">
+          <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
+        </div>
 
         {renderCustomInstructions()}
 
@@ -278,6 +310,11 @@ export function WizardStepScript({
           placeholder="Ej: Un video promocional para mi tienda de ropa, enfocado en la colección de verano..."
           className="w-full h-32 bg-surface-lowest border border-border-tech rounded-lg p-4 text-sm text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none resize-none transition-colors"
         />
+      </div>
+
+      {/* Design.md section - always visible */}
+      <div className="border-t border-border-tech/50 pt-4">
+        <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
       </div>
 
       {renderCustomInstructions()}

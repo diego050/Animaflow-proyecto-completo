@@ -8,7 +8,7 @@ export interface MediaState {
   scriptsLoading: boolean;
 
   fetchScripts: (jobsOverride?: JobSummary[]) => void;
-  addScript: (script: Omit<Script, 'id' | 'createdAt'>) => void;
+  addScript: (script: Omit<Script, 'id' | 'createdAt'>) => Script;
   updateScript: (id: string, data: Partial<Script>) => void;
   deleteScript: (id: string) => void;
   downloadAEExport: (jobId: string) => Promise<void>;
@@ -55,6 +55,7 @@ export const useMediaStore = create<MediaState>((set) => ({
       createdAt: new Date().toISOString(),
     };
     set((state) => ({ scripts: [...state.scripts, newScript] }));
+    return newScript;
   },
 
   updateScript: (id: string, data: Partial<Script>) => {

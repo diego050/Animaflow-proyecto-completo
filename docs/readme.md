@@ -146,6 +146,7 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 
 | Documento | Fecha | Descripción |
 |---|---|---|
+| [Session 2026-05-25 (Scheduler & UX)](session-2026-05-25-scheduler-ux-design-templates.md) | 2026-05-25 | Scheduler Optimization, UX Overhaul & Design Templates |
 | [Session 2026-05-25 (LLM & UX)](session-2026-05-25-llm-stability-dashboard-fixes.md) | 2026-05-25 | LLM Stability, Positioning Engine & Dashboard UX Overhaul |
 | [Session 2026-05-25 (Transitions)](session-2026-05-25-transitions-vector-search.md) | 2026-05-25 | Transitions, Vector Search & Component Intelligence |
 | [Session 2026-05-23](session-2026-05-23-transparency-animations.md) | 2026-05-23 | Transparencia, Playground y Continuidad |
