@@ -153,6 +153,32 @@ def _apply_smart_layout(spec: dict) -> dict:
     return spec
 
 
+# ── Coordinate Clamping ──────────────────────────────────────────────────────
+
+def _clamp_coordinates(spec: dict, width: int, height: int) -> dict:
+    """
+    Clamp layer x/y coordinates to keep elements within safe screen margins.
+
+    Calculates a 10% margin on each axis and ensures no layer position
+    exceeds the safe range, preventing elements from rendering off-screen.
+    """
+    margin_x = width * 0.1
+    margin_y = height * 0.1
+
+    min_x = -(width / 2 - margin_x)
+    max_x = width / 2 - margin_x
+    min_y = -(height / 2 - margin_y)
+    max_y = height / 2 - margin_y
+
+    for layer in spec.get("layers", []):
+        if "x" in layer and layer["x"] is not None:
+            layer["x"] = max(min_x, min(max_x, layer["x"]))
+        if "y" in layer and layer["y"] is not None:
+            layer["y"] = max(min_y, min(max_y, layer["y"]))
+
+    return spec
+
+
 # ── Catálogo de componentes disponibles ──────────────────────────────────────
 # Mantener sincronizado con frontend/src/remotion/registry.ts
 AVAILABLE_COMPONENTS: list[str] = [
@@ -554,10 +580,11 @@ def generate_scene_composer(
                         if "lineWidth" in layer and isinstance(layer["lineWidth"], (int, float)):
                             layer["lineWidth"] = round(float(layer["lineWidth"]), 2)
 
-                    # Post-processing: Normalize paths and apply smart layout
+                    # Post-processing: Normalize paths, apply smart layout, and clamp coordinates
                     width, height = _get_canvas_dimensions(aspect_ratio)
                     result = _normalize_paths(result, width, height)
                     result = _apply_smart_layout(result)
+                    result = _clamp_coordinates(result, width, height)
 
                     return AnimaComposerSpec(**result)
                 else:

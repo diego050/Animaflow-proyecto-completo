@@ -16,7 +16,7 @@ export function ScriptCard({ script, onUse, onEdit, onDelete }: ScriptCardProps)
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group bg-surface-container border border-border-tech rounded-xl overflow-hidden hover:border-outline-variant transition-colors"
+      className="group bg-surface-container/95 backdrop-blur-sm border border-border-tech rounded-xl overflow-hidden hover:border-outline-variant transition-colors"
     >
       {/* Script preview */}
       <div className="p-5">
@@ -25,7 +25,7 @@ export function ScriptCard({ script, onUse, onEdit, onDelete }: ScriptCardProps)
             <FileText size={18} className="text-mint-precision/70" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-text-primary truncate">
+            <h3 className="text-sm font-semibold text-text-primary line-clamp-2">
               {script.name}
             </h3>
             <p className="text-xs text-text-secondary/50 mt-0.5 line-clamp-2">

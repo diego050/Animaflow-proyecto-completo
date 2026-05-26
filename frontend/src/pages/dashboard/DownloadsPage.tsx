@@ -7,6 +7,7 @@ import { useToastStore } from '../../store/useToastStore';
 import { JsonViewer } from '../../components/dashboard/JsonViewer';
 import { isCompletedStatus } from '../../types/job';
 import type { JobSummary } from '../../types/job';
+import { API_BASE } from '../../api/client';
 
 interface JobFamily {
   rootId: string;
@@ -96,11 +97,28 @@ export function DownloadsPage() {
     }
   }, [addToast]);
 
-  const handleDownloadMp4 = useCallback((job: JobSummary) => {
-    if (job.video_url) {
-      window.open(job.video_url, '_blank');
+  const handleDownloadMp4 = useCallback(async (job: JobSummary) => {
+    if (!job.video_url) return;
+    try {
+      const url = job.video_url.startsWith('http')
+        ? job.video_url
+        : `${API_BASE}${job.video_url}`;
+      const token = localStorage.getItem('animaflow_token');
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `animaflow_${job.job_id}.mp4`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      addToast('error', 'Error descargando el video MP4.');
     }
-  }, []);
+  }, [addToast]);
 
   return (
     <div className="p-6 lg:p-8">
@@ -160,7 +178,7 @@ export function DownloadsPage() {
               {jobFamilies.map((family) => {
                 const selectedJobId = selectedVariants[family.rootId] || family.jobs[0].job_id;
                 const activeJob = family.jobs.find((j) => j.job_id === selectedJobId) || family.jobs[0];
-                const mp4Size = estimateMp4Size(activeJob.script_text);
+                const mp4Size = estimateMp4Size(activeJob.aspect_ratio || '9:16');
                 const aeSize = estimateAeSize(activeJob.script_text);
                 const specSize = estimateSpecSize(activeJob.script_text);
 
@@ -224,7 +242,14 @@ export function DownloadsPage() {
                         </span>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
-                            onClick={() => handleDownloadMp4(activeJob)}
+                            onClick={() => {
+                              if (activeJob.video_url) {
+                                const url = activeJob.video_url.startsWith('http')
+                                  ? activeJob.video_url
+                                  : `${API_BASE}${activeJob.video_url}`;
+                                window.open(url, '_blank');
+                              }
+                            }}
                             className="p-2 rounded-lg text-text-secondary/50 hover:text-mint-precision hover:bg-mint-precision/10 transition-colors"
                             title="Preview"
                           >
@@ -348,23 +373,16 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function estimateMp4Size(scriptText: string): string {
-  // Rough estimate: ~1MB per 100 chars of script for 9:16
-  const chars = scriptText.length;
-  const mb = Math.max(2, Math.round((chars / 100) * 1.2));
-  return mb >= 1000 ? `${(mb / 1000).toFixed(1)} GB` : `${mb} MB`;
+function estimateMp4Size(aspectRatio: string): string {
+  // 9:16 ~5-15MB, 16:9 ~10-30MB, 1:1 ~8-20MB
+  const base = aspectRatio === '16:9' ? 15 : aspectRatio === '1:1' ? 10 : 8;
+  return `${base}-${base * 2} MB`;
 }
 
-function estimateAeSize(scriptText: string): string {
-  // AE project is typically smaller than rendered video
-  const chars = scriptText.length;
-  const mb = Math.max(1, Math.round((chars / 100) * 0.5));
-  return mb >= 1000 ? `${(mb / 1000).toFixed(1)} GB` : `${mb} MB`;
+function estimateAeSize(_scriptText: string): string {
+  return '2-8 MB';
 }
 
-function estimateSpecSize(scriptText: string): string {
-  // spec.json is typically a few KB
-  const chars = scriptText.length;
-  const kb = Math.max(2, Math.round(chars / 50));
-  return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`;
+function estimateSpecSize(_scriptText: string): string {
+  return '4-12 KB';
 }

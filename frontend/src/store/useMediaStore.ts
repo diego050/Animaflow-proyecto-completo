@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Script } from '../types/job';
+import type { JobSummary, Script } from '../types/job';
 import { api, API_BASE } from '../api/client';
 import { useJobsStore } from './useJobsStore';
 
@@ -7,7 +7,7 @@ export interface MediaState {
   scripts: Script[];
   scriptsLoading: boolean;
 
-  fetchScripts: () => void;
+  fetchScripts: (jobsOverride?: JobSummary[]) => void;
   addScript: (script: Omit<Script, 'id' | 'createdAt'>) => void;
   updateScript: (id: string, data: Partial<Script>) => void;
   deleteScript: (id: string) => void;
@@ -19,8 +19,8 @@ export const useMediaStore = create<MediaState>((set) => ({
   scripts: [],
   scriptsLoading: false,
 
-  fetchScripts: () => {
-    const jobs = useJobsStore.getState().jobs;
+  fetchScripts: (jobsOverride?: JobSummary[]) => {
+    const jobs = jobsOverride ?? useJobsStore.getState().jobs;
     const derivedScripts: Script[] = jobs
       .filter(
         (j) => j.status === 'completed' || j.status === 'completed_video',
@@ -28,8 +28,8 @@ export const useMediaStore = create<MediaState>((set) => ({
       .map((j) => ({
         id: `script-${j.job_id}`,
         name:
-          j.script_text.slice(0, 40) +
-          (j.script_text.length > 40 ? '...' : ''),
+          j.script_text.slice(0, 60) +
+          (j.script_text.length > 60 ? '...' : ''),
         content: j.script_text,
         scenes: 1,
         aspectRatio: j.aspect_ratio || '9:16',

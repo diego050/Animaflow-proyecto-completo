@@ -67,6 +67,7 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [5–6](sprints/sprint-5-6-report.md) | May 2026 | Authentication System + Voice Endpoints + User-Job FK | ✅ Completado |
 | [7](sprints/sprint-7-report.md) | May 2026 | Backend Modularization + Production Hardening | ✅ Completado |
 | [7+](sprints/sprint-7-plus-report.md) | May 2026 | Frontend Refactor + Audit Resolution + Toast System | ✅ Completado |
+| [Post-Production](session-2026-05-25-llm-stability-dashboard-fixes.md) | May 2026 | LLM Stability + Positioning Engine + Dashboard UX | ✅ Completado |
 
 ---
 
@@ -138,4 +139,23 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [ADR-008](adr/008-voice-management-approach.md) | Voice Management Approach | ✅ Implementado |
 | [ADR-009](adr/009-after-effects-deterministic-fidelity.md) | Deterministic AE Script Generator | ✅ Implementado |
 | [ADR-010](adr/010-backend-modularization.md) | Backend Modularization — Monolith to Modular Monolith | ✅ Implementado |
+
+---
+
+## Session Reports
+
+| Documento | Fecha | Descripción |
+|---|---|---|
+| [Session 2026-05-25 (LLM & UX)](session-2026-05-25-llm-stability-dashboard-fixes.md) | 2026-05-25 | LLM Stability, Positioning Engine & Dashboard UX Overhaul |
+| [Session 2026-05-25 (Transitions)](session-2026-05-25-transitions-vector-search.md) | 2026-05-25 | Transitions, Vector Search & Component Intelligence |
+| [Session 2026-05-23](session-2026-05-23-transparency-animations.md) | 2026-05-23 | Transparencia, Playground y Continuidad |
+| [Session 2026-05-22](session-2026-05-22-component-architecture-v2.md) | 2026-05-22 | Component Architecture v2 (33 componentes) |
+| [Session 2026-05-20](cleanup-session-2026-05-20.md) | 2026-05-20 | Limpieza y Corrección (36 fixes) |
+
+### New ADRs
+| ADR | Título | Estado |
+|---|---|---|
+| [ADR-011](adr/011-deterministic-positioning-engine.md) | Deterministic Backend Positioning over Secondary LLM | ✅ Implementado |
+| [ADR-012](adr/012-integer-linewidth-schema.md) | Integer-only lineWidth Schema for Gemini | ✅ Implementado |
+| [ADR-013](adr/013-graceful-degradation-strategy.md) | Per-scene Fallback to "Fade Text" on LLM Failure | ✅ Implementado |
 

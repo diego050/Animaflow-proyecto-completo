@@ -22,6 +22,7 @@ from app.core.security import get_current_active_user, get_current_active_user_f
 from app.core.limiter import limiter
 from app.core.storage_paths import get_storage_dir
 from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_enrichment
+from app.core.file_logger import JobFileLogger
 
 VIDEOS_STORAGE = get_storage_dir("videos")
 
@@ -159,11 +160,12 @@ async def approve_scenes(
     if not approval.scenes:
         raise HTTPException(status_code=400, detail="No scenes provided for approval")
 
-    # Update status to segmented but add approved flag so scheduler picks it up
+    # Update status to queued_enrichment to trigger a distinct status change
+    # that fires the Postgres NOTIFY and is picked up by the Scheduler.
     current_spec = job.result_spec or {}
     current_spec["approved"] = True
     job.result_spec = current_spec
-    job.status = "segmented" # Keep segmented as before but the scheduler checks for approved=True
+    job.status = "queued_enrichment"
     from sqlalchemy.orm.attributes import flag_modified
     flag_modified(job, "result_spec")
     db.commit()
@@ -184,9 +186,9 @@ async def get_job_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user_from_token),
 ):
-    """Obtener logs (Desactivado temporalmente - Arquitectura sin Redis)."""
+    """Obtener logs del job desde archivo."""
     job = get_job_or_404(db, job_id, current_user.id)
-    return {"logs": []}
+    return {"logs": JobFileLogger.get_logs(job_id)}
 
 
 

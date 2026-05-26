@@ -41,9 +41,9 @@ class Scheduler:
                 job_processed = await self.take_and_process_job()
                 
                 if not job_processed:
-                    # Dormimos hasta que llegue un NOTIFY o pase 1 minuto por si acaso
+                    # Dormimos hasta que llegue un NOTIFY o pase 5s por si acaso
                     try:
-                        await asyncio.wait_for(self._notify_event.wait(), timeout=60.0)
+                        await asyncio.wait_for(self._notify_event.wait(), timeout=5.0)
                     except asyncio.TimeoutError:
                         pass
                     self._notify_event.clear()
@@ -76,7 +76,7 @@ class Scheduler:
             with SessionLocal() as session:
                 sql = text("""
                     SELECT id, status FROM jobs 
-                    WHERE status IN ('pending', 'segmented', 'queued_render') 
+                    WHERE status IN ('pending', 'segmented', 'queued_enrichment', 'queued_render') 
                     FOR UPDATE SKIP LOCKED 
                     LIMIT 1
                 """)
@@ -108,6 +108,10 @@ class Scheduler:
                     else:
                         session.commit()
                         return None
+                elif status == 'queued_enrichment':
+                    job.status = 'visuals_generating'
+                    session.commit()
+                    return (job_id, 'enrichment')
                 elif status == 'queued_render':
                     job.status = 'rendering_scenes'
                     session.commit()

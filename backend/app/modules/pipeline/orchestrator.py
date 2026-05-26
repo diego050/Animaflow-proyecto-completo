@@ -8,6 +8,7 @@ from app.db.session import SessionLocal, get_db_context
 from app.db.models import JobModel, ApiKey
 from app.schemas.spec import TimelineSpec
 from app.core.logging import get_logger
+from app.core.file_logger import JobFileLogger
 from sqlalchemy.orm.attributes import flag_modified
 
 logger = get_logger("pipeline")
@@ -110,6 +111,7 @@ async def _process_chunks_async(
     # Fase 2: Ya no generamos TTS aquí, solo llamamos a decide_and_generate_component con los timestamps
     previous_scene_tsx = None
     for i, scene in enumerate(timeline_scenes):
+        JobFileLogger.log(job_id, "INFO", f"Generando escena {i+1}/{len(timeline_scenes)}...")
         visual_spec = VisualSpecResult(
             media_query=scene.get("media_query", ""),
             backgroundColor=scene.get("remotion_props", {}).get("backgroundColor", "#0f172a"),
@@ -145,7 +147,7 @@ async def _process_chunks_async(
         # Pausa para evitar límites de RPM (Requests Per Minute) del plan gratuito de Gemini
         if i < len(timeline_scenes) - 1:
             await asyncio.sleep(4)
-            
+    JobFileLogger.log(job_id, "INFO", "Componentes generados. Finalizando...")
     return timeline_scenes
 
 
@@ -245,6 +247,7 @@ def run_pipeline(
         try:
             job.status = "segmenting"
             db.commit()
+            JobFileLogger.log(job_id, "INFO", "Segmentando texto...")
 
             groq_api_key = _get_user_api_key(user_id, "groq", db) if user_id else None
             tts_key = tts_api_key or (_get_user_api_key(user_id, tts_provider, db) if user_id else None)
@@ -255,6 +258,7 @@ def run_pipeline(
                 GAP_MS = 300  # 300ms gap between scenes
                 
                 logger.info("Generating per-scene TTS for %d scenes (job %s)...", len(chunks), job_id)
+                JobFileLogger.log(job_id, "INFO", "Generando TTS...")
                 
                 scene_audios = []
                 all_word_timestamps = []
@@ -371,6 +375,7 @@ def run_pipeline(
 
             # 3. Generar visuales con LLM (Ya conocemos las duraciones exactas)
             logger.info("Generating batch visual prompts for %d scenes...", len(chunks))
+            JobFileLogger.log(job_id, "INFO", "Generando prompts visuales...")
             batch_visuals = generate_batch_visuals_with_llm(
                 chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt, llm_model_override=job.llm_model
             )
@@ -407,6 +412,7 @@ def run_pipeline(
             job.result_spec = preliminary_spec
             flag_modified(job, "result_spec")
             job.status = "segmented"
+            JobFileLogger.log(job_id, "INFO", "Esperando aprobación del usuario...")
             db.commit()
 
             logger.info("Job %s paused at 'segmented' status awaiting user approval", job_id)
@@ -472,7 +478,9 @@ def run_pipeline_enrichment(
             # Estado 3: Procesando escenas (TTS + TSX)
             job.status = "processing_scenes"
             db.commit()
+            JobFileLogger.log(job_id, "INFO", "Procesando escenas (TTS + Componentes)...")
 
+            JobFileLogger.log(job_id, "INFO", "Iniciando generación de componentes con IA...")
             timeline_scenes = asyncio.run(
                 _process_chunks_async(
                     job_id=job_id,
