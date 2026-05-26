@@ -108,11 +108,8 @@ export function NewProjectWizard() {
         isAnimationOnly,
         wizardData.designTemplateId || undefined,
       );
-      setWizardData({ generatedJobId: jobId });
-      setWizardStep(3);
-      startPolling(jobId);
-      // Update URL so refresh doesn't lose context
-      window.history.replaceState({}, '', `/dashboard/project/${jobId}`);
+      resetWizard();
+      navigate(`/dashboard/project/${jobId}`);
     } catch {
       setError('Error creando el proyecto. Intenta de nuevo.');
     } finally {
@@ -124,10 +121,13 @@ export function NewProjectWizard() {
     wizardData.voiceId,
     wizardData.selectedModel,
     wizardData.designTemplateId,
+    wizardData.scenes,
+    wizardData.designMd,
+    wizardData.customPrompt,
+    wizardData.wizardMode,
     createJob,
-    setWizardData,
-    setWizardStep,
-    startPolling,
+    resetWizard,
+    navigate,
   ]);
 
   // Auto-advance based on job status

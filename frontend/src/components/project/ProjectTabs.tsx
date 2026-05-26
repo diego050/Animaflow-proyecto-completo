@@ -12,12 +12,18 @@ interface ProjectTabsProps {
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
   hasSpec: boolean;
+  isSegmented?: boolean;
 }
 
-export function ProjectTabs({ activeTab, onTabChange, hasSpec }: ProjectTabsProps) {
+export function ProjectTabs({ activeTab, onTabChange, hasSpec, isSegmented = false }: ProjectTabsProps) {
+  // When segmented, only show script tab
+  const visibleTabs = isSegmented
+    ? TABS.filter(t => t.key === 'script')
+    : TABS;
+
   return (
     <div className="flex gap-1 bg-surface-container rounded-lg p-1 mb-6">
-      {TABS.map((tab) => {
+      {visibleTabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.key;
         const isDisabled = tab.key === 'preview' && !hasSpec;

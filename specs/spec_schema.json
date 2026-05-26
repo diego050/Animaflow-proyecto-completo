@@ -237,6 +237,39 @@
           "type": "number",
           "default": 0
         },
+        "exit": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "fade-out",
+                "slide-up-out",
+                "slide-down-out",
+                "slide-left-out",
+                "slide-right-out",
+                "scale-out",
+                "spring-out",
+                "bounce-out"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "exitDelay": {
+          "type": "number",
+          "default": 0
+        },
+        "entryDuration": {
+          "type": "number",
+          "default": 30
+        },
+        "exitDuration": {
+          "type": "number",
+          "default": 30
+        },
         "filter": {
           "anyOf": [
             {

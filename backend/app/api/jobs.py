@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import Any, List, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -24,6 +24,18 @@ from app.core.limiter import limiter
 from app.core.storage_paths import get_storage_dir
 from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_enrichment
 from app.core.file_logger import JobFileLogger
+
+from pydantic import BaseModel
+
+
+class SceneEditRequest(BaseModel):
+    """Request body for editing a scene's spec."""
+    mode: Literal["manual", "conversational"]
+    # For manual mode
+    changes: list[dict[str, Any]] | None = None  # [{"field_path": "...", "value": ...}]
+    # For conversational mode
+    prompt: str | None = None
+
 
 VIDEOS_STORAGE = get_storage_dir("videos")
 
@@ -571,3 +583,108 @@ async def trigger_scene_regenerate(
             status_code=500,
             detail=f"Scene regeneration failed: {str(e)}"
         )
+
+
+@router.patch("/{job_id}/scenes/{scene_index}/edit")
+async def edit_scene(
+    job_id: str,
+    scene_index: int,
+    request: SceneEditRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Edit a scene's spec (manual or conversational mode).
+
+    Manual mode: Direct field path modifications
+    Conversational mode: LLM parses natural language prompt
+    """
+    from app.services.scene_editor import (
+        apply_manual_changes,
+        apply_conversational_changes,
+        validate_scene_spec,
+    )
+
+    logger = get_logger("api.jobs")
+
+    # Find the job
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id,
+        JobModel.user_id == current_user.id,
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Get the spec
+    spec = job.result_spec
+    if not spec:
+        raise HTTPException(status_code=400, detail="No spec available for this job")
+
+    # Validate scene index
+    scenes = spec.get("scenes", [])
+    if scene_index < 0 or scene_index >= len(scenes):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Scene index {scene_index} out of range (0-{len(scenes)-1})"
+        )
+
+    scene_spec = scenes[scene_index]
+
+    try:
+        if request.mode == "manual":
+            if not request.changes:
+                raise HTTPException(status_code=400, detail="changes required for manual mode")
+            # Apply manual changes
+            apply_manual_changes(scene_spec, request.changes)
+            explanation = f"Applied {len(request.changes)} manual changes"
+        elif request.mode == "conversational":
+            if not request.prompt:
+                raise HTTPException(status_code=400, detail="prompt required for conversational mode")
+            # Apply conversational changes via LLM
+            scene_spec, explanation = await apply_conversational_changes(
+                scene_spec, request.prompt
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Invalid mode. Use 'manual' or 'conversational'")
+
+        # Validate after edit
+        warnings = validate_scene_spec(scene_spec)
+
+        # Update the job
+        scenes[scene_index] = scene_spec
+        spec["scenes"] = scenes
+        job.result_spec = spec
+        flag_modified(job, "result_spec")
+        db.commit()
+
+        # Build applied changes list for response
+        applied_changes = []
+        if request.mode == "manual":
+            for change in request.changes:
+                applied_changes.append({
+                    "field_path": change["field_path"],
+                    "new_value": change["value"],
+                })
+
+        return {
+            "success": True,
+            "explanation": explanation,
+            "applied_changes": applied_changes,
+            "warnings": warnings,
+            "updated_scene": scene_spec,
+        }
+
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid field path: {e}")
+    except IndexError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid index in path: {e}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        logger.error("Scene edit service unavailable for job %s, scene %d: %s", job_id, scene_index, e)
+        raise HTTPException(status_code=503, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Scene edit failed for job %s, scene %d: %s", job_id, scene_index, e)
+        raise HTTPException(status_code=500, detail=f"Edit failed: {str(e)}")
