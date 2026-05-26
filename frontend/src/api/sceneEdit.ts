@@ -1,4 +1,4 @@
-import { apiFetch, API_BASE } from './client';
+import { apiFetch } from './client';
 
 export interface SceneEditChange {
   field_path: string;
@@ -38,7 +38,7 @@ export interface HistoryMessage {
 
 export async function getHistory(jobId: string): Promise<HistoryMessage[]> {
   const token = localStorage.getItem('animaflow_token');
-  const res = await fetch(`${API_BASE}/jobs/${jobId}/history`, {
+  const res = await fetch(`/api/jobs/${jobId}/history`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -56,7 +56,7 @@ export async function editScene(
   request: SceneEditRequest,
 ): Promise<SceneEditResponse> {
   return apiFetch<SceneEditResponse>(
-    `/jobs/${jobId}/scenes/${sceneIndex}/edit`,
+    `/api/jobs/${jobId}/scenes/${sceneIndex}/edit`,
     {
       method: 'PATCH',
       body: JSON.stringify(request),
