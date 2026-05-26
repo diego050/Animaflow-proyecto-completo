@@ -452,7 +452,7 @@ export function SceneInlineEditor({
                 </div>
               </div>
             )
-          ) : (
+          )) : (
             <p className="text-[10px] text-text-secondary/30 italic py-2">No hay capas configuradas</p>
           )}
         </div>
