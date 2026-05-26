@@ -57,9 +57,9 @@ def mock_external_services(tmp_path):
         "app.modules.pipeline.orchestrator.generate_batch_visuals_with_llm",
         return_value=batch_visuals,
     ) as mock_batch, patch(
-        "app.modules.pipeline.orchestrator.generate_tts_with_timestamps",
+        "app.modules.tts.service.generate_tts_with_timestamps",
         new_callable=AsyncMock,
-        return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 5.0, "word_timestamps": []},
+        return_value={"audio_path": str(tmp_path / "audio" / "test.wav"), "duration_seconds": 5.0, "word_timestamps": []},
     ) as mock_tts, patch(
         "app.modules.pipeline.orchestrator.generate_scene_composer",
         return_value=dummy_spec
@@ -70,7 +70,7 @@ def mock_external_services(tmp_path):
         "app.modules.pipeline.orchestrator.concat_scenes",
         return_value="http://test/final.mp4",
     ) as mock_concat, patch(
-        "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
+        "app.modules.tts.service.AUDIO_STORAGE", audio_storage
     ):
         yield {
             "batch": mock_batch,
@@ -198,9 +198,9 @@ class TestPipelineIdempotency:
             "app.modules.pipeline.orchestrator.generate_batch_visuals_with_llm",
             return_value=batch_visuals,
         ), patch(
-            "app.modules.pipeline.orchestrator.generate_tts_with_timestamps",
+            "app.modules.tts.service.generate_tts_with_timestamps",
             new_callable=AsyncMock,
-            return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 3.0, "word_timestamps": []},
+            return_value={"audio_path": str(tmp_path / "audio" / "test.wav"), "duration_seconds": 3.0, "word_timestamps": []},
         ), patch(
             "app.modules.pipeline.orchestrator.generate_scene_composer",
             return_value=dummy_spec
@@ -211,7 +211,7 @@ class TestPipelineIdempotency:
             "app.modules.pipeline.orchestrator.concat_scenes",
             return_value="http://test/final.mp4",
         ), patch(
-            "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
+            "app.modules.tts.service.AUDIO_STORAGE", audio_storage
         ):
             yield
 
