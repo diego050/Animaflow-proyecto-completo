@@ -164,6 +164,8 @@ export interface Script {
   aspectRatio: string;
   createdAt: string;
   sourceJobId?: string;
+  /** Visual direction / media_query derived from the job's result_spec scenes. */
+  prompt?: string;
 }
 
 export interface UserSettings {

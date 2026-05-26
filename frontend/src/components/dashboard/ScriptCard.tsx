@@ -16,7 +16,7 @@ export function ScriptCard({ script, onUse, onEdit, onDelete }: ScriptCardProps)
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group bg-surface-container/95 backdrop-blur-sm border border-border-tech rounded-xl overflow-hidden hover:border-outline-variant transition-colors"
+      className="group bg-surface-container border border-border-tech rounded-xl overflow-hidden hover:border-outline-variant transition-colors"
     >
       {/* Script preview */}
       <div className="p-5">
@@ -35,7 +35,7 @@ export function ScriptCard({ script, onUse, onEdit, onDelete }: ScriptCardProps)
         </div>
 
         {/* Meta */}
-        <div className="flex items-center gap-3 text-[11px] text-text-secondary/40 mb-4">
+        <div className="flex items-center gap-3 text-[11px] text-text-secondary/40 mb-3">
           <span className="flex items-center gap-1">
             <Crop size={11} />
             {script.aspectRatio}
@@ -45,6 +45,20 @@ export function ScriptCard({ script, onUse, onEdit, onDelete }: ScriptCardProps)
             <span className="text-mint-precision/50">· Derivado de proyecto</span>
           )}
         </div>
+
+        {/* Prompt / Visual direction */}
+        {script.prompt && (
+          <div className="mb-4 px-3 py-2 rounded-lg bg-surface-lowest/60 border border-border-tech/30">
+            <p className="text-[10px] uppercase tracking-wider text-text-secondary/40 font-semibold mb-1">
+              Prompt visual
+            </p>
+            <p className="text-xs text-mint-precision/60 font-mono leading-relaxed line-clamp-3">
+              {script.prompt.length > 150
+                ? `${script.prompt.slice(0, 150)}…`
+                : script.prompt}
+            </p>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-2 pt-3 border-t border-border-tech/50">

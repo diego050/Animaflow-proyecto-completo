@@ -26,6 +26,7 @@ export interface JobsState {
     designMd?: string | null,
     systemPrompt?: string | null,
     animationOnly?: boolean,
+    designTemplateId?: string | null,
   ) => Promise<string>;
   saveDraft: (
     jobId: string | null,
@@ -119,6 +120,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     designMd?: string | null,
     systemPrompt?: string | null,
     animationOnly?: boolean,
+    designTemplateId?: string | null,
   ) => {
     void _voiceId;
     const settings = useSettingsStore.getState().settings;
@@ -145,6 +147,9 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
     if (animationOnly) {
       body.animation_only = true;
+    }
+    if (designTemplateId) {
+      body.design_template_id = designTemplateId;
     }
     
     const data = await api.post<{ job_id: string; status: string }>(

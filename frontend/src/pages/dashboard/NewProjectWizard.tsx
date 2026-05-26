@@ -105,7 +105,8 @@ export function NewProjectWizard() {
         wizardData.scenes,
         wizardData.designMd,
         wizardData.customPrompt,
-        isAnimationOnly
+        isAnimationOnly,
+        wizardData.designTemplateId || undefined,
       );
       setWizardData({ generatedJobId: jobId });
       setWizardStep(3);
@@ -122,6 +123,7 @@ export function NewProjectWizard() {
     wizardData.aspectRatio,
     wizardData.voiceId,
     wizardData.selectedModel,
+    wizardData.designTemplateId,
     createJob,
     setWizardData,
     setWizardStep,
@@ -226,6 +228,7 @@ export function NewProjectWizard() {
               customPrompt={wizardData.customPrompt}
               targetDurationSeconds={wizardData.targetDurationSeconds}
               durationUnit={wizardData.durationUnit}
+              designTemplateId={wizardData.designTemplateId}
               onInfoChange={(info) => setWizardData({ info })}
               onAspectRatioChange={(aspectRatio) =>
                 setWizardData({ aspectRatio })
@@ -248,6 +251,7 @@ export function NewProjectWizard() {
                 setWizardData({ targetDurationSeconds })
               }
               onUnitChange={handleUnitChange}
+              onDesignTemplateChange={(id) => setWizardData({ designTemplateId: id })}
               onGenerate={handleGenerateScript}
               onCreate={handleCreateProject}
               loading={scriptLoading}
@@ -311,8 +315,8 @@ export function NewProjectWizard() {
             <WizardStepProcessing 
               status={selectedJob?.status} 
               jobId={selectedJob?.job_id}
-              title="Generando Previsualización"
-              description="Nuestros motores están construyendo los componentes visuales y el audio. Una vez completado, podrás ver el resultado y editarlo antes de renderizar el MP4."
+              title="Generando Preview Interactivo"
+              description="Creando componentes visuales y audio para tu previsualización."
             />
           </motion.div>
         )}

@@ -40,6 +40,7 @@ class JobCreate(BaseModel):
     tts_api_key: Optional[str] = Field(default=None, description="Optional API key for external TTS providers")
     scenes: Optional[list[SceneInput]] = Field(default=None, description="Optional pre-defined scenes. If provided, skips automatic segmentation.")
     design_md: Optional[str] = Field(default=None, description="Optional design.md content for custom visual instructions")
+    design_template_id: Optional[str] = Field(default=None, description="Optional ID of a saved design template. Takes precedence over design_md if both provided.")
     system_prompt: Optional[str] = Field(default=None, description="Optional custom system prompt for LLM visual generation")
     animation_only: bool = Field(default=False, description="If true, skips TTS and Audio alignment")
     model: Optional[str] = Field(default=None, description="Optional LLM model override")

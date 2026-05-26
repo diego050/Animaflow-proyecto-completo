@@ -16,7 +16,7 @@ from app.schemas.job import (
     SceneApprovalRequest,
 )
 from app.db.session import get_db
-from app.db.models import JobModel, User
+from app.db.models import JobModel, User, DesignTemplate
 from app.core.config import settings
 from app.core.security import get_current_active_user, get_current_active_user_from_token
 from app.core.limiter import limiter
@@ -47,6 +47,24 @@ async def create_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    # Resolve design_md: design_template_id takes precedence over inline design_md
+    resolved_design_md = job_in.design_md
+    if job_in.design_template_id:
+        template = db.query(DesignTemplate).filter(
+            DesignTemplate.id == job_in.design_template_id,
+            DesignTemplate.user_id == current_user.id,
+        ).first()
+        if not template:
+            raise HTTPException(status_code=404, detail="Design template not found")
+        resolved_design_md = template.content
+
+    # Store resolved design_md and system_prompt in result_spec for the scheduler to pick up
+    initial_spec: dict = {}
+    if resolved_design_md:
+        initial_spec["design_md"] = resolved_design_md
+    if job_in.system_prompt:
+        initial_spec["system_prompt"] = job_in.system_prompt
+
     # Associate job with the authenticated user
     new_job = JobModel(
         script_text=job_in.script_text,
@@ -56,6 +74,7 @@ async def create_job(
         tts_provider=job_in.tts_provider,
         tts_voice_id=job_in.tts_voice_id,
         llm_model=job_in.model,
+        result_spec=initial_spec or None,
     )
     db.add(new_job)
     db.commit()

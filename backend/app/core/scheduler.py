@@ -145,6 +145,11 @@ class Scheduler:
                 user_id = job.user_id
                 tts_provider = job.tts_provider
                 tts_voice_id = job.tts_voice_id
+                # Read design_md and system_prompt from result_spec (set during job creation)
+                spec = job.result_spec or {}
+                design_md = spec.get("design_md")
+                system_prompt = spec.get("system_prompt")
+                animation_only = spec.get("animation_only", False)
                 
             async with self.llm_semaphore:
                 await loop.run_in_executor(
@@ -160,9 +165,9 @@ class Scheduler:
                     None, # reformatted_from
                     None, # scenes_to_reformat
                     None, # scenes
-                    None, # design_md
-                    None, # system_prompt
-                    False # animation_only
+                    design_md,
+                    system_prompt,
+                    animation_only,
                 )
         except Exception as e:
             logger.error(f"Phase segmentation failed for {job_id}: {e}")

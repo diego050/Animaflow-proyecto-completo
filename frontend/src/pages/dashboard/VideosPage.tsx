@@ -332,11 +332,16 @@ export function VideosPage() {
               {/* Thumbnail — video frame as cover */}
               <div
                 className="relative aspect-video bg-surface-container cursor-pointer overflow-hidden"
-                onClick={() =>
-                  isCompletedStatus(job.status)
-                    ? setPreviewJob(job)
-                    : navigate(`/dashboard/project/${job.job_id}`)
-                }
+                onClick={() => {
+                  // Completed jobs with MP4 → open preview modal
+                  // Completed jobs without MP4 → navigate to project detail (has Remotion player)
+                  // Non-completed jobs → navigate to project detail
+                  if (isCompletedStatus(job.status) && job.video_url) {
+                    setPreviewJob(job);
+                  } else {
+                    navigate(`/dashboard/project/${job.job_id}`);
+                  }
+                }}
               >
                 {job.video_url ? (
                   <>
@@ -441,6 +446,17 @@ export function VideosPage() {
                       </button>
                     </>
                   )}
+                  {isCompletedStatus(job.status) && !job.video_url && (
+                    <button
+                      onClick={() =>
+                        navigate(`/dashboard/project/${job.job_id}`)
+                      }
+                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-mint-precision/10 text-mint-precision rounded-lg text-xs font-medium hover:bg-mint-precision/20 transition-colors"
+                    >
+                      <Play size={12} />
+                      Preview Interactivo
+                    </button>
+                  )}
                   {!isCompletedStatus(job.status) && (
                     <button
                       onClick={() =>
@@ -497,9 +513,22 @@ export function VideosPage() {
                     autoPlay
                   />
                 ) : (
-                  <div className="w-full aspect-video bg-surface-container flex flex-col items-center justify-center gap-3">
+                  <div className="w-full aspect-video bg-surface-container flex flex-col items-center justify-center gap-4 p-6">
                     <Film size={48} className="text-text-secondary/30" />
-                    <p className="text-sm text-text-secondary">Video no disponible para este proyecto</p>
+                    <p className="text-sm text-text-secondary text-center max-w-xs">
+                      Este proyecto tiene un preview interactivo con Remotion.
+                      Abre el detalle del proyecto para verlo.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setPreviewJob(null);
+                        navigate(`/dashboard/project/${previewJob.job_id}`);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-mint-precision/10 text-mint-precision rounded-lg text-sm font-medium hover:bg-mint-precision/20 transition-colors"
+                    >
+                      <ExternalLink size={14} />
+                      Abrir Preview Interactivo
+                    </button>
                   </div>
                 )}
                 <div className="p-4">

@@ -1,9 +1,11 @@
-import { useState, useCallback } from 'react';
-import { Pencil, Wand2, Film } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Pencil, Wand2, Film, Settings } from 'lucide-react';
 import { useWizardStore } from '../../store/useWizardStore';
+import { useDesignTemplatesStore } from '../../store/useDesignTemplatesStore';
 import { WizardStepScript } from './WizardStepScript';
 import { WizardStepVoice } from './WizardStepVoice';
 import { AspectRatioSelector, ModelSelector } from './WizardStepConfig';
+import { DesignTemplateModal } from './DesignTemplateModal';
 import type { UserLLMSettings } from '../../types/auth';
 
 type WizardMode = 'own-script' | 'ai-generate' | 'animation-only';
@@ -22,6 +24,7 @@ interface WizardStepInfoProps {
   customPrompt: string;
   targetDurationSeconds: number;
   durationUnit: 'seconds' | 'words';
+  designTemplateId?: string;
   onInfoChange: (value: string) => void;
   onAspectRatioChange: (value: string) => void;
   onVoiceChange: (value: string) => void;
@@ -32,6 +35,7 @@ interface WizardStepInfoProps {
   onCustomPromptChange: (value: string) => void;
   onDurationChange: (seconds: number) => void;
   onUnitChange: (unit: 'seconds' | 'words') => void;
+  onDesignTemplateChange?: (id: string) => void;
   onGenerate: () => void;
   onCreate: () => void;
   loading: boolean;
@@ -51,6 +55,7 @@ export function WizardStepInfo({
   customPrompt,
   targetDurationSeconds,
   durationUnit,
+  designTemplateId,
   onInfoChange,
   onAspectRatioChange,
   onVoiceChange,
@@ -61,12 +66,19 @@ export function WizardStepInfo({
   onCustomPromptChange,
   onDurationChange,
   onUnitChange,
+  onDesignTemplateChange,
   onGenerate,
   onCreate,
   loading,
 }: WizardStepInfoProps) {
   const [mode, setMode] = useState<WizardMode>('own-script');
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const { wizardData, setWizardData } = useWizardStore();
+  const { templates, fetchTemplates } = useDesignTemplatesStore();
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
   const handleContinueWithOwnScript = useCallback(() => {
     // If text-only, we need info. If with-prompts, we need scenes.
@@ -147,6 +159,35 @@ export function WizardStepInfo({
         selectedModel={selectedModel}
         onChange={onModelChange}
       />
+
+      {/* Design template selector */}
+      {onDesignTemplateChange && (
+        <div>
+          <label className="block text-text-secondary text-sm font-medium mb-2">
+            Diseño guardado (opcional)
+          </label>
+          <div className="flex items-center gap-2">
+            <select
+              value={designTemplateId || ''}
+              onChange={(e) => onDesignTemplateChange(e.target.value)}
+              className="flex-1 bg-surface-lowest border border-border-tech rounded-lg px-4 py-2.5 text-sm text-text-primary focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors"
+            >
+              <option value="">Ninguno</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => setShowTemplateModal(true)}
+              className="p-2.5 rounded-lg bg-surface-high border border-border-tech text-text-secondary hover:text-mint-precision hover:border-mint-precision/30 transition-colors"
+              aria-label="Gestionar diseños"
+              title="Gestionar diseños"
+            >
+              <Settings size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Duration control - only in AI generate mode */}
       {mode === 'ai-generate' && (
@@ -251,6 +292,12 @@ export function WizardStepInfo({
         customHeight={customHeight}
         onCustomWidthChange={onCustomWidthChange}
         onCustomHeightChange={onCustomHeightChange}
+      />
+
+      {/* Design template management modal */}
+      <DesignTemplateModal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
       />
     </div>
   );

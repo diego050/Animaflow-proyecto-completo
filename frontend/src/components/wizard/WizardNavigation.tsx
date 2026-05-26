@@ -11,8 +11,8 @@ const STEPS = [
   { num: 2, label: 'Revisar' },
   { num: 3, label: 'Procesando' },
   { num: 4, label: 'Escenas' },
-  { num: 5, label: 'Render' },
-  { num: 6, label: 'Listo' },
+  { num: 5, label: 'Preview' },
+  { num: 6, label: 'Preview Listo' },
 ];
 
 export function WizardNavigation({ wizardStep, onBack }: WizardNavigationProps) {
