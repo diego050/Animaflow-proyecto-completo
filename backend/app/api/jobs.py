@@ -18,6 +18,8 @@ from app.schemas.job import (
 from app.db.session import get_db
 from app.db.models import JobModel, User, DesignTemplate
 from app.core.config import settings
+from app.services.intent_router import classify_intent, answer_query
+from app.services.context_manager import get_history, save_message
 from app.core.logging import get_logger
 from app.core.security import get_current_active_user, get_current_active_user_from_token
 from app.core.limiter import limiter
@@ -244,6 +246,29 @@ async def get_job_logs(
     """Obtener logs del job desde archivo."""
     job = get_job_or_404(db, job_id, current_user.id)
     return {"logs": JobFileLogger.get_logs(job_id)}
+
+
+@router.get("/{job_id}/history")
+async def get_job_history(
+    job_id: str,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Retrieve conversation history for a specific job.
+    Returns messages in chronological order.
+    """
+    # Verify job ownership
+    job = db.query(JobModel).filter(JobModel.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your job")
+
+    messages = await get_history(db, job_id, limit=limit)
+
+    return {"messages": messages}
 
 
 
@@ -639,10 +664,53 @@ async def edit_scene(
             explanation = f"Applied {len(request.changes)} manual changes"
         elif request.mode == "conversational":
             if not request.prompt:
-                raise HTTPException(status_code=400, detail="prompt required for conversational mode")
-            # Apply conversational changes via LLM
+                raise HTTPException(status_code=400, detail="Prompt is required for conversational mode")
+
+            # Step 1: Save user message to history
+            await save_message(
+                db=db,
+                job_id=job_id,
+                user_id=current_user.id,
+                role="user",
+                content=request.prompt,
+                metadata={"mode": "conversational"},
+            )
+
+            # Step 2: Get history for context
+            history = await get_history(db, job_id, limit=15)
+
+            # Step 3: Classify intent WITH history
+            intent = await classify_intent(request.prompt, history=history)
+
+            if intent == "query":
+                # Answer without sending full spec
+                answer = await answer_query(request.prompt, history=history)
+
+                # Save AI response
+                await save_message(
+                    db=db,
+                    job_id=job_id,
+                    user_id=current_user.id,
+                    role="assistant",
+                    content=answer,
+                    metadata={"intent": "query"},
+                )
+
+                return {
+                    "success": True,
+                    "intent": "query",
+                    "answer": answer,
+                    "changes_applied": False,
+                    "warnings": [],
+                }
+
+            if intent == "recommend":
+                # For now, treat as edit (future implementation)
+                pass
+
+            # intent == "edit" → proceed with full editing flow WITH history
             scene_spec, explanation = await apply_conversational_changes(
-                scene_spec, request.prompt
+                scene_spec, request.prompt, history=history
             )
         else:
             raise HTTPException(status_code=400, detail="Invalid mode. Use 'manual' or 'conversational'")
@@ -666,12 +734,25 @@ async def edit_scene(
                     "new_value": change["value"],
                 })
 
+        # Save AI response to history (conversational mode)
+        if request.mode == "conversational":
+            await save_message(
+                db=db,
+                job_id=job_id,
+                user_id=current_user.id,
+                role="assistant",
+                content=explanation,
+                metadata={"intent": "edit", "operations_count": len(applied_changes)},
+            )
+
         return {
             "success": True,
+            "intent": "edit",
             "explanation": explanation,
             "applied_changes": applied_changes,
             "warnings": warnings,
             "updated_scene": scene_spec,
+            "changes_applied": True,
         }
 
     except KeyError as e:

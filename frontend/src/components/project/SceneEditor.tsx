@@ -37,14 +37,16 @@ export function SceneEditor({
           changes,
         });
         onSpecChange(response.updated_scene as unknown as Spec);
-        setLastExplanation(response.explanation);
+        setLastExplanation(response.explanation ?? response.answer ?? null);
         setWarnings(response.warnings);
-        addToast('success', response.explanation);
+        addToast('success', response.explanation || 'Cambios aplicados');
+        return response;
       } catch (err) {
         addToast(
           'error',
           err instanceof Error ? err.message : 'Error editing scene',
         );
+        throw err;
       } finally {
         setLoading(false);
       }
@@ -61,15 +63,23 @@ export function SceneEditor({
           mode: 'conversational',
           prompt,
         });
-        onSpecChange(response.updated_scene as unknown as Spec);
-        setLastExplanation(response.explanation);
+
+        // Only update spec if changes were applied
+        if (response.changes_applied && response.updated_scene) {
+          onSpecChange(response.updated_scene as unknown as Spec);
+        }
+
+        setLastExplanation(response.explanation || response.answer || null);
         setWarnings(response.warnings);
-        addToast('success', response.explanation);
+
+        // Return the full response for ChatPanel to handle
+        return response;
       } catch (err) {
         addToast(
           'error',
           err instanceof Error ? err.message : 'Error editing scene',
         );
+        throw err;
       } finally {
         setLoading(false);
       }
@@ -130,7 +140,7 @@ export function SceneEditor({
       {/* Editor panels */}
       <div className="flex-1 overflow-y-auto">
         {mode === 'chat' ? (
-          <ChatPanel onSend={handleChatEdit} disabled={loading} />
+          <ChatPanel onSend={handleChatEdit} disabled={loading} jobId={jobId} />
         ) : (
           <ManualPanel
             scene={scene}

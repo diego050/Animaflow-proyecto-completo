@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2 } from 'lucide-react';
+import { getHistory, type HistoryMessage, type SceneEditResponse } from '../../../api/sceneEdit';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -8,11 +9,12 @@ interface ChatMessage {
 }
 
 interface ChatPanelProps {
-  onSend: (prompt: string) => Promise<void>;
+  onSend: (prompt: string) => Promise<SceneEditResponse>;
   disabled: boolean;
+  jobId: string;
 }
 
-export function ChatPanel({ onSend, disabled }: ChatPanelProps) {
+export function ChatPanel({ onSend, disabled, jobId }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -21,6 +23,27 @@ export function ChatPanel({ onSend, disabled }: ChatPanelProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const history = await getHistory(jobId);
+        // Convert to ChatMessage format
+        const chatMessages: ChatMessage[] = history.map(msg => ({
+          role: msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content,
+          timestamp: new Date(), // We don't store exact time in frontend, use now
+        }));
+        setMessages(chatMessages);
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+      }
+    };
+
+    if (jobId) {
+      loadHistory();
+    }
+  }, [jobId]);
 
   const handleSend = async () => {
     if (!input.trim() || disabled || sending) return;
@@ -35,15 +58,43 @@ export function ChatPanel({ onSend, disabled }: ChatPanelProps) {
     setSending(true);
 
     try {
-      await onSend(userMessage.content);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: 'Cambios aplicados correctamente',
-          timestamp: new Date(),
-        },
-      ]);
+      const response = await onSend(userMessage.content);
+
+      if (response.intent === 'query') {
+        // Query response: show answer text
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: response.answer || 'No se pudo procesar la consulta.',
+            timestamp: new Date(),
+          },
+        ]);
+      } else if (response.intent === 'recommend') {
+        // Recommend response: show suggestions
+        const recText =
+          response.recommendations
+            ?.map((r) => `• ${r.description}`)
+            .join('\n') || 'No hay recomendaciones disponibles.';
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: `💡 Sugerencias:\n${recText}`,
+            timestamp: new Date(),
+          },
+        ]);
+      } else {
+        // Edit response: show confirmation
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: `✅ ${response.explanation || 'Cambios aplicados correctamente'}`,
+            timestamp: new Date(),
+          },
+        ]);
+      }
     } catch (err) {
       setMessages((prev) => [
         ...prev,

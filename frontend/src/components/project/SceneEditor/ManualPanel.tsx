@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { Spec, AnimaLayer } from '../../../types/spec';
+import type { SceneEditResponse } from '../../../api/sceneEdit';
 import { PropertyField } from './PropertyField';
 
 interface ManualPanelProps {
   scene: Spec;
-  onApply: (changes: Array<{ field_path: string; value: unknown }>) => Promise<void>;
+  onApply: (changes: Array<{ field_path: string; value: unknown }>) => Promise<SceneEditResponse>;
   disabled: boolean;
 }
 

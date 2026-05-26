@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey, Text, Integer, CheckConstraint
+from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey, Text, Integer, CheckConstraint, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.mutable import MutableDict
 from app.db.session import Base
@@ -300,3 +300,26 @@ class ComponentModel(Base):
         default=lambda: datetime.datetime.now(datetime.timezone.utc),
         onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
     )
+
+
+class ConversationHistory(Base):
+    """
+    Conversation history model for persistent chat context during scene editing.
+
+    Stores chat messages linked to specific jobs, enabling the LLM to maintain
+    context across multiple editing interactions within the same job.
+    """
+
+    __tablename__ = "conversation_history"
+    __table_args__ = (
+        # Composite index for fast retrieval by job and time
+        Index("idx_chat_job_time", "job_id", "created_at"),
+    )
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_id = Column(String(36), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    role = Column(String(20), nullable=False)  # 'user', 'assistant', 'system'
+    content = Column(Text, nullable=False)
+    metadata_ = Column("metadata", JSON, nullable=True)  # Stores intent, tokens, etc.
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))

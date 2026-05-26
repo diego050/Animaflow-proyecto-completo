@@ -109,6 +109,86 @@ def _set_nested_value(obj: dict[str, Any], path: str, value: Any) -> Any:
         raise ValueError(f"Cannot set value at path '{path}'")
 
 
+def _delete_nested_value(obj: dict, path: str) -> Any:
+    """
+    Delete a key from a nested dict or remove an item from a list.
+    
+    Args:
+        obj: The root dict
+        path: Dot notation path (e.g., "anima_composer.layers.1")
+    
+    Returns:
+        The deleted value
+    
+    Raises:
+        KeyError, IndexError, ValueError on invalid paths
+    """
+    keys = path.split(".")
+    current = obj
+    for key in keys[:-1]:
+        if isinstance(current, dict):
+            if key not in current:
+                raise KeyError(f"Key '{key}' not found in path '{path}'")
+            current = current[key]
+        elif isinstance(current, list):
+            idx = int(key)
+            if idx < 0 or idx >= len(current):
+                raise IndexError(f"Index {idx} out of range in path '{path}'")
+            current = current[idx]
+        else:
+            raise ValueError(f"Cannot traverse '{key}' in path '{path}'")
+    
+    final_key = keys[-1]
+    if isinstance(current, list):
+        idx = int(final_key)
+        if idx < 0 or idx >= len(current):
+            raise IndexError(f"Index {idx} out of range in path '{path}'")
+        return current.pop(idx)
+    elif isinstance(current, dict):
+        if final_key not in current:
+            raise KeyError(f"Key '{final_key}' not found in path '{path}'")
+        return current.pop(final_key)
+    else:
+        raise ValueError(f"Cannot delete from non-dict/list at path '{path}'")
+
+
+def _add_to_array(obj: dict, path: str, value: Any, index: int = -1) -> None:
+    """
+    Add an item to a list at the specified path.
+    
+    Args:
+        obj: The root dict
+        path: Dot notation path to the list (e.g., "anima_composer.layers")
+        value: The value to add
+        index: Position to insert (-1 for append)
+    
+    Raises:
+        KeyError, IndexError, ValueError on invalid paths
+    """
+    keys = path.split(".")
+    current = obj
+    for key in keys:
+        if isinstance(current, dict):
+            if key not in current:
+                raise KeyError(f"Key '{key}' not found in path '{path}'")
+            current = current[key]
+        elif isinstance(current, list):
+            idx = int(key)
+            if idx < 0 or idx >= len(current):
+                raise IndexError(f"Index {idx} out of range in path '{path}'")
+            current = current[idx]
+        else:
+            raise ValueError(f"Cannot traverse '{key}' in path '{path}'")
+    
+    if not isinstance(current, list):
+        raise ValueError(f"Path '{path}' does not point to a list")
+    
+    if index == -1:
+        current.append(value)
+    else:
+        current.insert(index, value)
+
+
 def apply_manual_changes(
     scene_spec: dict[str, Any],
     changes: list[dict[str, Any]],
@@ -146,6 +226,7 @@ async def apply_conversational_changes(
     scene_spec: dict[str, Any],
     prompt: str,
     llm_client: Any = None,  # noqa: ANN401
+    history: list[dict] = [],
 ) -> tuple[dict[str, Any], str]:
     """Use LLM to parse natural language prompt and apply changes to scene spec.
 
@@ -167,7 +248,7 @@ async def apply_conversational_changes(
         "paths and new values to apply.\n\n"
         "Rules:\n"
         "- Only modify fields that exist in the current spec\n"
-        "- Return valid JSON with 'changes' array and 'explanation' string\n"
+        "- Return valid JSON with 'operations' array and 'explanation' string\n"
         '- field_path uses dot notation: "anima_composer.layers.0.x"\n'
         "- For colors, use hex format (#RRGGBB)\n"
         "- For positions, use pixel values (0-1920 for x, 0-1080 for y in 1080p)\n"
@@ -185,7 +266,30 @@ async def apply_conversational_changes(
         "- fontSize, fontWeight, letterSpacing\n"
         "- width, height, borderRadius\n"
         "- r (for circles)\n\n"
+        "You can perform these operation types:\n"
+        '- "set": Modify an existing field value (use path and value)\n'
+        '- "delete": Remove a layer or property entirely (use path)\n'
+        '- "add": Add a new layer to the layers array (use path and value)\n\n'
+        'For "add" operations, generate a complete layer object:\n'
+        "{\n"
+        '  "type": "rect" | "circle" | "text" | "image" | "component",\n'
+        '  "x": number, "y": number,\n'
+        '  "width": number (for rect/image), "height": number (for rect/image),\n'
+        '  "r": number (for circle),\n'
+        '  "fill": "#hexcolor",\n'
+        '  "entry": "fade-in" | "slide-up" | "slide-down" | "slide-left" | "slide-right" | "scale-in" | "spring-in" | "bounce-in",\n'
+        '  "scale": 1.0\n'
+        "}\n\n"
         "Response format (JSON only):\n"
+        "{\n"
+        '  "operations": [\n'
+        '    {"type": "set", "path": "anima_composer.layers.0.fill", "value": "#ff0000"},\n'
+        '    {"type": "delete", "path": "anima_composer.layers.1"},\n'
+        '    {"type": "add", "path": "anima_composer.layers", "value": {...}}\n'
+        "  ],\n"
+        '  "explanation": "Brief explanation in Spanish"\n'
+        "}\n\n"
+        "Backward compatibility: You may also return the older 'changes' format:\n"
         "{\n"
         '  "changes": [\n'
         '    {"field_path": "anima_composer.layers.0.x", "value": 650}\n'
@@ -194,8 +298,14 @@ async def apply_conversational_changes(
         "}"
     )
 
+    # Format conversation history
+    history_text = ""
+    if history:
+        history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in history[-10:]])
+        history_text = f"\nConversation History:\n{history_text}\n"
+
     user_message = (
-        f"Current scene spec:\n{json.dumps(scene_spec, indent=2)}\n\n"
+        f"{history_text}Current scene spec:\n{json.dumps(scene_spec, indent=2)}\n\n"
         f'User request: "{prompt}"\n\n'
         "Return ONLY valid JSON with the changes to apply."
     )
@@ -209,29 +319,77 @@ async def apply_conversational_changes(
             temperature=0.1,
         )
 
-        if not llm_response or "changes" not in llm_response:
-            raise ValueError("LLM response missing 'changes' field")
+        if not llm_response:
+            raise ValueError("LLM response is empty")
 
-        changes: list[dict[str, Any]] = llm_response["changes"]
-        explanation: str = llm_response.get("explanation", "")
+        # Support both new "operations" format and legacy "changes" format
+        if "operations" in llm_response:
+            operations: list[dict[str, Any]] = llm_response["operations"]
+            explanation: str = llm_response.get("explanation", "")
 
-        applied_count = 0
-        for change in changes:
-            field_path = change["field_path"]
-            new_value = change["value"]
-            try:
-                _set_nested_value(scene_spec, field_path, new_value)
-                applied_count += 1
-            except (KeyError, IndexError, ValueError) as e:
-                logger.warning(
-                    "LLM suggested invalid path '%s': %s", field_path, e
-                )
-                continue
+            applied_count = 0
+            for op in operations:
+                op_type = op.get("type", "set")
+                path = op.get("path", op.get("field_path", ""))
+                value = op.get("value")
 
-        logger.info(
-            "Applied %d conversational changes: %s", applied_count, explanation
-        )
-        return scene_spec, explanation
+                try:
+                    if op_type == "set":
+                        _set_nested_value(scene_spec, path, value)
+                        applied_count += 1
+                    elif op_type == "delete":
+                        _delete_nested_value(scene_spec, path)
+                        applied_count += 1
+                    elif op_type == "add":
+                        _add_to_array(scene_spec, path, value)
+                        applied_count += 1
+                    else:
+                        logger.warning(
+                            "LLM suggested unknown operation type '%s'", op_type
+                        )
+                except (KeyError, IndexError, ValueError) as e:
+                    logger.warning(
+                        "LLM suggested invalid path '%s' for op '%s': %s",
+                        path,
+                        op_type,
+                        e,
+                    )
+                    continue
+
+            logger.info(
+                "Applied %d conversational operations: %s",
+                applied_count,
+                explanation,
+            )
+            return scene_spec, explanation
+
+        elif "changes" in llm_response:
+            # Legacy format support
+            changes: list[dict[str, Any]] = llm_response["changes"]
+            explanation: str = llm_response.get("explanation", "")
+
+            applied_count = 0
+            for change in changes:
+                field_path = change["field_path"]
+                new_value = change["value"]
+                try:
+                    _set_nested_value(scene_spec, field_path, new_value)
+                    applied_count += 1
+                except (KeyError, IndexError, ValueError) as e:
+                    logger.warning(
+                        "LLM suggested invalid path '%s': %s", field_path, e
+                    )
+                    continue
+
+            logger.info(
+                "Applied %d conversational changes: %s", applied_count, explanation
+            )
+            return scene_spec, explanation
+
+        else:
+            raise ValueError(
+                "LLM response missing both 'operations' and 'changes' fields"
+            )
 
     except ImportError:
         logger.error("LLM service not available for conversational editing")
