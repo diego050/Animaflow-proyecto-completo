@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { SkipForward, SkipBack, Play, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { Player, PlayerRef } from '@remotion/player';
+import { Player } from '@remotion/player';
+import type { PlayerRef } from '@remotion/player';
 import { SceneWrapper } from '../../remotion/SceneRoot';
 import { MainComposition } from '../../remotion/MainComposition';
 import type { TimelineSpec, Spec } from '../../types/spec';
@@ -19,7 +20,7 @@ interface PreviewPlayerProps {
   onSceneSpecChange?: (sceneIndex: number, updatedScene: Spec) => void;
 }
 
-export function PreviewPlayer({ spec, isReadyToRender, aspectRatio, focusSceneIndex, onClearFocus, onFocusScene, onSceneSpecChange }: PreviewPlayerProps) {
+export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focusSceneIndex, onClearFocus, onFocusScene, onSceneSpecChange }: PreviewPlayerProps) {
   const totalDuration = spec.scenes.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0);
   const sceneCount = spec.scenes.length;
   const videoRef = useRef<HTMLVideoElement>(null);

@@ -168,5 +168,3 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
     </Animated>
   );
 };
-
-export type { ExitType };
