@@ -53,6 +53,106 @@ def _get_canvas_dimensions(aspect_ratio: str) -> tuple[int, int]:
     return (1080, 1920)
 
 
+# ── Path Normalizer ──────────────────────────────────────────────────────────
+
+def _normalize_paths(spec: dict, width: int, height: int) -> dict:
+    """
+    Normalize absolute SVG path coordinates to be centered around (0, 0).
+
+    If pathData contains numbers that look absolute (> 100 heuristic),
+    subtract width/2 from X coordinates and height/2 from Y coordinates.
+    Skips paths containing 'A' (arc) commands to avoid breaking complex curves.
+    """
+    half_w = width / 2
+    half_h = height / 2
+
+    for layer in spec.get("layers", []):
+        path_data = layer.get("pathData")
+        if not path_data or not isinstance(path_data, str):
+            continue
+
+        # Skip arc commands — too complex to normalize safely
+        if "A" in path_data or "a" in path_data:
+            continue
+
+        # Find all numbers in the path
+        numbers = re.findall(r'(-?\d+\.?\d*)', path_data)
+
+        if not numbers:
+            continue
+
+        # Heuristic: only normalize if the first number looks absolute
+        try:
+            first_num = float(numbers[0])
+            if first_num <= 100:
+                continue
+        except ValueError:
+            continue
+
+        # Replace numbers: even index = X (subtract half_w), odd index = Y (subtract half_h)
+        counter = 0
+
+        def replace_number(match: re.Match) -> str:
+            nonlocal counter
+            original = match.group(0)
+            try:
+                value = float(original)
+                if counter % 2 == 0:
+                    value -= half_w
+                else:
+                    value -= half_h
+                # Format: keep as int if whole number, otherwise 2 decimal places
+                formatted = f"{value:.0f}" if value == int(value) else f"{value:.2f}"
+            except ValueError:
+                formatted = original
+            counter += 1
+            return formatted
+
+        layer["pathData"] = re.sub(r'-?\d+\.?\d*', replace_number, path_data)
+
+    return spec
+
+
+# ── Smart Layout Engine ──────────────────────────────────────────────────────
+
+def _apply_smart_layout(spec: dict) -> dict:
+    """
+    Assign default x/y positions to layers that are missing them,
+    distributing elements vertically to avoid overlap.
+
+    - background: x=0, y=0
+    - text: start at y=150, increment by 80 per text layer
+    - path, circle, component, rect, image: start at y=-150, increment by 150 per layer
+    - x defaults to 0 if missing
+    """
+    text_y = 150
+    visual_y = -150
+
+    for layer in spec.get("layers", []):
+        layer_type = layer.get("type", "")
+
+        # Default x to 0 if missing
+        if "x" not in layer or layer["x"] is None:
+            layer["x"] = 0
+
+        # Default y based on type if missing
+        if "y" not in layer or layer["y"] is None:
+            if layer_type == "background":
+                layer["y"] = 0
+            elif layer_type == "text":
+                layer["y"] = text_y
+                text_y += 80
+            elif layer_type in ("path", "circle", "component", "rect", "image"):
+                layer["y"] = visual_y
+                visual_y += 150
+            else:
+                # Fallback: treat as visual
+                layer["y"] = visual_y
+                visual_y += 150
+
+    return spec
+
+
 # ── Catálogo de componentes disponibles ──────────────────────────────────────
 # Mantener sincronizado con frontend/src/remotion/registry.ts
 AVAILABLE_COMPONENTS: list[str] = [
@@ -174,11 +274,14 @@ REGLAS DE ORO PARA EL DISEÑO:
 2. **COHERENCIA TEMÁTICA ESTRICTA:** Solo elige componentes de la Standard Library si tienen una relación DIRECTA y LÓGICA con el guion. Si el video es un documental sobre peces, NO uses un "SubscribeButton" o "TinderSwipeCard". Usa tu juicio semántico: si no encaja perfecto con la vibra de la escena, no lo uses.
 3. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
 4. El texto hablado principal DEBE aparecer en pantalla de manera legible. Pásalo a tu componente de texto o primitiva de texto usando `"text": "{{text}}"`.
-5. **POSICIONAMIENTO OBLIGATORIO:** TODO layer de tipo `text`, `path`, `rect`, `circle` DEBE tener las propiedades `x` e `y` explícitas. NUNCA las omitas.
-   - Para texto centrado: `"x": 0, "y": 0`
-   - Para paths centrados: `"x": 0, "y": 0`
-   - Para rects centrados: `"x": 0, "y": 0`
-   - Si quieres mover algo: ajusta x/y pero SIEMPRE inclúyelos.
+5. **POSICIONAMIENTO OBLIGATORIO:** ABSOLUTAMENTE TODOS los layers DEBEN tener `x` e `y`. Si los omites, el JSON será inválido.
+   - `"x": 0, "y": 0` = centro del canvas
+   - `"x": 0, "y": -200` = arriba del centro
+   - `"x": 0, "y": 200` = abajo del centro
+   - `"x": -200, "y": 0` = izquierda del centro
+   - `"x": 200, "y": 0` = derecha del centro
+   - EJEMPLO CORRECTO: `{"type": "text", "text": "Hola", "x": 0, "y": 0}`
+   - EJEMPLO INCORRECTO: `{"type": "text", "text": "Hola"}` ← FALTA x/y, INVÁLIDO
 6. **FORMATO NUMÉRICO ESTRICTO:** Para `lineWidth`, usa SOLO números ENTEROS (0, 1, 2, 3... 20). NUNCA uses decimales. Ejemplos válidos: `0`, `4`, `10`. Ejemplos INVÁLIDOS: `0.5`, `4.5`, `10.25`.
 
 REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path) que represente el sujeto principal de la escena. No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
@@ -377,7 +480,7 @@ def generate_scene_composer(
                                 "animation": {"type": "STRING"},
                                 "lineWidth": {"type": "INTEGER", "minimum": 0, "maximum": 20}
                             },
-                            "required": ["type"]
+                            "required": ["type", "x", "y"]
                         }
                     },
                     "out_transition": {
@@ -450,6 +553,12 @@ def generate_scene_composer(
                     for layer in result.get("layers", []):
                         if "lineWidth" in layer and isinstance(layer["lineWidth"], (int, float)):
                             layer["lineWidth"] = round(float(layer["lineWidth"]), 2)
+
+                    # Post-processing: Normalize paths and apply smart layout
+                    width, height = _get_canvas_dimensions(aspect_ratio)
+                    result = _normalize_paths(result, width, height)
+                    result = _apply_smart_layout(result)
+
                     return AnimaComposerSpec(**result)
                 else:
                     return AnimaComposerSpec.model_validate(result)
