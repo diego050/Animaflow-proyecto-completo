@@ -58,6 +58,7 @@ export interface SceneData {
   media_query: string;
   start_time_seconds: number;
   duration_seconds: number;
+  estimated_duration?: number;
 }
 
 export interface SceneApproveRequest {

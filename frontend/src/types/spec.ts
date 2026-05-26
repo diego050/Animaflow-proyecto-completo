@@ -94,14 +94,15 @@ export interface AnimaComposerSpec {
 export interface Spec {
   start_time_seconds: number;
   duration_seconds: number;
+  estimated_duration?: number;
   text: string;
   type: string;
   media_query: string;
   animation_spec?: Record<string, unknown>;
   remotion_props?: Record<string, unknown>;
   sfx: SFX[];
-  audio_url?: string;
-  word_timestamps?: WordTimestamp[];
+  audio_url: string | null;
+  word_timestamps: WordTimestamp[] | null;
   ae_metadata?: Record<string, unknown>;
   ae_script_code?: string;
   anima_composer?: AnimaComposerSpec;

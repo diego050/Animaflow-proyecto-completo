@@ -18,6 +18,7 @@ from app.schemas.job import (
 from app.db.session import get_db
 from app.db.models import JobModel, User, DesignTemplate
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.core.security import get_current_active_user, get_current_active_user_from_token
 from app.core.limiter import limiter
 from app.core.storage_paths import get_storage_dir
@@ -161,7 +162,8 @@ async def approve_scenes(
     """Approve or edit segmented scenes and continue the pipeline.
 
     The frontend sends the confirmed/edited scenes with their media_query
-    prompts. The pipeline then generates visuals, TTS, and Remotion components.
+    prompts. We persist these scenes into result_spec, then set status to
+    'queued_enrichment' so the scheduler picks up TTS + anima_composer generation.
     """
     job = db.query(JobModel).filter(
         JobModel.id == job_id,
@@ -179,9 +181,31 @@ async def approve_scenes(
     if not approval.scenes:
         raise HTTPException(status_code=400, detail="No scenes provided for approval")
 
-    # Update status to queued_enrichment to trigger a distinct status change
-    # that fires the Postgres NOTIFY and is picked up by the Scheduler.
+    # Persist the approved/edited scenes into result_spec.
+    # The scheduler will pick up 'queued_enrichment' and run TTS + anima_composer.
     current_spec = job.result_spec or {}
+    
+    # Build updated scenes list from user's approval (may have edited text/media_query)
+    approved_scenes = []
+    for i, approved_scene in enumerate(approval.scenes):
+        # Preserve existing scene data but override with user edits
+        existing = current_spec.get("scenes", [])[i] if i < len(current_spec.get("scenes", [])) else {}
+        updated_scene = {
+            **existing,
+            "text": approved_scene.text,
+            "media_query": approved_scene.media_query or existing.get("media_query", ""),
+            "duration_seconds": approved_scene.duration_seconds or existing.get("duration_seconds", 0.0),
+            "start_time_seconds": approved_scene.start_time_seconds or existing.get("start_time_seconds", 0.0),
+            # Reset enrichment fields — they will be regenerated
+            "audio_url": None,
+            "word_timestamps": [],
+            "type": "pending",
+            "anima_composer": None,
+            "quality_status": None,
+        }
+        approved_scenes.append(updated_scene)
+
+    current_spec["scenes"] = approved_scenes
     current_spec["approved"] = True
     job.result_spec = current_spec
     job.status = "queued_enrichment"
@@ -498,7 +522,15 @@ async def trigger_scene_regenerate(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    # Verify current_user owns this job before regenerating scene
+    """Regenerate a single scene's TTS and visual spec synchronously.
+
+    Calls regenerate_single_scene_sync which handles:
+    - TTS regeneration (if text changed)
+    - Visual spec (anima_composer) regeneration
+    - DB persistence
+    """
+    from app.modules.pipeline.scene_manager import regenerate_single_scene_sync
+
     job = db.query(JobModel).filter(
         JobModel.id == job_id,
         JobModel.user_id == current_user.id,
@@ -506,19 +538,36 @@ async def trigger_scene_regenerate(
     if not job or not job.result_spec:
         raise HTTPException(status_code=404, detail="Job not found or missing spec")
 
-    if scene_index < 0 or scene_index >= len(job.result_spec.get("scenes", [])):
+    scenes = job.result_spec.get("scenes", [])
+    if scene_index < 0 or scene_index >= len(scenes):
         raise HTTPException(status_code=400, detail="Invalid scene index")
 
-    # We set status to queued_scene_regen for the scheduler
-    # wait, the prompt doesn't ask to handle scene regenerate in Day 1 scheduler, but let's just update the status.
+    try:
+        # Call the sync regeneration function (handles TTS + visual spec)
+        updated_spec = regenerate_single_scene_sync(
+            job_id=job_id,
+            spec=job.result_spec,
+            scene_index=scene_index,
+            new_media_query=req.media_query,
+            new_text=req.text,
+            user_id=current_user.id,
+        )
 
-    job.status = "queued_scene_regen"
-    db.commit()
+        # Refresh job from DB (regenerate_single_scene_sync already committed)
+        db.refresh(job)
 
-    return JobResponse(
-        job_id=job.id,
-        status=job.status,
-        result_spec=job.result_spec,
-        video_url=job.video_url,
-        error_message=job.error_message,
-    )
+        return JobResponse(
+            job_id=job.id,
+            status=job.status,
+            result_spec=job.result_spec,
+            video_url=job.video_url,
+            error_message=job.error_message,
+        )
+
+    except Exception as e:
+        logger = get_logger("api.jobs")
+        logger.exception("Scene regeneration failed for job %s, scene %d: %s", job_id, scene_index, e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Scene regeneration failed: {str(e)}"
+        )

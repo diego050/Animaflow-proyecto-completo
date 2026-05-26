@@ -5,6 +5,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { useJobsStore } from '../../store/useJobsStore';
 import { useToastStore } from '../../store/useToastStore';
 import { isTerminalStatus, isProcessingStatus, isRenderStatus } from '../../types/job';
+import type { TimelineSpec } from '../../types/spec';
 import { ProjectHeader } from '../../components/project/ProjectHeader';
 import { ProjectStatusBanner } from '../../components/project/ProjectStatusBanner';
 import { ProjectTabs, type TabKey } from '../../components/project/ProjectTabs';
@@ -24,6 +25,16 @@ export function ProjectDetail() {
   const [approveLoading, setApproveLoading] = useState(false);
   const [focusSceneIndex, setFocusSceneIndex] = useState<number | null>(null);
   const [selectedSceneIndices, setSelectedSceneIndices] = useState<Set<number>>(new Set());
+
+  // Local spec state for segmented phase (user edits before approval)
+  const [localSpec, setLocalSpec] = useState<TimelineSpec | null>(null);
+
+  // Sync localSpec when selectedJob changes or status leaves segmented
+  useEffect(() => {
+    if (selectedJob?.result_spec) {
+      setLocalSpec(selectedJob.result_spec);
+    }
+  }, [selectedJob?.job_id, selectedJob?.result_spec]);
 
   const defaultName = `Proyecto ${jobId?.slice(0, 8) ?? ''}`;
   const [projectName, setProjectName] = useState(defaultName);
@@ -116,10 +127,12 @@ export function ProjectDetail() {
   }, [jobId, triggerRender, addToast]);
 
   const handleApprove = useCallback(async () => {
-    if (!jobId || !selectedJob?.result_spec?.scenes) return;
+    if (!jobId) return;
+    const scenesToApprove = localSpec?.scenes ?? selectedJob?.result_spec?.scenes;
+    if (!scenesToApprove) return;
     setApproveLoading(true);
     try {
-      await approveScenes(jobId, selectedJob.result_spec.scenes);
+      await approveScenes(jobId, scenesToApprove);
       addToast('success', 'Escenas aprobadas. Iniciando procesamiento...');
       startPolling(jobId);
     } catch {
@@ -127,7 +140,7 @@ export function ProjectDetail() {
     } finally {
       setApproveLoading(false);
     }
-  }, [jobId, selectedJob, approveScenes, startPolling, addToast]);
+  }, [jobId, localSpec, selectedJob, approveScenes, startPolling, addToast]);
 
   const handleAEExport = useCallback(async () => {
     if (!jobId) return;
@@ -342,12 +355,12 @@ export function ProjectDetail() {
                   className="px-6 py-2 bg-mint-precision text-deep-slate rounded-lg text-sm font-bold hover:bg-white transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                 >
                   {approveLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                  Aprobar Escenas
+                  Aprobar y Generar Audio/Visuales
                 </button>
               </div>
             )}
             <SceneTimeline
-            spec={spec}
+            spec={localSpec ?? spec}
             jobId={jobId}
             onRegenerateScene={async (index, mediaQuery, text) => {
               await useJobsStore.getState().regenerateScene(jobId, index, mediaQuery, text);
@@ -358,6 +371,8 @@ export function ProjectDetail() {
             }}
             selectedScenes={selectedSceneIndices}
             onToggleSceneSelection={handleToggleSceneSelection}
+            isSegmented={selectedJob.status === 'segmented'}
+            onSpecChange={(newSpec) => setLocalSpec(newSpec)}
           />
         </div>
         )}
