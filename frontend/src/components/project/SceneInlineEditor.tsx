@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Edit } from 'lucide-react';
 import type { Spec } from '../../types/spec';
 import { editScene } from '../../api/sceneEdit';
 import { useToastStore } from '../../store/useToastStore';
@@ -25,6 +25,15 @@ export function SceneInlineEditor({
   const [saving, setSaving] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { addToast } = useToastStore();
+
+  // Editable scene name
+  const [editingName, setEditingName] = useState(false);
+  const [sceneName, setSceneName] = useState(`Escena ${sceneIndex + 1}`);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingName && nameInputRef.current) nameInputRef.current.focus();
+  }, [editingName]);
 
   const composer = scene.anima_composer;
 
@@ -133,9 +142,34 @@ export function SceneInlineEditor({
           ) : (
             <ChevronRight size={14} className="text-text-secondary/50" />
           )}
-          <span className="text-xs font-bold text-text-primary">
-            Escena {sceneIndex + 1}
-          </span>
+          {editingName ? (
+            <input
+              ref={nameInputRef}
+              value={sceneName}
+              onChange={(e) => setSceneName(e.target.value)}
+              onBlur={() => setEditingName(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') setEditingName(false);
+                if (e.key === 'Escape') {
+                  setSceneName(`Escena ${sceneIndex + 1}`);
+                  setEditingName(false);
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-transparent border-b border-mint-precision outline-none text-xs font-bold text-text-primary px-0.5 w-24"
+            />
+          ) : (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingName(true);
+              }}
+              className="text-xs font-bold text-text-primary cursor-pointer hover:text-mint-precision flex items-center gap-1 group/name"
+            >
+              {sceneName}
+              <Edit size={10} className="opacity-0 group-hover/name:opacity-50 transition-opacity" />
+            </span>
+          )}
           {saving && (
             <span className="text-[10px] text-mint-precision animate-pulse">
               Guardando...
@@ -217,7 +251,8 @@ export function SceneInlineEditor({
           )}
 
           {/* Layers */}
-          {composer.layers?.map(
+          {composer.layers && composer.layers.length > 0 ? (
+            composer.layers.map(
             (layer, layerIdx: number) => (
               <div
                 key={layerIdx}
@@ -416,7 +451,9 @@ export function SceneInlineEditor({
                   </button>
                 </div>
               </div>
-            ),
+            )
+          ) : (
+            <p className="text-[10px] text-text-secondary/30 italic py-2">No hay capas configuradas</p>
           )}
         </div>
       )}

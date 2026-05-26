@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { SkipForward, SkipBack, Play, MessageSquare } from 'lucide-react';
+import { SkipForward, SkipBack, MessageSquare, Sliders } from 'lucide-react';
 import { Player } from '@remotion/player';
 import type { PlayerRef } from '@remotion/player';
 import { SceneWrapper } from '../../remotion/SceneRoot';
@@ -30,16 +30,21 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
 
   const focusedScene = focusSceneIndex != null ? spec.scenes[focusSceneIndex] : null;
 
-  // Key to force Player re-render when spec content changes
+  // Key to force Player re-render when spec content changes (debounced to avoid flicker)
   const specKey = JSON.stringify(spec.scenes.map(s => ({ text: s.text, duration: s.duration_seconds, composer: s.anima_composer })));
+  const [debouncedSpecKey, setDebouncedSpecKey] = useState(specKey);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSpecKey(specKey), 400);
+    return () => clearTimeout(timer);
+  }, [specKey]);
+
+  // Tabbed panel state
+  const [activePanel, setActivePanel] = useState<'editor' | 'chat'>('editor');
 
   const isLandscape = aspectRatio === '16:9';
   const compWidth = isLandscape ? 1920 : 1080;
   const compHeight = isLandscape ? 1080 : 1920;
-  const containerWidthClass = isLandscape ? 'max-w-3xl' : 'max-w-sm';
   const aspectClass = isLandscape ? 'aspect-[16/9]' : 'aspect-[9/16]';
-
-  // Determinamos contenedor
 
   // Effect to handle seeking in the full video when a scene is clicked (isReadyToRender mode)
   useEffect(() => {
@@ -95,7 +100,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`w-full ${containerWidthClass} mb-4 flex items-center justify-between`}
+            className={`w-full max-w-lg mb-4 flex items-center justify-between`}
           >
             <button
               onClick={onClearFocus}
@@ -125,56 +130,58 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
           </motion.div>
         )}
 
-        <div className={`w-full ${containerWidthClass} ${aspectClass} bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50`}>
-          {isReadyToRender ? (
-            /* Full video with audio - seek to scene on click */
-            <Player
-              key={`main-full-${specKey}`}
-              ref={playerRef}
-              component={MainComposition}
-              inputProps={{ spec }}
-              durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
-              compositionWidth={compWidth}
-              compositionHeight={compHeight}
-              fps={30}
-              controls
-              style={{ width: '100%', height: '100%' }}
-            />
-          ) : focusedScene ? (
-            /* Pre-render: show individual scene preview (no audio yet) */
-            <Player
-              key={`scene-${focusSceneIndex}-${specKey}`}
-              component={SceneWrapper}
-              inputProps={{
-                type: focusedScene.type,
-                text: focusedScene.text,
-                durationInFrames: Math.round((focusedScene.duration_seconds || 5) * 30),
-                animaComposer: (focusedScene as Spec).anima_composer,
-              }}
-              durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
-              compositionWidth={compWidth}
-              compositionHeight={compHeight}
-              fps={30}
-              controls
-              style={{ width: '100%', height: '100%' }}
-            />
-          ) : (
-            <Player
-              key={`main-fallback-${specKey}`}
-              component={MainComposition}
-              inputProps={{ spec }}
-              durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
-              compositionWidth={compWidth}
-              compositionHeight={compHeight}
-              fps={30}
-              controls
-              style={{ width: '100%', height: '100%' }}
-            />
-          )}
+        <div className="w-full flex items-center justify-center" style={{ maxHeight: 'calc(100vh - 340px)' }}>
+          <div className={`w-full max-h-full ${aspectClass} bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50`}>
+            {isReadyToRender ? (
+              /* Full video with audio - seek to scene on click */
+              <Player
+                key={`main-full-${debouncedSpecKey}`}
+                ref={playerRef}
+                component={MainComposition}
+                inputProps={{ spec }}
+                durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
+                compositionWidth={compWidth}
+                compositionHeight={compHeight}
+                fps={30}
+                controls
+                style={{ width: '100%', height: '100%' }}
+              />
+            ) : focusedScene ? (
+              /* Pre-render: show individual scene preview (no audio yet) */
+              <Player
+                key={`scene-${focusSceneIndex}-${debouncedSpecKey}`}
+                component={SceneWrapper}
+                inputProps={{
+                  type: focusedScene.type,
+                  text: focusedScene.text,
+                  durationInFrames: Math.round((focusedScene.duration_seconds || 5) * 30),
+                  animaComposer: (focusedScene as Spec).anima_composer,
+                }}
+                durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
+                compositionWidth={compWidth}
+                compositionHeight={compHeight}
+                fps={30}
+                controls
+                style={{ width: '100%', height: '100%' }}
+              />
+            ) : (
+              <Player
+                key={`main-fallback-${debouncedSpecKey}`}
+                component={MainComposition}
+                inputProps={{ spec }}
+                durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
+                compositionWidth={compWidth}
+                compositionHeight={compHeight}
+                fps={30}
+                controls
+                style={{ width: '100%', height: '100%' }}
+              />
+            )}
+          </div>
         </div>
         
         {/* Timeline Bar */}
-        <div className={`w-full ${containerWidthClass} mt-6`}>
+        <div className="w-full max-w-lg mt-6">
           <SceneTimelineBar spec={spec} focusSceneIndex={focusSceneIndex ?? null} onSceneClick={onFocusScene} />
         </div>
 
@@ -190,47 +197,38 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
         </p>
       </div>
 
-      {/* Project info sidebar - stacked on mobile, sidebar on desktop */}
-      <div className="w-full lg:w-80 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-1">
-        {/* Desktop info card (hidden on mobile) */}
-        <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-4">
-            Informacion del proyecto
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-text-secondary/50">Escenas</span>
-              <span className="text-sm font-semibold text-text-primary">
-                {sceneCount}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-text-secondary/50">
-                Duracion total
-              </span>
-              <span className="text-sm font-semibold text-text-primary">
-                {totalDuration.toFixed(1)}s
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-text-secondary/50">
-                Relacion de aspecto
-              </span>
-              <span className="text-sm font-semibold text-mint-precision">
-                {aspectRatio || '9:16'}
-              </span>
-            </div>
-          </div>
+      {/* Tabbed panel - stacked on mobile, sidebar on desktop */}
+      <div className="w-full lg:w-96 flex flex-col bg-surface-container border border-border-tech rounded-xl overflow-hidden">
+        {/* Tab bar */}
+        <div className="flex border-b border-border-tech/50">
+          <button
+            onClick={() => setActivePanel('editor')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium transition-colors ${
+              activePanel === 'editor'
+                ? 'text-mint-precision border-b-2 border-mint-precision'
+                : 'text-text-secondary/50 hover:text-text-primary'
+            }`}
+          >
+            <Sliders size={14} />
+            Editor
+            <span className="bg-surface-elevated px-1.5 py-0.5 rounded text-[9px]">{sceneCount}</span>
+          </button>
+          <button
+            onClick={() => setActivePanel('chat')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium transition-colors ${
+              activePanel === 'chat'
+                ? 'text-mint-precision border-b-2 border-mint-precision'
+                : 'text-text-secondary/50 hover:text-text-primary'
+            }`}
+          >
+            <MessageSquare size={14} />
+            Asistente IA
+            <span className="bg-surface-elevated px-1.5 py-0.5 rounded text-[9px]">{totalDuration.toFixed(1)}s</span>
+          </button>
         </div>
-
-        {/* All scenes editor (always visible) */}
-        <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-border-tech/50">
-            <h3 className="text-sm font-semibold text-text-primary">
-              Editor de Escenas
-            </h3>
-          </div>
-          <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+        {/* Content */}
+        {activePanel === 'editor' ? (
+          <div className="flex-1 overflow-y-auto custom-scrollbar max-h-[calc(100vh-300px)]">
             {spec.scenes.map((scene, idx) => (
               <SceneInlineEditor
                 key={idx}
@@ -243,20 +241,10 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
               />
             ))}
           </div>
-        </div>
-
-        {/* Chat panel (always visible at bottom) */}
-        <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-border-tech/50">
-            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-              <MessageSquare size={14} className="text-mint-precision" />
-              Asistente IA
-            </h3>
-          </div>
-          <div className="h-64">
+        ) : (
+          <div className="h-[400px]">
             <ChatPanel
               onSend={async (prompt) => {
-                // Use the first scene as default, or let LLM figure it out
                 const targetScene = focusSceneIndex ?? 0;
                 return editScene(jobId, targetScene, {
                   mode: 'conversational',
@@ -267,7 +255,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
               jobId={jobId}
             />
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
