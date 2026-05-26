@@ -30,6 +30,9 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
 
   const focusedScene = focusSceneIndex != null ? spec.scenes[focusSceneIndex] : null;
 
+  // Key to force Player re-render when spec content changes
+  const specKey = JSON.stringify(spec.scenes.map(s => ({ text: s.text, duration: s.duration_seconds, composer: s.anima_composer })));
+
   const isLandscape = aspectRatio === '16:9';
   const compWidth = isLandscape ? 1920 : 1080;
   const compHeight = isLandscape ? 1080 : 1920;
@@ -85,9 +88,9 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
   }, [focusSceneIndex, sceneCount, onFocusScene, onClearFocus]);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* Player - centered */}
-      <div className={`flex-1 flex flex-col items-center justify-center bg-surface-lowest rounded-xl border border-border-tech p-6 min-h-[400px]`}>
+    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-200px)]">
+      {/* Player side - takes remaining space */}
+      <div className="flex-1 flex flex-col items-center justify-center bg-surface-lowest rounded-xl border border-border-tech p-6 overflow-y-auto">
         {focusedScene && onClearFocus && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
@@ -126,6 +129,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
           {isReadyToRender ? (
             /* Full video with audio - seek to scene on click */
             <Player
+              key={`main-full-${specKey}`}
               ref={playerRef}
               component={MainComposition}
               inputProps={{ spec }}
@@ -139,6 +143,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
           ) : focusedScene ? (
             /* Pre-render: show individual scene preview (no audio yet) */
             <Player
+              key={`scene-${focusSceneIndex}-${specKey}`}
               component={SceneWrapper}
               inputProps={{
                 type: focusedScene.type,
@@ -155,6 +160,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
             />
           ) : (
             <Player
+              key={`main-fallback-${specKey}`}
               component={MainComposition}
               inputProps={{ spec }}
               durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
@@ -185,7 +191,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
       </div>
 
       {/* Project info sidebar - stacked on mobile, sidebar on desktop */}
-      <div className="w-full lg:w-80 space-y-4">
+      <div className="w-full lg:w-80 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-1">
         {/* Desktop info card (hidden on mobile) */}
         <div className="hidden lg:block bg-surface-container border border-border-tech rounded-xl p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-4">
@@ -232,6 +238,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
                 sceneIndex={idx}
                 jobId={jobId}
                 isFocused={focusSceneIndex === idx}
+                aspectRatio={aspectRatio}
                 onSpecChange={onSceneSpecChange}
               />
             ))}

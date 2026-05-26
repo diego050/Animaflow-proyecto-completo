@@ -106,6 +106,10 @@
         "id": {
           "type": "string"
         },
+        "label": {
+          "type": "string",
+          "description": "Display name for the layer in the editor UI"
+        },
         "type": {
           "type": "string",
           "enum": [

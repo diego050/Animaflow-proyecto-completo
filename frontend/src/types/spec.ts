@@ -34,6 +34,7 @@ export interface AnimaBackground {
 
 export interface AnimaLayer {
   id?: string;
+  label?: string;
   type: 'rect' | 'circle' | 'path' | 'text' | 'image' | 'group' | 'particles' | 'component';
   componentName?: string;
   x?: AnimValue;
@@ -81,6 +82,7 @@ export interface AnimaLayer {
   query?: string;
   animation?: string;
   lineWidth?: number;
+  props?: Record<string, unknown>;
 }
 
 export interface OutTransition {

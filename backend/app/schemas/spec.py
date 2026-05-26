@@ -206,6 +206,7 @@ class BaseAnimaLayer(BaseModel):
     query: Optional[str] = None
     animation: Optional[str] = None
     lineWidth: Optional[float] = None
+    props: Optional[Dict[str, Any]] = None
 
 class AnimaChildLayer(BaseAnimaLayer):
     @model_validator(mode="before")

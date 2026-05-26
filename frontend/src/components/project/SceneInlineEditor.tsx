@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 import type { Spec } from '../../types/spec';
 import { editScene } from '../../api/sceneEdit';
 import { useToastStore } from '../../store/useToastStore';
@@ -9,6 +9,7 @@ interface SceneInlineEditorProps {
   sceneIndex: number;
   jobId: string;
   isFocused: boolean;
+  aspectRatio?: string;
   onSpecChange?: (sceneIndex: number, updatedScene: Spec) => void;
 }
 
@@ -17,6 +18,7 @@ export function SceneInlineEditor({
   sceneIndex,
   jobId,
   isFocused,
+  aspectRatio = '9:16',
   onSpecChange,
 }: SceneInlineEditorProps) {
   const [expanded, setExpanded] = useState(isFocused);
@@ -82,6 +84,20 @@ export function SceneInlineEditor({
     },
     [scene, sceneIndex, onSpecChange, scheduleSave],
   );
+
+  const handleReorderLayer = useCallback((index: number, direction: number) => {
+    const newIndex = index + direction;
+    if (!composer.layers || newIndex < 0 || newIndex >= composer.layers.length) return;
+
+    const newLayers = [...composer.layers];
+    [newLayers[index], newLayers[newIndex]] = [newLayers[newIndex], newLayers[index]];
+
+    handleFieldChange('anima_composer.layers', newLayers);
+  }, [composer.layers, handleFieldChange]);
+
+  // Compute center coordinates based on aspect ratio
+  const centerX = aspectRatio === '16:9' ? 960 : 540;
+  const centerY = aspectRatio === '16:9' ? 540 : 960;
 
   if (!composer) {
     return (
@@ -206,9 +222,18 @@ export function SceneInlineEditor({
                 key={layerIdx}
                 className="pt-2 border-t border-border-tech/30"
               >
-                <label className="text-[10px] uppercase tracking-wider text-text-secondary/40 font-semibold">
-                  Capa {layerIdx + 1} ({layer.type})
-                </label>
+                {/* Layer header with label input */}
+                <div className="flex items-center gap-2 mb-1">
+                  <input
+                    type="text"
+                    value={layer.label ?? `Capa ${layerIdx + 1}`}
+                    onChange={(e) => handleFieldChange(`anima_composer.layers.${layerIdx}.label`, e.target.value)}
+                    className="flex-1 bg-surface-lowest border border-border-tech rounded px-2 py-1 text-xs text-text-primary placeholder:text-text-secondary/30"
+                    placeholder="Nombre de la capa..."
+                  />
+                  <span className="text-[9px] text-text-secondary/30 font-mono">{layer.type}</span>
+                </div>
+
                 <div className="space-y-1.5 mt-1">
                   {/* Position X */}
                   <div className="flex items-center gap-2">
@@ -252,6 +277,12 @@ export function SceneInlineEditor({
                     />
                     <span className="text-[10px] font-mono text-text-secondary/50 w-6 text-right">
                       {typeof layer.y === 'number' ? layer.y : 540}
+                    </span>
+                  </div>
+                  {/* Center guide */}
+                  <div className="flex items-center gap-2 mt-1 px-1">
+                    <span className="text-[9px] text-mint-precision/60 font-mono">
+                      Centro: X={centerX}, Y={centerY}
                     </span>
                   </div>
                   {/* Scale */}
@@ -343,12 +374,135 @@ export function SceneInlineEditor({
                       <option value="scale-out">Scale Out</option>
                     </select>
                   </div>
+
+                  {/* Component-specific props */}
+                  {layer.type === 'component' && layer.props && Object.keys(layer.props).length > 0 && (
+                    <div className="pt-2 border-t border-border-tech/30 mt-2">
+                      <label className="text-[10px] uppercase tracking-wider text-text-secondary/40 font-semibold">
+                        Props del Componente ({layer.componentName ?? 'unknown'})
+                      </label>
+                      <div className="space-y-1.5 mt-1">
+                        {Object.entries(layer.props).map(([key, value]) => (
+                          <DynamicPropField
+                            key={key}
+                            propName={key}
+                            propValue={value}
+                            onChange={(newValue) => handleFieldChange(`anima_composer.layers.${layerIdx}.props.${key}`, newValue)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Reorder buttons */}
+                <div className="flex items-center gap-0.5 mt-1">
+                  <button
+                    onClick={() => handleReorderLayer(layerIdx, -1)}
+                    disabled={layerIdx === 0}
+                    className="p-0.5 rounded text-text-secondary/30 hover:text-mint-precision disabled:opacity-20 transition-colors"
+                    title="Mover arriba"
+                  >
+                    <ChevronUp size={12} />
+                  </button>
+                  <button
+                    onClick={() => handleReorderLayer(layerIdx, 1)}
+                    disabled={layerIdx === (composer.layers?.length ?? 1) - 1}
+                    className="p-0.5 rounded text-text-secondary/30 hover:text-mint-precision disabled:opacity-20 transition-colors"
+                    title="Mover abajo"
+                  >
+                    <ChevronDown size={12} />
+                  </button>
                 </div>
               </div>
             ),
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function DynamicPropField({ propName, propValue, onChange }: {
+  propName: string;
+  propValue: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const label = propName.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+  
+  // Auto-detect type
+  if (typeof propValue === 'number') {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-text-secondary/50 w-16 truncate" title={propName}>{label}</span>
+        <input
+          type="range"
+          value={propValue}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+          min={0}
+          max={1000}
+          step={1}
+          className="flex-1 accent-mint-precision"
+        />
+        <span className="text-[10px] font-mono text-text-secondary/50 w-8 text-right">{propValue}</span>
+      </div>
+    );
+  }
+  
+  if (typeof propValue === 'string') {
+    // Check if it looks like a color
+    if (/^#[0-9a-fA-F]{3,8}$/.test(propValue)) {
+      return (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-text-secondary/50 w-16 truncate" title={propName}>{label}</span>
+          <input
+            type="color"
+            value={propValue}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+          />
+          <span className="text-[10px] font-mono text-text-secondary/50">{propValue}</span>
+        </div>
+      );
+    }
+    
+    // Regular string
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-text-secondary/50 w-16 truncate" title={propName}>{label}</span>
+        <input
+          type="text"
+          value={propValue}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 bg-surface-lowest border border-border-tech rounded px-2 py-1 text-[10px] text-text-primary"
+        />
+      </div>
+    );
+  }
+  
+  if (typeof propValue === 'boolean') {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-text-secondary/50 w-16 truncate" title={propName}>{label}</span>
+        <button
+          onClick={() => onChange(!propValue)}
+          className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+            propValue ? 'bg-mint-precision/20 text-mint-precision' : 'bg-surface-high text-text-secondary/50'
+          }`}
+        >
+          {propValue ? 'ON' : 'OFF'}
+        </button>
+      </div>
+    );
+  }
+  
+  // Fallback for objects/arrays
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] text-text-secondary/50 w-16 truncate" title={propName}>{label}</span>
+      <span className="text-[10px] font-mono text-text-secondary/30 italic">
+        {Array.isArray(propValue) ? `[${propValue.length} items]` : '{object}'}
+      </span>
     </div>
   );
 }
