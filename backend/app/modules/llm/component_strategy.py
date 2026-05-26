@@ -179,7 +179,7 @@ REGLAS DE ORO PARA EL DISEÑO:
    - Para paths centrados: `"x": 0, "y": 0`
    - Para rects centrados: `"x": 0, "y": 0`
    - Si quieres mover algo: ajusta x/y pero SIEMPRE inclúyelos.
-6. **FORMATO NUMÉRICO ESTRICTO:** Para `lineWidth`, usa SOLO números con máximo 2 decimales. Ejemplos válidos: `0.5`, `4.5`, `10`. Ejemplos INVÁLIDOS: `0.5000000001`, `4.5000000000000001`. NUNCA repitas decimales infinitamente.
+6. **FORMATO NUMÉRICO ESTRICTO:** Para `lineWidth`, usa SOLO números ENTEROS (0, 1, 2, 3... 20). NUNCA uses decimales. Ejemplos válidos: `0`, `4`, `10`. Ejemplos INVÁLIDOS: `0.5`, `4.5`, `10.25`.
 
 REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path) que represente el sujeto principal de la escena. No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
 
@@ -307,158 +307,165 @@ def generate_scene_composer(
         logger.warning("No API key provided. Defaulting to fallback.")
         return default_fallback
 
-    try:
-        from app.modules.llm.client import _call_llm_sync
-        # Configurar cliente con un timeout estricto de 120 segundos
-        client = genai.Client(api_key=api_key)
+    # Retry up to 2 times if response is corrupted
+    max_retries = 2
+    for attempt in range(max_retries + 1):
+        try:
+            from app.modules.llm.client import _call_llm_sync
+            client = genai.Client(api_key=api_key)
 
-        gemini_schema = {
-            "type": "OBJECT",
-            "properties": {
-                "version": {"type": "STRING"},
-                "background": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "type": {"type": "STRING"},
-                        "colors": {"type": "ARRAY", "items": {"type": "STRING"}},
-                        "angle": {"type": "NUMBER"},
-                        "center": {"type": "ARRAY", "items": {"type": "NUMBER"}}
-                    },
-                    "required": ["type", "colors"]
-                },
-                "layers": {
-                    "type": "ARRAY",
-                    "items": {
+            gemini_schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "version": {"type": "STRING"},
+                    "background": {
                         "type": "OBJECT",
                         "properties": {
-                            "id": {"type": "STRING"},
                             "type": {"type": "STRING"},
-                            "componentName": {"type": "STRING"},
-                            "x": {"type": "NUMBER", "minimum": -1000, "maximum": 1000},
-                            "y": {"type": "NUMBER", "minimum": -1000, "maximum": 1000},
-                            "scale": {"type": "NUMBER", "minimum": 0.1, "maximum": 10},
-                            "rotation": {"type": "NUMBER", "minimum": -360, "maximum": 360},
-                            "opacity": {"type": "NUMBER", "minimum": 0, "maximum": 1},
-                            "width": {"type": "NUMBER", "minimum": 10, "maximum": 1920},
-                            "height": {"type": "NUMBER", "minimum": 10, "maximum": 1920},
-                            "borderRadius": {"type": "NUMBER", "minimum": 0, "maximum": 500},
-                            "fill": {"type": "STRING"},
-                            "stroke": {"type": "STRING"},
-                            "strokeWidth": {"type": "NUMBER", "minimum": 0, "maximum": 20},
-                            "r": {"type": "NUMBER", "minimum": 5, "maximum": 500},
-                            "pathData": {"type": "STRING"},
-                            "text": {"type": "STRING"},
-                            "fontSize": {"type": "NUMBER", "minimum": 12, "maximum": 120},
-                            "fontWeight": {"type": "NUMBER", "minimum": 100, "maximum": 900},
-                            "letterSpacing": {"type": "NUMBER", "minimum": -10, "maximum": 20},
-                            "textAlign": {"type": "STRING"},
-                            "src": {"type": "STRING"},
-                            "fit": {"type": "STRING"},
-                            "count": {"type": "INTEGER", "minimum": 1, "maximum": 200},
-                            "shape": {"type": "STRING"},
-                            "spread": {"type": "NUMBER", "minimum": 0, "maximum": 500},
                             "colors": {"type": "ARRAY", "items": {"type": "STRING"}},
-                            "entry": {"type": "STRING"},
-                            "entryDelay": {"type": "NUMBER", "minimum": 0, "maximum": 10},
-                            "filter": {"type": "STRING"},
-                            "color": {"type": "STRING"},
-                            "color1": {"type": "STRING"},
-                            "color2": {"type": "STRING"},
-                            "bgColor": {"type": "STRING"},
-                            "textColor": {"type": "STRING"},
-                            "speed": {"type": "NUMBER", "minimum": 0.01, "maximum": 10},
-                            "delay": {"type": "NUMBER", "minimum": 0, "maximum": 10},
-                            "intensity": {"type": "NUMBER", "minimum": 0, "maximum": 1},
-                            "theme": {"type": "STRING"},
-                            "url": {"type": "STRING"},
-                            "query": {"type": "STRING"},
-                            "animation": {"type": "STRING"},
-                            "lineWidth": {"type": "NUMBER", "minimum": 0, "maximum": 20}
+                            "angle": {"type": "NUMBER"},
+                            "center": {"type": "ARRAY", "items": {"type": "NUMBER"}}
+                        },
+                        "required": ["type", "colors"]
+                    },
+                    "layers": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "id": {"type": "STRING"},
+                                "type": {"type": "STRING"},
+                                "componentName": {"type": "STRING"},
+                                "x": {"type": "NUMBER", "minimum": -1000, "maximum": 1000},
+                                "y": {"type": "NUMBER", "minimum": -1000, "maximum": 1000},
+                                "scale": {"type": "NUMBER", "minimum": 0.1, "maximum": 10},
+                                "rotation": {"type": "NUMBER", "minimum": -360, "maximum": 360},
+                                "opacity": {"type": "NUMBER", "minimum": 0, "maximum": 1},
+                                "width": {"type": "NUMBER", "minimum": 10, "maximum": 1920},
+                                "height": {"type": "NUMBER", "minimum": 10, "maximum": 1920},
+                                "borderRadius": {"type": "NUMBER", "minimum": 0, "maximum": 500},
+                                "fill": {"type": "STRING"},
+                                "stroke": {"type": "STRING"},
+                                "strokeWidth": {"type": "NUMBER", "minimum": 0, "maximum": 20},
+                                "r": {"type": "NUMBER", "minimum": 5, "maximum": 500},
+                                "pathData": {"type": "STRING"},
+                                "text": {"type": "STRING"},
+                                "fontSize": {"type": "NUMBER", "minimum": 12, "maximum": 120},
+                                "fontWeight": {"type": "NUMBER", "minimum": 100, "maximum": 900},
+                                "letterSpacing": {"type": "NUMBER", "minimum": -10, "maximum": 20},
+                                "textAlign": {"type": "STRING"},
+                                "src": {"type": "STRING"},
+                                "fit": {"type": "STRING"},
+                                "count": {"type": "INTEGER", "minimum": 1, "maximum": 200},
+                                "shape": {"type": "STRING"},
+                                "spread": {"type": "NUMBER", "minimum": 0, "maximum": 500},
+                                "colors": {"type": "ARRAY", "items": {"type": "STRING"}},
+                                "entry": {"type": "STRING"},
+                                "entryDelay": {"type": "NUMBER", "minimum": 0, "maximum": 10},
+                                "filter": {"type": "STRING"},
+                                "color": {"type": "STRING"},
+                                "color1": {"type": "STRING"},
+                                "color2": {"type": "STRING"},
+                                "bgColor": {"type": "STRING"},
+                                "textColor": {"type": "STRING"},
+                                "speed": {"type": "NUMBER", "minimum": 0.01, "maximum": 10},
+                                "delay": {"type": "NUMBER", "minimum": 0, "maximum": 10},
+                                "intensity": {"type": "NUMBER", "minimum": 0, "maximum": 1},
+                                "theme": {"type": "STRING"},
+                                "url": {"type": "STRING"},
+                                "query": {"type": "STRING"},
+                                "animation": {"type": "STRING"},
+                                "lineWidth": {"type": "INTEGER", "minimum": 0, "maximum": 20}
+                            },
+                            "required": ["type"]
+                        }
+                    },
+                    "out_transition": {
+                        "type": "OBJECT",
+                        "nullable": True,
+                        "properties": {
+                            "type": {
+                                "type": "STRING",
+                                "enum": ["ZoomBlurTransition", "WipeTransition", "LightLeakTransition", "GlitchTransition", "GradientOverlay", "NONE"]
+                            },
+                            "duration_frames": {"type": "INTEGER"},
+                            "target_scene": {"type": "STRING", "nullable": True}
                         },
                         "required": ["type"]
                     }
                 },
-                "out_transition": {
-                    "type": "OBJECT",
-                    "nullable": True,
-                    "properties": {
-                        "type": {
-                            "type": "STRING",
-                            "enum": ["ZoomBlurTransition", "WipeTransition", "LightLeakTransition", "GlitchTransition", "GradientOverlay", "NONE"]
-                        },
-                        "duration_frames": {"type": "INTEGER"},
-                        "target_scene": {"type": "STRING", "nullable": True}
-                    },
-                    "required": ["type"]
-                }
-            },
-            "required": ["background", "layers"]
-        }
+                "required": ["background", "layers"]
+            }
 
-        response = _call_llm_sync(
-            client=client,
-            model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=gemini_schema,
-                temperature=0.3,
-            ),
-            label="LLM Component Strategy"
-        )
-
-        # DEBUG: Log the raw text response
-        raw_text = response.text if response.text else "(empty)"
-        logger.info(
-            "RAW Gemini response for scene composer (%d chars): %s",
-            len(raw_text),
-            raw_text[:1500],
-        )
-
-        # Reject corrupted responses (Gemini loop bug)
-        if len(raw_text) > 10000:
-            logger.warning("Response too long (%d chars), likely corrupted. Defaulting to fallback.", len(raw_text))
-            return default_fallback
-
-        result = response.parsed
-
-        # DEBUG: Log the parsed result
-        if result is not None:
-            result_str = str(result)
-            logger.info(
-                "Parsed result type: %s, length: %d, preview: %s",
-                type(result).__name__,
-                len(result_str),
-                result_str[:1500],
+            response = _call_llm_sync(
+                client=client,
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=gemini_schema,
+                    temperature=0.3,
+                    max_output_tokens=4000,
+                ),
+                label="LLM Component Strategy"
             )
-        else:
-            logger.warning("response.parsed is None")
 
-        if result is None:
-            logger.warning("LLM returned empty response. Defaulting to fallback.")
-            return default_fallback
+            raw_text = response.text if response.text else "(empty)"
+            logger.info(
+                "RAW Gemini response for scene composer (%d chars): %s",
+                len(raw_text),
+                raw_text[:1500],
+            )
 
-        logger.info("Generated AnimaComposerSpec for scene.")
-        # Retornamos parseando a nuestro modelo Pydantic para validar
-        try:
-            if isinstance(result, str):
-                result = _sanitize_llm_json(result)
-                result = json.loads(result)
-            if isinstance(result, dict):
-                # Sanitize lineWidth to prevent floating point corruption
-                for layer in result.get("layers", []):
-                    if "lineWidth" in layer and isinstance(layer["lineWidth"], (int, float)):
-                        layer["lineWidth"] = round(float(layer["lineWidth"]), 2)
-                return AnimaComposerSpec(**result)
+            # Reject corrupted responses
+            if len(raw_text) > 10000:
+                logger.warning("Response too long (%d chars), likely corrupted. Attempt %d/%d.", len(raw_text), attempt + 1, max_retries + 1)
+                if attempt < max_retries:
+                    continue  # Retry
+                return default_fallback
+
+            result = response.parsed
+
+            if result is not None:
+                result_str = str(result)
+                logger.info(
+                    "Parsed result type: %s, length: %d, preview: %s",
+                    type(result).__name__,
+                    len(result_str),
+                    result_str[:1500],
+                )
             else:
-                return AnimaComposerSpec.model_validate(result)
-        except Exception as parse_error:
-            logger.warning("Pydantic parse failed: %s. Using fallback.", parse_error)
+                logger.warning("response.parsed is None. Attempt %d/%d.", attempt + 1, max_retries + 1)
+                if attempt < max_retries:
+                    continue  # Retry
+                logger.warning("All retries failed. Defaulting to fallback.")
+                return default_fallback
+
+            logger.info("Generated AnimaComposerSpec for scene.")
+            try:
+                if isinstance(result, str):
+                    result = _sanitize_llm_json(result)
+                    result = json.loads(result)
+                if isinstance(result, dict):
+                    for layer in result.get("layers", []):
+                        if "lineWidth" in layer and isinstance(layer["lineWidth"], (int, float)):
+                            layer["lineWidth"] = round(float(layer["lineWidth"]), 2)
+                    return AnimaComposerSpec(**result)
+                else:
+                    return AnimaComposerSpec.model_validate(result)
+            except Exception as parse_error:
+                logger.warning("Pydantic parse failed: %s. Attempt %d/%d.", parse_error, attempt + 1, max_retries + 1)
+                if attempt < max_retries:
+                    continue  # Retry
+                return default_fallback
+
+        except Exception as e:
+            logger.warning(
+                "Error en strategy decision: %s. Attempt %d/%d.",
+                str(e)[:100], attempt + 1, max_retries + 1,
+            )
+            if attempt < max_retries:
+                continue
             return default_fallback
 
-    except Exception as e:
-        logger.warning(
-            "Error en strategy decision: %s. Defaulting to fallback.",
-            str(e)[:100],
-        )
-        return default_fallback
+    return default_fallback
