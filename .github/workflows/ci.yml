@@ -28,6 +28,12 @@ jobs:
         ports:
           - 5432:5432
     steps:
+      - name: Pull postgres image with retries
+        run: |
+          for i in 1 2 3; do
+            docker pull pgvector/pgvector:pg15 && break || echo "Retry $i/3 failed, waiting..." && sleep 10
+          done
+
       - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
