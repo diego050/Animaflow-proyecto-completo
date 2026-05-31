@@ -475,9 +475,21 @@ function renderSingleLayer(
         return null;
       }
 
+      // ── PositionWrapper: Convert center-based to absolute coordinates ──
+      // El LLM usa x=0,y=0 como centro. Los componentes usan coordenadas absolutas.
+      // Conversión: absoluteX = width/2 + layerX, absoluteY = height/2 + layerY
+      const centerX = ctx.width / 2;
+      const centerY = ctx.height / 2;
+      const layerX = typeof layer.x === 'number' ? layer.x : 0;
+      const layerY = typeof layer.y === 'number' ? layer.y : 0;
+      const absoluteX = centerX + layerX;
+      const absoluteY = centerY + layerY;
+
       // Merge props and resolve {{text}} placeholder if present
       const mergedProps: Record<string, any> = {
         ...layer,
+        x: absoluteX,
+        y: absoluteY,
         text: typeof layer.text === 'string' 
           ? layer.text.replace('{{text}}', ctx.text) 
           : ctx.text,

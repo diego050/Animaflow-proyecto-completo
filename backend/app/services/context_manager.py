@@ -7,6 +7,7 @@ import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import ProgrammingError, OperationalError
 from app.db.models import ConversationHistory
 
 logger = logging.getLogger(__name__)
@@ -39,8 +40,12 @@ async def get_history(db: Session, job_id: str, limit: int = 15) -> list[dict[st
             }
             for msg in messages
         ]
+    except (ProgrammingError, OperationalError) as e:
+        # Real database error (table missing, connection dropped, etc.)
+        logger.error(f"Database error retrieving history for job {job_id}: {e}")
+        raise
     except Exception as e:
-        logger.error(f"Failed to retrieve history for job {job_id}: {e}")
+        logger.error(f"Unexpected error retrieving history for job {job_id}: {e}")
         return []
 
 

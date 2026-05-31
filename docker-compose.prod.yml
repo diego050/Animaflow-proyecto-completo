@@ -74,7 +74,7 @@ services:
       - animaflow_net
 
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     env_file:
       - ./backend/.env
     volumes:

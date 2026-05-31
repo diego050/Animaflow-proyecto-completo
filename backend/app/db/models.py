@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey, Text, Integer, CheckConstraint, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.mutable import MutableDict
+from pgvector.sqlalchemy import Vector
 from app.db.session import Base
 from app.core.encryption import encrypt_value, decrypt_value
 import uuid
@@ -96,6 +97,9 @@ class JobModel(Base):
     tts_provider = Column(String(50), nullable=True, default="local_piper")
     tts_voice_id = Column(String(100), nullable=True, default="es_ES-carlfm-x_low")
     llm_model = Column(String(100), nullable=True)
+
+    # Composition strategy version (v1 = legacy with primitives, v2 = components only)
+    composition_version = Column(String(10), nullable=False, default="v2", server_default="v2")
 
     user = relationship("User", back_populates="jobs")
 
@@ -322,4 +326,24 @@ class ConversationHistory(Base):
     role = Column(String(20), nullable=False)  # 'user', 'assistant', 'system'
     content = Column(Text, nullable=False)
     metadata_ = Column("metadata", JSON, nullable=True)  # Stores intent, tokens, etc.
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+
+
+class IconifyIcon(Base):
+    """
+    Iconify icon model with vector embeddings for semantic search.
+
+    Stores icon metadata and Gemini-generated embeddings to enable
+    cosine-similarity search for icon recommendations based on
+    natural language queries.
+    """
+
+    __tablename__ = "iconify_icons"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    prefix = Column(String(50), nullable=False, index=True)  # e.g. "mdi", "tabler"
+    name = Column(String(200), nullable=False, index=True)  # e.g. "ecg-heart"
+    full_id = Column(String(255), nullable=False, unique=True, index=True)  # e.g. "mdi:ecg-heart"
+    tags = Column(JSON, nullable=True)  # ["ecg", "heart", "medical"]
+    embedding = Column(Vector(768))  # Gemini embedding dimension
     created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))

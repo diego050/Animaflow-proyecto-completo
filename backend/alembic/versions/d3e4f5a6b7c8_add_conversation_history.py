@@ -1,7 +1,7 @@
 """add conversation history table
 
-Revision ID: add_conversation_history
-Revises: 
+Revision ID: d3e4f5a6b7c8
+Revises: c7d8e9f0a1b2
 Create Date: 2026-05-26
 
 """
@@ -9,9 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-# revision identifiers, used by Alembic.
-revision = 'add_conversation_history'
-down_revision = None  # Update this to the latest revision in your alembic/versions folder
+revision = 'd3e4f5a6b7c8'
+down_revision = 'c7d8e9f0a1b2'
 branch_labels = None
 depends_on = None
 
@@ -28,7 +27,6 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime, server_default=sa.func.now()),
     )
     
-    # Create composite index for fast retrieval by job and time
     op.create_index(
         'idx_chat_job_time',
         'conversation_history',

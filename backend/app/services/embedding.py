@@ -56,12 +56,32 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
 
 
 def _format_component(comp: ComponentModel) -> dict:
-    """Format a component for the prompt."""
+    """Format a component for the prompt, including props schema."""
+    props_schema = comp.props_schema or {}
+
+    # Build a concise props description for the LLM
+    props_info = []
+    for prop_name, prop_def in props_schema.items():
+        if isinstance(prop_def, dict):
+            prop_type = prop_def.get("type", "string")
+            prop_default = prop_def.get("default", "")
+            prop_enum = prop_def.get("enum", None)
+
+            if prop_enum:
+                props_info.append(f"{prop_name}: {prop_type} ({', '.join(str(v) for v in prop_enum)})")
+            elif prop_default:
+                props_info.append(f"{prop_name}: {prop_type} (default: {prop_default})")
+            else:
+                props_info.append(f"{prop_name}: {prop_type}")
+        else:
+            props_info.append(f"{prop_name}: {type(prop_def).__name__}")
+
     return {
         "name": comp.name,
         "role": comp.role,
         "category": comp.category,
         "description": comp.description,
+        "props": ", ".join(props_info) if props_info else "none required",
     }
 
 

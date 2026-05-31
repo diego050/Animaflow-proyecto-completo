@@ -1,8 +1,8 @@
 """
 Estrategia de generacion de componentes: genera un JSON AnimaComposer.
 
-El LLM evalúa cada escena y decide cómo animarla usando una combinación
-de componentes de la Standard Library y primitivas básicas.
+El LLM evalúa cada escena y decide cómo animarla usando exclusivamente
+componentes de la Standard Library.
 Todo se retorna como un AnimaComposerSpec válido.
 """
 import json
@@ -12,6 +12,7 @@ from google import genai
 from google.genai import types
 from app.core.logging import get_logger
 from app.schemas.spec import AnimaComposerSpec, AnimaBackground, AnimaLayer
+from app.services.iconify_search import find_best_icons
 
 logger = get_logger("llm.strategy")
 
@@ -208,6 +209,7 @@ def _build_strategy_prompt(
     media_query: str,
     available_components: list[dict],
     aspect_ratio: str = "9:16",
+    icon_candidates: list[dict] | None = None,
 ) -> str:
     # Group components by role
     by_role = {}
@@ -233,10 +235,27 @@ def _build_strategy_prompt(
     for role, comps in by_role.items():
         emoji = role_emojis.get(role, "📦")
         role_title = role.upper()
-        names = ", ".join([c["name"] for c in comps])
-        components_list_parts.append(f"{emoji} {role_title}: {names}")
+        for c in comps:
+            props_str = c.get("props", "none required")
+            components_list_parts.append(
+                f"{emoji} {role_title}: **{c['name']}** — {c['description']}\n"
+                f"   Props: {props_str}\n"
+                f"   Posición: x=0 y=0 es centro del canvas"
+            )
 
     components_list = "\n".join(components_list_parts)
+
+    # Build icon suggestions section if candidates are available
+    icon_section = ""
+    if icon_candidates:
+        icon_list = ", ".join([c["full_id"] for c in icon_candidates])
+        icon_section = f"""
+
+ICONOS SUGERIDOS PARA ESTA ESCENA (basado en el contexto):
+{icon_list}
+Puedes usar UNO de estos iconos con: type: "component", componentName: "IconifyIcon", icon: "nombre_exacto"
+Ejemplo: {{"type": "component", "componentName": "IconifyIcon", "icon": "{icon_candidates[0]['full_id']}", "size": 120, "color": "#ffffff", "x": 0, "y": -100}}
+"""
 
     width, height = _get_canvas_dimensions(aspect_ratio)
     half_w = width // 2
@@ -278,39 +297,32 @@ DESCRIPCION VISUAL: "{media_query}"
 
 PASO 1 - IDENTIFICA EL SUJETO: Lee el texto y la descripción visual. ¿Cuál es el objeto/sujeto/tema principal de esta escena? (ej: un perro, una manzana, el dinero, un corazón, un planeta, etc.)
 
-PASO 2 - CREA UNA FORMA CUSTOM: Basándote en el sujeto identificado, crea AL MENOS UNA primitiva custom (usando type: "circle", "rect", "path", o "group") que represente visualmente ese sujeto. Piensa en formas simples pero reconocibles:
-- Si es un animal: usa círculos para huellas, paths para siluetas
-- Si es un objeto: usa rects y circles para su forma básica
-- Si es un concepto abstracto: usa formas geométricas que lo evoquen (flechas para progreso, círculos concéntricos para impacto, etc.)
-- Si es un alimento: usa formas orgánicas con paths curvos
-- Si es tecnología: usa líneas rectas, grids, círculos con radios
+PASO 2 - SELECCIONA COMPONENTES: Elige 2-4 componentes de la lista disponible que mejor representen visualmente el sujeto y el mensaje de la escena. Combina componentes de diferentes roles (background + text + decorative/ui) para crear una composición rica y profesional.
 
-No necesitas que sea perfecto, pero debe ser RECONOCIBLE y temáticamente relevante.
+REGLA CRÍTICA: SOLO usa type: "component" para elementos visuales y type: "text" para el texto hablado. NO uses type: "path", "rect", "circle". Esos tipos están PROHIBIDOS.
 
-Tienes acceso a primitivas básicas (rect, circle, image) y a componentes complejos de nuestra Standard Library.
+Tienes acceso a componentes de nuestra Standard Library.
 COMPONENTES DISPONIBLES PARA ESTA ESCENA (organizados por rol):
 {components_list}
-
+{icon_section}
 INSTRUCCIONES:
 Debes generar un JSON válido que describa el 'background' y una lista de 'layers'.
-Puedes usar componentes de la lista anterior usando type: "component" y componentName: "NOMBRE_EXACTO".
+Usa componentes de la lista anterior con type: "component" y componentName: "NOMBRE_EXACTO".
 
 REGLAS DE ORO PARA EL DISEÑO:
-1. **CREA DESDE CERO CON PRIMITIVAS:** No te limites solo a componentes prefabricados. Si la escena requiere algo único (como un marco, un contenedor de texto, o un adorno), CRÉALO tú mismo combinando capas primitivas (`rect`, `circle`, `text`, `group`) con animaciones de entrada (ej. `entry: "slide-up"`). Mezcla primitivas y componentes.
+1. **USA SOLO COMPONENTES DE LA STANDARD LIBRARY:** No crees formas desde cero con primitivas. Selecciona y combina componentes de la lista proporcionada. Si necesitas un elemento visual específico, busca el componente más cercano en la lista y adáptalo con sus props.
 2. **COHERENCIA TEMÁTICA ESTRICTA:** Solo elige componentes de la Standard Library si tienen una relación DIRECTA y LÓGICA con el guion. Si el video es un documental sobre peces, NO uses un "SubscribeButton" o "TinderSwipeCard". Usa tu juicio semántico: si no encaja perfecto con la vibra de la escena, no lo uses.
 3. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
-4. El texto hablado principal DEBE aparecer en pantalla de manera legible. Pásalo a tu componente de texto o primitiva de texto usando `"text": "{{text}}"`.
+4. El texto hablado principal DEBE aparecer en pantalla de manera legible. Pásalo a tu componente de texto usando `"text": "{{text}}"`.
 5. **POSICIONAMIENTO OBLIGATORIO:** ABSOLUTAMENTE TODOS los layers DEBEN tener `x` e `y`. Si los omites, el JSON será inválido.
-   - `"x": 0, "y": 0` = centro del canvas
-   - `"x": 0, "y": -200` = arriba del centro
-   - `"x": 0, "y": 200` = abajo del centro
-   - `"x": -200, "y": 0` = izquierda del centro
-   - `"x": 200, "y": 0` = derecha del centro
+    - `"x": 0, "y": 0` = centro del canvas
+    - `"x": 0, "y": -200` = arriba del centro
+    - `"x": 0, "y": 200` = abajo del centro
+    - `"x": -200, "y": 0` = izquierda del centro
+    - `"x": 200, "y": 0` = derecha del centro
     - EJEMPLO CORRECTO: {{"type": "text", "text": "Hola", "x": 0, "y": 0}}
     - EJEMPLO INCORRECTO: {{"type": "text", "text": "Hola"}} ← FALTA x/y, INVÁLIDO
 6. **FORMATO NUMÉRICO ESTRICTO:** Para `lineWidth`, usa SOLO números ENTEROS (0, 1, 2, 3... 20). NUNCA uses decimales. Ejemplos válidos: `0`, `4`, `10`. Ejemplos INVÁLIDOS: `0.5`, `4.5`, `10.25`.
-
-REQUISITO OBLIGATORIO: Tu composición DEBE incluir al menos UNA capa creada desde cero usando primitivas (rect, circle, text, group, path) que represente el sujeto principal de la escena. No puedes usar solo componentes de la Standard Library. Si usas componentes, combínalos con al menos una primitiva custom que refuerce el tema visual de la escena.
 
 {positioning_rules}
 
@@ -333,28 +345,21 @@ Ejemplo de estructura JSON esperada:
   "layers": [
     {{
       "type": "component",
-      "componentName": "NOMBRE_DEL_COMPONENTE_ELEGIDO",
-      "prop1": "valor",
+      "componentName": "FloatingBlobs",
+      "color": "#3b82f6",
+      "count": 8,
       "x": 0,
-      "y": -100
+      "y": 0
     }},
     {{
-      "type": "rect",
-      "width": 400,
-      "height": 4,
-      "fill": "#38bdf8",
-      "x": 0,
-      "y": 50,
-      "entry": "slide-right"
-    }},
-    {{
-      "type": "text",
+      "type": "component",
+      "componentName": "TextReveal",
       "text": "{{text}}",
-      "fontSize": 60,
+      "fontSize": 48,
       "color": "#ffffff",
+      "animation": "slide_up",
       "x": 0,
-      "y": 0,
-      "entry": "fade-in"
+      "y": 100
     }}
   ]
 }}
@@ -387,9 +392,13 @@ def generate_scene_composer(
     model: str = "gemini-2.0-flash",
     db=None,  # NEW: SQLAlchemy session for vector search
     aspect_ratio: str = "9:16",
+    composition_version: str = "v2",
 ) -> AnimaComposerSpec:
     """
     Pregunta al LLM por la composición AnimaComposer (JSON) de la escena.
+
+    composition_version: "v1" = legacy (primitivas permitidas),
+                         "v2" = component-only (default)
     """
     if db is not None:
         # Use intelligent vector search with diversity quotas
@@ -402,7 +411,16 @@ def generate_scene_composer(
         # Fallback to hardcoded list (for tests/backward compat)
         fallback = available_components or [{"name": n, "role": "general", "category": "general", "description": ""} for n in AVAILABLE_COMPONENTS]
         components = fallback
-    prompt = _build_strategy_prompt(text, media_query, components, aspect_ratio)
+
+    # Buscar iconos relevantes para la escena
+    icon_candidates = []
+    try:
+        icon_candidates = find_best_icons(db, media_query, limit=5)
+        logger.info("Found %d relevant icons for scene", len(icon_candidates))
+    except Exception as e:
+        logger.warning("Icon search failed, continuing without icons: %s", e)
+
+    prompt = _build_strategy_prompt(text, media_query, components, aspect_ratio, icon_candidates)
 
     # Fallback default si hay error
     default_fallback = AnimaComposerSpec(

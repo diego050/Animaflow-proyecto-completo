@@ -3,6 +3,7 @@ from typing import Any, List, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import ProgrammingError, OperationalError
 
 
 from app.schemas.job import (
@@ -266,7 +267,13 @@ async def get_job_history(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    messages = await get_history(db, job_id, limit=limit)
+    try:
+        messages = await get_history(db, job_id, limit=limit)
+    except (ProgrammingError, OperationalError):
+        raise HTTPException(
+            status_code=503,
+            detail="Conversation history service unavailable"
+        )
 
     return {"messages": messages}
 

@@ -31,6 +31,7 @@ import { GradientOverlay } from './components/GradientOverlay';
 import { GridPerspective } from './components/GridPerspective';
 import { HighlightText } from './components/HighlightText';
 import { HorizontalBarRace } from './components/HorizontalBarRace';
+import { IconifyIcon } from './components/IconifyIcon';
 import { InstagramPost } from './components/InstagramPost';
 import { KineticBackground } from './components/KineticBackground';
 import { LightLeakTransition } from './components/LightLeakTransition';
@@ -118,6 +119,7 @@ export const COMPONENT_NAMES = [
   'GridPerspective',
   'HighlightText',
   'HorizontalBarRace',
+  'IconifyIcon',
   'InstagramPost',
   'KineticBackground',
   'LightLeakTransition',
@@ -206,6 +208,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   GridPerspective,
   HighlightText,
   HorizontalBarRace,
+  IconifyIcon,
   InstagramPost,
   KineticBackground,
   LightLeakTransition,

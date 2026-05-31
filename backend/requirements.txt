@@ -12,16 +12,13 @@ passlib[bcrypt]==1.7.4
 bcrypt==3.2.0
 python-multipart==0.0.20
 httpx==0.28.1
-google-genai==1.66.0
-cryptography==46.0.5
-slowapi==0.1.9
-setuptools>=68.0
-openai-whisper
-piper-tts==1.2.0
-ffmpeg-python==0.2.0
-pydub==0.25.1
+requests==2.32.3
+pgvector==0.3.6
 
 # Testing dependencies
 pytest==8.3.0
 pytest-asyncio>=0.24.0
-httpx==0.28.1
+
+# Rate limiting and AI
+slowapi==0.1.9
+google-genai==1.18.0
