@@ -196,6 +196,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     const data = await api.post<{ script_text: string }>(
       '/api/jobs/generate-script',
       body,
+      { timeoutMs: 90000 },
     );
     return data.script_text;
   },
