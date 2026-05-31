@@ -44,22 +44,30 @@ def download_collection(prefix: str, client: httpx.Client) -> list[str]:
     response = client.get(ICONIFY_API_URL, params={"prefix": prefix})
     response.raise_for_status()
     data = response.json()
-    raw_icons = data.get("icons", {})
+    icon_names: list[str] = []
 
-    # The API returns icons as a dict {"iconName": {...}, ...}, not a list
-    if isinstance(raw_icons, dict):
-        icons = list(raw_icons.keys())
-    elif isinstance(raw_icons, list):
-        icons = raw_icons
-    else:
-        icons = []
-        print(f"    WARNING: Unexpected icons format for {prefix}: {type(raw_icons)}")
+    # Case 1: "uncategorized" list (most collections)
+    if "uncategorized" in data:
+        icon_names = data["uncategorized"]
 
-    if not icons:
-        print(f"    WARNING: No icons found for {prefix}. Response preview: {str(data)[:200]}")
+    # Case 2: "categories" dict (some collections like material-symbols)
+    elif "categories" in data:
+        for cat_icons in data["categories"].values():
+            icon_names.extend(cat_icons)
 
-    print(f"    -> {len(icons)} icons found")
-    return icons
+    # Case 3: "icons" dict/list (fallback for other API formats)
+    elif "icons" in data:
+        raw_icons = data["icons"]
+        if isinstance(raw_icons, dict):
+            icon_names = list(raw_icons.keys())
+        elif isinstance(raw_icons, list):
+            icon_names = raw_icons
+
+    if not icon_names:
+        print(f"    WARNING: No icons found for {prefix}. Response keys: {list(data.keys())}")
+
+    print(f"    -> {len(icon_names)} icons found")
+    return icon_names
 
 
 def main() -> None:
