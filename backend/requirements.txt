@@ -24,4 +24,4 @@ slowapi==0.1.9
 google-genai==1.18.0
 
 # TTS
-piper-tts==1.0.0
+piper-tts==1.4.2
