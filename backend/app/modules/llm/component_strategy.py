@@ -251,9 +251,17 @@ def _build_strategy_prompt(
         icon_list = ", ".join([c["full_id"] for c in icon_candidates])
         icon_section = f"""
 
-ICONOS SUGERIDOS PARA ESTA ESCENA (basado en el contexto):
+ÍCONOS SUGERIDOS PARA ESTA ESCENA (basado en el contexto):
 {icon_list}
-Puedes usar UNO de estos iconos con: type: "component", componentName: "IconifyIcon", icon: "nombre_exacto"
+Puedes usar la cantidad de iconos que consideres necesaria (1, 3, 7, etc.) con: type: "component", componentName: "IconifyIcon", icon: "nombre_exacto"
+
+REGLAS DE DISTRIBUCIÓN:
+- **Jerarquía:** Si usas varios, define UNO principal (más grande, cerca del centro) y el resto decorativos (más pequeños, en esquinas o bordes).
+- **Agrupación intencional:** Puedes agrupar 2-3 iconos pequeños cerca para reforzar un concepto (ej: 3 fueguitos juntos = "algo se quema").
+- **NUNCA tapes el texto hablado** ni el componente visual principal.
+- Usa `size` para controlar el tamaño (principal: 100-150, decorativo: 40-80).
+- Usa `opacity` para iconos de fondo (0.3-0.6) y 1.0 para los principales.
+
 Ejemplo: {{"type": "component", "componentName": "IconifyIcon", "icon": "{icon_candidates[0]['full_id']}", "size": 120, "color": "#ffffff", "x": 0, "y": -100}}
 """
 
@@ -279,13 +287,6 @@ Ejemplo: {{"type": "component", "componentName": "IconifyIcon", "icon": "{icon_c
 - Para centrar un elemento: usa x: 0, y: 0.
 - Para texto principal: usa y: {int(-half_h * 0.2)} a y: {int(half_h * 0.2)} (zona central, legible).
 - Para elementos decorativos: distribúyelos en y: {int(-half_h * 0.6)} a y: {int(half_h * 0.6)}, x: {int(-half_w * 0.5)} a x: {int(half_w * 0.5)}.
-- **CRÍTICO PARA PATHS SVG:** Las coordenadas dentro de `pathData` son PÍXELES ABSOLUTOS del canvas.
-  - El centro del canvas es ({width // 2}, {height // 2}).
-  - Si quieres un círculo en el centro, el path debe empezar cerca de M {width // 2}, {height // 2}.
-  - M 100,100 dibuja en la esquina superior izquierda (invisible o cortado).
-  - Usa coordenadas grandes: M 400,800 es mejor que M 50,50.
-- Para círculos: r: {int(min(width, height) * 0.1)} a r: {int(min(width, height) * 0.3)} es visible.
-- Para rects: width: {int(width * 0.2)}-{int(width * 0.8)}, height: {int(height * 0.01)}-{int(height * 0.15)}.
 - Usa transform: "translate(x, y)" o las propiedades x/y del layer para posicionar.
 {text_safe_zone}
 """
@@ -522,7 +523,8 @@ def generate_scene_composer(
                                 "url": {"type": "STRING"},
                                 "query": {"type": "STRING"},
                                 "animation": {"type": "STRING"},
-                                "lineWidth": {"type": "INTEGER", "minimum": 0, "maximum": 20}
+                                "lineWidth": {"type": "INTEGER", "minimum": 0, "maximum": 20},
+                                "icon": {"type": "STRING"}
                             },
                             "required": ["type", "x", "y"]
                         }
