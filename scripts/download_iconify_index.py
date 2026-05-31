@@ -44,9 +44,20 @@ def download_collection(prefix: str, client: httpx.Client) -> list[str]:
     response = client.get(ICONIFY_API_URL, params={"prefix": prefix})
     response.raise_for_status()
     data = response.json()
+    raw_icons = data.get("icons", {})
 
-    # The API returns {"prefix": ..., "icons": [...], ...}
-    icons = data.get("icons", [])
+    # The API returns icons as a dict {"iconName": {...}, ...}, not a list
+    if isinstance(raw_icons, dict):
+        icons = list(raw_icons.keys())
+    elif isinstance(raw_icons, list):
+        icons = raw_icons
+    else:
+        icons = []
+        print(f"    WARNING: Unexpected icons format for {prefix}: {type(raw_icons)}")
+
+    if not icons:
+        print(f"    WARNING: No icons found for {prefix}. Response preview: {str(data)[:200]}")
+
     print(f"    -> {len(icons)} icons found")
     return icons
 
