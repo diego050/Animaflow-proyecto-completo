@@ -279,13 +279,6 @@ Ejemplo: {{"type": "component", "componentName": "IconifyIcon", "icon": "{icon_c
 - Para centrar un elemento: usa x: 0, y: 0.
 - Para texto principal: usa y: {int(-half_h * 0.2)} a y: {int(half_h * 0.2)} (zona central, legible).
 - Para elementos decorativos: distribúyelos en y: {int(-half_h * 0.6)} a y: {int(half_h * 0.6)}, x: {int(-half_w * 0.5)} a x: {int(half_w * 0.5)}.
-- **CRÍTICO PARA PATHS SVG:** Las coordenadas dentro de `pathData` son PÍXELES ABSOLUTOS del canvas.
-  - El centro del canvas es ({width // 2}, {height // 2}).
-  - Si quieres un círculo en el centro, el path debe empezar cerca de M {width // 2}, {height // 2}.
-  - M 100,100 dibuja en la esquina superior izquierda (invisible o cortado).
-  - Usa coordenadas grandes: M 400,800 es mejor que M 50,50.
-- Para círculos: r: {int(min(width, height) * 0.1)} a r: {int(min(width, height) * 0.3)} es visible.
-- Para rects: width: {int(width * 0.2)}-{int(width * 0.8)}, height: {int(height * 0.01)}-{int(height * 0.15)}.
 - Usa transform: "translate(x, y)" o las propiedades x/y del layer para posicionar.
 {text_safe_zone}
 """
@@ -522,7 +515,8 @@ def generate_scene_composer(
                                 "url": {"type": "STRING"},
                                 "query": {"type": "STRING"},
                                 "animation": {"type": "STRING"},
-                                "lineWidth": {"type": "INTEGER", "minimum": 0, "maximum": 20}
+                                "lineWidth": {"type": "INTEGER", "minimum": 0, "maximum": 20},
+                                "icon": {"type": "STRING"}
                             },
                             "required": ["type", "x", "y"]
                         }

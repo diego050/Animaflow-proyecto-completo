@@ -206,6 +206,7 @@ class BaseAnimaLayer(BaseModel):
     url: Optional[str] = None
     query: Optional[str] = None
     animation: Optional[str] = None
+    icon: Optional[str] = None  # Iconify icon ID (e.g. "mdi:heart")
     lineWidth: Optional[float] = None
     props: Optional[Dict[str, Any]] = None
 

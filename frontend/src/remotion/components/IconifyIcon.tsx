@@ -43,8 +43,8 @@ export const IconifyIcon: React.FC<IconifyIconProps> = ({
     <div
       style={{
         position: 'absolute',
-        left: `calc(50% + ${x}px)`,
-        top: `calc(50% + ${y}px)`,
+        left: `${x}px`,
+        top: `${y}px`,
         width: `${size * scale}px`,
         height: `${size * scale}px`,
         transform: `translate(-50%, -50%) rotate(${rotation}deg)`,

@@ -48,6 +48,9 @@ def find_best_icons(
         ...
     ]
     """
+    if db is None:
+        return []
+
     query_embedding = generate_icon_embedding(query_text)
 
     if query_embedding is None:
