@@ -1,7 +1,8 @@
 import React from 'react';
 import { Img } from 'remotion';
 import type { UniversalProps } from './types';
-import { AnimatedWrapper, EntryType, ExitType } from '../AnimatedWrapper';
+import { AnimatedWrapper } from '../AnimatedWrapper';
+import type { EntryType, ExitType } from '../AnimatedWrapper';
 
 interface IconifyIconProps extends UniversalProps {
   icon: string;        // "mdi:heart" o "material-symbols:coffee"
