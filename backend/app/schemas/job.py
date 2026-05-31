@@ -16,6 +16,7 @@ JobStatus = Literal[
     "failed",
     "failed_render",
     "queued_scene_regen",
+    "queued_enrichment",
 ]
 
 class SceneData(BaseModel):

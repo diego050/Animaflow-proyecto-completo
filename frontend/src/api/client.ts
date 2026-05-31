@@ -24,6 +24,7 @@ async function fetchWithTimeout(
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
+  timeoutMs?: number,
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   const token = localStorage.getItem('animaflow_token');
@@ -36,7 +37,7 @@ export async function apiFetch<T>(
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
-    });
+    }, timeoutMs);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -126,11 +127,11 @@ export async function apiUpload<T>(
 export const api = {
   get: <T>(endpoint: string, options?: { signal?: AbortSignal }) =>
     apiFetch<T>(endpoint, { method: 'GET', ...options }),
-  post: <T>(endpoint: string, body?: unknown) =>
+  post: <T>(endpoint: string, body?: unknown, options?: { timeoutMs?: number }) =>
     apiFetch<T>(endpoint, {
       method: 'POST',
       body: body ? JSON.stringify(body) : undefined,
-    }),
+    }, options?.timeoutMs),
   put: <T>(endpoint: string, body?: unknown) =>
     apiFetch<T>(endpoint, {
       method: 'PUT',
