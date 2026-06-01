@@ -5,9 +5,9 @@ import type { TimelineSpec } from '../../types/spec';
 
 interface SceneTimelineBarProps {
   spec: TimelineSpec;
-  jobId: string;
+  jobId?: string;
   focusSceneIndex: number | null;
-  onSceneClick: (index: number) => void;
+  onSceneClick?: (index: number) => void;
   isPlaying?: boolean;
   onPlayToggle?: () => void;
   currentTime?: number;
@@ -172,7 +172,7 @@ export function SceneTimelineBar({
                 return (
                   <motion.div
                     key={idx}
-                    onClick={() => onSceneClick(idx)}
+                    onClick={() => onSceneClick?.(idx)}
                     className={`relative flex items-center justify-center cursor-pointer transition-colors overflow-hidden ${
                       isFocused
                         ? 'bg-mint-precision/30 border-t-2 border-t-mint-precision'
@@ -189,7 +189,7 @@ export function SceneTimelineBar({
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        onSceneClick(idx);
+                        onSceneClick?.(idx);
                       }
                     }}
                   >
@@ -227,7 +227,7 @@ export function SceneTimelineBar({
             return (
               <motion.button
                 key={idx}
-                onClick={() => onSceneClick(idx)}
+                onClick={() => onSceneClick?.(idx)}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap transition-colors border ${
                   isActive
                     ? 'text-mint-precision font-semibold bg-mint-precision/10 border-mint-precision/30'
