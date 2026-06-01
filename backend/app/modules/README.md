@@ -6,7 +6,7 @@ This directory contains the modularized business domains of the AnimaFlow backen
 
 | Module | Domain | Key Exports |
 |--------|--------|-------------|
-| `tts` | Text-to-Speech | `generate_tts_with_voicebox()` |
+| `tts` | Text-to-Speech | `generate_tts_with_timestamps()` |
 | `segmentation` | Text chunking | `split_text_into_chunks()` |
 | `llm` | LLM / AI generation | `generate_script_from_info()`, `generate_batch_visuals_with_llm()` |
 | `remotion` | Video component generation | `generate_remotion_component()`, `render_video_pipeline()` |

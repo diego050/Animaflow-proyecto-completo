@@ -31,9 +31,6 @@ class Settings(BaseSettings):
     RESEND_API_KEY: Optional[str] = None
     RESEND_TO_EMAIL: Optional[str] = None
 
-    # Voicebox (TTS)
-    VOICEBOX_URL: str = "http://127.0.0.1:17493"
-
     # Storage
     STORAGE_PATH: str = "./storage"
 

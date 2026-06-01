@@ -37,7 +37,7 @@ class SceneInput(BaseModel):
 class JobCreate(BaseModel):
     script_text: str = Field(max_length=11000)
     aspect_ratio: str = "9:16"
-    tts_provider: str = Field(default="local_piper", description="TTS provider: local_piper, elevenlabs, google_tts, gemini_tts")
+    tts_provider: str = Field(default="local_piper", description="TTS provider: local_piper, elevenlabs, google_tts, openai_tts")
     tts_voice_id: str = Field(default="es_ES-carlfm-x_low", description="Voice ID for the selected TTS provider")
     tts_api_key: Optional[str] = Field(default=None, description="Optional API key for external TTS providers")
     scenes: Optional[list[SceneInput]] = Field(default=None, description="Optional pre-defined scenes. If provided, skips automatic segmentation.")

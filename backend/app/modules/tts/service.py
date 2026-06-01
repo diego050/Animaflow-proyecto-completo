@@ -2,7 +2,6 @@ from typing import Optional, Dict, List
 from .providers.elevenlabs import ElevenLabsProvider
 from .providers.google_tts import GoogleTTSProvider
 from .providers.openai_tts import OpenAITTSProvider
-from .providers.gemini_tts import GeminiTTSProvider
 from .providers.local_piper import PiperProvider
 from .whisper_timestamps import extract_timestamps, get_audio_duration
 from app.core.logging import get_logger
@@ -44,7 +43,6 @@ PROVIDERS = {
     "elevenlabs": ElevenLabsProvider(),
     "google_tts": GoogleTTSProvider(),
     "openai_tts": OpenAITTSProvider(),
-    "gemini_tts": GeminiTTSProvider(),
     "local_piper": PiperProvider(),
 }
 

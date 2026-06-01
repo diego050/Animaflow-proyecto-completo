@@ -64,7 +64,6 @@ def initialize_default_voice(
         gender="neutral",
         language="es",
         is_default=True,
-        voicebox_profile_id="es_ES-carlfm-x_low",
     )
     db.add(default_voice)
     db.commit()
@@ -150,7 +149,7 @@ async def preview_voice(
         raise HTTPException(status_code=404, detail="Voice not found")
 
     # Check cache first for this text + voice profile
-    profile_id = voice.voicebox_profile_id or "es_ES-carlfm-x_low"
+    profile_id = "es_ES-carlfm-x_low"
     text_hash = hashlib.md5(f"{profile_id}_{preview_data.text}".encode()).hexdigest()  # nosec B324 -- cache filename, not security
     cache_filename = f"preview_{text_hash}.wav"
     audio_storage = get_storage_dir("audio")

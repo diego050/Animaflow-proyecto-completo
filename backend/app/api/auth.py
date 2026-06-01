@@ -65,7 +65,6 @@ def register(request: Request, user_data: UserCreate, db: Session = Depends(get_
         gender="neutral",
         language="es",
         is_default=True,
-        voicebox_profile_id="es_ES-carlfm-x_low",
     )
     db.add(default_voice)
     db.commit()  # Single commit for both user + voice
