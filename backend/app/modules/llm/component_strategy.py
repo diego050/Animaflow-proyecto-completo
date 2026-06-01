@@ -538,6 +538,42 @@ A pill-shaped label for categories, prices, tags.
 - `icon`: Iconify icon name (optional)
 - Use for: "NEW", "73% OFF", "LIMITED", categories, tags
 
+### StyleAvatar
+An icon-based avatar with animated ring and optional badge.
+- `componentName`: "StyleAvatar"
+- `icon`: Iconify icon name (e.g., "mdi:account")
+- `name`: Display name below avatar
+- `subtitle`: Optional subtitle (e.g., rating, title)
+- `size`: "sm" | "md" | "lg"
+- `variant`: "solid" | "ring" | "gradient"
+- `showBadge`: boolean — Show notification badge
+- `badgeText`: Badge text (e.g., "NEW", "•")
+- Use for: Testimonials, team members, social profiles, user mentions
+
+### StyleProgressBar
+A progress indicator with linear and circular variants.
+- `componentName`: "StyleProgressBar"
+- `value`: Current value (0-100)
+- `max`: Maximum value
+- `variant`: "linear" | "circular"
+- `color`: Progress bar color
+- `showLabel`: boolean — Show percentage label
+- `labelPosition`: "top" | "bottom" | "inside"
+- `size`: Size for circular variant (default 120)
+- `strokeWidth`: Stroke width for circular variant
+- Use for: Survey results, completion status, statistics, comparisons
+
+### StyleDivider
+A visual separator with multiple styles.
+- `componentName`: "StyleDivider"
+- `orientation`: "horizontal" | "vertical"
+- `style`: "solid" | "dashed" | "dotted" | "gradient"
+- `color`: Divider color
+- `thickness`: Line thickness
+- `width`: Width for horizontal dividers
+- `height`: Height for vertical dividers
+- Use for: Section separators, visual breaks, content grouping
+
 {positioning_rules}
 
 TRANSICIONES DE SALIDA (out_transition):
