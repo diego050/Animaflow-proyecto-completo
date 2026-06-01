@@ -574,6 +574,36 @@ A visual separator with multiple styles.
 - `height`: Height for vertical dividers
 - Use for: Section separators, visual breaks, content grouping
 
+### StyleChip
+A tag/chip for filters, categories, and tech stacks.
+- `componentName`: "StyleChip"
+- `text`: Chip text
+- `icon`: Iconify icon name (optional)
+- `deletable`: boolean — Show delete X icon
+- `variant`: "filled" | "outlined" | "soft"
+- `size`: "sm" | "md" | "lg"
+- Use for: Tech stacks, filter tags, category labels, skill badges
+
+### StyleTextBlock
+A text block for longer content with variants and line clamping.
+- `componentName`: "StyleTextBlock"
+- `text`: Text content
+- `variant`: "heading" | "body" | "caption" | "quote"
+- `align`: "left" | "center" | "right"
+- `maxLines`: number — Limit visible lines (optional)
+- `width`: Width in pixels
+- Use for: Titles, descriptions, quotes, captions, body text
+
+### Grid Layout
+Use `layout: "grid"` for 2D layouts instead of flex.
+- `layout`: "grid"
+- `gridCols`: number of columns
+- `gridRows`: number of rows (auto-calculated if omitted)
+- `gap`: spacing between cells
+- `justifyContent`: "flex-start" | "center" | "flex-end" — horizontal alignment within cells
+- `alignItems`: "flex-start" | "center" | "stretch" — vertical alignment within cells
+- Use for: Feature grids, team layouts, comparison tables, card grids
+
 {positioning_rules}
 
 TRANSICIONES DE SALIDA (out_transition):

@@ -36,6 +36,8 @@ export interface SpecOutput {
 // Constants & defaults
 // ---------------------------------------------------------------------------
 
+const DEFAULT_GRID_COLS = 2;
+const DEFAULT_GRID_ROWS = 1;
 const DEFAULT_GAP = 0;
 const DEFAULT_DIRECTION: "row" | "column" = "column";
 const DEFAULT_JUSTIFY = "flex-start";
@@ -157,6 +159,21 @@ function resolveLayer(
   // --- Flex layout --------------------------------------------------------
   if (layout === "flex") {
     applyFlex(
+      layer,
+      parentX,
+      parentY,
+      parentWidth,
+      parentHeight,
+      canvasWidth,
+      canvasHeight
+    );
+    recurseChildren(layer, canvasWidth, canvasHeight);
+    return;
+  }
+
+  // --- Grid layout --------------------------------------------------------
+  if (layout === "grid") {
+    applyGrid(
       layer,
       parentX,
       parentY,
@@ -330,6 +347,94 @@ function applyFlex(
     distributeRow(children, availableWidth, availableHeight, gap, justify, align, paddingLeft, paddingTop);
   } else {
     distributeColumn(children, availableWidth, availableHeight, gap, justify, align, paddingLeft, paddingTop);
+  }
+}
+
+/**
+ * Resolve grid container dimensions and distribute children in a 2D grid.
+ */
+function applyGrid(
+  layer: Record<string, unknown>,
+  parentX: number,
+  parentY: number,
+  parentWidth: number,
+  parentHeight: number,
+  canvasWidth: number,
+  canvasHeight: number
+): void {
+  const [paddingTop, , , paddingLeft, , , ,] = resolveSpacing(layer);
+  const paddingX = paddingLeft + (resolveSpacing(layer)[1] || 0);
+  const paddingY = paddingTop + (resolveSpacing(layer)[2] || 0);
+
+  const width = getDimension(layer, "width", parentWidth);
+  const height = getDimension(layer, "height", parentHeight);
+
+  layer.x = parentX;
+  layer.y = parentY;
+  layer.width = width;
+  layer.height = height;
+
+  const children = layer.children as Record<string, unknown>[] | undefined;
+  if (!children || children.length === 0) return;
+
+  const availableWidth = Math.max(0, width - paddingX);
+  const availableHeight = Math.max(0, height - paddingY);
+
+  const numCols = (layer.gridCols as number) ?? DEFAULT_GRID_COLS;
+  let numRows = (layer.gridRows as number) ?? DEFAULT_GRID_ROWS;
+  const gap = (layer.gap ?? DEFAULT_GAP) as number;
+  const justify = (layer.justifyContent ?? DEFAULT_JUSTIFY) as string;
+  const align = (layer.alignItems ?? DEFAULT_ALIGN) as string;
+
+  // Auto-calculate rows
+  if (numRows === 1 && children.length > numCols) {
+    numRows = Math.ceil(children.length / numCols);
+  }
+
+  const colGapTotal = gap * (numCols - 1);
+  const rowGapTotal = gap * (numRows - 1);
+  const cellWidth = numCols > 0 ? (availableWidth - colGapTotal) / numCols : availableWidth;
+  const cellHeight = numRows > 0 ? (availableHeight - rowGapTotal) / numRows : availableHeight;
+
+  for (let i = 0; i < children.length; i++) {
+    const col = i % numCols;
+    const row = Math.floor(i / numCols);
+
+    let childX = paddingLeft + col * (cellWidth + gap);
+    let childY = paddingTop + row * (cellHeight + gap);
+
+    let childW = children[i].width as number | undefined;
+    let childH = children[i].height as number | undefined;
+
+    if (childW === undefined) {
+      children[i].width = Math.floor(cellWidth);
+      childW = cellWidth;
+    }
+    if (childH === undefined) {
+      children[i].height = Math.floor(cellHeight);
+      childH = cellHeight;
+    }
+
+    // Justify within cell
+    if (justify === "center") {
+      childX += (cellWidth - childW) / 2;
+    } else if (justify === "flex-end") {
+      childX += cellWidth - childW;
+    }
+
+    // Align within cell
+    if (align === "center") {
+      childY += (cellHeight - childH) / 2;
+    } else if (align === "flex-end") {
+      childY += cellHeight - childH;
+    } else if (align === "stretch") {
+      children[i].height = Math.floor(cellHeight);
+      childY = paddingTop + row * (cellHeight + gap);
+    }
+
+    children[i].x = Math.floor(childX);
+    children[i].y = Math.floor(childY);
+    children[i]._flex_positioned = true;
   }
 }
 

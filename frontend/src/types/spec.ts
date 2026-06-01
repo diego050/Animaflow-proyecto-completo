@@ -138,6 +138,14 @@ export interface AnimaLayer {
   lineWidth?: number;
   props?: Record<string, unknown>;
   style?: LayerStyle;
+
+  // Grid Layout
+  gridCols?: number;
+  gridRows?: number;
+  gridTemplateColumns?: string;
+  gridTemplateRows?: string;
+  gridColumn?: string;
+  gridRow?: string;
 }
 
 export interface OutTransition {

@@ -292,7 +292,7 @@ class BaseAnimaLayer(BaseModel):
         "ProductCardReveal", "ProgressPill", "PromoCodeBanner", "QuoteBlock", "RadarSpiderChart", "RaysOfLight",
         "RippleEffect", "ScoreboardCounter", "SearchEngineTyping", "ShoppingCartBadge", "SizeSelector",
         "SocialProgressBar", "SocialSharePopup", "SoundWaveCircle", "SplitScreenGrid", "SplitText",
-        "StockCandlestick", "StrikethroughText", "StyleAvatar", "StyleBadge", "StyleButton", "StyleCard", "StyleDivider", "StyleProgressBar", "SubscribeButton", "TerminalHacker", "TestimonialReview",
+        "StockCandlestick", "StrikethroughText", "StyleAvatar", "StyleBadge", "StyleButton", "StyleCard", "StyleChip", "StyleDivider", "StyleProgressBar", "StyleTextBlock", "SubscribeButton", "TerminalHacker", "TestimonialReview",
         "TextBubble", "TextReveal", "TextSwap", "TikTokOverlay", "TinderSwipeCard", "TrendLine", "TweetCard",
         "Typewriter", "UnderlineReveal", "VersusScreen", "WaveformVisualizer", "WipeTransition",
         "YouTubeEndScreen", "ZoomBlurTransition"
@@ -335,6 +335,14 @@ class AnimaLayer(BaseAnimaLayer):
     gap: Optional[int] = None  # Spacing between children in pixels
     flex: Optional[int] = None  # Growth factor (1, 2, etc.)
     zIndex: Optional[int] = None  # Stacking order
+
+    # --- Grid Layout ---
+    gridCols: Optional[int] = None  # Number of columns
+    gridRows: Optional[int] = None  # Number of rows
+    gridTemplateColumns: Optional[str] = None  # e.g., "1fr 1fr 1fr"
+    gridTemplateRows: Optional[str] = None  # e.g., "auto auto"
+    gridColumn: Optional[str] = None  # e.g., "span 2"
+    gridRow: Optional[str] = None  # e.g., "span 1"
 
     # --- Absolute Positioning (for overlays) ---
     position: Optional[str] = None  # "relative", "absolute"

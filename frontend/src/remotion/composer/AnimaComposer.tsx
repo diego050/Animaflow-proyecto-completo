@@ -113,6 +113,14 @@ export interface LayerSpec {
   flex?: number;
   zIndex?: number;
 
+  // --- Grid Layout ---
+  gridCols?: number;
+  gridRows?: number;
+  gridTemplateColumns?: string;
+  gridTemplateRows?: string;
+  gridColumn?: string;
+  gridRow?: string;
+
   // --- Absolute Positioning (for overlays) ---
   position?: 'relative' | 'absolute';
   top?: number;
@@ -607,8 +615,29 @@ function renderSingleLayer(
     case 'group': {
       const children = (layer.children ?? []) as SolvedLayer[];
 
-      // If this is a flex group, render children with absolute positions
-      if ((layer.layout as string | undefined) === 'flex') {
+      // If this is a grid group, render children with CSS grid
+      if ((layer.layout as string | undefined) === 'grid') {
+        const numCols = (layer.gridCols as number) ?? 2;
+        const gap = (layer.gap as number) ?? 0;
+        element = (
+          <div
+            style={{
+              position: 'absolute',
+              left: layer.x as number | undefined,
+              top: layer.y as number | undefined,
+              width: layer.width as number | undefined,
+              height: layer.height as number | undefined,
+              display: 'grid',
+              gridTemplateColumns: `repeat(${numCols}, 1fr)`,
+              gap: `${gap}px`,
+              zIndex: (layer.zIndex as number | undefined) || 0,
+              ...layerStyleToCSS(layer.style as Record<string, unknown> | undefined),
+            }}
+          >
+            {renderLayerList(children, ctx)}
+          </div>
+        );
+      } else if ((layer.layout as string | undefined) === 'flex') {
         element = (
           <div
             style={{
@@ -657,8 +686,8 @@ function renderSingleLayer(
         </AnimatedWrapper>
       );
 
-      // Apply LayerStyle for non-flex groups (flex already applied above)
-      if ((layer.layout as string | undefined) !== 'flex') {
+      // Apply LayerStyle for non-flex/grid groups (flex/grid already applied above)
+      if ((layer.layout as string | undefined) !== 'flex' && (layer.layout as string | undefined) !== 'grid') {
         const groupStyleCSS = layerStyleToCSS(layer.style as Record<string, unknown> | undefined);
         if (Object.keys(groupStyleCSS).length > 0) {
           element = (

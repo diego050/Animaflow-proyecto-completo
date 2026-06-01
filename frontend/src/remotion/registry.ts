@@ -72,8 +72,10 @@ import { StyleAvatar } from './components/StyleAvatar';
 import { StyleBadge } from './components/StyleBadge';
 import { StyleButton } from './components/StyleButton';
 import { StyleCard } from './components/StyleCard';
+import { StyleChip } from './components/StyleChip';
 import { StyleDivider } from './components/StyleDivider';
 import { StyleProgressBar } from './components/StyleProgressBar';
+import { StyleTextBlock } from './components/StyleTextBlock';
 import { TerminalHacker } from './components/TerminalHacker';
 import { TestimonialReview } from './components/TestimonialReview';
 import { TextBubble } from './components/TextBubble';
@@ -166,8 +168,10 @@ export const COMPONENT_NAMES = [
   'StyleBadge',
   'StyleButton',
   'StyleCard',
+  'StyleChip',
   'StyleDivider',
   'StyleProgressBar',
+  'StyleTextBlock',
   'TerminalHacker',
   'TestimonialReview',
   'TextBubble',
@@ -261,8 +265,10 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   StyleBadge,
   StyleButton,
   StyleCard,
+  StyleChip,
   StyleDivider,
   StyleProgressBar,
+  StyleTextBlock,
   TerminalHacker,
   TestimonialReview,
   TextBubble,
