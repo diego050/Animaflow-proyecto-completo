@@ -294,7 +294,7 @@ class BaseAnimaLayer(BaseModel):
         "SocialProgressBar", "SocialSharePopup", "SoundWaveCircle", "SplitScreenGrid", "SplitText",
         "StockCandlestick", "StrikethroughText", "StyleAnimateNumber", "StyleAvatar", "StyleBadge", "StyleBarChart",
         "StyleBarRace", "StyleButton", "StyleCallout", "StyleCard", "StyleChip", "StyleCursor", "StyleDivider",
-        "StyleFakeScroll", "StyleLineChart", "StylePieChart", "StyleProgressBar", "StyleScrambleText",
+        "StyleFakeScroll", "StyleFunnelChart", "StyleLineChart", "StylePieChart", "StyleProgressBar", "StyleRadarChart", "StyleScrambleText",
         "StyleSimulatedHover", "StyleTextBlock", "StyleTicker", "StyleVideoPlayer", "StyleWatermark",
         "SubscribeButton", "TerminalHacker", "TestimonialReview",
         "TextBubble", "TextReveal", "TextSwap", "TikTokOverlay", "TinderSwipeCard", "TrendLine", "TweetCard",

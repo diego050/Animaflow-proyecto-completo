@@ -273,6 +273,30 @@ def _component_to_ae(component_name: str, layer: dict) -> str | None:
             jsx_lines.append(f'bar{i}.property("ADBE Vector Fill Color").setValue({hex_to_ae_array(color)});')
         return "\n".join(jsx_lines)
     
+    if component_name == "StyleFunnelChart":
+        data = layer.get("data", [])
+        max_val = data[0].get("value", 1) if data else 1
+        jsx_lines = [f'// Funnel Chart with {len(data)} stages']
+        for i, stage in enumerate(data):
+            color = stage.get("color", "#00FFAB")
+            width_pct = stage["value"] / max_val
+            jsx_lines.append(f'var funnel{i} = comp.layers.addShape();')
+            jsx_lines.append(f'funnel{i}.name = "Funnel_{stage["label"]}";')
+            jsx_lines.append(f'// Width: {width_pct * 100:.0f}% of max')
+            jsx_lines.append(f'funnel{i}.property("ADBE Vector Fill Color").setValue({hex_to_ae_array(color)});')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleRadarChart":
+        data = layer.get("data", [])
+        line_color = layer.get("lineColor", "#00FFAB")
+        jsx_lines = [f'// Radar Chart with {len(data)} axes']
+        jsx_lines.append(f'var radarLayer = comp.layers.addShape();')
+        jsx_lines.append(f'radarLayer.name = "RadarChart";')
+        jsx_lines.append(f'radarLayer.property("ADBE Vector Stroke Color").setValue({hex_to_ae_array(line_color)});')
+        jsx_lines.append(f'radarLayer.property("ADBE Vector Fill Color").setValue([0, 1, 0.67, 0.15]);')
+        jsx_lines.append(f'// {len(data)} axes with values: {", ".join(f"{d["label"]}:{d["value"]}" for d in data)}')
+        return "\n".join(jsx_lines)
+    
     return None
 
 

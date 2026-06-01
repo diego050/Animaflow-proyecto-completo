@@ -721,6 +721,28 @@ Horizontal bar race chart where items compete and reorder.
 - `duration`: Animation duration in frames
 - Use for: Rankings, competitions, "top 10" videos, comparisons
 
+### StyleFunnelChart
+A conversion funnel chart with animated stages.
+- `componentName`: "StyleFunnelChart"
+- `data`: [{ label, value, color }]
+- `showLabels`: boolean
+- `showValues`: boolean
+- `showPercentages`: boolean — Shows conversion rate between stages
+- Use for: Conversion funnels, sales pipelines, user journey, drop-off analysis
+
+### StyleRadarChart
+A radar/spider chart for multi-dimensional data visualization.
+- `componentName`: "StyleRadarChart"
+- `data`: [{ label, value }]
+- `maxValue`: Maximum value (default 100)
+- `showLabels`: boolean
+- `showGrid`: boolean — Show concentric grid circles
+- `showValues`: boolean — Show values next to labels
+- `fillColor`: Fill color with alpha (default "rgba(0, 255, 171, 0.15)")
+- `lineColor`: Line color (default "#00FFAB")
+- `size`: Chart size in pixels (default 240)
+- Use for: Skill comparisons, performance metrics, multi-axis analysis
+
 ### Grid Layout
 Use `layout: "grid"` for 2D layouts instead of flex.
 - `layout`: "grid"

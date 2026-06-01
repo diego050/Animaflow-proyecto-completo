@@ -80,9 +80,11 @@ import { StyleChip } from './components/StyleChip';
 import { StyleCursor } from './components/StyleCursor';
 import { StyleDivider } from './components/StyleDivider';
 import { StyleFakeScroll } from './components/StyleFakeScroll';
+import { StyleFunnelChart } from './components/StyleFunnelChart';
 import { StyleLineChart } from './components/StyleLineChart';
 import { StylePieChart } from './components/StylePieChart';
 import { StyleProgressBar } from './components/StyleProgressBar';
+import { StyleRadarChart } from './components/StyleRadarChart';
 import { StyleScrambleText } from './components/StyleScrambleText';
 import { StyleSimulatedHover } from './components/StyleSimulatedHover';
 import { StyleTextBlock } from './components/StyleTextBlock';
@@ -189,9 +191,11 @@ export const COMPONENT_NAMES = [
   'StyleCursor',
   'StyleDivider',
   'StyleFakeScroll',
+  'StyleFunnelChart',
   'StyleLineChart',
   'StylePieChart',
   'StyleProgressBar',
+  'StyleRadarChart',
   'StyleScrambleText',
   'StyleSimulatedHover',
   'StyleTextBlock',
@@ -299,9 +303,11 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   StyleCursor,
   StyleDivider,
   StyleFakeScroll,
+  StyleFunnelChart,
   StyleLineChart,
   StylePieChart,
   StyleProgressBar,
+  StyleRadarChart,
   StyleScrambleText,
   StyleSimulatedHover,
   StyleTextBlock,
