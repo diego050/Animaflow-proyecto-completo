@@ -1,5 +1,6 @@
 import React from 'react';
 import { Animated, Move, Scale, Fade } from 'remotion-animated';
+import { generateSpringKeyframes, SPRING_PRESETS } from './utils/springPhysics';
 
 export type EntryType =
   | 'fade-in'

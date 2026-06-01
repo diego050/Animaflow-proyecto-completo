@@ -132,6 +132,11 @@ export interface LayerSpec {
   stagger?: number; // Delay between children animations (seconds)
   exitStart?: number; // Time in seconds when exit animation starts
 
+  // --- Layout Transitions ---
+  transitionDuration?: number;
+  transitionEasing?: 'ease-out' | 'ease-in-out' | 'spring';
+  transitionSpring?: string;
+
   // --- LayerStyle ---
   style?: Record<string, unknown>;
 }

@@ -146,6 +146,11 @@ export interface AnimaLayer {
   gridTemplateRows?: string;
   gridColumn?: string;
   gridRow?: string;
+
+  // Layout Transitions
+  transitionDuration?: number;
+  transitionEasing?: 'ease-out' | 'ease-in-out' | 'spring';
+  transitionSpring?: string;
 }
 
 export interface OutTransition {

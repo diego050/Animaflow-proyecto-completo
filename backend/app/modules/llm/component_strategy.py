@@ -753,6 +753,49 @@ Use `layout: "grid"` for 2D layouts instead of flex.
 - `alignItems`: "flex-start" | "center" | "stretch" — vertical alignment within cells
 - Use for: Feature grids, team layouts, comparison tables, card grids
 
+## Improved Spring Physics
+
+All entrance/exit animations now use improved spring physics based on Framer Motion's formula:
+- `F = -kx - cv` (Hooke's Law + Damping)
+- More natural, organic movement compared to basic springs
+- 6 presets available: `gentle`, `default`, `snappy`, `bouncy`, `stiff`, `slow`
+
+### Spring Presets
+| Preset | Stiffness | Damping | Mass | Feel |
+|---|---|---|---|---|
+| gentle | 80 | 12 | 1.2 | Soft, smooth |
+| default | 100 | 10 | 1.0 | Balanced |
+| snappy | 180 | 12 | 0.8 | Quick, responsive |
+| bouncy | 120 | 6 | 0.6 | Playful bounce |
+| stiff | 260 | 20 | 0.9 | Firm, precise |
+| slow | 60 | 15 | 1.5 | Relaxed, heavy |
+
+## Layout Transitions
+
+When elements change position between scenes, smooth transitions are automatically generated:
+- `transitionDuration`: Duration in frames (default: 15)
+- `transitionEasing`: "ease-out" | "ease-in-out" | "spring"
+- `transitionSpring`: Spring preset name (when easing is "spring")
+
+Transitions are detected automatically when:
+- An element's position changes by more than 2px between scenes
+- The element has a consistent `id` across scenes
+
+### Example
+```json
+{
+  "type": "component",
+  "componentName": "StyleBadge",
+  "id": "badge-1",
+  "text": "NEW",
+  "x": 540,
+  "y": 300,
+  "transitionDuration": 20,
+  "transitionEasing": "spring",
+  "transitionSpring": "bouncy"
+}
+```
+
 {positioning_rules}
 
 TRANSICIONES DE SALIDA (out_transition):

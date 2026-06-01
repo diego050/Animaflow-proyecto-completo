@@ -99,6 +99,19 @@ def _style_to_ae(style: dict | None) -> dict:
     if style.get("overflow") == "hidden":
         ae_props["trackMatte"] = "alpha"
 
+    # Transitions
+    if style.get("transition_duration"):
+        ae_props["transitionDuration"] = style["transition_duration"]
+    if style.get("transition_easing"):
+        easing_map = {
+            "ease-out": "Easy Ease Out",
+            "ease-in-out": "Easy Ease",
+            "spring": "Exponential Scale",
+        }
+        ae_props["transitionEasing"] = easing_map.get(style["transition_easing"], "Linear")
+    if style.get("transition_spring"):
+        ae_props["transitionSpring"] = style["transition_spring"]
+
     return ae_props
 
 

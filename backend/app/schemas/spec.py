@@ -359,6 +359,11 @@ class AnimaLayer(BaseAnimaLayer):
     stagger: Optional[float] = None  # Delay between children animations (seconds)
     exitStart: Optional[float] = None  # Time in seconds when exit animation starts
 
+    # --- Layout Transitions ---
+    transition_duration: Optional[int] = None  # Duration in frames
+    transition_easing: Optional[str] = None  # "ease-out", "ease-in-out", "spring"
+    transition_spring: Optional[str] = None  # Spring preset name
+
     children: Optional[List[AnimaChildLayer]] = None
 
     @model_validator(mode="before")
