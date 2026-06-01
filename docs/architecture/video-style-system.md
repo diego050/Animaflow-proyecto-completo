@@ -2,7 +2,7 @@
 
 **Fecha:** 1 de Junio de 2026
 **Tipo:** Architecture Decision Record
-**Estado:** Implementado (Fase 1+2)
+**Estado:** Implementado (Fase 1-3)
 
 ## Resumen
 
@@ -45,6 +45,36 @@ La función `_resolve_spacing` (Python) / `resolveSpacing` (TypeScript) normaliz
 - Single value: `20` → `[20, 20, 20, 20]`
 - Two values: `[10, 20]` → `[10, 20, 10, 20]` (vertical, horizontal)
 - Four values: `[10, 20, 30, 40]` → `[10, 20, 30, 40]` (top, right, bottom, left)
+
+### 4. Video Style Components (Fase 3)
+Se crearon 3 componentes pre-construidos que usan el sistema de estilos:
+
+| Componente | Variantes | Uso | Animación |
+|---|---|---|---|
+| **StyleButton** | primary, secondary, ghost, outline | CTAs, "Suscríbete", "Link en bio" | Scale + fade (15 frames) |
+| **StyleCard** | elevated, filled, outlined, glass | Contenedores de info, agrupación | Slide-up + fade (20 frames) |
+| **StyleBadge** | success, warning, error, info, neutral | Labels, precios, categorías | Scale bounce (16 frames) |
+
+Cada componente:
+- Acepta `style` prop con LayerStyle overrides
+- Usa `AnimatedWrapper` para animaciones de entrada
+- Es compatible con Remotion y AE (vía `_style_to_ae`)
+- Tiene tamaños predefinidos (sm/md/lg para Button/Badge)
+
+### 5. LayerStyle → CSS Converter
+Se creó `layerStyleToCSS()` en `AnimaComposer.tsx` que convierte LayerStyle a `React.CSSProperties`:
+- Se aplica a las 8 primitivas (rect, circle, path, text, image, group, particles, component)
+- Zero overhead cuando no hay style definido
+- Combina múltiples filtros en un solo string `filter`
+- Soporta backdropFilter para glassmorphism
+
+### 6. LayerStyle → AE Converter
+Se creó `_style_to_ae()` en `ae_transformer.py` que mapea LayerStyle a propiedades de After Effects:
+- `boxShadow` → `dropShadow`
+- `opacity` → `opacity` (0-1 → 0-100)
+- `blur` → `fastBlur`
+- `grayscale` → `tint`
+- `overflow: hidden` → `trackMatte: alpha`
 
 ## Ejemplos de Uso
 
@@ -114,11 +144,21 @@ La función `_resolve_spacing` (Python) / `resolveSpacing` (TypeScript) normaliz
 
 ## Testing
 
-Tests agregados en `backend/tests/test_layout_solver.py`:
-- `test_flex_row_with_padding`: Verifica que padding offsetea hijos en row
-- `test_flex_column_with_padding`: Verifica que padding offsetea hijos en column
-- `test_flex_with_asymmetric_padding`: Verifica arrays [top, right, bottom, left]
-- `test_resolve_spacing_helper`: Verifica la normalización de spacing
+Tests en `backend/tests/test_layout_solver.py`:
+- `test_flex_row_with_padding`
+- `test_flex_column_with_padding`
+- `test_flex_with_asymmetric_padding`
+- `test_resolve_spacing_helper`
+
+Playground examples en `/admin/animations`:
+- Card con Padding y Borde
+- Badge con Padding Asimétrico
+- Grupo con Flex y Padding
+- Imagen con Filtros
+- Texto con Sombra y Decoración
+- **StyleButton (CTA)** — 2 botones con variantes primary/outline
+- **StyleCard (Container)** — Card elevated con padding y boxShadow
+- **StyleBadge (Label)** — 3 badges success/warning/error con stagger
 
 ## Archivos Modificados
 
@@ -129,12 +169,24 @@ Tests agregados en `backend/tests/test_layout_solver.py`:
 | `frontend/src/types/spec.ts` | +LayerStyle interface, +style field en AnimaLayer |
 | `frontend/src/remotion/utils/layoutSolver.ts` | +resolveSpacing, applyFlex/distributeRow/distributeColumn actualizados |
 | `backend/tests/test_layout_solver.py` | +4 tests para padding/margin |
+| `frontend/src/remotion/components/StyleButton.tsx` | Nuevo: Componente Button con variantes y tamaños |
+| `frontend/src/remotion/components/StyleCard.tsx` | Nuevo: Componente Card con glassmorphism |
+| `frontend/src/remotion/components/StyleBadge.tsx` | Nuevo: Componente Badge pill-shaped |
+| `frontend/src/remotion/registry.ts` | +3 componentes registrados |
+| `frontend/src/remotion/composer/AnimaComposer.tsx` | +layerStyleToCSS(), style en todas las primitivas |
+| `backend/app/modules/anima_composer/ae_transformer.py` | +_style_to_ae() para mapeo a AE |
+| `backend/app/modules/llm/component_strategy.py` | +Video Style System docs en prompt |
 
 ## Próximas Fases
 
 | Fase | Tarea | Estado |
 |---|---|---|
-| **3** | Crear componentes Button, Card, Badge | Pendiente |
-| **4** | Integrar componentes en AnimaComposer | Pendiente |
-| **5** | Mapear estilos a AE (ae_transformer.py) | Pendiente |
-| **6** | Actualizar prompt del LLM | Pendiente |
+| **1** | Extender LayerStyle en schema | ✅ Completado |
+| **2** | Agregar padding/margin al solver | ✅ Completado |
+| **3** | Crear componentes Button, Card, Badge | ✅ Completado |
+| **4** | Integrar estilos en AnimaComposer | ✅ Completado |
+| **5** | Mapear estilos a AE | ✅ Completado |
+| **6** | Actualizar prompt del LLM | ✅ Completado |
+| **7** | Crear componentes Avatar, ProgressBar, Divider | Pendiente |
+| **8** | Grid layout support | Pendiente |
+| **9** | Responsive breakpoints por aspect ratio | Pendiente |
