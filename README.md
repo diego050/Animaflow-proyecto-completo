@@ -1,19 +1,89 @@
-# Animaflow - Proyecto Completo
+# AnimaFlow
 
-AnimaFlow is a SaaS platform that converts text/audio into editable, frame-accurate video projects for Adobe After Effects via a structured `spec.json` pipeline.
+**Text-to-video pipeline with frame-accurate precision.**
 
-## Architecture Update (Day 4)
+AnimaFlow converts text or audio into editable, frame-accurate video projects — delivering both a rendered MP4 and a structured project spec (`spec.json`) for full post-production control.
 
-We have recently migrated to a new **Asynchronous DB-Driven Architecture**.
+---
 
-### Key Changes
-- **No RQ / Redis:** We have removed RQ and Redis from the stack. The pipeline now uses a DB-driven polling scheduler (`scheduler.py`) that manages the pipeline phases asynchronously within the FastAPI backend using standard `asyncio`.
-- **Node.js Render Server:** Rendering is now handled by a dedicated Node.js Render Server (`render-server.mjs`) instead of a Python-based worker. This provides a much faster and more reliable rendering pipeline utilizing `@remotion/renderer` directly.
-- **RenderAdapter:** The FastAPI backend communicates with the new Render Server via `RenderAdapter`.
-- **Docker Compose:** The production stack (`docker-compose.prod.yml`) has been simplified to only include `api`, `frontend`, `render-server`, and `postgres`. `worker-default` and `worker-render` have been removed.
+## What It Does
 
-### Stack
-- **Frontend:** React 18 + TypeScript, Vite, TailwindCSS, Remotion
-- **Backend:** FastAPI (Python 3.11+), Pydantic v2, SQLAlchemy 2.0 (PostgreSQL)
-- **Render Server:** Express (Node.js 20+), Remotion Renderer
-- **Database:** PostgreSQL 15
+1. **Input:** Paste a script or upload an audio file
+2. **Pipeline:** TTS → intelligent segmentation (~7s chunks) → LLM-driven animation prompts → SFX cue extraction
+3. **Output:** Download a ready-to-publish MP4 + an editable `spec.json` with layers, timings, keyframes, and animation properties
+
+## Why It Exists
+
+AI-generated video outputs are flat MP4s with no editability, no layer control, and unpredictable results. AnimaFlow solves this by producing deterministic, structured video projects that remain fully editable after generation.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, TypeScript, Vite, TailwindCSS, Zustand, Remotion |
+| Backend | FastAPI (Python 3.11+), Pydantic v2, SQLAlchemy 2.0 + Alembic |
+| Async Pipeline | DB-driven scheduler (asyncio) — no external queue system |
+| Rendering | Node.js Render Server (`@remotion/renderer`) |
+| Database | PostgreSQL 15 |
+| Infra | Docker Compose, VPS/Hostinger |
+
+---
+
+## Project Structure
+
+```
+├── /backend          # FastAPI API, scheduler, schemas, database models
+├── /frontend         # React UI, Remotion player, component registry
+├── /servers          # Node.js Render Server
+├── /specs            # spec.json schema (source of truth)
+├── /docs             # Architecture decisions, deployment guides, session reports
+├── /scripts          # Deploy, merge, and automation scripts
+└── docker-compose.prod.yml
+```
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 20+
+- Python 3.11+
+
+### Run Locally
+
+```bash
+# 1. Start infrastructure
+docker compose -f docker-compose.prod.yml up -d postgres redis
+
+# 2. Backend
+cd backend && pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+
+# 3. Frontend
+cd frontend && npm install
+npm run dev  # http://localhost:3000
+```
+
+---
+
+## Status
+
+🚧 **MVP in development** — Core pipeline under active construction.
+
+| Milestone | Status |
+|---|---|
+| Async pipeline architecture | ✅ Complete |
+| spec.json schema v1 | ✅ Defined |
+| Component registry | 🔄 In progress |
+| End-to-end render | 🚧 Working |
+| Auth (JWT) | ✅ Complete |
+
+---
+
+## License
+
+Private — All rights reserved.

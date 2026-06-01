@@ -167,9 +167,10 @@ Sesión de limpieza exhaustiva del codebase de AnimaFlow. Se aplicaron **36 corr
 - **Impacto:** Integridad de datos a nivel de base de datos.
 
 ### 3.9 Barrel exports
-- **Archivos:** `frontend/src/components/index.ts`, `frontend/src/store/index.ts`, `frontend/src/types/index.ts`
+- **Archivos:** `frontend/src/store/index.ts`, `frontend/src/types/index.ts`
 - **Problema:** Imports dispersos sin centralización.
 - **Fix:** Creados `index.ts` en cada directorio.
+- **Nota:** `frontend/src/components/index.ts` fue eliminado posteriormente (Fase 3 refactoring) ya que nadie lo importaba.
 - **Impacto:** Developer experience mejorada.
 
 ### 3.10 Constantes mágicas centralizadas
@@ -218,10 +219,9 @@ Sesión de limpieza exhaustiva del codebase de AnimaFlow. Se aplicaron **36 corr
 - **Fix:** Lee de variable de entorno; sin `print` de secrets.
 - **Impacto:** Seguridad de credenciales.
 
-### 4.5 docs/temp/ fuera de git
-- **Archivo:** `.gitignore`
-- **Problema:** 9 archivos temporales de debugging trackeados.
-- **Fix:** `docs/temp/` añadido a `.gitignore` + `git rm --cached`.
+### 4.5 docs/temp/ eliminado
+- **Problema:** 9 archivos temporales de debugging sin valor activo.
+- **Fix:** Carpeta `docs/temp/` eliminada completamente (los archivos ya estaban en `.gitignore`).
 - **Impacto:** Repo limpio.
 
 ### 4.6 .pyc y app/services/ eliminados

@@ -33,7 +33,7 @@ You are the **Code Refactoring Specialist** for AnimaFlow. Your goal is to conti
   - Reduce bundle size by tree-shaking unused imports.
 - **Backend:**
   - Optimize database queries (N+1 prevention, indexing).
-  - Add caching layers (Redis) for frequently accessed data.
+  - Add caching layers for frequently accessed data.
   - Profile slow endpoints and add async processing where needed.
 
 ### 3. Type Safety & Clean Architecture

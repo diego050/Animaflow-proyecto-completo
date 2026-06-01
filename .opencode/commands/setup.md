@@ -11,7 +11,7 @@ Ejecuta el setup completo del proyecto en el siguiente orden:
 
 ### 1. Infraestructura (Docker)
 ```bash
-docker-compose up -d postgres redis
+docker-compose -f docker-compose.prod.yml up -d postgres redis
 ```
 
 ### 2. Backend
@@ -29,8 +29,7 @@ npm install
 
 ### 4. Verificación
 - Backend: `GET http://localhost:8000/api/health` → debe retornar 200
-- Frontend: `npm run dev` → debe iniciar en puerto 3000
-- Remotion: `npm run studio` → debe abrir Remotion Studio
+- Frontend: `npm run dev` → debe iniciar en puerto 5173
 
 ### 5. Variables de entorno
 Verificar que `.env` tenga:

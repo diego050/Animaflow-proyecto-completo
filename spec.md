@@ -120,16 +120,16 @@ Si una escena generada no tiene objeto visual en CAPA 3 (solo texto + fondo), de
 
 ### System Topology
 ```
-Frontend (React) → FastAPI → Redis Queue → RQ Workers → PostgreSQL
-                                                      ↓
-                                               Remotion Render → MP4 + spec.json
+Frontend (React) → FastAPI → PostgreSQL (job queue) → scheduler.py (asyncio) → Render Server (Node.js)
+                                                                                   ↓
+                                                                            MP4 + spec.json
 ```
 
-### Worker Topology
-- `tts_worker`: Generación de audio + timestamps
-- `segment_worker`: División en chunks
-- `llm_worker`: Corrección + generación de animación
-- `render_worker`: Trigger de Remotion
+### Pipeline Stages
+- `TTS`: Generación de audio + word-level timestamps
+- `Segmentation`: División en chunks de ~7s
+- `LLM Correction`: Corrección de boundaries + media_query + remotion_props + SFX
+- `Render`: spec.json → Render Server → MP4
 
 ### Data Contracts
 - Frontend types ↔ Pydantic schemas (1:1 parity)
