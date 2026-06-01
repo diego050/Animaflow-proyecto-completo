@@ -234,36 +234,6 @@ export function WizardStepInfo({
         loading={loading}
       />
 
-      {/* Primary CTA — always visible */}
-      <button
-        onClick={mode === 'ai-generate' ? onGenerate : handleContinueWithOwnScript}
-        disabled={loading || isContinueDisabled}
-        className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-lg text-sm font-bold transition-all duration-200 ${
-          !loading && !isContinueDisabled
-            ? 'bg-mint-precision text-deep-slate hover:bg-white hover:shadow-[0_0_20px_rgba(0,255,171,0.25)] hover:-translate-y-0.5'
-            : 'bg-surface-high text-text-secondary/40 cursor-not-allowed opacity-40'
-        }`}
-      >
-        {loading ? (
-          <>
-            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            {mode === 'ai-generate' ? 'Generando guión...' : 'Procesando...'}
-          </>
-        ) : (
-          <>
-            {mode === 'own-script' && <Pencil size={16} />}
-            {mode === 'ai-generate' && <Wand2 size={16} />}
-            {mode === 'animation-only' && <Film size={16} />}
-            {mode === 'own-script' && 'Continuar'}
-            {mode === 'ai-generate' && 'Generar Guión con IA'}
-            {mode === 'animation-only' && 'Crear Proyecto'}
-          </>
-        )}
-      </button>
-
       {/* Advanced settings — collapsible */}
       <div className="border-t border-border-tech/50 pt-2">
         <button
@@ -423,6 +393,36 @@ export function WizardStepInfo({
           )}
         </AnimatePresence>
       </div>
+
+      {/* Primary CTA — always last */}
+      <button
+        onClick={mode === 'ai-generate' ? onGenerate : handleContinueWithOwnScript}
+        disabled={loading || isContinueDisabled}
+        className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-lg text-sm font-bold transition-all duration-200 ${
+          !loading && !isContinueDisabled
+            ? 'bg-mint-precision text-deep-slate hover:bg-white hover:shadow-[0_0_20px_rgba(0,255,171,0.25)] hover:-translate-y-0.5'
+            : 'bg-surface-high text-text-secondary/40 cursor-not-allowed opacity-40'
+        }`}
+      >
+        {loading ? (
+          <>
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            {mode === 'ai-generate' ? 'Generando guión...' : 'Procesando...'}
+          </>
+        ) : (
+          <>
+            {mode === 'own-script' && <Pencil size={16} />}
+            {mode === 'ai-generate' && <Wand2 size={16} />}
+            {mode === 'animation-only' && <Film size={16} />}
+            {mode === 'own-script' && 'Continuar'}
+            {mode === 'ai-generate' && 'Generar Guión con IA'}
+            {mode === 'animation-only' && 'Crear Proyecto'}
+          </>
+        )}
+      </button>
 
       {/* Design template management modal */}
       <DesignTemplateModal
