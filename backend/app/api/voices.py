@@ -21,10 +21,7 @@ def list_voices(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all voices for the current user.
-
-    If no voices exist, a default Carl voice is auto-created.
-    """
+    """List all voices for the current user."""
     voices = (
         db.query(Voice)
         .filter(
@@ -35,22 +32,38 @@ def list_voices(
         .all()
     )
 
-    # If no voices exist, create a default Carl voice
-    if not voices:
-        default_voice = Voice(
-            user_id=current_user.id,
-            name="Carl (Default)",
-            gender="neutral",
-            language="es",
-            is_default=True,
-            voicebox_profile_id="es_ES-carlfm-x_low",
-        )
-        db.add(default_voice)
-        db.commit()
-        db.refresh(default_voice)
-        voices = [default_voice]
-
     return voices
+
+
+@router.post("/initialize-default", response_model=VoiceResponse, status_code=201)
+def initialize_default_voice(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a default voice for the current user if none exists."""
+    existing = (
+        db.query(Voice)
+        .filter(
+            Voice.user_id == current_user.id,
+            Voice.is_active.is_(True),  # noqa: E712
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="User already has voices")
+
+    default_voice = Voice(
+        user_id=current_user.id,
+        name="Carl (Default)",
+        gender="neutral",
+        language="es",
+        is_default=True,
+        voicebox_profile_id="es_ES-carlfm-x_low",
+    )
+    db.add(default_voice)
+    db.commit()
+    db.refresh(default_voice)
+    return default_voice
 
 
 @router.post("/", response_model=VoiceResponse, status_code=201)
