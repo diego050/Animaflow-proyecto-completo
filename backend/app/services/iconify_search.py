@@ -70,9 +70,9 @@ def find_best_icons(
 
         sql = text("""
             SELECT full_id, prefix, name,
-                   1 - (embedding <-> :embedding::vector) as score
+                   1 - (embedding <-> CAST(:embedding AS vector)) as score
             FROM iconify_icons
-            ORDER BY embedding <-> :embedding::vector
+            ORDER BY embedding <-> CAST(:embedding AS vector)
             LIMIT :limit
         """)
 
