@@ -297,10 +297,10 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       // Update selected job in store
       set((state) => ({
         selectedJob: state.selectedJob?.job_id === jobId
-          ? { ...state.selectedJob, status: data.status, error_message: data.error_message, result_spec: data.result_spec as TimelineSpec | null }
+          ? { ...state.selectedJob, status: data.status, error_message: data.error_message ?? undefined, result_spec: data.result_spec as TimelineSpec | null }
           : state.selectedJob,
         jobs: state.jobs.map((j) =>
-          j.job_id === jobId ? { ...j, status: data.status, error_message: data.error_message } : j,
+          j.job_id === jobId ? { ...j, status: data.status, error_message: data.error_message ?? undefined } : j,
         ),
       }));
       
