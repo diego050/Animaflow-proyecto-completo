@@ -1,15 +1,17 @@
-import asyncio
 import os
 import shutil
 from typing import Optional
+from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.db.models import JobModel
 from app.core.logging import get_logger
 from app.core.storage_paths import get_storage_dir
+from app.core.async_utils import run_async
 
 logger = get_logger("pipeline")
 
 AUDIO_STORAGE = get_storage_dir("audio")
+
 
 from app.modules.tts.service import generate_tts_with_timestamps
 from app.modules.llm.visual_spec import VisualSpecResult
@@ -23,7 +25,7 @@ async def _regenerate_scene_async(
     new_media_query: str,
     new_text: str,
     user_id: Optional[str] = None,
-    db=None,
+    db: Optional[Session] = None,
 ) -> dict:
     from typing import Tuple
 
@@ -114,14 +116,7 @@ def regenerate_single_scene_sync(
     db = SessionLocal()
     try:
         coro = _regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text, user_id, db=db)
-        try:
-            updated_spec = asyncio.run(coro)
-        except RuntimeError as e:
-            if "event loop" in str(e).lower():
-                # Called from within an existing event loop
-                updated_spec = asyncio.get_event_loop().run_until_complete(coro)
-            else:
-                raise
+        updated_spec = run_async(coro)
 
         # Persist to DB — the RQ worker receives a serialized copy, so we must
         # write back using the same session.

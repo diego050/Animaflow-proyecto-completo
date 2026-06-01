@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Any, Literal
 import datetime
+import re
 
 JobStatus = Literal[
     "draft",
@@ -34,7 +35,7 @@ class SceneInput(BaseModel):
     duration_seconds: Optional[float] = None
 
 class JobCreate(BaseModel):
-    script_text: str
+    script_text: str = Field(max_length=11000)
     aspect_ratio: str = "9:16"
     tts_provider: str = Field(default="local_piper", description="TTS provider: local_piper, elevenlabs, google_tts, gemini_tts")
     tts_voice_id: str = Field(default="es_ES-carlfm-x_low", description="Voice ID for the selected TTS provider")
@@ -45,6 +46,20 @@ class JobCreate(BaseModel):
     system_prompt: Optional[str] = Field(default=None, description="Optional custom system prompt for LLM visual generation")
     animation_only: bool = Field(default=False, description="If true, skips TTS and Audio alignment")
     model: Optional[str] = Field(default=None, description="Optional LLM model override")
+
+    @field_validator("aspect_ratio")
+    @classmethod
+    def validate_aspect_ratio(cls, v: str) -> str:
+        """Accept ratio format (e.g., '9:16') or pixel format (e.g., '1900x2000')."""
+        ratio_pattern = r"^\d+:\d+$"      # e.g., "9:16", "16:9"
+        pixel_pattern = r"^\d+x\d+$"       # e.g., "1900x2000", "1080x1920"
+        if not re.match(ratio_pattern, v) and not re.match(pixel_pattern, v):
+            raise ValueError(
+                f"Invalid aspect ratio '{v}'. "
+                "Use ratio format (e.g., '9:16', '16:9', '1:1') "
+                "or pixel format (e.g., '1900x2000', '1080x1920')."
+            )
+        return v
 
 class JobDraftRequest(BaseModel):
     draft_data: Dict[str, Any]

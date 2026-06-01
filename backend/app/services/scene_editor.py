@@ -149,7 +149,7 @@ def _delete_nested_value(obj: dict, path: str) -> Any:
             raise KeyError(f"Key '{final_key}' not found in path '{path}'")
         return current.pop(final_key)
     else:
-        raise ValueError(f"Cannot delete from non-dict/list at path '{path}'")
+        raise ValueError(f"Cannot delete from non-dict/list at path '{path}'")  # nosec B608 -- not SQL
 
 
 def _add_to_array(obj: dict, path: str, value: Any, index: int = -1) -> None:

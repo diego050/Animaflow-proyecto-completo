@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import ProgrammingError, OperationalError
@@ -253,28 +253,41 @@ def generate_script(
     return ScriptGenerateResponse(script_text=script)
 
 
-@router.get("", response_model=list[JobListResponse])
+@router.get("", response_model=dict)
 async def get_all_jobs(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     # Filter jobs by current_user.id for per-user scoping
-    jobs = (
+    base_query = (
         db.query(JobModel)
         .filter(JobModel.user_id == current_user.id)
+    )
+    total = base_query.count()
+    jobs = (
+        base_query
         .order_by(JobModel.created_at.desc().nullslast())
-        .limit(50)
+        .limit(per_page)
+        .offset((page - 1) * per_page)
         .all()
     )
-    return [
-        JobListResponse(
-            job_id=j.id,
-            status=j.status,
-            script_text=j.script_text,
-            video_url=j.video_url,
-            created_at=j.created_at,
-            aspect_ratio=j.aspect_ratio,
-            parent_job_id=j.parent_job_id,
-        )
-        for j in jobs
-    ]
+    return {
+        "jobs": [
+            JobListResponse(
+                job_id=j.id,
+                status=j.status,
+                script_text=j.script_text,
+                video_url=j.video_url,
+                created_at=j.created_at,
+                aspect_ratio=j.aspect_ratio,
+                parent_job_id=j.parent_job_id,
+            )
+            for j in jobs
+        ],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page,
+    }

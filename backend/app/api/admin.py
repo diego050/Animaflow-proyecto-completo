@@ -13,7 +13,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from sqlalchemy import Integer, func, text
 from sqlalchemy.orm import Session, joinedload
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.session import get_db
 from app.db.models import User, JobModel, Voice, AdminSettings
@@ -22,9 +22,11 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.storage_paths import get_storage_dir
 from app.core.audit import log_audit_event
+from app.core.logging import get_logger
 from app.services.job_cleanup import delete_job_files
 
 router = APIRouter()
+logger = get_logger("admin")
 
 # Track app start time for uptime calculation
 _APP_START_TIME = time.time()
@@ -69,7 +71,7 @@ class AdminStatsResponse(BaseModel):
     rendering_jobs: int
     pending_jobs: int
     total_storage_mb: float
-    avg_render_time_seconds: float
+    avg_render_time_seconds: Optional[float] = None
     success_rate: float
 
 
@@ -85,6 +87,13 @@ class PaginatedJobsResponse(BaseModel):
     total: int
     page: int
     per_page: int
+
+
+class AdminUserCreate(BaseModel):
+    email: str
+    password: str = Field(min_length=8, max_length=72)
+    name: str = Field(min_length=1, max_length=100)
+    role: str = Field(pattern=r"^(founder|agency|user|admin)$")
 
 
 # ---------------------------------------------------------------------------
@@ -128,9 +137,6 @@ def get_admin_stats(
         for f in os.listdir(videos_dir) if os.path.isfile(os.path.join(videos_dir, f))
     ) if os.path.exists(videos_dir) else 0
 
-    # Avg render time (placeholder for now)
-    avg_render_time_seconds = 0
-
     return AdminStatsResponse(
         total_users=total_users,
         active_users=active_users,
@@ -140,7 +146,6 @@ def get_admin_stats(
         rendering_jobs=rendering_jobs,
         pending_jobs=pending_jobs,
         total_storage_mb=total_storage_mb,
-        avg_render_time_seconds=avg_render_time_seconds,
         success_rate=success_rate,
     )
 
@@ -273,8 +278,8 @@ def delete_user(
             if os.path.exists(video_path):
                 try:
                     os.remove(video_path)
-                except OSError:
-                    pass
+                except OSError as e:
+                    logger.warning("Failed to delete video file %s: %s", video_path, e)
         # Delete audio files if referenced in result_spec
         if job.result_spec:
             for scene in job.result_spec.get("scenes", []):
@@ -284,8 +289,8 @@ def delete_user(
                     if os.path.exists(audio_path):
                         try:
                             os.remove(audio_path)
-                        except OSError:
-                            pass
+                        except OSError as e:
+                            logger.warning("Failed to delete audio file %s: %s", audio_path, e)
         db.delete(job)
 
     # 2. Delete user's voices and their audio files
@@ -294,8 +299,8 @@ def delete_user(
         if voice.audio_sample_path and os.path.exists(voice.audio_sample_path):
             try:
                 os.remove(voice.audio_sample_path)
-            except OSError:
-                pass
+            except OSError as e:
+                logger.warning("Failed to delete voice sample file %s: %s", voice.audio_sample_path, e)
         db.delete(voice)
 
     # 3. Delete user
@@ -309,22 +314,15 @@ def delete_user(
 @limiter.limit("30/minute")
 def create_user(
     request: Request,
-    data: dict = Body(...),
+    data: AdminUserCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """Create a new user from admin panel."""
-    email = data.get("email")
-    password = data.get("password")
-    name = data.get("name", "User")
-    role = data.get("role", "user")
-
-    # Validate
-    if not email or not password:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email and password required")
-
-    if role not in ["founder", "agency", "user", "admin"]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
+    email = data.email
+    password = data.password
+    name = data.name
+    role = data.role
 
     # Check if exists
     existing = db.query(User).filter(User.email == email).first()
@@ -499,23 +497,17 @@ def system_health(
         else:
             database_pool_size = 10
             database_pool_used = 0
-    except Exception:
-        pass
+    except Exception as e:
+        logger.exception("Database health check failed: %s", e)
 
     # Uptime (process start time approximation)
     uptime_seconds = time.time() - _APP_START_TIME
 
     return {
-        "redis_connected": False,
-        "redis_queue_length": 0,
-        "workers_active": 0,
-        "workers_idle": 0,
-        "workers_connected": False,
         "database_connected": database_connected,
         "database_pool_size": database_pool_size,
         "database_pool_used": database_pool_used,
         "uptime_seconds": uptime_seconds,
-        "last_worker_heartbeat": None,
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

@@ -3,22 +3,22 @@ import shutil
 import asyncio
 import copy
 from typing import Optional
+
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
+
+from app.core.logging import get_logger
+from app.core.file_logger import JobFileLogger
 from app.db.session import SessionLocal, get_db_context
 from app.db.models import JobModel, ApiKey
 from app.schemas.spec import TimelineSpec
-from app.core.logging import get_logger
-from app.core.file_logger import JobFileLogger
-from sqlalchemy.orm.attributes import flag_modified
-
-logger = get_logger("pipeline")
-
 from app.modules.tts.service import AUDIO_STORAGE
 from app.modules.segmentation.service import split_text_into_chunks
 from app.modules.llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
 from app.modules.llm.component_strategy import generate_scene_composer
-from app.modules.remotion.scene_renderer import render_single_scene, SCENES_STORAGE
-from app.modules.video.concat import concat_scenes, VIDEOS_STORAGE
+from app.core.async_utils import run_async
+
+logger = get_logger("pipeline")
 
 
 def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]:
@@ -32,11 +32,11 @@ def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]
 
 
 def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
-    """Fase 2+3: Enriquecimiento y renderizado sincrónico (backward-compatible wrapper).
+    """Fase 2: Enriquecimiento sincrónico (TTS + animaciones).
     
-    Llama a run_pipeline_enrichment y luego renderiza cada escena.
-    Útil para tests y flujos sincrónicos; en producción el scheduler maneja
-    el renderizado vía SSE.
+    Prepara el job para renderizado on-demand. No renderiza MP4 automáticamente;
+    el render se triggera cuando el usuario solicita descargar el video.
+    En producción el scheduler maneja el renderizado vía _phase_render().
     """
     with get_db_context() as db:
         job = db.query(JobModel).filter(JobModel.id == job_id).first()
@@ -44,9 +44,9 @@ def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
             logger.warning("Job %s not found in approved pipeline", job_id)
             return
 
-        if job.status not in ["segmented", "pending"]:
+        if job.status not in ["segmented"]:
             logger.warning(
-                "Job %s is in status '%s', expected 'segmented' or 'pending'",
+                "Job %s is in status '%s', expected 'segmented'",
                 job_id, job.status,
             )
             return
@@ -68,7 +68,7 @@ async def _process_chunks_async(
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
     llm_model: str = "gemini-2.0-flash",
-    db: Session = None,
+    db: Optional[Session] = None,
 ) -> list[dict]:
     """Fase 2: Genera TTS por escena + componentes visuales (anima_composer)."""
     from app.modules.tts.service import generate_tts_with_timestamps
@@ -136,7 +136,13 @@ async def _process_chunks_async(
                 current_offset += duration + (GAP_MS / 1000)
 
             except Exception as e:
-                logger.warning("TTS failed for scene %d: %s. Using estimated duration.", i + 1, e)
+                error_msg = str(e)
+                if error_msg.startswith("[TTS_"):
+                    # Preserve the error code for the frontend to display the right message
+                    JobFileLogger.log(job_id, "ERROR", f"TTS error: {error_msg}")
+                    scene["tts_error_code"] = error_msg.split("]")[0].lstrip("[")
+                else:
+                    logger.warning("TTS failed for scene %d: %s. Using estimated duration.", i + 1, e)
                 word_count = len(scene_text.split())
                 estimated_duration = max(3.0, word_count / 2.17)
                 scene["duration_seconds"] = round(estimated_duration, 2)
@@ -145,45 +151,49 @@ async def _process_chunks_async(
                 scene["word_timestamps"] = []
                 current_offset += estimated_duration + (GAP_MS / 1000)
         else:
-            # Scene already has audio_url (e.g., from manual upload) — just update timing
+            # Scene already has audio_url (e.g., from manual upload or previous run) — skip TTS
+            logger.info("Scene %d already has audio, skipping TTS", i + 1)
             duration = scene.get("duration_seconds", 3.0)
             scene["start_time_seconds"] = round(current_offset, 2)
             current_offset += duration + (GAP_MS / 1000)
 
         # ── Step 2: Generate anima_composer (visual component spec) ──
-        visual_spec = VisualSpecResult(
-            media_query=scene.get("media_query", ""),
-            backgroundColor=scene.get("remotion_props", {}).get("backgroundColor", "#0f172a"),
-            textColor=scene.get("remotion_props", {}).get("textColor", "#38bdf8"),
-        )
+        if scene.get("anima_composer"):
+            logger.info("Scene %d already has animation spec, skipping LLM call", i + 1)
+        else:
+            visual_spec = VisualSpecResult(
+                media_query=scene.get("media_query", ""),
+                backgroundColor=scene.get("remotion_props", {}).get("backgroundColor", "#0f172a"),
+                textColor=scene.get("remotion_props", {}).get("textColor", "#38bdf8"),
+            )
 
-        logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
+            logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
 
-        try:
-            creds = resolve_llm_credentials(user_id, provider_override="gemini")
-            api_key = creds.api_key
-            model_to_use = creds.model
-        except Exception:
-            if db:
-                gemini_api_key = _get_user_api_key(user_id, "gemini", db)
-            else:
-                with SessionLocal() as temp_session:
-                    gemini_api_key = _get_user_api_key(user_id, "gemini", temp_session)
-            api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
-            model_to_use = llm_model
+            try:
+                creds = resolve_llm_credentials(user_id, provider_override="gemini")
+                api_key = creds.api_key
+                model_to_use = creds.model
+            except Exception:
+                if db:
+                    gemini_api_key = _get_user_api_key(user_id, "gemini", db)
+                else:
+                    with SessionLocal() as temp_session:
+                        gemini_api_key = _get_user_api_key(user_id, "gemini", temp_session)
+                api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
+                model_to_use = llm_model
 
-        composer_spec = generate_scene_composer(
-            text=scene.get("text", ""),
-            media_query=scene.get("media_query", ""),
-            api_key=api_key,
-            model=model_to_use,
-            db=db,
-            aspect_ratio=aspect_ratio,
-        )
+            composer_spec = generate_scene_composer(
+                text=scene.get("text", ""),
+                media_query=scene.get("media_query", ""),
+                api_key=api_key,
+                model=model_to_use,
+                db=db,
+                aspect_ratio=aspect_ratio,
+            )
 
-        scene["type"] = "custom"
-        scene["quality_status"] = "passed"
-        scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
+            scene["type"] = "custom"
+            scene["quality_status"] = "passed"
+            scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
 
         # Pausa para evitar límites de RPM (Requests Per Minute) del plan gratuito de Gemini
         if i < len(timeline_scenes) - 1:
@@ -200,7 +210,7 @@ async def _regenerate_components_for_reformat(
     user_id: Optional[str] = None,
     scene_indices: Optional[list[int]] = None,
     llm_model: str = "gemini-2.0-flash",
-    db: Session = None,
+    db: Optional[Session] = None,
 ) -> list[dict]:
     """Regenerate Remotion components for specified scenes with a new aspect ratio.
     If scene_indices is None, regenerate all scenes.
@@ -283,13 +293,7 @@ def run_pipeline(
                 if timeline_scenes:
                     indices = scenes_to_reformat.get("indices") if scenes_to_reformat else None
                     coro = _regenerate_components_for_reformat(job_id, timeline_scenes, aspect_ratio, user_id, indices, job.llm_model or "gemini-2.0-flash", db=db)
-                    try:
-                        asyncio.run(coro)
-                    except RuntimeError as e:
-                        if "event loop" in str(e).lower():
-                            asyncio.get_event_loop().run_until_complete(coro)
-                        else:
-                            raise
+                    timeline_scenes = run_async(coro)
                 spec_obj = TimelineSpec(**spec)
                 job.result_spec = spec_obj.model_dump()
                 flag_modified(job, "result_spec")
@@ -387,9 +391,9 @@ def run_pipeline_enrichment(
         if not job:
             return
 
-        if job.status not in ["segmented", "visuals_generating", "queued_enrichment", "pending"]:
+        if job.status not in ["segmented", "visuals_generating", "queued_enrichment"]:
             logger.warning(
-                "Job %s is not in 'segmented' or 'visuals_generating' status (current: %s), skipping approval pipeline",
+                "Job %s is not in 'segmented', 'visuals_generating', or 'queued_enrichment' status (current: %s), skipping approval pipeline",
                 job_id,
                 job.status,
                 extra={"job_id": job_id},
@@ -437,14 +441,7 @@ def run_pipeline_enrichment(
                 llm_model=job.llm_model or "gemini-2.0-flash",
                 db=db,
             )
-            try:
-                timeline_scenes = asyncio.run(coro)
-            except RuntimeError as e:
-                if "event loop" in str(e).lower():
-                    # Called from within an existing event loop
-                    timeline_scenes = asyncio.get_event_loop().run_until_complete(coro)
-                else:
-                    raise
+            timeline_scenes = run_async(coro)
 
             # Limpiar archivos TSX de jobs anteriores para evitar errores de compilación
 
@@ -452,7 +449,7 @@ def run_pipeline_enrichment(
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
             job.result_spec = final_spec
             flag_modified(job, "result_spec")
-            job.status = "completed"
+            job.status = "queued_render"
             db.commit()
 
         except Exception as e:

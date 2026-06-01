@@ -27,6 +27,28 @@ class BatchVisualSpec(BaseModel):
     scenes: list[VisualSpecResult]
 
 
+def _generate_fallback(chunks: list[str]) -> BatchVisualSpec:
+    """Generate a default BatchVisualSpec when the LLM fails."""
+    fallback_queries = [
+        "A plant leaf growing from bottom center with organic curves and glowing particles",
+        "A heart shape forming from connected dots with warm golden light",
+        "Water drops falling into a pool creating expanding ripple circles",
+        "Sun rays expanding from center with warm gradient transitions",
+        "Mountain peaks emerging from fog with layered parallax movement",
+        "A tree branching upward with leaves appearing one by one",
+    ]
+    return BatchVisualSpec(
+        scenes=[
+            VisualSpecResult(
+                media_query=fallback_queries[i % len(fallback_queries)],
+                backgroundColor="#0f172a",
+                textColor="#38bdf8",
+            )
+            for i, _ in enumerate(chunks)
+        ]
+    )
+
+
 def generate_batch_visuals_with_llm(
     chunks: list[str],
     aspect_ratio: str = "9:16",
@@ -153,22 +175,6 @@ Responde SOLO con JSON válido.
                 logger.exception("Batch visuals LLM call failed after %d attempts", attempt + 1)
                 raise
 
-        if response is None:
-            logger.warning(
-                "Modelo principal %s saturado para batch visuals. Usando fallback.", model
-            )
-            response = _call_llm_sync(
-                client,
-                model=model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=BatchVisualSpec,
-                    temperature=0.7,
-                ),
-                label="LLM Visuals",
-            )
-
         # Parsear JSON con limpieza
         raw_text = response.text.strip()
         # Extraer JSON de bloques markdown si existen
@@ -197,43 +203,8 @@ Responde SOLO con JSON válido.
         return BatchVisualSpec(**data)
     except (json.JSONDecodeError, ValueError, TimeoutError) as e:
         logger.error("Error processing LLM response: %s", e)
-        # Fallback con escenas diferenciadas
-        fallback_queries = [
-            "A plant leaf growing from bottom center with organic curves and glowing particles",
-            "A heart shape forming from connected dots with warm golden light",
-            "Water drops falling into a pool creating expanding ripple circles",
-            "Sun rays expanding from center with warm gradient transitions",
-            "Mountain peaks emerging from fog with layered parallax movement",
-            "A tree branching upward with leaves appearing one by one",
-        ]
-        return BatchVisualSpec(
-            scenes=[
-                VisualSpecResult(
-                    media_query=fallback_queries[i % len(fallback_queries)],
-                    backgroundColor="#0f172a",
-                    textColor="#38bdf8",
-                )
-                for i, _ in enumerate(chunks)
-            ]
-        )
+        return _generate_fallback(chunks)
     except Exception as e:
         # Fallback: return generic scenes on any unexpected LLM error
         logger.exception("Error conectando con Gemini: %s", e)
-        fallback_queries = [
-            "A plant leaf growing from bottom center with organic curves and glowing particles",
-            "A heart shape forming from connected dots with warm golden light",
-            "Water drops falling into a pool creating expanding ripple circles",
-            "Sun rays expanding from center with warm gradient transitions",
-            "Mountain peaks emerging from fog with layered parallax movement",
-            "A tree branching upward with leaves appearing one by one",
-        ]
-        return BatchVisualSpec(
-            scenes=[
-                VisualSpecResult(
-                    media_query=fallback_queries[i % len(fallback_queries)],
-                    backgroundColor="#0f172a",
-                    textColor="#38bdf8",
-                )
-                for i, _ in enumerate(chunks)
-            ]
-        )
+        return _generate_fallback(chunks)

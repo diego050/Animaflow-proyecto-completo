@@ -64,20 +64,12 @@ def mock_external_services(tmp_path):
         "app.modules.pipeline.orchestrator.generate_scene_composer",
         return_value=dummy_spec
     ) as mock_component, patch(
-        "app.modules.pipeline.orchestrator.render_single_scene",
-        return_value="http://test/scene.mp4",
-    ) as mock_render, patch(
-        "app.modules.pipeline.orchestrator.concat_scenes",
-        return_value="http://test/final.mp4",
-    ) as mock_concat, patch(
         "app.modules.tts.service.AUDIO_STORAGE", audio_storage
     ):
         yield {
             "batch": mock_batch,
             "tts": mock_tts,
             "component": mock_component,
-            "render": mock_render,
-            "concat": mock_concat,
             "batch_visuals": batch_visuals,
         }
 
@@ -126,8 +118,8 @@ class TestPipelineSnapshot:
         run_pipeline_approved(job.id, None)
         db_session.refresh(job)
 
-        # Assert: job completed
-        assert job.status == "completed"
+        # Assert: job queued for render
+        assert job.status == "queued_render"
 
         # Assert: each scene now has generated fields
         spec = job.result_spec
@@ -153,7 +145,7 @@ class TestPipelineSnapshot:
         # Phase 2: Approve and generate visuals
         run_pipeline_approved(job.id, None)
         db_session.refresh(job)
-        assert job.status == "completed"
+        assert job.status == "queued_render"
 
         spec = job.result_spec
         assert spec is not None
@@ -207,12 +199,6 @@ class TestPipelineIdempotency:
             "app.modules.pipeline.orchestrator.generate_scene_composer",
             return_value=dummy_spec
         ), patch(
-            "app.modules.pipeline.orchestrator.render_single_scene",
-            return_value="http://test/scene.mp4",
-        ), patch(
-            "app.modules.pipeline.orchestrator.concat_scenes",
-            return_value="http://test/final.mp4",
-        ), patch(
             "app.modules.tts.service.AUDIO_STORAGE", audio_storage
         ):
             yield
@@ -239,7 +225,7 @@ class TestPipelineIdempotency:
         # Phase 2: Approve and generate visuals
         run_pipeline_approved(job.id, None)
         db_session.refresh(job)
-        assert job.status == "completed"
+        assert job.status == "queued_render"
         first_spec = job.result_spec
 
         # Re-run phase 1 + 2
@@ -249,7 +235,7 @@ class TestPipelineIdempotency:
 
         run_pipeline_approved(job.id, None)
         db_session.refresh(job)
-        assert job.status == "completed"
+        assert job.status == "queued_render"
         second_spec = job.result_spec
 
         assert first_spec == second_spec

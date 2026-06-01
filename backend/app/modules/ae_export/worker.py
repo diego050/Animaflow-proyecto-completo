@@ -1,7 +1,6 @@
 """
 RQ worker entry point for AE export.
 """
-import json
 import os
 from typing import Tuple
 
@@ -14,7 +13,6 @@ from app.core.logging import get_logger
 
 logger = get_logger("ae_export")
 
-from .script_builder import create_ae_full_script
 from .zip_exporter import create_export_zip
 
 ASPECT_RATIOS = {

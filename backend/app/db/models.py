@@ -74,13 +74,15 @@ class JobModel(Base):
             "'rendering_scenes', 'queued_render', 'rendering', 'completed', 'failed', 'queued_scene_regen')",
             name="ck_job_status"
         ),
+        Index("idx_job_status", "status"),
+        Index("idx_job_updated_at", "updated_at"),
     )
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     status = Column(String, default="pending")
     error_message = Column(Text, nullable=True)
-    script_text = Column(String, nullable=False)
+    script_text = Column(String(11000), nullable=False)
     aspect_ratio = Column(String, default="9:16")
     result_spec = Column(MutableDict.as_mutable(JSON), nullable=True)
     video_url = Column(String, nullable=True)
@@ -91,6 +93,7 @@ class JobModel(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+    completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Reformatting support
     parent_job_id = Column(String(36), ForeignKey("jobs.id"), nullable=True, index=True)
@@ -144,6 +147,10 @@ class ApiKey(Base):
     """
 
     __tablename__ = "api_keys"
+
+    __table_args__ = (
+        Index("idx_apikey_provider", "provider"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)

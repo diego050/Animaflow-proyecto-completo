@@ -27,6 +27,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """Hash a plain-text password using bcrypt."""
+    # Bcrypt has a 72-byte hard limit. Truncate if necessary.
+    if len(password.encode("utf-8")) > 72:
+        password = password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
     return pwd_context.hash(password)
 
 
@@ -49,7 +52,7 @@ def decode_access_token(token: str) -> Optional[dict]:
 
 
 def _decode_token_and_get_user(token: str, db: Session) -> User:
-    """Shared helper to decode JWT token and fetch user from database."""
+    """Shared helper to decode JWT token, check blacklist, and fetch user from database."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -66,6 +69,17 @@ def _decode_token_and_get_user(token: str, db: Session) -> User:
     user = db.query(User).filter(User.id == user_id, User.is_deleted.is_(False)).first()
     if user is None or not user.is_active:
         raise credentials_exception
+
+    # Check token blacklist
+    jti = payload.get("jti")
+    if jti:
+        blacklisted = db.query(TokenBlacklist).filter(
+            TokenBlacklist.jti == jti,
+            TokenBlacklist.expires_at > datetime.now(timezone.utc),
+        ).first()
+        if blacklisted:
+            raise credentials_exception
+
     return user
 
 
@@ -74,47 +88,7 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     """Extract and validate the Bearer token, return the associated User."""
-    # Decode once
-    try:
-        payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=["HS256"])
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    user_id: str = payload.get("sub")
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    user = db.query(User).filter(User.id == user_id, User.is_deleted.is_(False)).first()
-    if user is None or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Check if token is blacklisted
-    jti = payload.get("jti")
-    if jti:
-        blacklisted = db.query(TokenBlacklist).filter(
-            TokenBlacklist.jti == jti,
-            TokenBlacklist.expires_at > datetime.now(timezone.utc),
-        ).first()
-        if blacklisted:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-    return user
+    return _decode_token_and_get_user(credentials.credentials, db)
 
 
 def require_admin(
