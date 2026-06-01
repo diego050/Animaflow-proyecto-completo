@@ -16,8 +16,10 @@ from app.core.config import settings
 from app.core.storage_paths import get_storage_dir
 from app.modules.tts.service import generate_tts_audio_only
 from app.modules.tts.whisper_timestamps import get_audio_duration
+from app.core.logging import get_logger
 
 router = APIRouter(prefix="/api/voices", tags=["voices"])
+logger = get_logger("voices")
 
 
 @router.get("/", response_model=list[VoiceResponse])
@@ -173,10 +175,12 @@ async def preview_voice(
         
         audio_url = f"/api/audio/{cache_filename}"
         return {"audio_url": audio_url, "duration": result["duration_seconds"]}
+    except (RuntimeError, OSError, ConnectionError) as e:
+        logger.warning("TTS preview failed for voice %s: %s", voice_id, e)
+        raise HTTPException(status_code=500, detail=f"TTS preview failed: {e}")
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"TTS generation failed: {str(e)}"
-        )
+        logger.exception("Unexpected error in TTS preview for voice %s: %s", voice_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error during TTS preview")
 
 
 @router.put("/{voice_id}", response_model=VoiceResponse)

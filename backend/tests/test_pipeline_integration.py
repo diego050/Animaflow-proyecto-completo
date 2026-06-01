@@ -64,20 +64,12 @@ def mock_external_services(tmp_path):
         "app.modules.pipeline.orchestrator.generate_scene_composer",
         return_value=dummy_spec
     ) as mock_component, patch(
-        "app.modules.pipeline.orchestrator.render_single_scene",
-        return_value="http://test/scene.mp4",
-    ) as mock_render, patch(
-        "app.modules.pipeline.orchestrator.concat_scenes",
-        return_value="http://test/final.mp4",
-    ) as mock_concat, patch(
         "app.modules.tts.service.AUDIO_STORAGE", audio_storage
     ):
         yield {
             "batch": mock_batch,
             "tts": mock_tts,
             "component": mock_component,
-            "render": mock_render,
-            "concat": mock_concat,
             "batch_visuals": batch_visuals,
         }
 
@@ -206,12 +198,6 @@ class TestPipelineIdempotency:
         ), patch(
             "app.modules.pipeline.orchestrator.generate_scene_composer",
             return_value=dummy_spec
-        ), patch(
-            "app.modules.pipeline.orchestrator.render_single_scene",
-            return_value="http://test/scene.mp4",
-        ), patch(
-            "app.modules.pipeline.orchestrator.concat_scenes",
-            return_value="http://test/final.mp4",
         ), patch(
             "app.modules.tts.service.AUDIO_STORAGE", audio_storage
         ):

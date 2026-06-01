@@ -3,22 +3,22 @@ import shutil
 import asyncio
 import copy
 from typing import Optional
+
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
+
+from app.core.logging import get_logger
+from app.core.file_logger import JobFileLogger
 from app.db.session import SessionLocal, get_db_context
 from app.db.models import JobModel, ApiKey
 from app.schemas.spec import TimelineSpec
-from app.core.logging import get_logger
-from app.core.file_logger import JobFileLogger
-from sqlalchemy.orm.attributes import flag_modified
-
-logger = get_logger("pipeline")
-
 from app.modules.tts.service import AUDIO_STORAGE
 from app.modules.segmentation.service import split_text_into_chunks
 from app.modules.llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
 from app.modules.llm.component_strategy import generate_scene_composer
-from app.modules.remotion.scene_renderer import render_single_scene, SCENES_STORAGE
-from app.modules.video.concat import concat_scenes, VIDEOS_STORAGE
+from app.core.async_utils import run_async
+
+logger = get_logger("pipeline")
 
 
 def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]:
@@ -32,11 +32,11 @@ def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]
 
 
 def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
-    """Fase 2+3: Enriquecimiento y renderizado sincrónico (backward-compatible wrapper).
+    """Fase 2: Enriquecimiento sincrónico (TTS + animaciones).
     
-    Llama a run_pipeline_enrichment y luego renderiza cada escena.
-    Útil para tests y flujos sincrónicos; en producción el scheduler maneja
-    el renderizado vía SSE.
+    Prepara el job para renderizado on-demand. No renderiza MP4 automáticamente;
+    el render se triggera cuando el usuario solicita descargar el video.
+    En producción el scheduler maneja el renderizado vía _phase_render().
     """
     with get_db_context() as db:
         job = db.query(JobModel).filter(JobModel.id == job_id).first()
@@ -68,7 +68,7 @@ async def _process_chunks_async(
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
     llm_model: str = "gemini-2.0-flash",
-    db: Session = None,
+    db: Optional[Session] = None,
 ) -> list[dict]:
     """Fase 2: Genera TTS por escena + componentes visuales (anima_composer)."""
     from app.modules.tts.service import generate_tts_with_timestamps
@@ -200,7 +200,7 @@ async def _regenerate_components_for_reformat(
     user_id: Optional[str] = None,
     scene_indices: Optional[list[int]] = None,
     llm_model: str = "gemini-2.0-flash",
-    db: Session = None,
+    db: Optional[Session] = None,
 ) -> list[dict]:
     """Regenerate Remotion components for specified scenes with a new aspect ratio.
     If scene_indices is None, regenerate all scenes.
@@ -283,13 +283,7 @@ def run_pipeline(
                 if timeline_scenes:
                     indices = scenes_to_reformat.get("indices") if scenes_to_reformat else None
                     coro = _regenerate_components_for_reformat(job_id, timeline_scenes, aspect_ratio, user_id, indices, job.llm_model or "gemini-2.0-flash", db=db)
-                    try:
-                        asyncio.run(coro)
-                    except RuntimeError as e:
-                        if "event loop" in str(e).lower():
-                            asyncio.get_event_loop().run_until_complete(coro)
-                        else:
-                            raise
+                    timeline_scenes = run_async(coro)
                 spec_obj = TimelineSpec(**spec)
                 job.result_spec = spec_obj.model_dump()
                 flag_modified(job, "result_spec")
@@ -437,14 +431,7 @@ def run_pipeline_enrichment(
                 llm_model=job.llm_model or "gemini-2.0-flash",
                 db=db,
             )
-            try:
-                timeline_scenes = asyncio.run(coro)
-            except RuntimeError as e:
-                if "event loop" in str(e).lower():
-                    # Called from within an existing event loop
-                    timeline_scenes = asyncio.get_event_loop().run_until_complete(coro)
-                else:
-                    raise
+            timeline_scenes = run_async(coro)
 
             # Limpiar archivos TSX de jobs anteriores para evitar errores de compilación
 

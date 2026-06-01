@@ -2,6 +2,7 @@ import asyncio
 import json
 import asyncpg
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 from sqlalchemy import text
 from app.db.session import SessionLocal
 from app.db.models import JobModel
@@ -51,7 +52,7 @@ class Scheduler:
             except Exception as e:
                 logger.error(f"Failed to update job {job_id} status after task failure: {e}")
 
-    def _get_job(self, job_id: str):
+    def _get_job(self, job_id: str) -> Optional[JobModel]:
         """Fetch a job by ID using a fresh session. Returns None if not found."""
         with SessionLocal() as session:
             job = session.query(JobModel).filter_by(id=job_id).first()
@@ -61,6 +62,12 @@ class Scheduler:
             return job
 
     def _cleanup_done_tasks(self):
+        """Remove completed tasks from active_tasks list.
+        
+        Tasks are normally removed by _task_done_callback when they complete.
+        This method is a safety net for edge cases where the callback might not fire.
+        The 'if task in self.active_tasks' guard prevents double-removal errors.
+        """
         done_tasks = [t for t in self.active_tasks if t.done()]
         for task in done_tasks:
             if task in self.active_tasks:
@@ -68,28 +75,34 @@ class Scheduler:
 
     async def run_forever(self):
         logger.info("Starting PG Scheduler with asyncpg LISTEN...")
-        
-        # Conexión asíncrona dedicada solo para escuchar NOTIFY
-        # Usamos settings.DATABASE_URL
-        conn = await asyncpg.connect(settings.DATABASE_URL)
-        await conn.add_listener('jobs', self.wake_up)
-        
-        while not self._stop_event.is_set():
-            try:
-                await self.recover_stuck_jobs()
-                self._cleanup_done_tasks()
-                job_processed = await self.take_and_process_job()
-                
-                if not job_processed:
-                    # Dormimos hasta que llegue un NOTIFY o pase 5s por si acaso
-                    try:
-                        await asyncio.wait_for(self._notify_event.wait(), timeout=5.0)
-                    except asyncio.TimeoutError:
-                        pass
-                    self._notify_event.clear()
-            except Exception as e:
-                logger.error(f"Scheduler error: {e}")
-                await asyncio.sleep(5)
+
+        conn = None
+        try:
+            conn = await asyncpg.connect(settings.DATABASE_URL)
+            await conn.add_listener('jobs', self.wake_up)
+
+            while not self._stop_event.is_set():
+                try:
+                    await self.recover_stuck_jobs()
+                    self._cleanup_done_tasks()
+                    job_processed = await self.take_and_process_job()
+
+                    if not job_processed:
+                        try:
+                            await asyncio.wait_for(self._notify_event.wait(), timeout=5.0)
+                        except asyncio.TimeoutError:
+                            pass
+                        self._notify_event.clear()
+                except Exception as e:
+                    logger.error(f"Scheduler error: {e}")
+                    await asyncio.sleep(5)
+        finally:
+            if conn:
+                try:
+                    await conn.close()
+                    logger.info("asyncpg connection closed.")
+                except Exception as e:
+                    logger.error(f"Error closing asyncpg connection: {e}")
 
     async def recover_stuck_jobs(self):
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
@@ -216,6 +229,12 @@ class Scheduler:
                 )
         except Exception as e:
             logger.error(f"Phase segmentation failed for {job_id}: {e}")
+            with SessionLocal() as session:
+                job_in_session = session.query(JobModel).filter_by(id=job_id).first()
+                if job_in_session and job_in_session.status not in ('completed', 'failed'):
+                    job_in_session.status = 'failed'
+                    job_in_session.error_message = f"Segmentation failed: {e}"
+                    session.commit()
 
     async def _phase_enrichment(self, job_id: str):
         loop = asyncio.get_event_loop()
@@ -237,6 +256,12 @@ class Scheduler:
                 )
         except Exception as e:
             logger.error(f"Phase enrichment failed for {job_id}: {e}")
+            with SessionLocal() as session:
+                job_in_session = session.query(JobModel).filter_by(id=job_id).first()
+                if job_in_session and job_in_session.status not in ('completed', 'failed'):
+                    job_in_session.status = 'failed'
+                    job_in_session.error_message = f"Enrichment failed: {e}"
+                    session.commit()
 
     async def _phase_render(self, job_id: str):
         loop = asyncio.get_event_loop()
@@ -247,7 +272,7 @@ class Scheduler:
             aspect_ratio = job.aspect_ratio
                 
             async with self.render_semaphore:
-                # Usar RenderAdapter de forma nativa asíncrona, en vez del orchestrator síncrono.
+                # Use RenderAdapter natively async instead of the synchronous orchestrator
                 result = await self._get_render_adapter().render(
                     job_id=job_id,
                     scenes=scenes,

@@ -7,7 +7,8 @@ Todo se retorna como un AnimaComposerSpec válido.
 """
 import json
 import re
-from typing import Any
+from typing import Any, Optional
+from sqlalchemy.orm import Session
 from google import genai
 from google.genai import types
 from app.core.logging import get_logger
@@ -391,7 +392,7 @@ def generate_scene_composer(
     available_components: list[dict] | None = None,
     api_key: str = "",
     model: str = "gemini-2.0-flash",
-    db=None,  # NEW: SQLAlchemy session for vector search
+    db: Optional[Session] = None,  # NEW: SQLAlchemy session for vector search
     aspect_ratio: str = "9:16",
     composition_version: str = "v2",
 ) -> AnimaComposerSpec:

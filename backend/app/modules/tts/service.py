@@ -22,8 +22,8 @@ PROVIDERS = {
 
 async def generate_tts_audio_only(
     text: str,
-    provider_name: str = "openai_tts",
-    voice_id: str = "alloy",
+    provider_name: str = "local_piper",
+    voice_id: str = "es_ES-carlfm-x_low",
     api_key: Optional[str] = None,
 ) -> Dict:
     """Generate TTS audio without timestamps (lightweight for previews).
@@ -64,8 +64,8 @@ async def generate_tts_audio_only(
 
 async def generate_tts_with_timestamps(
     text: str,
-    provider_name: str = "openai_tts",
-    voice_id: str = "alloy",
+    provider_name: str = "local_piper",
+    voice_id: str = "es_ES-carlfm-x_low",
     api_key: Optional[str] = None,
     language: str = "es",
     groq_api_key: Optional[str] = None

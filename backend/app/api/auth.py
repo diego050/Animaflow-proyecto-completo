@@ -27,7 +27,6 @@ from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.core.email import send_password_reset_email
 from app.core.audit import log_audit_event
-from app.core.security import decode_access_token
 from app.db.models import TokenBlacklist
 from jose import jwt
 from app.core.config import settings
@@ -57,8 +56,7 @@ def register(request: Request, user_data: UserCreate, db: Session = Depends(get_
         role="user",
     )
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    db.flush()  # Generate user.id without committing
 
     # Create default voice for the new user
     default_voice = Voice(
@@ -70,7 +68,8 @@ def register(request: Request, user_data: UserCreate, db: Session = Depends(get_
         voicebox_profile_id="es_ES-carlfm-x_low",
     )
     db.add(default_voice)
-    db.commit()
+    db.commit()  # Single commit for both user + voice
+    db.refresh(user)
 
     log_audit_event(db, user.id, "register", ip_address=request.client.host if request.client else None)
 
@@ -181,16 +180,18 @@ def forgot_password(
     email_sent = send_password_reset_email(user.email, token)
 
     if email_sent:
+        token_hash_preview = hashlib.sha256(token.encode()).hexdigest()[:8]
         logger.info(
-            "Password reset email sent to %s (token prefix: %s...)",
+            "Password reset email sent to %s (token hash prefix: %s...)",
             user.email,
-            token[:20],
+            token_hash_preview,
         )
     else:
+        token_hash_preview = hashlib.sha256(token.encode()).hexdigest()[:8]
         logger.warning(
-            "Password reset token generated for user %s but email could not be sent (token prefix: %s...)",
+            "Password reset token generated for user %s but email could not be sent (token hash prefix: %s...)",
             user.email,
-            token[:20],
+            token_hash_preview,
         )
 
     return {"message": "Si el email existe, recibirás instrucciones."}
@@ -261,8 +262,8 @@ def logout(
                     )
                     db.add(blacklist_entry)
                     db.commit()
-        except Exception:
-            pass  # Invalid token, just proceed
+        except Exception as e:
+            logger.warning("Failed to blacklist token on logout: %s", e)
 
     log_audit_event(db, current_user.id, "logout", ip_address=request.client.host if request.client else None)
 

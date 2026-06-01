@@ -153,22 +153,6 @@ Responde SOLO con JSON válido.
                 logger.exception("Batch visuals LLM call failed after %d attempts", attempt + 1)
                 raise
 
-        if response is None:
-            logger.warning(
-                "Modelo principal %s saturado para batch visuals. Usando fallback.", model
-            )
-            response = _call_llm_sync(
-                client,
-                model=model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=BatchVisualSpec,
-                    temperature=0.7,
-                ),
-                label="LLM Visuals",
-            )
-
         # Parsear JSON con limpieza
         raw_text = response.text.strip()
         # Extraer JSON de bloques markdown si existen

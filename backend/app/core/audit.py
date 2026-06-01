@@ -1,10 +1,11 @@
 """Audit logging helper for tracking security-relevant events."""
+from sqlalchemy.orm import Session
 from app.core.logging import get_logger
 
 logger = get_logger("audit")
 
 
-def log_audit_event(db, user_id: str, action: str, ip_address: str = None, user_agent: str = None, details: dict = None):
+def log_audit_event(db: Session, user_id: str, action: str, ip_address: str = None, user_agent: str = None, details: dict = None):
     """
     Record an audit event in the database.
 
