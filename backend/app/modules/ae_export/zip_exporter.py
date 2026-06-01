@@ -172,8 +172,3 @@ Generado por AnimaFlow
         # Fallback: return None on any unexpected error
         logger.exception("Error creando zip: %s", e)
         return None, str(e)
-    
-    finally:
-        # Limpiar directorio temporal (pero no el zip)
-        # El zip se devuelve, así que el caller es responsable de moverlo/copiarlo
-        pass

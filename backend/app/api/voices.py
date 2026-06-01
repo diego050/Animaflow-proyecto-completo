@@ -205,7 +205,7 @@ def update_voice(
             # Unset other defaults for this user
             db.query(Voice).filter(
                 Voice.user_id == current_user.id,
-            Voice.is_default.is_(True),  # noqa: E712
+                Voice.is_default.is_(True),  # noqa: E712
                 Voice.id != voice_id,
             ).update({"is_default": False})
         voice.is_default = update_data.is_default

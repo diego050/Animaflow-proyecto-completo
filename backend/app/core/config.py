@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql://user:password@localhost:5432/animaflow"
 
-    # SQLAlchemy compatibility
+    # SQLAlchemy compatibility — used by alembic/env.py and app/db/session.py
     @property
     def sqlalchemy_database_uri(self) -> str:
         return self.DATABASE_URL

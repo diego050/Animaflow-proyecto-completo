@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.db.models import User
+from app.db.models import User, TokenBlacklist
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -74,11 +74,33 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     """Extract and validate the Bearer token, return the associated User."""
-    user = _decode_token_and_get_user(credentials.credentials, db)
+    # Decode once
+    try:
+        payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=["HS256"])
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user_id: str = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = db.query(User).filter(User.id == user_id, User.is_deleted.is_(False)).first()
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     # Check if token is blacklisted
-    from app.db.models import TokenBlacklist
-    payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=["HS256"])
     jti = payload.get("jti")
     if jti:
         blacklisted = db.query(TokenBlacklist).filter(

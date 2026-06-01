@@ -11,9 +11,9 @@ logger = get_logger("pipeline")
 
 AUDIO_STORAGE = get_storage_dir("audio")
 
-from ..tts.service import generate_tts_with_timestamps
-from ..llm.visual_spec import VisualSpecResult
-from ..llm.component_strategy import generate_scene_composer
+from app.modules.tts.service import generate_tts_with_timestamps
+from app.modules.llm.visual_spec import VisualSpecResult
+from app.modules.llm.component_strategy import generate_scene_composer
 
 
 async def _regenerate_scene_async(

@@ -2,6 +2,7 @@ import asyncio
 from google import genai
 from google.genai import types
 from app.core.logging import get_logger
+from app.core.config import settings
 
 logger = get_logger("llm")
 
@@ -30,22 +31,23 @@ def _call_llm_sync(
                     model=model, contents=contents
                 )
                 
-            # DEBUG: Log raw response before any parsing
-            raw_text = response.text if response.text else "(empty)"
-            logger.debug(
-                "RAW RESPONSE TEXT (first 2000 chars): %s",
-                raw_text[:2000],
-                extra={"label": label},
-            )
-
-            # Log parsed response if available
-            if hasattr(response, 'parsed') and response.parsed is not None:
-                parsed_str = str(response.parsed)
+            # WARNING: This may leak sensitive data in production logs
+            if settings.ENV == "development":
+                raw_text = response.text if response.text else "(empty)"
                 logger.debug(
-                    "PARSED RESPONSE (first 2000 chars): %s",
-                    parsed_str[:2000],
+                    "LLM response (first 2000 chars): %s",
+                    raw_text[:2000],
                     extra={"label": label},
                 )
+
+                # Log parsed response if available
+                if hasattr(response, 'parsed') and response.parsed is not None:
+                    parsed_str = str(response.parsed)
+                    logger.debug(
+                        "PARSED RESPONSE (first 2000 chars): %s",
+                        parsed_str[:2000],
+                        extra={"label": label},
+                    )
 
             logger.info(
                 "Respuesta recibida (%d chars)",
