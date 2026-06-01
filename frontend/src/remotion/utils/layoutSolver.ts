@@ -43,6 +43,34 @@ const DEFAULT_ALIGN = "flex-start";
 const DEFAULT_LAYER_HEIGHT = 100;
 const DEFAULT_LAYER_WIDTH = 200;
 
+/**
+ * Resolve padding and margin from a layer's style.
+ * Returns [paddingTop, paddingRight, paddingBottom, paddingLeft, marginTop, marginRight, marginBottom, marginLeft]
+ */
+function resolveSpacing(layer: Record<string, unknown>): [number, number, number, number, number, number, number, number] {
+  const style = (layer.style as Record<string, unknown> | undefined) || {};
+
+  function expandSpacing(value: unknown, defaultValue = 0): [number, number, number, number] {
+    if (value === undefined || value === null) {
+      return [defaultValue, defaultValue, defaultValue, defaultValue];
+    }
+    if (typeof value === 'number') {
+      return [value, value, value, value];
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 1) return [value[0], value[0], value[0], value[0]];
+      if (value.length === 2) return [value[0], value[1], value[0], value[1]];
+      if (value.length === 4) return [value[0], value[1], value[2], value[3]];
+    }
+    return [defaultValue, defaultValue, defaultValue, defaultValue];
+  }
+
+  const padding = expandSpacing(style.padding);
+  const margin = expandSpacing(style.margin);
+
+  return [padding[0], padding[1], padding[2], padding[3], margin[0], margin[1], margin[2], margin[3]];
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -271,6 +299,10 @@ function applyFlex(
   canvasWidth: number,
   canvasHeight: number
 ): void {
+  const [paddingTop, paddingRight, paddingBottom, paddingLeft, , , ,] = resolveSpacing(layer);
+  const paddingX = paddingLeft + paddingRight;
+  const paddingY = paddingTop + paddingBottom;
+
   // Container fills available space by default
   const width = getDimension(layer, "width", parentWidth);
   const height = getDimension(layer, "height", parentHeight);
@@ -285,15 +317,19 @@ function applyFlex(
     return;
   }
 
+  // Available space for children (subtract padding)
+  const availableWidth = Math.max(0, width - paddingX);
+  const availableHeight = Math.max(0, height - paddingY);
+
   const direction = (layer.direction ?? DEFAULT_DIRECTION) as "row" | "column";
   const gap = (layer.gap ?? DEFAULT_GAP) as number;
   const justify = (layer.justifyContent ?? DEFAULT_JUSTIFY) as string;
   const align = (layer.alignItems ?? DEFAULT_ALIGN) as string;
 
   if (direction === "row") {
-    distributeRow(children, width, height, gap, justify, align);
+    distributeRow(children, availableWidth, availableHeight, gap, justify, align, paddingLeft, paddingTop);
   } else {
-    distributeColumn(children, width, height, gap, justify, align);
+    distributeColumn(children, availableWidth, availableHeight, gap, justify, align, paddingLeft, paddingTop);
   }
 }
 
@@ -310,12 +346,14 @@ function distributeRow(
   containerHeight: number,
   gap: number,
   justify: string,
-  align: string
+  align: string,
+  paddingX: number = 0,
+  paddingY: number = 0
 ): void {
   if (children.length === 1) {
     sizeSingleChild(children[0], containerWidth, containerHeight, align);
-    children[0].x = 0;
-    children[0].y = alignCross(
+    children[0].x = paddingX;
+    children[0].y = paddingY + alignCross(
       children[0].height as number,
       containerHeight,
       align
@@ -324,7 +362,6 @@ function distributeRow(
     return;
   }
 
-  // --- Determine widths ---------------------------------------------------
   const flexChildren: { index: number; child: Record<string, unknown> }[] = [];
   let fixedTotal = 0;
 
@@ -345,20 +382,17 @@ function distributeRow(
   const flexTotal =
     flexChildren.reduce((sum, { child }) => sum + getFlex(child), 0) || 1;
 
-  // Assign widths to flex children
   for (const { child } of flexChildren) {
     const f = getFlex(child);
     child.width = Math.floor((remaining * f) / flexTotal);
   }
 
-  // Ensure every child has a height
   for (const child of children) {
     if (child.height === undefined) {
       child.height = DEFAULT_LAYER_HEIGHT;
     }
   }
 
-  // --- Justify content (main axis) ----------------------------------------
   const offsets = justifyPositions(
     children.map((c) => c.width as number),
     gap,
@@ -366,10 +400,9 @@ function distributeRow(
     justify
   );
 
-  // --- Position children --------------------------------------------------
   for (let i = 0; i < children.length; i++) {
-    children[i].x = offsets[i];
-    children[i].y = alignCross(
+    children[i].x = paddingX + offsets[i];
+    children[i].y = paddingY + alignCross(
       children[i].height as number,
       containerHeight,
       align
@@ -387,12 +420,14 @@ function distributeColumn(
   containerHeight: number,
   gap: number,
   justify: string,
-  align: string
+  align: string,
+  paddingX: number = 0,
+  paddingY: number = 0
 ): void {
   if (children.length === 1) {
     sizeSingleChild(children[0], containerWidth, containerHeight, align);
-    children[0].y = 0;
-    children[0].x = alignCrossHorizontal(
+    children[0].y = paddingY;
+    children[0].x = paddingX + alignCrossHorizontal(
       children[0].width as number,
       containerWidth,
       align
@@ -401,7 +436,6 @@ function distributeColumn(
     return;
   }
 
-  // --- Determine heights --------------------------------------------------
   const flexChildren: { index: number; child: Record<string, unknown> }[] = [];
   let fixedTotal = 0;
 
@@ -427,14 +461,12 @@ function distributeColumn(
     child.height = Math.floor((remaining * f) / flexTotal);
   }
 
-  // Ensure every child has a width
   for (const child of children) {
     if (child.width === undefined) {
       child.width = DEFAULT_LAYER_WIDTH;
     }
   }
 
-  // --- Justify content (main axis) ----------------------------------------
   const offsets = justifyPositions(
     children.map((c) => c.height as number),
     gap,
@@ -442,10 +474,9 @@ function distributeColumn(
     justify
   );
 
-  // --- Position children --------------------------------------------------
   for (let i = 0; i < children.length; i++) {
-    children[i].y = offsets[i];
-    children[i].x = alignCrossHorizontal(
+    children[i].y = paddingY + offsets[i];
+    children[i].x = paddingX + alignCrossHorizontal(
       children[i].width as number,
       containerWidth,
       align

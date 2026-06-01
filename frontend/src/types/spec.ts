@@ -32,6 +32,60 @@ export interface AnimaBackground {
   center?: [number, number];
 }
 
+export interface LayerStyle {
+  // Spacing
+  padding?: number | [number, number, number, number];
+  margin?: number | [number, number, number, number];
+
+  // Borders
+  borderWidth?: number;
+  borderColor?: string;
+  borderStyle?: 'solid' | 'dashed' | 'dotted';
+
+  // Effects
+  boxShadow?: { x: number; y: number; blur: number; spread: number; color: string };
+  opacity?: number;
+  blur?: number;
+  backdropBlur?: number;
+
+  // Filters
+  brightness?: number;
+  contrast?: number;
+  saturate?: number;
+  grayscale?: boolean;
+  hueRotate?: number;
+  invert?: boolean;
+
+  // Transforms (static)
+  rotate?: number;
+  scale?: number | [number, number];
+  transformOrigin?: string;
+
+  // Typography extras
+  lineHeight?: number;
+  textShadow?: { x: number; y: number; blur: number; color: string };
+  textDecoration?: 'underline' | 'line-through' | 'none';
+
+  // Background extras
+  backgroundImage?: string;
+  backgroundSize?: 'cover' | 'contain' | 'auto';
+  backgroundPosition?: string;
+  backgroundOpacity?: number;
+
+  // Layout extras
+  overflow?: 'hidden' | 'visible' | 'scroll';
+  aspectRatio?: string;
+  objectFit?: 'cover' | 'contain' | 'fill';
+  flexWrap?: 'wrap' | 'nowrap';
+  flexGrow?: number;
+  flexShrink?: number;
+  order?: number;
+
+  // SVG extras
+  strokeLinecap?: 'round' | 'butt' | 'square';
+  strokeDasharray?: string;
+}
+
 export interface AnimaLayer {
   id?: string;
   label?: string;
@@ -83,6 +137,7 @@ export interface AnimaLayer {
   animation?: string;
   lineWidth?: number;
   props?: Record<string, unknown>;
+  style?: LayerStyle;
 }
 
 export interface OutTransition {

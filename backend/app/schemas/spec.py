@@ -43,6 +43,106 @@ class WordTimestamp(BaseModel):
 # ─── AnimaComposer models ────────────────────────────────────────────────
 
 
+class LayerStyle(BaseModel):
+    """Visual style properties for a layer (borders, shadows, filters, transforms, etc.)."""
+    model_config = {"extra": "ignore"}
+
+    # Spacing
+    padding: Optional[Union[float, List[float]]] = None  # single value or [top, right, bottom, left]
+    margin: Optional[Union[float, List[float]]] = None   # single value or [top, right, bottom, left]
+
+    # Borders
+    borderWidth: Optional[float] = None
+    borderColor: Optional[str] = None
+    borderStyle: Optional[Literal["solid", "dashed", "dotted"]] = None
+
+    # Effects
+    boxShadow: Optional[Dict[str, Any]] = None  # {x, y, blur, spread, color}
+    opacity: Optional[float] = None
+    blur: Optional[float] = None
+    backdropBlur: Optional[float] = None
+
+    # Filters
+    brightness: Optional[float] = None
+    contrast: Optional[float] = None
+    saturate: Optional[float] = None
+    grayscale: Optional[bool] = None
+    hueRotate: Optional[float] = None
+    invert: Optional[bool] = None
+
+    # Transforms (static, not animated)
+    rotate: Optional[float] = None
+    scale: Optional[Union[float, List[float]]] = None
+    transformOrigin: Optional[str] = None
+
+    # Typography extras
+    lineHeight: Optional[float] = None
+    textShadow: Optional[Dict[str, Any]] = None  # {x, y, blur, color}
+    textDecoration: Optional[Literal["underline", "line-through", "none"]] = None
+
+    # Background extras
+    backgroundImage: Optional[str] = None
+    backgroundSize: Optional[Literal["cover", "contain", "auto"]] = None
+    backgroundPosition: Optional[str] = None
+    backgroundOpacity: Optional[float] = None
+
+    # Layout extras
+    overflow: Optional[Literal["hidden", "visible", "scroll"]] = None
+    aspectRatio: Optional[str] = None
+    objectFit: Optional[Literal["cover", "contain", "fill"]] = None
+    flexWrap: Optional[Literal["wrap", "nowrap"]] = None
+    flexGrow: Optional[float] = None
+    flexShrink: Optional[float] = None
+    order: Optional[int] = None
+
+    # SVG extras
+    strokeLinecap: Optional[Literal["round", "butt", "square"]] = None
+    strokeDasharray: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _clamp_numeric_fields(cls, data: Any) -> Any:
+        """Clamp absurd numeric values from Gemini to reasonable ranges."""
+        if not isinstance(data, dict):
+            return data
+
+        field_limits = {
+            "padding": (0, 200, 0),
+            "margin": (-100, 200, 0),
+            "borderWidth": (0, 20, 0),
+            "opacity": (0, 1, 1),
+            "blur": (0, 50, 0),
+            "backdropBlur": (0, 50, 0),
+            "brightness": (0, 3, 1),
+            "contrast": (0, 3, 1),
+            "saturate": (0, 3, 1),
+            "hueRotate": (0, 360, 0),
+            "rotate": (-360, 360, 0),
+            "scale": (0.1, 10, 1),
+            "lineHeight": (0.5, 4, 1.2),
+            "backgroundOpacity": (0, 1, 1),
+            "flexGrow": (0, 10, 1),
+            "flexShrink": (0, 10, 1),
+            "order": (-100, 100, 0),
+            "strokeWidth": (0, 20, 1),
+        }
+
+        for field, (min_val, max_val, default) in field_limits.items():
+            if field in data:
+                try:
+                    val = float(data[field])
+                    if val > max_val:
+                        data[field] = float(max_val)
+                    elif val < min_val:
+                        data[field] = float(min_val)
+                    else:
+                        data[field] = val
+                except (ValueError, TypeError, OverflowError):
+                    data[field] = float(default)
+
+        return data
+
+
 class SpringConfig(BaseModel):
     damping: float
     stiffness: float
@@ -126,6 +226,9 @@ class BaseAnimaLayer(BaseModel):
             "count": (1, 200, 10),
             "spread": (0, 500, 50),
             "letterSpacing": (-10, 20, 0),
+            "padding": (0, 200, 0),
+            "margin": (-100, 200, 0),
+            "lineHeight": (0.5, 4, 1.2),
         }
         
         for field, (min_val, max_val, default) in field_limits.items():
@@ -209,6 +312,7 @@ class BaseAnimaLayer(BaseModel):
     icon: Optional[str] = None  # Iconify icon ID (e.g. "mdi:heart")
     lineWidth: Optional[float] = None
     props: Optional[Dict[str, Any]] = None
+    style: Optional[LayerStyle] = None
 
 class AnimaChildLayer(BaseAnimaLayer):
     @model_validator(mode="before")

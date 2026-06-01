@@ -650,3 +650,94 @@ def test_align_items_center_in_column():
     # x = (1080 - 100) // 2 = 490
     assert children[0]["x"] == 490
     assert children[1]["x"] == 490
+
+
+# ---------------------------------------------------------------------------
+# 8. Padding & Margin in Flex Layouts
+# ---------------------------------------------------------------------------
+
+def test_flex_row_with_padding():
+    """Test that padding offsets children correctly in a row layout."""
+    spec = {
+        "layers": [{
+            "type": "group",
+            "layout": "flex",
+            "direction": "row",
+            "gap": 10,
+            "style": {"padding": 20},
+            "children": [
+                {"type": "text", "text": "Left"},
+                {"type": "text", "text": "Right"},
+            ],
+        }]
+    }
+    result = solve_layout(spec, 1080, 1920)
+    group = result["layers"][0]
+    # Children should start at x=20 (padding), not x=0
+    assert group["children"][0]["x"] == 20
+    assert group["children"][1]["x"] > 20  # After first child + gap
+
+
+def test_flex_column_with_padding():
+    """Test that padding offsets children correctly in a column layout."""
+    spec = {
+        "layers": [{
+            "type": "group",
+            "layout": "flex",
+            "direction": "column",
+            "gap": 10,
+            "style": {"padding": 30},
+            "children": [
+                {"type": "text", "text": "Top"},
+                {"type": "text", "text": "Bottom"},
+            ],
+        }]
+    }
+    result = solve_layout(spec, 1080, 1920)
+    group = result["layers"][0]
+    assert group["children"][0]["y"] == 30
+    assert group["children"][1]["y"] > 30
+
+
+def test_flex_with_asymmetric_padding():
+    """Test [top, right, bottom, left] padding array."""
+    spec = {
+        "layers": [{
+            "type": "group",
+            "layout": "flex",
+            "direction": "row",
+            "style": {"padding": [10, 20, 30, 40]},
+            "children": [
+                {"type": "text", "text": "Item"},
+            ],
+        }]
+    }
+    result = solve_layout(spec, 1080, 1920)
+    group = result["layers"][0]
+    assert group["children"][0]["x"] == 40  # left padding
+    assert group["children"][0]["y"] == 10  # top padding
+
+
+def test_resolve_spacing_helper():
+    """Test the _resolve_spacing helper function."""
+    from app.services.layout_solver import _resolve_spacing
+
+    # Single value
+    layer = {"style": {"padding": 10}}
+    p = _resolve_spacing(layer)
+    assert p == (10, 10, 10, 10, 0, 0, 0, 0)
+
+    # Two values [vertical, horizontal]
+    layer = {"style": {"padding": [10, 20]}}
+    p = _resolve_spacing(layer)
+    assert p == (10, 20, 10, 20, 0, 0, 0, 0)
+
+    # Four values [top, right, bottom, left]
+    layer = {"style": {"padding": [10, 20, 30, 40]}}
+    p = _resolve_spacing(layer)
+    assert p == (10, 20, 30, 40, 0, 0, 0, 0)
+
+    # No style
+    layer = {}
+    p = _resolve_spacing(layer)
+    assert p == (0, 0, 0, 0, 0, 0, 0, 0)
