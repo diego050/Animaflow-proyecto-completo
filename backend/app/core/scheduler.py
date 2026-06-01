@@ -145,7 +145,7 @@ class Scheduler:
             with SessionLocal() as session:
                 sql = text("""
                     SELECT id, status FROM jobs 
-                    WHERE status IN ('pending', 'segmented', 'queued_enrichment', 'queued_render') 
+                    WHERE status IN ('pending', 'segmented', 'queued_enrichment') 
                     FOR UPDATE SKIP LOCKED 
                     LIMIT 1
                 """)
@@ -181,10 +181,7 @@ class Scheduler:
                     job.status = 'visuals_generating'
                     session.commit()
                     return (job_id, 'enrichment')
-                elif status == 'queued_render':
-                    job.status = 'rendering_scenes'
-                    session.commit()
-                    return (job_id, 'render')
+                # Render is now on-demand via API endpoint, not automatic via scheduler.
                 return None
 
         result = await loop.run_in_executor(None, _take)
@@ -202,11 +199,8 @@ class Scheduler:
             task = asyncio.create_task(self._phase_enrichment(job_id))
             self.active_tasks.append(task)
             task.add_done_callback(lambda t: self._task_done_callback(t, job_id, phase))
-        elif phase == 'render':
-            task = asyncio.create_task(self._phase_render(job_id))
-            self.active_tasks.append(task)
-            task.add_done_callback(lambda t: self._task_done_callback(t, job_id, phase))
-            
+        # Render phase removed — now triggered on-demand via POST /api/jobs/{job_id}/render
+
         return True
 
     async def _phase_segmentation(self, job_id: str):

@@ -1,3 +1,4 @@
+import os
 import httpx
 from typing import Dict, Any, List
 
@@ -10,6 +11,13 @@ class RenderAdapter:
         Sends a render request to the appropriate render server.
         """
         if mode == "local":
+            # Convert relative audio URLs to absolute URLs pointing to the API server
+            api_base_url = os.getenv("API_BASE_URL", "http://api:8000")
+            for scene in scenes:
+                audio_url = scene.get("audio_url")
+                if audio_url and audio_url.startswith("/"):
+                    scene["audio_url"] = f"{api_base_url}{audio_url}"
+
             async with httpx.AsyncClient() as client:
                 try:
                     payload = {

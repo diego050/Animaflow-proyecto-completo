@@ -58,7 +58,7 @@ def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
         )
         db.refresh(job)
 
-        if job.status != "queued_render":
+        if job.status != "completed":
             return
 
 
@@ -446,11 +446,11 @@ def run_pipeline_enrichment(
 
             # Limpiar archivos TSX de jobs anteriores para evitar errores de compilación
 
-            # Fase 2 finalizada, se queda en el preview. El MP4 se renderiza a demanda.
+            # Fase 2 finalizada, job está listo para preview. El MP4 se renderiza a demanda vía API.
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
             job.result_spec = final_spec
             flag_modified(job, "result_spec")
-            job.status = "queued_render"
+            job.status = "completed"
             db.commit()
 
         except Exception as e:
