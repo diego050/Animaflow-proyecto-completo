@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import JSONResponse
-from app.api import jobs, exports, audio, auth, voices, api_keys, assets, admin, contact, scenes, design_templates, stream
+from app.api import jobs_crud, jobs_pipeline, exports, audio, auth, voices, api_keys, assets, admin, contact, scenes, design_templates, stream
 from app.core.config import settings
 from app.core.limiter import limiter, RateLimitExceeded
 from app.core.storage_paths import get_storage_dir
@@ -30,7 +30,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
-app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])
+app.include_router(jobs_crud.router, prefix="/api/jobs", tags=["Jobs"])
+app.include_router(jobs_pipeline.router, prefix="/api/jobs", tags=["Jobs Pipeline"])
 app.include_router(stream.router, prefix="/api/jobs", tags=["Jobs Stream"])
 app.include_router(exports.router, tags=["Exports"])
 app.include_router(audio.router, tags=["Audio"])
