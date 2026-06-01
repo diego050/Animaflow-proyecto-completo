@@ -3,6 +3,7 @@ import math
 import os
 from typing import Optional
 from sqlalchemy.orm import Session
+from sqlalchemy import exc
 from app.db.models import ComponentModel
 from app.core.logging import get_logger
 
@@ -133,7 +134,12 @@ def get_relevant_components(
         if category_filter:
             role_query = role_query.filter(ComponentModel.category == category_filter)
 
-        role_components = role_query.all()
+        try:
+            role_components = role_query.all()
+        except exc.InternalError:
+            logger.warning("Transaction aborted, rolling back and skipping role: %s", role)
+            db.rollback()
+            continue
 
         # Score and sort
         scored = []
@@ -165,7 +171,12 @@ def get_relevant_components(
         if category_filter:
             general_query = general_query.filter(ComponentModel.category == category_filter)
 
-        all_components = general_query.all()
+        try:
+            all_components = general_query.all()
+        except exc.InternalError:
+            logger.warning("Transaction aborted during general component query, rolling back.")
+            db.rollback()
+            return selected
 
         scored = []
         for comp in all_components:

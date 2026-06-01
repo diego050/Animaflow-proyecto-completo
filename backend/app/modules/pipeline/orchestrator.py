@@ -371,6 +371,7 @@ def run_pipeline(
 
         except Exception as e:
             logger.exception("Pipeline segmentation failed: %s", e, extra={"job_id": job_id})
+            db.rollback()
             job.status = "failed"
             job.error_message = str(e)
             db.commit()
@@ -457,6 +458,7 @@ def run_pipeline_enrichment(
             logger.exception(
                 "Approved pipeline failed unexpectedly: %s", e, extra={"job_id": job_id}
             )
+            db.rollback()
             job.status = "failed"
             job.error_message = str(e)
             db.commit()
