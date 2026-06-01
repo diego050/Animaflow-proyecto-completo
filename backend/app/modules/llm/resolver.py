@@ -84,7 +84,7 @@ def resolve_llm_credentials(
             .filter(
                 ApiKey.user_id == user_id,
                 ApiKey.provider == provider,
-                ApiKey.is_active == True,
+                ApiKey.is_active.is_(True),
             )
             .first()
         )

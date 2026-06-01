@@ -6,17 +6,29 @@ import os
 import shutil
 import zipfile
 import tempfile
-from typing import List
+from typing import List, Tuple
 
 import httpx
 from sqlalchemy.orm import Session
 
 from app.db.models import JobModel
-from app.core.resolutions import get_resolution
 from app.core.logging import get_logger
 from app.core.storage_paths import get_storage_dir
 
 logger = get_logger("ae_export")
+
+ASPECT_RATIOS = {
+    "9:16": (1080, 1920),
+    "4:5": (1080, 1350),
+    "3:4": (1080, 1440),
+    "1:1": (1080, 1080),
+    "16:9": (1920, 1080),
+}
+DEFAULT_ASPECT_RATIO = "9:16"
+
+
+def get_resolution(aspect_ratio: str) -> Tuple[int, int]:
+    return ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS[DEFAULT_ASPECT_RATIO])
 
 
 def download_audio_files(job: JobModel, audio_dir: str) -> List[str]:

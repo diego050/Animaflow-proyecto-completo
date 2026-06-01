@@ -63,23 +63,14 @@ def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    user = db.query(User).filter(User.id == user_id, User.is_deleted.is_(False)).first()
     if user is None or not user.is_active:
         raise credentials_exception
     return user
 
 
-def get_current_active_user(
-    current_user: User = Depends(get_current_user),
-) -> User:
-    """Ensure the authenticated user is active."""
-    if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
-
-
 def require_admin(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ) -> User:
     """Ensure the authenticated user has the admin role."""
     if current_user.role != "admin":
@@ -118,16 +109,10 @@ def get_current_user_from_token(
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    user = db.query(User).filter(User.id == user_id, User.is_deleted.is_(False)).first()
     if user is None or not user.is_active:
         raise credentials_exception
     return user
 
 
-def get_current_active_user_from_token(
-    current_user: User = Depends(get_current_user_from_token),
-) -> User:
-    """Ensure the authenticated user is active (supports query param token)."""
-    if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
+

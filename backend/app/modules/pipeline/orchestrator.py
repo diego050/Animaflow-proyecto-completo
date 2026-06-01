@@ -26,7 +26,7 @@ def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]
     key_entry = db.query(ApiKey).filter(
         ApiKey.user_id == user_id,
         ApiKey.provider == provider,
-        ApiKey.is_active == True,
+        ApiKey.is_active.is_(True),
     ).first()
     return key_entry.api_key if key_entry else None
 

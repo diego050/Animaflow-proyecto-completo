@@ -21,7 +21,7 @@ from app.core.security import (
     get_password_hash,
     verify_password,
     create_access_token,
-    get_current_active_user,
+    get_current_user,
 )
 from app.core.limiter import limiter
 from app.core.logging import get_logger
@@ -40,7 +40,7 @@ def register(request: Request, user_data: UserCreate, db: Session = Depends(get_
 
     TODO: Future - add email verification flow before activating account.
     """
-    existing = db.query(User).filter(User.email == user_data.email, User.is_deleted == False).first()
+    existing = db.query(User).filter(User.email == user_data.email, User.is_deleted.is_(False)).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -70,7 +70,7 @@ def login(request: Request, credentials: UserLogin, db: Session = Depends(get_db
 
     Note: Error message is intentionally generic to avoid email enumeration.
     """
-    user = db.query(User).filter(User.email == credentials.email, User.is_deleted == False).first()
+    user = db.query(User).filter(User.email == credentials.email, User.is_deleted.is_(False)).first()
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -88,7 +88,7 @@ def login(request: Request, credentials: UserLogin, db: Session = Depends(get_db
 
 
 @router.get("/me", response_model=UserResponse)
-def get_me(current_user: User = Depends(get_current_active_user)):
+def get_me(current_user: User = Depends(get_current_user)):
     """Return the authenticated user's profile."""
     return current_user
 
@@ -96,7 +96,7 @@ def get_me(current_user: User = Depends(get_current_active_user)):
 @router.put("/me", response_model=UserResponse)
 def update_me(
     update_data: UserUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -134,7 +134,7 @@ def forgot_password(
     Generates a short-lived token stored in the user's DB record.
     NOTE: In MVP, no SMTP email is sent. The admin can retrieve the token from logs.
     """
-    user = db.query(User).filter(User.email == data.email, User.is_deleted == False).first()
+    user = db.query(User).filter(User.email == data.email, User.is_deleted.is_(False)).first()
 
     # Always return the same generic message to prevent email enumeration
     if not user:
@@ -178,7 +178,7 @@ def reset_password(
     user = db.query(User).filter(
         User.reset_token_hash == token_hash,
         User.reset_token_expires_at > now,
-        User.is_deleted == False,
+        User.is_deleted.is_(False),
     ).first()
 
     if not user:

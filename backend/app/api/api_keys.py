@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.db.models import ApiKey, User
 from app.schemas.api_keys import ApiKeyCreate, ApiKeyResponse, UserSettingsUpdate
-from app.core.security import get_current_active_user
+from app.core.security import get_current_user
 from app.modules.llm.model_fetcher import fetch_available_models
 
 router = APIRouter(prefix="/api/api-keys", tags=["api-keys"])
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/api-keys", tags=["api-keys"])
 
 @router.get("/", response_model=list[ApiKeyResponse])
 def list_keys(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """List all active API keys for the current user."""
@@ -20,7 +20,7 @@ def list_keys(
         db.query(ApiKey)
         .filter(
             ApiKey.user_id == current_user.id,
-            ApiKey.is_active == True,
+            ApiKey.is_active.is_(True),
         )
         .order_by(ApiKey.created_at.desc())
         .all()
@@ -30,7 +30,7 @@ def list_keys(
 @router.post("/", response_model=ApiKeyResponse, status_code=201)
 def create_key(
     data: ApiKeyCreate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Create or update an API key for a provider. One active key per provider per user."""
@@ -39,7 +39,7 @@ def create_key(
         .filter(
             ApiKey.user_id == current_user.id,
             ApiKey.provider == data.provider,
-            ApiKey.is_active == True,
+            ApiKey.is_active.is_(True),
         )
         .first()
     )
@@ -64,7 +64,7 @@ def create_key(
 @router.delete("/{key_id}", status_code=204)
 def delete_key(
     key_id: str,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Soft-delete an API key (set is_active=False)."""
@@ -86,7 +86,7 @@ def delete_key(
 
 @router.get("/me/settings", response_model=dict)
 def get_settings(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get the current user's LLM provider settings."""
@@ -101,7 +101,7 @@ def get_settings(
 @router.put("/me/settings", response_model=dict)
 def update_settings(
     data: UserSettingsUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Update the current user's LLM provider settings."""
@@ -124,7 +124,7 @@ def update_settings(
 @router.get("/models", response_model=list[str])
 async def list_models(
     provider: str = Query(..., description="LLM provider: gemini, openai, anthropic"),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -139,7 +139,7 @@ async def list_models(
             .filter(
                 ApiKey.user_id == current_user.id,
                 ApiKey.provider == provider,
-                ApiKey.is_active == True,
+                ApiKey.is_active.is_(True),
             )
             .first()
         )

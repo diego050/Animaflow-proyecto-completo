@@ -7,6 +7,7 @@ health checks, and configurable settings for administrators.
 
 from typing import Optional
 import datetime
+from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from sqlalchemy.orm import Session
@@ -32,7 +33,7 @@ def get_admin_stats(
 ):
     """Return dashboard stats for admin panel."""
     total_users = db.query(User).count()
-    active_users = db.query(User).filter(User.is_active == True).count()
+    active_users = db.query(User).filter(User.is_active.is_(True)).count()
     total_jobs = db.query(JobModel).count()
     completed_jobs = db.query(JobModel).filter(JobModel.status == "completed").count()
     failed_jobs = db.query(JobModel).filter(JobModel.status.in_(["failed", "failed_render"])).count()
@@ -80,7 +81,7 @@ def list_admin_users(
     current_user: User = Depends(require_admin),
 ):
     """List all users with stats."""
-    users = db.query(User).filter(User.is_deleted == False).all()
+    users = db.query(User).filter(User.is_deleted.is_(False)).all()
     total = len(users)
     return {
         "users": [
@@ -396,7 +397,7 @@ def system_health(
         "uptime_seconds": uptime_seconds,
         "last_worker_heartbeat": None,
         "status": "healthy",
-        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
 
 
@@ -411,9 +412,9 @@ def get_business_metrics(
     current_user: User = Depends(require_admin),
 ):
     """Return business metrics for the admin dashboard."""
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     week_ago = now - timedelta(days=7)
     two_weeks_ago = now - timedelta(days=14)
     month_ago = now - timedelta(days=30)

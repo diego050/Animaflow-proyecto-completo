@@ -22,7 +22,7 @@ from app.core.config import settings
 from app.services.intent_router import classify_intent, answer_query
 from app.services.context_manager import get_history, save_message
 from app.core.logging import get_logger
-from app.core.security import get_current_active_user, get_current_active_user_from_token
+from app.core.security import get_current_user, get_current_user_from_token
 from app.core.limiter import limiter
 from app.core.storage_paths import get_storage_dir
 from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_enrichment
@@ -53,7 +53,7 @@ async def create_job(
     request: Request,
     job_in: JobCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     # Resolve design_md: design_template_id takes precedence over inline design_md
     resolved_design_md = job_in.design_md
@@ -98,7 +98,7 @@ async def create_job(
 async def create_draft(
     draft_in: JobDraftRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new draft job."""
     # Guardamos los datos del draft en result_spec temporalmente
@@ -119,7 +119,7 @@ async def update_draft(
     job_id: str,
     draft_in: JobDraftRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Update an existing draft."""
     job = get_job_or_404(db, job_id, current_user.id)
@@ -139,7 +139,7 @@ async def update_draft(
 async def get_job_status(
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     # Verify the job belongs to the current user
     job = db.query(JobModel).filter(
@@ -163,7 +163,7 @@ async def approve_scenes(
     job_id: str,
     approval: SceneApprovalRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Approve or edit segmented scenes and continue the pipeline.
 
@@ -232,7 +232,7 @@ async def approve_scenes(
 async def get_job_logs(
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user_from_token),
+    current_user: User = Depends(get_current_user_from_token),
 ):
     """Obtener logs del job desde archivo."""
     job = get_job_or_404(db, job_id, current_user.id)
@@ -244,7 +244,7 @@ async def get_job_history(
     job_id: str,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Retrieve conversation history for a specific job.
@@ -274,7 +274,7 @@ async def get_job_history(
 async def get_job_video(
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user_from_token),
+    current_user: User = Depends(get_current_user_from_token),
 ):
     """Servir MP4 final del job."""
     job = db.query(JobModel).filter(
@@ -300,7 +300,7 @@ async def reformat_job(
     job_id: str,
     data: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Reformat a job to a new aspect ratio with scene selection.
 
@@ -391,7 +391,7 @@ async def reformat_job(
 async def delete_job(
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     from app.services.job_cleanup import delete_job_files
 
@@ -417,7 +417,7 @@ async def trigger_render(
     request: Request,
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     # Verify current_user owns this job before triggering render
     job = db.query(JobModel).filter(
@@ -450,7 +450,7 @@ async def trigger_render(
 @router.post("/generate-script", response_model=ScriptGenerateResponse)
 def generate_script(
     req: ScriptGenerateRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     from app.modules.llm.script_generator import generate_script_from_info
     from app.modules.llm.resolver import MissingApiKeyError
@@ -474,7 +474,7 @@ def generate_script(
 @router.get("", response_model=List[JobListResponse])
 async def get_all_jobs(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     # Filter jobs by current_user.id for per-user scoping
     jobs = (
@@ -504,7 +504,7 @@ async def trigger_scene_regenerate(
     scene_index: int,
     req: SceneRegenerateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Regenerate a single scene's TTS and visual spec synchronously.
 
@@ -563,7 +563,7 @@ async def edit_scene(
     scene_index: int,
     body: SceneEditRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Edit a scene's spec (manual or conversational mode).

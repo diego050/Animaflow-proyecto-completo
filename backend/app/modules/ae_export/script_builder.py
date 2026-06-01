@@ -2,16 +2,28 @@
 AE script builder: per-scene script generation and full script assembly.
 """
 import os
-from typing import Dict
+from typing import Dict, Tuple
 
 from app.db.models import JobModel
-from app.core.resolutions import get_resolution
 from app.core.logging import get_logger
 
 logger = get_logger("ae_export")
 
 from .deterministic.utils import hex_to_rgb_array
 from .shape_renderers import SHAPE_RENDERERS, generate_ae_shape_generic
+
+ASPECT_RATIOS = {
+    "9:16": (1080, 1920),
+    "4:5": (1080, 1350),
+    "3:4": (1080, 1440),
+    "1:1": (1080, 1080),
+    "16:9": (1920, 1080),
+}
+DEFAULT_ASPECT_RATIO = "9:16"
+
+
+def get_resolution(aspect_ratio: str) -> Tuple[int, int]:
+    return ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS[DEFAULT_ASPECT_RATIO])
 
 
 def generate_ae_script(scene: Dict, index: int, width: int = 1080, height: int = 1920) -> str:

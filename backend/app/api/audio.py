@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import User, JobModel
 from app.db.session import get_db
-from app.core.security import get_current_active_user_from_token
+from app.core.security import get_current_user_from_token
 from app.core.storage_paths import get_storage_dir
 from app.core.logging import get_logger
 
@@ -46,7 +46,7 @@ def get_media_type(ext: str) -> str:
 async def get_audio(
     filename: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user_from_token),
+    current_user: User = Depends(get_current_user_from_token),
 ):
     """
     Serves cached audio files for Remotion preview and rendering.
@@ -99,7 +99,7 @@ async def get_audio_legacy(
     job_id: str,
     scene_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user_from_token),
+    current_user: User = Depends(get_current_user_from_token),
 ):
     """Legacy endpoint - redirects to generic filename handler."""
     return await get_audio(

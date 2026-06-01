@@ -4,7 +4,7 @@ from typing import List
 
 from app.db.session import get_db
 from app.db.models import User, DesignTemplate
-from app.core.security import get_current_active_user
+from app.core.security import get_current_user
 from app.schemas.design_template import DesignTemplateCreate, DesignTemplateUpdate, DesignTemplateResponse
 
 router = APIRouter()
@@ -12,7 +12,7 @@ router = APIRouter()
 @router.get("", response_model=List[DesignTemplateResponse])
 def read_design_templates(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     """List all design templates for the current user."""
     templates = db.query(DesignTemplate).filter(DesignTemplate.user_id == current_user.id).all()
@@ -22,7 +22,7 @@ def read_design_templates(
 def create_design_template(
     template_in: DesignTemplateCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Create a new design template."""
     new_template = DesignTemplate(
@@ -39,7 +39,7 @@ def create_design_template(
 def read_design_template(
     template_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get a specific design template."""
     template = db.query(DesignTemplate).filter(
@@ -55,7 +55,7 @@ def update_design_template(
     template_id: str,
     template_in: DesignTemplateUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Update a design template."""
     template = db.query(DesignTemplate).filter(
@@ -78,7 +78,7 @@ def update_design_template(
 def delete_design_template(
     template_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Delete a design template."""
     template = db.query(DesignTemplate).filter(

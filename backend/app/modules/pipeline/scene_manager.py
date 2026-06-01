@@ -25,7 +25,19 @@ async def _regenerate_scene_async(
     user_id: Optional[str] = None,
     db=None,
 ) -> dict:
-    from app.core.resolutions import get_resolution
+    from typing import Tuple
+
+    ASPECT_RATIOS = {
+        "9:16": (1080, 1920),
+        "4:5": (1080, 1350),
+        "3:4": (1080, 1440),
+        "1:1": (1080, 1080),
+        "16:9": (1920, 1080),
+    }
+    DEFAULT_ASPECT_RATIO = "9:16"
+
+    def get_resolution(aspect_ratio: str) -> Tuple[int, int]:
+        return ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS[DEFAULT_ASPECT_RATIO])
 
     scene = spec["scenes"][scene_index]
     aspect_ratio = spec.get("aspect_ratio", "9:16")

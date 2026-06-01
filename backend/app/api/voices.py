@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.db.models import Voice, User
 from app.schemas.voice import VoiceCreate, VoiceUpdate, VoiceResponse, VoicePreviewRequest
-from app.core.security import get_current_active_user
+from app.core.security import get_current_user
 from app.core.config import settings
 from app.modules.tts.service import generate_tts_audio_only
 
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/voices", tags=["voices"])
 
 @router.get("/", response_model=list[VoiceResponse])
 def list_voices(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """List all voices for the current user.
@@ -29,7 +29,7 @@ def list_voices(
         db.query(Voice)
         .filter(
             Voice.user_id == current_user.id,
-            Voice.is_active == True,  # noqa: E712
+            Voice.is_active.is_(True),  # noqa: E712
         )
         .order_by(Voice.is_default.desc(), Voice.created_at.desc())
         .all()
@@ -56,7 +56,7 @@ def list_voices(
 @router.post("/", response_model=VoiceResponse, status_code=201)
 async def create_voice(
     voice_data: VoiceCreate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Create a new voice for the current user."""
@@ -64,7 +64,7 @@ async def create_voice(
     if voice_data.is_default:
         db.query(Voice).filter(
             Voice.user_id == current_user.id,
-            Voice.is_default == True,  # noqa: E712
+            Voice.is_default.is_(True),  # noqa: E712
         ).update({"is_default": False})
 
     voice = Voice(
@@ -84,7 +84,7 @@ async def create_voice(
 async def upload_voice_sample(
     voice_id: str,
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Upload an audio sample for voice cloning."""
@@ -119,7 +119,7 @@ async def upload_voice_sample(
 async def preview_voice(
     voice_id: str,
     preview_data: VoicePreviewRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Generate a preview audio for a voice using Piper TTS."""
@@ -172,7 +172,7 @@ async def preview_voice(
 def update_voice(
     voice_id: str,
     update_data: VoiceUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Update a voice's properties."""
@@ -194,7 +194,7 @@ def update_voice(
             # Unset other defaults for this user
             db.query(Voice).filter(
                 Voice.user_id == current_user.id,
-                Voice.is_default == True,  # noqa: E712
+            Voice.is_default.is_(True),  # noqa: E712
                 Voice.id != voice_id,
             ).update({"is_default": False})
         voice.is_default = update_data.is_default
@@ -207,7 +207,7 @@ def update_voice(
 @router.delete("/{voice_id}", status_code=204)
 def delete_voice(
     voice_id: str,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Delete voice permanently including audio file."""
