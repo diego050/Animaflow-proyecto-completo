@@ -291,6 +291,79 @@ Ejemplo incorrecto (texto sobre gatos): {{"type": "component", "componentName": 
   - Si quieres texto a la derecha: usa `x: {int(half_w * 0.5)}` a `{int(half_w * 0.7)}`.
   - fontSize máximo: {max_font_size} (valores mayores se salen del canvas)."""
 
+    layout_section = """
+SISTEMA DE LAYOUT (FLEXBOX):
+En lugar de usar coordenadas absolutas (x, y) para cada elemento, usa estructuras de layout para organizar elementos de forma flexible y responsive.
+
+Ejemplo 1: Fila horizontal con espacio entre elementos
+{
+  "type": "group",
+  "layout": "flex",
+  "direction": "row",
+  "justifyContent": "space-between",
+  "alignItems": "center",
+  "gap": 40,
+  "children": [
+    { "type": "component", "componentName": "IconifyIcon", "icon": "mdi:cat", "flex": 1 },
+    { "type": "text", "text": "Los gatos son increíbles", "flex": 2 }
+  ]
+}
+
+Ejemplo 2: Columna vertical centrada
+{
+  "type": "group",
+  "layout": "flex",
+  "direction": "column",
+  "justifyContent": "center",
+  "alignItems": "center",
+  "gap": 20,
+  "children": [
+    { "type": "component", "componentName": "PercentageRing", "value": 73 },
+    { "type": "text", "text": "73% de los usuarios" }
+  ]
+}
+
+Ejemplo 3: Overlay (botón encima de fondo)
+{
+  "layers": [
+    { "type": "component", "componentName": "KineticBackground", "zIndex": 0 },
+    { "type": "group", "layout": "flex", "direction": "column", "alignItems": "center", "zIndex": 10, "children": [
+      { "type": "text", "text": "Texto encima" },
+      { "type": "component", "componentName": "SubscribeButton" }
+    ]}
+  ]
+}
+
+Ejemplo 4: Elemento con posición absoluta (overlay específico)
+{
+  "type": "component",
+  "componentName": "NotificationToast",
+  "position": "absolute",
+  "top": 20,
+  "right": 20
+}
+
+PROPIEDADES DE LAYOUT DISPONIBLES:
+- layout: "flex" | "grid" | "absolute"
+- direction: "row" | "column"
+- justifyContent: "flex-start" | "center" | "space-between" | "space-around"
+- alignItems: "flex-start" | "center" | "stretch"
+- gap: número (espaciado entre hijos en píxeles)
+- flex: número (factor de crecimiento relativo)
+- zIndex: número (orden de apilamiento, mayor = encima)
+- position: "relative" | "absolute"
+- top, right, bottom, left: números (para posición absoluta)
+- stagger: número (retraso entre animaciones de hijos en segundos)
+
+REGLAS DE LAYOUT:
+1. Usa "group" con "layout: flex" para organizar múltiples elementos.
+2. Usa "zIndex" para controlar qué va encima de qué.
+3. Usa "gap" para espaciado consistente entre elementos.
+4. NO uses coordenadas x/y dentro de un grupo flex — el layout las calcula automáticamente.
+5. El texto y los iconos son OPCIONALES. Usa solo lo que la escena necesite.
+6. Puedes anidar grupos flex dentro de otros grupos para layouts complejos.
+"""
+
     positioning_rules = f"""REGLAS DE POSICIONAMIENTO (CANVAS {width}x{height}, formato {aspect_ratio}):
 - El centro del canvas es (0, 0). Los bordes son aproximadamente x: ±{half_w}, y: ±{half_h}.
 - Para centrar un elemento: usa x: 0, y: 0.
@@ -379,6 +452,8 @@ REGLAS DE ORO PARA EL DISEÑO:
     - EJEMPLO CORRECTO: {{"type": "text", "text": "Hola", "x": 0, "y": 0}}
     - EJEMPLO INCORRECTO: {{"type": "text", "text": "Hola"}} ← FALTA x/y, INVÁLIDO
 6. **FORMATO NUMÉRICO ESTRICTO:** Para `lineWidth`, usa SOLO números ENTEROS (0, 1, 2, 3... 20). NUNCA uses decimales. Ejemplos válidos: `0`, `4`, `10`. Ejemplos INVÁLIDOS: `0.5`, `4.5`, `10.25`.
+
+{layout_section}
 
 {positioning_rules}
 

@@ -23,6 +23,7 @@ import { AnimaParticles } from '../primitives/AnimaParticles';
 import { AnimaGradient } from '../primitives/AnimaGradient';
 import { COMPONENT_REGISTRY } from '../registry';
 import { AnimatedWrapper } from '../AnimatedWrapper';
+import { solveLayout, SolvedLayer } from '../utils/layoutSolver';
 
 import type { AnimValue } from '../primitives/types';
 
@@ -100,6 +101,26 @@ export interface LayerSpec {
 
   // -- CSS filter (ej: 'blur(5px)', 'brightness(1.2)') --------------------
   filter?: string | null;
+
+  // --- Layout Primitives (Flexbox/Grid) ---
+  layout?: 'flex' | 'grid' | 'absolute';
+  direction?: 'row' | 'column';
+  justifyContent?: 'flex-start' | 'center' | 'space-between' | 'space-around';
+  alignItems?: 'flex-start' | 'center' | 'stretch' | 'baseline';
+  gap?: number;
+  flex?: number;
+  zIndex?: number;
+
+  // --- Absolute Positioning (for overlays) ---
+  position?: 'relative' | 'absolute';
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+
+  // --- Animation Timing Overrides ---
+  stagger?: number; // Delay between children animations (seconds)
+  exitStart?: number; // Time in seconds when exit animation starts
 }
 
 export interface AnimaComposerProps {
@@ -174,7 +195,7 @@ const FilterWrapper: React.FC<{
  * Function constructor, no hay babel standalone.
  */
 function renderSingleLayer(
-  layer: LayerSpec,
+  layer: SolvedLayer,
   index: number,
   ctx: RenderContext,
 ): React.ReactNode {
@@ -196,17 +217,17 @@ function renderSingleLayer(
     case 'rect': {
       element = (
         <AnimaRect
-          x={layer.x ?? 0}
-          y={layer.y ?? 0}
-          width={layer.width ?? 100}
-          height={layer.height ?? 100}
-          fill={layer.fill ?? '#ffffff'}
-          borderRadius={layer.borderRadius}
-          scale={layer.scale}
-          rotation={layer.rotation}
-          opacity={layer.opacity}
-          stroke={layer.stroke}
-          strokeWidth={layer.strokeWidth}
+          x={Number(layer.x) ?? 0}
+          y={Number(layer.y) ?? 0}
+          width={Number(layer.width) ?? 100}
+          height={Number(layer.height) ?? 100}
+          fill={(layer.fill as string) ?? '#ffffff'}
+          borderRadius={layer.borderRadius as number | undefined}
+          scale={layer.scale as number | AnimValue | undefined}
+          rotation={layer.rotation as number | AnimValue | undefined}
+          opacity={layer.opacity as number | AnimValue | undefined}
+          stroke={layer.stroke as string | undefined}
+          strokeWidth={layer.strokeWidth as number | undefined}
         />
       );
 
@@ -243,15 +264,15 @@ function renderSingleLayer(
 
       element = (
         <AnimaCircle
-          cx={layer.x ?? 0}
-          cy={layer.y ?? 0}
-          r={layer.r}
-          fill={layer.fill ?? '#ffffff'}
-          scale={layer.scale}
-          rotation={layer.rotation}
-          opacity={layer.opacity}
-          stroke={layer.stroke}
-          strokeWidth={layer.strokeWidth}
+          cx={Number(layer.x) ?? 0}
+          cy={Number(layer.y) ?? 0}
+          r={Number(layer.r)}
+          fill={(layer.fill as string) ?? '#ffffff'}
+          scale={layer.scale as number | AnimValue | undefined}
+          rotation={layer.rotation as number | AnimValue | undefined}
+          opacity={layer.opacity as number | AnimValue | undefined}
+          stroke={layer.stroke as string | undefined}
+          strokeWidth={layer.strokeWidth as number | undefined}
         />
       );
 
@@ -287,15 +308,15 @@ function renderSingleLayer(
 
       element = (
         <AnimaPath
-          pathData={layer.pathData}
-          x={layer.x}
-          y={layer.y}
-          fill={layer.fill}
-          stroke={layer.stroke}
-          strokeWidth={layer.strokeWidth}
-          scale={layer.scale}
-          rotation={layer.rotation}
-          opacity={layer.opacity}
+          pathData={layer.pathData as string}
+          x={layer.x as number | undefined}
+          y={layer.y as number | undefined}
+          fill={layer.fill as string | undefined}
+          stroke={layer.stroke as string | undefined}
+          strokeWidth={layer.strokeWidth as number | undefined}
+          scale={layer.scale as number | AnimValue | undefined}
+          rotation={layer.rotation as number | AnimValue | undefined}
+          opacity={layer.opacity as number | AnimValue | undefined}
         />
       );
 
@@ -324,16 +345,16 @@ function renderSingleLayer(
       element = (
         <AnimaText
           text={displayText!}
-          x={layer.x}
-          y={layer.y}
-          fontSize={layer.fontSize}
-          fontWeight={layer.fontWeight}
-          color={layer.fill}
-          letterSpacing={layer.letterSpacing}
-          textAlign={layer.textAlign}
-          scale={layer.scale}
-          rotation={layer.rotation}
-          opacity={layer.opacity}
+          x={layer.x as number | undefined}
+          y={layer.y as number | undefined}
+          fontSize={layer.fontSize as number | undefined}
+          fontWeight={layer.fontWeight as number | undefined}
+          color={layer.fill as string | undefined}
+          letterSpacing={layer.letterSpacing as number | undefined}
+          textAlign={layer.textAlign as 'left' | 'center' | 'right' | undefined}
+          scale={layer.scale as number | AnimValue | undefined}
+          rotation={layer.rotation as number | AnimValue | undefined}
+          opacity={layer.opacity as number | AnimValue | undefined}
         />
       );
 
@@ -368,16 +389,16 @@ function renderSingleLayer(
 
       element = (
         <AnimaImage
-          src={layer.src}
-          x={layer.x}
-          y={layer.y}
-          width={layer.width}
-          height={layer.height}
-          fit={layer.fit}
-          scale={layer.scale}
-          rotation={layer.rotation}
-          opacity={layer.opacity}
-          borderRadius={layer.borderRadius}
+          src={layer.src as string}
+          x={layer.x as number | undefined}
+          y={layer.y as number | undefined}
+          width={layer.width as number | undefined}
+          height={layer.height as number | undefined}
+          fit={layer.fit as 'cover' | 'contain' | undefined}
+          scale={layer.scale as number | AnimValue | undefined}
+          rotation={layer.rotation as number | AnimValue | undefined}
+          opacity={layer.opacity as number | AnimValue | undefined}
+          borderRadius={layer.borderRadius as number | undefined}
         />
       );
 
@@ -403,19 +424,43 @@ function renderSingleLayer(
     // GROUP
     // ===================================================================
     case 'group': {
-      const children = layer.children ?? [];
+      const children = (layer.children ?? []) as SolvedLayer[];
 
-      element = (
-        <AnimaGroup
-          x={layer.x}
-          y={layer.y}
-          scale={layer.scale}
-          rotation={layer.rotation}
-          opacity={layer.opacity}
-        >
-          {renderLayerList(children, ctx)}
-        </AnimaGroup>
-      );
+      // If this is a flex group, render children with absolute positions
+      if (layer.layout === 'flex') {
+        element = (
+          <div
+            style={{
+              position: 'absolute',
+              left: layer.x,
+              top: layer.y,
+              width: layer.width,
+              height: layer.height,
+              display: 'flex',
+              flexDirection: (layer.direction as 'row' | 'column') || 'column',
+              justifyContent: (layer.justifyContent as React.CSSProperties['justifyContent']) || 'flex-start',
+              alignItems: (layer.alignItems as React.CSSProperties['alignItems']) || 'flex-start',
+              gap: layer.gap || 0,
+              zIndex: layer.zIndex || 0,
+            }}
+          >
+            {renderLayerList(children, ctx)}
+          </div>
+        );
+      } else {
+        // Default behavior for non-flex groups
+        element = (
+          <AnimaGroup
+            x={layer.x as number | undefined}
+            y={layer.y as number | undefined}
+            scale={layer.scale as number | AnimValue | undefined}
+            rotation={layer.rotation as number | AnimValue | undefined}
+            opacity={layer.opacity as number | AnimValue | undefined}
+          >
+            {renderLayerList(children, ctx)}
+          </AnimaGroup>
+        );
+      }
 
       element = (
         <AnimatedWrapper
@@ -441,15 +486,15 @@ function renderSingleLayer(
     case 'particles': {
       element = (
         <AnimaParticles
-          count={layer.count ?? 20}
-          shape={layer.shape}
-          spread={layer.spread ?? 200}
-          colors={layer.colors ?? ['#ffffff']}
-          x={layer.x}
-          y={layer.y}
-          scale={layer.scale}
-          rotation={layer.rotation}
-          opacity={layer.opacity}
+          count={Number(layer.count) ?? 20}
+          shape={layer.shape as 'circle' | 'rect' | 'star' | undefined}
+          spread={Number(layer.spread) ?? 200}
+          colors={(layer.colors as string[]) ?? ['#ffffff']}
+          x={layer.x as number | undefined}
+          y={layer.y as number | undefined}
+          scale={layer.scale as number | AnimValue | undefined}
+          rotation={layer.rotation as number | AnimValue | undefined}
+          opacity={layer.opacity as number | AnimValue | undefined}
         />
       );
 
@@ -486,15 +531,9 @@ function renderSingleLayer(
         return null;
       }
 
-      // ── PositionWrapper: Convert center-based to absolute coordinates ──
-      // El LLM usa x=0,y=0 como centro. Los componentes usan coordenadas absolutas.
-      // Conversión: absoluteX = width/2 + layerX, absoluteY = height/2 + layerY
-      const centerX = ctx.width / 2;
-      const centerY = ctx.height / 2;
-      const layerX = typeof layer.x === 'number' ? layer.x : 0;
-      const layerY = typeof layer.y === 'number' ? layer.y : 0;
-      const absoluteX = centerX + layerX;
-      const absoluteY = centerY + layerY;
+      // Use solved absolute coordinates directly
+      const absoluteX = layer.x;
+      const absoluteY = layer.y;
 
       // Merge props and resolve {{text}} placeholder if present
       const mergedProps: Record<string, any> = {
@@ -542,7 +581,7 @@ function renderSingleLayer(
  * nivel superior como para grupos anidados.
  */
 function renderLayerList(
-  layers: LayerSpec[],
+  layers: SolvedLayer[],
   ctx: RenderContext,
 ): React.ReactNode {
   if (!layers || layers.length === 0) return null;
@@ -586,6 +625,9 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
   const { width, height, fps } = useVideoConfig();
 
   const actualDurationInFrames = _durationInFrames || Math.round((spec.layers.length > 0 ? 3 : 3) * fps);
+
+  // Solve layout to get absolute coordinates
+  const solvedLayers = solveLayout(spec, width, height);
 
   // -----------------------------------------------------------------------
   // Background with crossfade (z-index: 0)
@@ -633,7 +675,7 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
       }}
     >
       {background}
-      {renderLayerList(spec.layers, ctx)}
+      {renderLayerList(solvedLayers.layers as SolvedLayer[], ctx)}
     </div>
   );
 };

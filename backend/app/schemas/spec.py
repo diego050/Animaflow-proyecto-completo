@@ -223,6 +223,26 @@ class AnimaChildLayer(BaseAnimaLayer):
         return data
 
 class AnimaLayer(BaseAnimaLayer):
+    # --- Layout Primitives (Flexbox/Grid) ---
+    layout: Optional[str] = None  # "flex", "grid", "absolute"
+    direction: Optional[str] = None  # "row", "column"
+    justifyContent: Optional[str] = None  # "flex-start", "center", "space-between", "space-around"
+    alignItems: Optional[str] = None  # "flex-start", "center", "stretch", "baseline"
+    gap: Optional[int] = None  # Spacing between children in pixels
+    flex: Optional[int] = None  # Growth factor (1, 2, etc.)
+    zIndex: Optional[int] = None  # Stacking order
+
+    # --- Absolute Positioning (for overlays) ---
+    position: Optional[str] = None  # "relative", "absolute"
+    top: Optional[int] = None
+    right: Optional[int] = None
+    bottom: Optional[int] = None
+    left: Optional[int] = None
+
+    # --- Animation Timing Overrides ---
+    stagger: Optional[float] = None  # Delay between children animations (seconds)
+    exitStart: Optional[float] = None  # Time in seconds when exit animation starts
+
     children: Optional[List[AnimaChildLayer]] = None
 
     @model_validator(mode="before")
