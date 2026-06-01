@@ -86,7 +86,7 @@ class TestPipelineSnapshot:
     """Snapshot tests that verify spec.json output doesn't change during refactoring."""
 
     def test_pipeline_produces_valid_spec(
-        self, db_session, sample_script, mock_external_services
+        self, db_session, test_user, sample_script, mock_external_services
     ):
         """Pipeline produces a valid TimelineSpec with expected structure."""
         # Create a test job
@@ -94,6 +94,7 @@ class TestPipelineSnapshot:
             script_text=sample_script,
             aspect_ratio="9:16",
             status="pending",
+            user_id=test_user.id,
         )
         db_session.add(job)
         db_session.commit()
@@ -133,12 +134,13 @@ class TestPipelineSnapshot:
         for i, scene in enumerate(spec["scenes"]):
             assert scene["duration_seconds"] > 0, f"Scene {i} duration must be positive"
 
-    def test_pipeline_spec_snapshot(self, db_session, sample_script, mock_external_services):
+    def test_pipeline_spec_snapshot(self, db_session, test_user, sample_script, mock_external_services):
         """Compare spec output against deterministic mock values."""
         job = JobModel(
             script_text=sample_script,
             aspect_ratio="9:16",
             status="pending",
+            user_id=test_user.id,
         )
         db_session.add(job)
         db_session.commit()
@@ -216,7 +218,7 @@ class TestPipelineIdempotency:
             yield
 
     def test_rerun_pipeline_same_output(
-        self, db_session, mock_external_services_idempotency
+        self, db_session, test_user, mock_external_services_idempotency
     ):
         """Running pipeline twice on same job should not change spec."""
         script = "Test script for idempotency. Second sentence for segmentation."
@@ -224,6 +226,7 @@ class TestPipelineIdempotency:
             script_text=script,
             aspect_ratio="9:16",
             status="pending",
+            user_id=test_user.id,
         )
         db_session.add(job)
         db_session.commit()
