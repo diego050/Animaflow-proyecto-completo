@@ -21,13 +21,17 @@ def generate_icon_embedding(text: str) -> Optional[list[float]]:
 
         client = genai.Client(api_key=api_key)
         response = client.models.embed_content(
-            model="gemini-embedding-001",
+            model="gemini-embedding-2",
             contents=text,
-            config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY"),
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_QUERY",
+                output_dimensionality=768,
+            ),
         )
 
         if response.embeddings:
-            return response.embeddings[0].values
+            embedding = response.embeddings[0].values
+            return embedding
         return None
     except Exception as e:
         logger.error("Failed to generate icon search embedding: %s", e)
@@ -88,5 +92,17 @@ def find_best_icons(
             for row in results
         ]
     except Exception as e:
-        logger.error("Icon search failed: %s", e)
+        error_msg = str(e)
+        if "different vector dimensions" in error_msg:
+            logger.warning(
+                "Icon embedding dimension mismatch (query: %d dims vs table: 768 dims). "
+                "The iconify_icons table needs to be re-embedded with the current model.",
+                len(query_embedding),
+            )
+        else:
+            logger.error("Icon search failed: %s", e)
+        try:
+            db.rollback()
+        except Exception:
+            pass
         return []

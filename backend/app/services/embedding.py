@@ -9,13 +9,14 @@ from app.core.logging import get_logger
 
 logger = get_logger("embedding")
 
-GEMINI_EMBEDDING_MODEL = "gemini-embedding-001"
+GEMINI_EMBEDDING_MODEL = "gemini-embedding-2"
 
 
 def generate_embedding(text: str, api_key: Optional[str] = None) -> Optional[list[float]]:
     """Generate Gemini embedding for component metadata.
     
-    Uses gemini-embedding-001 which is free and supports text embeddings.
+    Uses gemini-embedding-2 with output_dimensionality=768 for compatibility
+    with pgvector tables populated by all-mpnet-base-v2.
     """
     api_key = api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -32,6 +33,7 @@ def generate_embedding(text: str, api_key: Optional[str] = None) -> Optional[lis
             contents=text,
             config=types.EmbedContentConfig(
                 task_type="RETRIEVAL_DOCUMENT",
+                output_dimensionality=768,
             ),
         )
         
