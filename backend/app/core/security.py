@@ -39,24 +39,15 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    """
-    Extract and validate the Bearer token, return the associated User.
-
-    TODO: Future - add token blacklist / refresh token rotation for enhanced security.
-    """
+def _decode_token_and_get_user(token: str, db: Session) -> User:
+    """Shared helper to decode JWT token and fetch user from database."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(
-            credentials.credentials, settings.SECRET_KEY, algorithms=["HS256"]
-        )
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
@@ -67,6 +58,14 @@ def get_current_user(
     if user is None or not user.is_active:
         raise credentials_exception
     return user
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    """Extract and validate the Bearer token, return the associated User."""
+    return _decode_token_and_get_user(credentials.credentials, db)
 
 
 def require_admin(
@@ -86,33 +85,15 @@ def get_current_user_from_token(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db),
 ) -> User:
-    """
-    Extract and validate token from either query param or Bearer header.
-    Priority: query param > header
-    """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    # Try query param first, then header
+    """Extract and validate token from either query param or Bearer header."""
     raw_token = token or (credentials.credentials if credentials else None)
     if not raw_token:
-        raise credentials_exception
-
-    try:
-        payload = jwt.decode(raw_token, settings.SECRET_KEY, algorithms=["HS256"])
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-
-    user = db.query(User).filter(User.id == user_id, User.is_deleted.is_(False)).first()
-    if user is None or not user.is_active:
-        raise credentials_exception
-    return user
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return _decode_token_and_get_user(raw_token, db)
 
 
 

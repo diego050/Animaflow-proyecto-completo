@@ -7,18 +7,23 @@ health checks, and configurable settings for administrators.
 
 from typing import Optional
 import datetime
+import os
+import time
 from datetime import timezone
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
-from sqlalchemy import Integer, func
-from sqlalchemy.orm import Session
+from sqlalchemy import Integer, func, text
+from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel, ConfigDict
 
 from app.db.session import get_db
-from app.db.models import User, JobModel
+from app.db.models import User, JobModel, Voice
 from app.core.security import require_admin, get_password_hash
 from app.core.config import settings
 from app.core.limiter import limiter
+from app.core.storage_paths import get_storage_dir
+from app.services.job_cleanup import delete_job_files
 
 router = APIRouter()
 
@@ -104,8 +109,6 @@ def get_admin_stats(
     success_rate = (completed_jobs / finished_jobs * 100) if finished_jobs > 0 else 0
 
     # Calculate storage (sum of video file sizes)
-    import os
-    from app.core.storage_paths import get_storage_dir
     videos_dir = get_storage_dir("videos")
     total_storage_mb = sum(
         os.path.getsize(os.path.join(videos_dir, f)) / (1024 * 1024)
@@ -142,7 +145,6 @@ def list_admin_users(
     current_user: User = Depends(require_admin),
 ):
     """List all users with stats, with pagination."""
-    from sqlalchemy import func
 
     # Get paginated users first
     users = (
@@ -242,9 +244,6 @@ def delete_user(
     current_user: User = Depends(require_admin),
 ):
     """Delete user permanently with cascade (jobs, voices, files)."""
-    import os
-    from app.db.models import JobModel, Voice
-    from app.core.storage_paths import get_storage_dir
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -355,7 +354,6 @@ def list_admin_jobs(
     current_user: User = Depends(require_admin),
 ):
     """List all jobs with optional status filter and pagination."""
-    from sqlalchemy.orm import joinedload
 
     query = db.query(JobModel).options(joinedload(JobModel.user))
     if status_filter:
@@ -443,7 +441,6 @@ def delete_job(
     current_user: User = Depends(require_admin),
 ):
     """Delete a job and all associated files from disk."""
-    from app.services.job_cleanup import delete_job_files
 
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
     if not job:
@@ -472,7 +469,6 @@ def system_health(
     database_pool_size = 0
     database_pool_used = 0
     try:
-        from sqlalchemy import text
         db.execute(text("SELECT 1"))
         database_connected = True
         # Get actual pool info from SQLAlchemy engine
@@ -487,7 +483,6 @@ def system_health(
         pass
 
     # Uptime (process start time approximation)
-    import time
     uptime_seconds = time.time() - getattr(system_health, '_start_time', time.time())
     if not hasattr(system_health, '_start_time'):
         system_health._start_time = time.time()
@@ -519,12 +514,11 @@ def get_business_metrics(
     current_user: User = Depends(require_admin),
 ):
     """Return business metrics for the admin dashboard."""
-    from datetime import datetime, timedelta, timezone
 
-    now = datetime.now(timezone.utc)
-    week_ago = now - timedelta(days=7)
-    two_weeks_ago = now - timedelta(days=14)
-    month_ago = now - timedelta(days=30)
+    now = datetime.datetime.now(timezone.utc)
+    week_ago = now - datetime.timedelta(days=7)
+    two_weeks_ago = now - datetime.timedelta(days=14)
+    month_ago = now - datetime.timedelta(days=30)
 
     # 1. Usuarios registrados esta semana
     users_this_week = db.query(User).filter(User.created_at >= week_ago).count()

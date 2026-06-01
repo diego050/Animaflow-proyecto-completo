@@ -35,14 +35,25 @@ class Scheduler:
             exc = task.exception()
             logger.error(f"Task for job {job_id} phase {phase} failed: {exc}")
             try:
-                with SessionLocal() as session:
-                    job = session.query(JobModel).filter_by(id=job_id).first()
-                    if job and job.status not in ('completed', 'failed'):
-                        job.status = 'failed'
-                        job.error_message = f"Pipeline task failed: {exc}"
-                        session.commit()
+                job = self._get_job(job_id)
+                if job and job.status not in ('completed', 'failed'):
+                    with SessionLocal() as session:
+                        job_in_session = session.query(JobModel).filter_by(id=job_id).first()
+                        if job_in_session:
+                            job_in_session.status = 'failed'
+                            job_in_session.error_message = f"Pipeline task failed: {exc}"
+                            session.commit()
             except Exception as e:
                 logger.error(f"Failed to update job {job_id} status after task failure: {e}")
+
+    def _get_job(self, job_id: str):
+        """Fetch a job by ID using a fresh session. Returns None if not found."""
+        with SessionLocal() as session:
+            job = session.query(JobModel).filter_by(id=job_id).first()
+            if job:
+                # Detach from session so it can be used outside the context
+                session.expunge(job)
+            return job
 
     def _cleanup_done_tasks(self):
         done_tasks = [t for t in self.active_tasks if t.done()]
@@ -167,19 +178,18 @@ class Scheduler:
     async def _phase_segmentation(self, job_id: str):
         loop = asyncio.get_event_loop()
         try:
-            with SessionLocal() as session:
-                job = session.query(JobModel).filter_by(id=job_id).first()
-                if not job: return
-                script_text = job.script_text
-                aspect_ratio = job.aspect_ratio
-                user_id = job.user_id
-                tts_provider = job.tts_provider
-                tts_voice_id = job.tts_voice_id
-                # Read design_md and system_prompt from result_spec (set during job creation)
-                spec = job.result_spec or {}
-                design_md = spec.get("design_md")
-                system_prompt = spec.get("system_prompt")
-                animation_only = spec.get("animation_only", False)
+            job = self._get_job(job_id)
+            if not job: return
+            script_text = job.script_text
+            aspect_ratio = job.aspect_ratio
+            user_id = job.user_id
+            tts_provider = job.tts_provider
+            tts_voice_id = job.tts_voice_id
+            # Read design_md and system_prompt from result_spec (set during job creation)
+            spec = job.result_spec or {}
+            design_md = spec.get("design_md")
+            system_prompt = spec.get("system_prompt")
+            animation_only = spec.get("animation_only", False)
                 
             async with self.llm_semaphore:
                 await loop.run_in_executor(
@@ -205,12 +215,11 @@ class Scheduler:
     async def _phase_enrichment(self, job_id: str):
         loop = asyncio.get_event_loop()
         try:
-            with SessionLocal() as session:
-                job = session.query(JobModel).filter_by(id=job_id).first()
-                if not job: return
-                user_id = job.user_id
-                tts_provider = job.tts_provider
-                tts_voice_id = job.tts_voice_id
+            job = self._get_job(job_id)
+            if not job: return
+            user_id = job.user_id
+            tts_provider = job.tts_provider
+            tts_voice_id = job.tts_voice_id
             
             async with self.tts_semaphore:
                 await loop.run_in_executor(
@@ -227,11 +236,10 @@ class Scheduler:
     async def _phase_render(self, job_id: str):
         loop = asyncio.get_event_loop()
         try:
-            with SessionLocal() as session:
-                job = session.query(JobModel).filter_by(id=job_id).first()
-                if not job: return
-                scenes = job.result_spec.get('scenes', []) if job.result_spec else []
-                aspect_ratio = job.aspect_ratio
+            job = self._get_job(job_id)
+            if not job: return
+            scenes = job.result_spec.get('scenes', []) if job.result_spec else []
+            aspect_ratio = job.aspect_ratio
                 
             async with self.render_semaphore:
                 # Usar RenderAdapter de forma nativa asíncrona, en vez del orchestrator síncrono.
@@ -243,26 +251,26 @@ class Scheduler:
                 )
                 
             with SessionLocal() as session:
-                job = session.query(JobModel).filter_by(id=job_id).first()
-                if not job: return
-                
+                job_in_session = session.query(JobModel).filter_by(id=job_id).first()
+                if not job_in_session: return
+
                 if result.get("success"):
-                    job.status = 'completed'
-                    job.video_url = result.get("video_url")
+                    job_in_session.status = 'completed'
+                    job_in_session.video_url = result.get("video_url")
                     logger.info(f"Job {job_id} successfully rendered.")
                 else:
-                    job.status = 'failed'
-                    job.error_message = result.get("error", "Unknown render error")
-                    logger.error(f"Job {job_id} failed to render: {job.error_message}")
+                    job_in_session.status = 'failed'
+                    job_in_session.error_message = result.get("error", "Unknown render error")
+                    logger.error(f"Job {job_id} failed to render: {job_in_session.error_message}")
                 session.commit()
                 
         except Exception as e:
             logger.error(f"Phase render failed for {job_id}: {e}")
             with SessionLocal() as session:
-                job = session.query(JobModel).filter_by(id=job_id).first()
-                if job:
-                    job.status = 'failed'
-                    job.error_message = str(e)
+                job_in_session = session.query(JobModel).filter_by(id=job_id).first()
+                if job_in_session:
+                    job_in_session.status = 'failed'
+                    job_in_session.error_message = str(e)
                     session.commit()
 
 scheduler = Scheduler()

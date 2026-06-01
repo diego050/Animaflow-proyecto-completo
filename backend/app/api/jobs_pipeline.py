@@ -1,5 +1,5 @@
 from typing import Any, Literal
-from fastapi import APIRouter, Depends, HTTPException, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -8,6 +8,7 @@ from app.schemas.job import (
     SceneRegenerateRequest,
     SceneApprovalRequest,
     SceneEditRequest,
+    JobReformatRequest,
 )
 from app.db.session import get_db
 from app.db.models import JobModel, User
@@ -93,42 +94,11 @@ async def approve_scenes(
 @router.post("/{job_id}/reformat")
 async def reformat_job(
     job_id: str,
-    data: dict = Body(...),
+    data: JobReformatRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Reformat a job to a new aspect ratio with scene selection.
-
-    Body:
-        aspect_ratio: str (e.g., "16:9", "9:16", "1:1", "21:9", "2.39:1")
-        scene_selection: str ("all", "selected", "current")
-        scene_indices: list[int] (required if scene_selection="selected")
-        current_scene_index: int (required if scene_selection="current")
-    """
-    aspect_ratio = data.get("aspect_ratio")
-    scene_selection = data.get("scene_selection", "all")
-    scene_indices = data.get("scene_indices", [])
-    current_scene_index = data.get("current_scene_index")
-
-    # Validate aspect ratio
-    if not aspect_ratio:
-        raise HTTPException(status_code=400, detail="aspect_ratio required")
-
-    # Support formats: "16:9", "1:1", "21:9", "2.39:1"
-    import re
-    if not re.match(r'^\d+(\.\d+)?:\d+(\.\d+)?$', aspect_ratio):
-        raise HTTPException(status_code=400, detail="Invalid aspect_ratio format. Use 'width:height' (e.g., '16:9', '2.39:1')")
-
-    # Validate scene selection
-    if scene_selection not in ["all", "selected", "current"]:
-        raise HTTPException(status_code=400, detail="scene_selection must be 'all', 'selected', or 'current'")
-
-    if scene_selection == "selected" and not scene_indices:
-        raise HTTPException(status_code=400, detail="scene_indices required when scene_selection='selected'")
-
-    if scene_selection == "current" and current_scene_index is None:
-        raise HTTPException(status_code=400, detail="current_scene_index required when scene_selection='current'")
-
+    """Reformat a job to a new aspect ratio with scene selection."""
     job = get_job_or_404(db, job_id, current_user.id)
 
     if not job.result_spec or not job.result_spec.get("scenes"):
@@ -137,19 +107,23 @@ async def reformat_job(
     scenes = job.result_spec["scenes"]
 
     # Validate scene indices
-    if scene_selection == "selected":
-        for idx in scene_indices:
+    if data.scene_selection == "selected":
+        if not data.scene_indices:
+            raise HTTPException(status_code=400, detail="scene_indices required when scene_selection='selected'")
+        for idx in data.scene_indices:
             if idx < 0 or idx >= len(scenes):
                 raise HTTPException(status_code=400, detail=f"Invalid scene index: {idx}")
 
-    if scene_selection == "current":
-        if current_scene_index < 0 or current_scene_index >= len(scenes):
-            raise HTTPException(status_code=400, detail=f"Invalid current_scene_index: {current_scene_index}")
+    if data.scene_selection == "current":
+        if data.current_scene_index is None:
+            raise HTTPException(status_code=400, detail="current_scene_index required when scene_selection='current'")
+        if data.current_scene_index < 0 or data.current_scene_index >= len(scenes):
+            raise HTTPException(status_code=400, detail=f"Invalid current_scene_index: {data.current_scene_index}")
 
     # Create new job
     new_job = JobModel(
         script_text=job.script_text,
-        aspect_ratio=aspect_ratio,
+        aspect_ratio=data.aspect_ratio,
         status="pending",
         user_id=current_user.id,
         tts_provider=job.tts_provider,
@@ -163,21 +137,18 @@ async def reformat_job(
 
     # Determine which scenes to reformat
     scenes_to_reformat = {
-        "selection": scene_selection,
-        "indices": scene_indices if scene_selection == "selected" else
-                   [current_scene_index] if scene_selection == "current" else
+        "selection": data.scene_selection,
+        "indices": data.scene_indices if data.scene_selection == "selected" else
+                   [data.current_scene_index] if data.scene_selection == "current" else
                    list(range(len(scenes)))
     }
-
-    # El Scheduler procesará esto
-    pass
 
     return {
         "message": "Reformat job created",
         "new_job_id": new_job.id,
         "original_job_id": job.id,
-        "aspect_ratio": aspect_ratio,
-        "scene_selection": scene_selection,
+        "aspect_ratio": data.aspect_ratio,
+        "scene_selection": data.scene_selection,
         "scenes_to_reformat": scenes_to_reformat["indices"],
     }
 
