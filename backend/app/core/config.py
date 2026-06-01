@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     # Encryption
     ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
 
+    # Gmail SMTP (for password reset emails)
+    GMAIL_EMAIL: Optional[str] = None
+    GMAIL_APP_PASSWORD: Optional[str] = None
+
+    # Frontend URL (for password reset links, CORS, etc.)
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
     @model_validator(mode="after")
     def validate_secrets(self):
         if self.ENV == "production":
@@ -78,7 +85,6 @@ class Settings(BaseSettings):
         1. FRONTEND_DIR environment variable
         2. Auto-detection from this file's location
         """
-        import os
         if self.FRONTEND_DIR:
             path = os.path.abspath(self.FRONTEND_DIR)
             if os.path.isdir(path):

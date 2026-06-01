@@ -24,6 +24,9 @@ from app.core.file_logger import JobFileLogger
 from app.api.deps import get_job_or_404
 
 from sqlalchemy.orm.attributes import flag_modified
+from app.services.job_cleanup import delete_job_files
+from app.modules.llm.script_generator import generate_script_from_info
+from app.modules.llm.resolver import MissingApiKeyError
 
 
 VIDEOS_STORAGE = get_storage_dir("videos")
@@ -215,8 +218,6 @@ async def delete_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.services.job_cleanup import delete_job_files
-
     # Verify current_user owns this job before deletion
     job = db.query(JobModel).filter(
         JobModel.id == job_id,
@@ -238,9 +239,6 @@ def generate_script(
     req: ScriptGenerateRequest,
     current_user: User = Depends(get_current_user),
 ):
-    from app.modules.llm.script_generator import generate_script_from_info
-    from app.modules.llm.resolver import MissingApiKeyError
-
     try:
         script = generate_script_from_info(
             info=req.info,

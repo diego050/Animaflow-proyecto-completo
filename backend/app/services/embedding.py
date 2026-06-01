@@ -1,4 +1,5 @@
 """Component embedding service for semantic search using Gemini Embeddings."""
+import math
 import os
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -44,7 +45,6 @@ def generate_embedding(text: str, api_key: Optional[str] = None) -> Optional[lis
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     """Compute cosine similarity between two vectors."""
-    import math
     if not a or not b:
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))

@@ -25,6 +25,7 @@ from app.core.security import (
 )
 from app.core.limiter import limiter
 from app.core.logging import get_logger
+from app.core.email import send_password_reset_email
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = get_logger("auth")
@@ -165,11 +166,21 @@ def forgot_password(
     )
     db.commit()
 
-    logger.info(
-        "Password reset token generated for user %s (token prefix: %s...)",
-        user.id,
-        token[:20],
-    )
+    # Send password reset email
+    email_sent = send_password_reset_email(user.email, token)
+
+    if email_sent:
+        logger.info(
+            "Password reset email sent to %s (token prefix: %s...)",
+            user.email,
+            token[:20],
+        )
+    else:
+        logger.warning(
+            "Password reset token generated for user %s but email could not be sent (token prefix: %s...)",
+            user.email,
+            token[:20],
+        )
 
     return {"message": "Si el email existe, recibirás instrucciones."}
 
