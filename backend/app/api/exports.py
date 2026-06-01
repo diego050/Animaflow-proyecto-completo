@@ -12,6 +12,7 @@ from app.modules.ae_export.worker import generate_ae_export_async, _persist_job_
 from app.db.models import JobModel
 from app.core.config import settings
 from app.core.security import get_current_active_user
+from app.api.deps import get_job_or_404
 from app.core.limiter import limiter
 
 import os
@@ -19,17 +20,6 @@ import io
 import json
 
 router = APIRouter(prefix="/api/jobs", tags=["exports"])
-
-
-def get_job_or_404(db: Session, job_id: str, user_id: str) -> JobModel:
-    """Fetch a job ensuring it belongs to the given user."""
-    job = db.query(JobModel).filter(
-        JobModel.id == job_id,
-        JobModel.user_id == user_id,
-    ).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
 
 
 
@@ -194,41 +184,10 @@ async def download_scene_audio(
     if scene_index < 0 or scene_index >= len(scenes):
         raise HTTPException(status_code=404, detail="Scene not found")
 
-    from app.core.storage_paths import get_storage_dir
-    audio_storage = get_storage_dir("audio")
-    audio_extensions = [".mp3", ".wav", ".ogg", ".m4a"]
-    provider_subdirs = ["piper", "elevenlabs", "google", "gemini"]
-    audio_path = None
-    
-    base_name = f"{job_id}_{scene_index}"
+    from app.services.audio_finder import find_audio_file
 
-    # Try root first
-    for ext in audio_extensions:
-        candidate = os.path.join(audio_storage, base_name + ext)
-        if os.path.exists(candidate):
-            audio_path = candidate
-            break
-            
-    # Try provider subdirs
-    if not audio_path:
-        for subdir in provider_subdirs:
-            for ext in audio_extensions:
-                candidate = os.path.join(audio_storage, subdir, base_name + ext)
-                if os.path.exists(candidate):
-                    audio_path = candidate
-                    break
-            if audio_path:
-                break
-                
-    # Fallback to walk
-    if not audio_path:
-        for root, dirs, files in os.walk(audio_storage):
-            for ext in audio_extensions:
-                if base_name + ext in files:
-                    audio_path = os.path.join(root, base_name + ext)
-                    break
-            if audio_path:
-                break
+    base_name = f"{job_id}_{scene_index}"
+    audio_path = find_audio_file(base_name)
 
     if not audio_path:
         raise HTTPException(status_code=404, detail="Audio not found for this scene")

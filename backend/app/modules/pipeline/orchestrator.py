@@ -73,22 +73,6 @@ def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
             timeline_scenes = spec["scenes"]
             aspect_ratio = spec.get("aspect_ratio", "9:16")
 
-            # TODO(dead-code): This block calls render_single_scene with wrong arguments.
-            # The function signature expects (job_id, scene_index, duration_seconds, scene_text,
-            # component_name, ...) but here we pass (job_id, i, scene, aspect_ratio, user_id).
-            # The enrichment pipeline now stores anima_composer in each scene and renders on-demand.
-            # Kept for reference; remove once the on-demand render path is fully validated.
-            # video_paths = []
-            # for i, scene in enumerate(timeline_scenes):
-            #     video_path = render_single_scene(
-            #         job_id, i, scene, aspect_ratio, user_id
-            #     )
-            #     video_paths.append(video_path)
-            #
-            # output_path = concat_scenes(video_paths, job_id, user_id)
-            # job.video_url = output_path
-            # job.status = "completed"
-            # db.commit()
 
         except Exception as e:
             logger.exception(

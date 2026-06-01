@@ -1,6 +1,6 @@
 # Backend Hardening Checklist
 
-> **Last updated:** 2026-05-18 | **Status:** P0-P2 Complete
+> **Last updated:** 2026-05-31 | **Status:** P0-P2 Complete + Critical Fixes
 
 ---
 
@@ -32,6 +32,18 @@
 | 10 | Remove legacy shims | ✅ | Deleted 7 files |
 | 11 | Clean root temp files | ✅ | Deleted 7 files |
 | 12 | Update `.gitignore` | ✅ | Added patterns |
+
+### Critical Fixes — Mayo 2026 ✅
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| 1 | Alembic import all models | ✅ | `alembic/env.py` |
+| 2 | Remove DoS protection bypass | ✅ | `app/main.py` |
+| 3 | Remove marketplace (not MVP) | ✅ | `app/api/components.py` (deleted), `app/db/models.py` |
+| 4 | Async HTTP (requests → httpx) | ✅ | `app/api/contact.py`, `app/modules/llm/model_fetcher.py`, `app/api/api_keys.py` |
+| 5 | Scheduler task monitoring | ✅ | `app/core/scheduler.py` |
+| 6 | DB session leak fix | ✅ | `app/modules/pipeline/orchestrator.py` |
+| 7 | Entrypoint.sh in Dockerfile | ✅ | `Dockerfile` |
 
 ## Structured Logging
 
@@ -157,11 +169,26 @@ docker-compose -f docker-compose.prod.yml up -d
 | `postgres` | 1 | Database |
 | `redis` | 1 | Queue broker |
 
-## Remaining Tasks
+## Remaining Tasks (Sección 2 — 19 fixes pendientes)
 
 | Priority | Task | Effort |
 |----------|------|--------|
-| P1 | Fix `datetime.utcnow()` deprecation warnings | ~30min |
-| P1 | Restrict CORS in production | ~10min |
-| P1 | Fix API key leak in response | ~30min |
-| P2 | Migrate to Pydantic v2 `@field_validator` | ~1h |
+| P1 | Eliminar código muerto (4 archivos) | ~15min |
+| P1 | Dedicar `get_job_or_404` a deps.py | ~10min |
+| P1 | Extraer job cleanup a servicio | ~20min |
+| P1 | Unificar audio search | ~20min |
+| P1 | Crear `__init__.py` faltantes (6 dirs) | ~5min |
+| P1 | Pydantic v2 consistency | ~10min |
+| P1 | Boolean comparisons SQLAlchemy | ~10min |
+| P1 | datetime.utcnow() → now(timezone.utc) | ~10min |
+| P1 | Eliminar get_current_active_user redundante | ~20min |
+| P1 | Eliminar torch del Dockerfile | ~2min |
+| P2 | Split jobs.py (778 líneas) | ~1hr |
+| P2 | Fix N+1 queries en admin | ~30min |
+| P2 | Admin con response_model | ~30min |
+| P2 | Paginación en admin lists | ~20min |
+| P2 | Temp file leak en export | ~10min |
+| P2 | GET con side-effects en list_voices | ~20min |
+| P2 | SSE polling → LISTEN/NOTIFY | ~1hr |
+| P2 | Cachear ApiKey decrypt | ~10min |
+| P2 | Embedding como Vector column | ~30min |
