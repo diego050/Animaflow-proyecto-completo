@@ -99,7 +99,7 @@ def get_relevant_components(
     if query_embedding is None:
         # Fallback: return random active components
         logger.warning("No embedding available. Falling back to random selection.")
-        query = db.query(ComponentModel).filter(ComponentModel.is_active == True)
+        query = db.query(ComponentModel).filter(ComponentModel.is_active.is_(True))
         if category_filter:
             query = query.filter(ComponentModel.category == category_filter)
         components = query.limit(top_k).all()
@@ -126,7 +126,7 @@ def get_relevant_components(
 
         # Query components for this role with embeddings
         role_query = db.query(ComponentModel).filter(
-            ComponentModel.is_active == True,
+            ComponentModel.is_active.is_(True),
             ComponentModel.role == role,
             ComponentModel.embedding.isnot(None),
         )
@@ -157,7 +157,7 @@ def get_relevant_components(
         remaining = top_k - len(selected)
 
         general_query = db.query(ComponentModel).filter(
-            ComponentModel.is_active == True,
+            ComponentModel.is_active.is_(True),
             ComponentModel.embedding.isnot(None),
         )
         if seen_ids:

@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.db.models import JobModel, User
-from app.core.security import get_current_active_user_from_token
+from app.core.security import get_current_user_from_token
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ async def job_stream(
     request: Request,
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user_from_token),
+    current_user: User = Depends(get_current_user_from_token),
 ):
     """
     Server-Sent Events (SSE) endpoint to stream job progress.

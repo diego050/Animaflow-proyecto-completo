@@ -11,7 +11,7 @@ from app.modules.ae_export.zip_exporter import create_export_zip
 from app.modules.ae_export.worker import generate_ae_export_async, _persist_job_spec
 from app.db.models import JobModel
 from app.core.config import settings
-from app.core.security import get_current_active_user
+from app.core.security import get_current_user
 from app.api.deps import get_job_or_404
 from app.core.limiter import limiter
 
@@ -30,7 +30,7 @@ async def trigger_ae_export(
     job_id: str,
     force: bool = False,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Triggers async AE export job. Generates AE scripts for all scenes, then creates zip.
@@ -60,7 +60,7 @@ async def get_ae_export_status(
     request: Request,
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Returns AE export progress.
@@ -93,7 +93,7 @@ async def download_ae_export(
     request: Request,
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Downloads the generated AE export zip.
@@ -126,7 +126,7 @@ async def export_spec_json(
     request: Request,
     job_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Exporta el spec.json de un job.
@@ -171,7 +171,7 @@ async def download_scene_audio(
     request: Request,
     job_id: str,
     scene_index: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Download audio for a specific scene."""
@@ -205,7 +205,7 @@ async def download_scene_spec(
     request: Request,
     job_id: str,
     scene_index: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Download spec.json for a specific scene."""
@@ -247,7 +247,7 @@ async def download_scene_video(
     request: Request,
     job_id: str,
     scene_index: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Download rendered video for a specific scene (if available)."""

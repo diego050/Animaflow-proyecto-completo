@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.db.models import JobModel, User
-from app.core.security import get_current_active_user_from_token
+from app.core.security import get_current_user_from_token
 from app.core.storage_paths import get_storage_dir
 
 router = APIRouter(prefix="/api", tags=["scenes"])
@@ -18,7 +18,7 @@ async def get_scene_video(
     job_id: str,
     scene_index: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user_from_token),
+    current_user: User = Depends(get_current_user_from_token),
 ):
     """Servir MP4 de una escena individual."""
     # Verificar ownership del job
