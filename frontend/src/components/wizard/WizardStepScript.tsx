@@ -258,7 +258,7 @@ export function WizardStepScript({
             onClick={() => onOwnScriptModeChange('text-only')}
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-all ${
               ownScriptMode === 'text-only' || !ownScriptMode
-                ? 'bg-surface-elevated text-text-primary'
+                ? 'bg-mint-precision/10 text-mint-precision border border-mint-precision/20'
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
@@ -273,7 +273,7 @@ export function WizardStepScript({
             }}
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-all ${
               ownScriptMode === 'with-prompts'
-                ? 'bg-surface-elevated text-text-primary'
+                ? 'bg-mint-precision/10 text-mint-precision border border-mint-precision/20'
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
