@@ -282,7 +282,14 @@ def run_pipeline(
                 timeline_scenes = spec.get("scenes", [])
                 if timeline_scenes:
                     indices = scenes_to_reformat.get("indices") if scenes_to_reformat else None
-                    asyncio.run(_regenerate_components_for_reformat(job_id, timeline_scenes, aspect_ratio, user_id, indices, job.llm_model or "gemini-2.0-flash", db=db))
+                    coro = _regenerate_components_for_reformat(job_id, timeline_scenes, aspect_ratio, user_id, indices, job.llm_model or "gemini-2.0-flash", db=db)
+                    try:
+                        asyncio.run(coro)
+                    except RuntimeError as e:
+                        if "event loop" in str(e).lower():
+                            asyncio.get_event_loop().run_until_complete(coro)
+                        else:
+                            raise
                 spec_obj = TimelineSpec(**spec)
                 job.result_spec = spec_obj.model_dump()
                 flag_modified(job, "result_spec")
@@ -422,16 +429,22 @@ def run_pipeline_enrichment(
             JobFileLogger.log(job_id, "INFO", "Procesando escenas (TTS + Componentes)...")
 
             JobFileLogger.log(job_id, "INFO", "Iniciando generación de componentes con IA...")
-            timeline_scenes = asyncio.run(
-                _process_chunks_async(
-                    job_id=job_id,
-                    timeline_scenes=scenes,
-                    aspect_ratio=aspect_ratio,
-                    user_id=user_id,
-                    llm_model=job.llm_model or "gemini-2.0-flash",
-                    db=db,
-                )
+            coro = _process_chunks_async(
+                job_id=job_id,
+                timeline_scenes=scenes,
+                aspect_ratio=aspect_ratio,
+                user_id=user_id,
+                llm_model=job.llm_model or "gemini-2.0-flash",
+                db=db,
             )
+            try:
+                timeline_scenes = asyncio.run(coro)
+            except RuntimeError as e:
+                if "event loop" in str(e).lower():
+                    # Called from within an existing event loop
+                    timeline_scenes = asyncio.get_event_loop().run_until_complete(coro)
+                else:
+                    raise
 
             # Limpiar archivos TSX de jobs anteriores para evitar errores de compilación
             # No more TSX files to cleanup

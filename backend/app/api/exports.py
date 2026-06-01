@@ -19,6 +19,7 @@ from app.services.audio_finder import find_audio_file
 import os
 import io
 import json
+import asyncio
 
 router = APIRouter(prefix="/api/jobs", tags=["exports"])
 
@@ -42,8 +43,8 @@ async def trigger_ae_export(
     if not job.result_spec:
         raise HTTPException(status_code=400, detail="Job does not have a generated spec.json")
 
-    # Generate AE scripts and zip synchronously
-    generate_ae_export_async(job_id, force)
+    # Generate AE scripts and zip in a thread pool to avoid blocking the event loop
+    await asyncio.to_thread(generate_ae_export_async, job_id, force)
 
     job.result_spec["_ae_export_status"] = "queued"
     job.result_spec["_ae_export_progress"] = {

@@ -1,6 +1,7 @@
 """
 Security utilities for AnimaFlow - JWT, password hashing, auth dependencies.
 """
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -35,8 +36,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
+
+
+def decode_access_token(token: str) -> Optional[dict]:
+    """Decode a JWT token and return its payload. Returns None if invalid."""
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+    except JWTError:
+        return None
 
 
 def _decode_token_and_get_user(token: str, db: Session) -> User:
@@ -65,7 +74,25 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     """Extract and validate the Bearer token, return the associated User."""
-    return _decode_token_and_get_user(credentials.credentials, db)
+    user = _decode_token_and_get_user(credentials.credentials, db)
+
+    # Check if token is blacklisted
+    from app.db.models import TokenBlacklist
+    payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=["HS256"])
+    jti = payload.get("jti")
+    if jti:
+        blacklisted = db.query(TokenBlacklist).filter(
+            TokenBlacklist.jti == jti,
+            TokenBlacklist.expires_at > datetime.now(timezone.utc),
+        ).first()
+        if blacklisted:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    return user
 
 
 def require_admin(
