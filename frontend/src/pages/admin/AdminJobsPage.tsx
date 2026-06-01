@@ -37,6 +37,7 @@ export function AdminJobsPage() {
     jobsLoading,
     jobsTotal,
     jobsPage,
+    jobsPerPage,
     fetchJobs,
     retryJob,
     cancelJob,
@@ -232,10 +233,10 @@ export function AdminJobsPage() {
             </table>
           </div>
 
-          {jobsTotal > 20 && (
+          {jobsTotal > jobsPerPage && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
               <p className="text-xs text-gray-500">
-                Mostrando {(jobsPage - 1) * 20 + 1}-{Math.min(jobsPage * 20, jobsTotal)} de {jobsTotal}
+                Mostrando {(jobsPage - 1) * jobsPerPage + 1}-{Math.min(jobsPage * jobsPerPage, jobsTotal)} de {jobsTotal}
               </p>
               <div className="flex gap-2">
                 <button
@@ -247,7 +248,7 @@ export function AdminJobsPage() {
                 </button>
                 <button
                   onClick={() => fetchJobs(jobsPage + 1, statusFilter)}
-                  disabled={jobsPage * 20 >= jobsTotal}
+                  disabled={jobsPage * jobsPerPage >= jobsTotal}
                   className="px-3 py-1.5 text-xs font-medium rounded bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Siguiente
