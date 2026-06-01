@@ -10,7 +10,7 @@ import datetime
 from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
-from sqlalchemy import Integer
+from sqlalchemy import Integer, func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
 
@@ -530,35 +530,55 @@ def get_business_metrics(
     users_this_week = db.query(User).filter(User.created_at >= week_ago).count()
 
     # 2. Tasa de activación (usuarios nuevos que crearon video en primeros 7 días)
-    new_users = db.query(User).filter(User.created_at >= week_ago).all()
-    activated_users = 0
-    for u in new_users:
-        first_job = db.query(JobModel).filter(
-            JobModel.user_id == u.id,
-            JobModel.created_at >= u.created_at,
-            JobModel.created_at <= u.created_at + timedelta(days=7),
-            JobModel.status.in_(["completed", "completed_video"])
-        ).first()
-        if first_job:
-            activated_users += 1
-    activation_rate = (activated_users / len(new_users) * 100) if new_users else 0
+    # Fixed N+1: single grouped query instead of per-user loop
+    new_user_ids = {u[0] for u in db.query(User.id).filter(User.created_at >= week_ago).all()}
+
+    if new_user_ids:
+        first_jobs = (
+            db.query(JobModel.user_id, func.min(JobModel.created_at).label("first_job"))
+            .filter(
+                JobModel.user_id.in_(new_user_ids),
+                JobModel.user_id.isnot(None),
+                JobModel.status.in_(["completed", "completed_video"]),
+            )
+            .group_by(JobModel.user_id)
+            .all()
+        )
+        first_job_user_ids = {row.user_id for row in first_jobs}
+        activated_users = len(first_job_user_ids)
+    else:
+        activated_users = 0
+    activation_rate = (activated_users / len(new_user_ids) * 100) if new_user_ids else 0
 
     # 3. Tiempo promedio registro -> primer export
     avg_time_to_first_export = 0  # TODO: implement when tracking export events
 
     # 4. Tasa de retención semanal (usuarios que renderizaron semana pasada Y esta semana)
-    last_week_jobs = db.query(JobModel).filter(
-        JobModel.created_at >= two_weeks_ago,
-        JobModel.created_at < week_ago,
-        JobModel.status.in_(["completed", "completed_video"])
-    ).all()
-    last_week_user_ids = {j.user_id for j in last_week_jobs}
+    # Fixed N+1: fetch only distinct user_ids instead of full JobModel rows
+    last_week_user_ids = {
+        row[0] for row in
+        db.query(JobModel.user_id)
+        .filter(
+            JobModel.created_at >= two_weeks_ago,
+            JobModel.created_at < week_ago,
+            JobModel.status.in_(["completed", "completed_video"]),
+            JobModel.user_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    }
 
-    this_week_jobs = db.query(JobModel).filter(
-        JobModel.created_at >= week_ago,
-        JobModel.status.in_(["completed", "completed_video"])
-    ).all()
-    this_week_user_ids = {j.user_id for j in this_week_jobs}
+    this_week_user_ids = {
+        row[0] for row in
+        db.query(JobModel.user_id)
+        .filter(
+            JobModel.created_at >= week_ago,
+            JobModel.status.in_(["completed", "completed_video"]),
+            JobModel.user_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    }
 
     retained_users = len(last_week_user_ids & this_week_user_ids)
     retention_rate = (retained_users / len(last_week_user_ids) * 100) if last_week_user_ids else 0

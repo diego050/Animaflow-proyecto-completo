@@ -226,7 +226,7 @@ async def apply_conversational_changes(
     scene_spec: dict[str, Any],
     prompt: str,
     llm_client: Any = None,  # noqa: ANN401
-    history: list[dict] = [],
+    history: list[dict] | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Use LLM to parse natural language prompt and apply changes to scene spec.
 
@@ -242,6 +242,9 @@ async def apply_conversational_changes(
         RuntimeError: If the LLM service is not available.
         ValueError: If the LLM response is malformed.
     """
+    if history is None:
+        history = []
+
     system_prompt = (
         "You are a JSON editor for video animation scenes. "
         "Given a user prompt and the current scene spec, return ONLY the field "

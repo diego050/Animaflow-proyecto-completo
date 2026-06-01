@@ -40,12 +40,14 @@ Background types: solid, linear-gradient, radial-gradient
 Keep answers concise and in Spanish. Do not mention technical details like JSON or field paths."""
 
 
-async def classify_intent(user_message: str, llm_service: Any = None, history: list[dict] = []) -> str:
+async def classify_intent(user_message: str, llm_service: Any = None, history: list[dict] | None = None) -> str:
     """
     Classify user message intent using LLM.
     
     Returns: 'query', 'edit', or 'recommend'
     """
+    if history is None:
+        history = []
     try:
         from app.services.llm_service import generate_json
 
@@ -75,11 +77,13 @@ async def classify_intent(user_message: str, llm_service: Any = None, history: l
         return "edit"
 
 
-async def answer_query(user_message: str, llm_service: Any = None, history: list[dict] = []) -> str:
+async def answer_query(user_message: str, llm_service: Any = None, history: list[dict] | None = None) -> str:
     """
     Answer user questions without needing the scene spec.
     Uses a lightweight prompt with general animation info.
     """
+    if history is None:
+        history = []
     try:
         from app.services.llm_service import generate_text
 
