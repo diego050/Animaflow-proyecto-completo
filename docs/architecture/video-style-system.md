@@ -2,7 +2,7 @@
 
 **Fecha:** 1 de Junio de 2026
 **Tipo:** Architecture Decision Record
-**Estado:** Implementado (Fase 1-25)
+**Estado:** Implementado (Fase 1-29)
 
 ## Resumen
 
@@ -72,6 +72,8 @@ Se crearon componentes pre-construidos que usan el sistema de estilos:
 | **StyleFakeScroll** | scroll container | custom | Linear scroll + scrollbar | Feeds, testimonios, listas |
 | **StyleCursor** | pointer + ripple | custom | Path animation + click | Tutoriales, demos, interacciones |
 | **StyleBarRace** | horizontal race | custom | Bars grow + reorder | Rankings, competencias, top 10 |
+| **StyleFunnelChart** | funnel, inverted | custom | Stages stagger (20 frames) | Conversion funnels, sales pipeline |
+| **StyleRadarChart** | radar, spider | custom | Web expand (25 frames) | Skill comparison, multi-metric |
 
 Cada componente:
 - Acepta `style` prop con LayerStyle overrides
@@ -128,6 +130,21 @@ Se crearon 3 componentes de visualización de datos animados:
 - Soporte para imagen o Iconify icon
 - Opacidad controlada (default 0.3)
 - AE: Shape layer con opacity transform
+
+### 11. Advanced Charts (Fase 28-29)
+**StyleFunnelChart:**
+- Etapas de conversión con ancho proporcional
+- Animación staggered de arriba hacia abajo
+- Soporte para funnel normal e invertido
+- Labels con valores y porcentajes
+- AE: Shape layers con trapezoid paths
+
+**StyleRadarChart:**
+- Gráfico de radar/arana con múltiples ejes
+- Área poligonal con fill semitransparente
+- Dots en cada vértice con labels
+- Soporte para múltiples datasets
+- AE: Shape layer con polygon path + opacity
 
 ### 10. Motion Effects (Fase 17-25)
 Componentes inspirados en patrones de Framer Motion adaptados para video:
@@ -288,6 +305,8 @@ Playground examples en `/admin/animations`:
 - **ScrambleText + Ticker** — 2 scramble texts + ticker de cripto
 - **Simulated Hover + Fake Scroll + Cursor** — Demo completa con hover, scroll y cursor
 - **StyleBarRace (Rankings)** — Top 6 frameworks con contador animado
+- **StyleFunnelChart (Conversion)** — 5 etapas de funnel con porcentajes
+- **StyleRadarChart (Skills)** — 6 métricas con 2 datasets comparados
 
 ## Archivos Modificados
 
@@ -326,13 +345,12 @@ Playground examples en `/admin/animations`:
 | `frontend/src/remotion/components/StyleFakeScroll.tsx` | Nuevo: Scroll simulado |
 | `frontend/src/remotion/components/StyleCursor.tsx` | Nuevo: Cursor animado con clicks |
 | `frontend/src/remotion/components/StyleBarRace.tsx` | Nuevo: Bar race chart |
+| `frontend/src/remotion/components/StyleFunnelChart.tsx` | Nuevo: Funnel chart animado |
+| `frontend/src/remotion/components/StyleRadarChart.tsx` | Nuevo: Radar/spider chart |
 
 ## Próximas Fases
 
 | Fase | Tarea | Estado |
 |---|---|---|
-| **1-25** | Todas las fases completadas | ✅ Completado |
-| **26** | Improved Spring Physics | Pendiente |
-| **27** | Layout Transitions entre escenas | Pendiente |
-| **28** | Funnel Chart | Pendiente |
-| **29** | Radar/Spider Chart | Pendiente |
+| **1-29** | Todas las fases completadas | ✅ Completado |
+| **30+** | Nuevas funcionalidades | Por definir |
