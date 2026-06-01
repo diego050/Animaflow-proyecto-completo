@@ -2,7 +2,7 @@
 
 **Fecha:** 1 de Junio de 2026
 **Tipo:** Architecture Decision Record
-**Estado:** Implementado (Fase 1-16)
+**Estado:** Implementado (Fase 1-25)
 
 ## Resumen
 
@@ -65,6 +65,13 @@ Se crearon componentes pre-construidos que usan el sistema de estilos:
 | **StyleBarChart** | vertical, horizontal | custom | Bars grow 0→value (30 frames) | Comparaciones, rankings |
 | **StyleLineChart** | line + dots + grid | custom | Path draw animation (40 frames) | Tendencias, growth, time series |
 | **StylePieChart** | pie, donut | custom | Slices stagger (20 frames) | Porcentajes, distribución |
+| **StyleAnimateNumber** | number, currency, percentage, compact | custom | Count 0→value (60 frames) | Estadísticas, métricas, revenue |
+| **StyleScrambleText** | decode effect | custom | Char-by-char reveal | Tech intros, cybersecurity, suspense |
+| **StyleTicker** | horizontal scroll | custom | Linear scroll (infinite loop) | Breaking news, crypto, stocks |
+| **StyleSimulatedHover** | button, card, link | custom | Scale + shadow pulse | Demos de producto, tutoriales UI |
+| **StyleFakeScroll** | scroll container | custom | Linear scroll + scrollbar | Feeds, testimonios, listas |
+| **StyleCursor** | pointer + ripple | custom | Path animation + click | Tutoriales, demos, interacciones |
+| **StyleBarRace** | horizontal race | custom | Bars grow + reorder | Rankings, competencias, top 10 |
 
 Cada componente:
 - Acepta `style` prop con LayerStyle overrides
@@ -121,6 +128,52 @@ Se crearon 3 componentes de visualización de datos animados:
 - Soporte para imagen o Iconify icon
 - Opacidad controlada (default 0.3)
 - AE: Shape layer con opacity transform
+
+### 10. Motion Effects (Fase 17-25)
+Componentes inspirados en patrones de Framer Motion adaptados para video:
+
+**StyleAnimateNumber:**
+- Contador animado con formato configurable (número, moneda, porcentaje, compacto)
+- Tabular nums para conteo suave sin saltos
+- Prefijos y sufijos personalizables ($, +, %, K, M)
+- AE: Text layer con `Source Text` keyframes frame por frame
+
+**StyleScrambleText:**
+- Efecto de decodificación desde caracteres aleatorios hasta el mensaje final
+- Velocidad configurable (caracteres por frame)
+- Set de caracteres personalizable (default: `#$%&@!?*+=^~01`)
+- Modo loop para re-scramblear después de revelar
+- AE: Text layer con scramble effect keyframes
+
+**StyleTicker:**
+- Texto scrolleable horizontalmente estilo noticias/bolsa
+- Animación linear infinita con texto repetido
+- Backdrop blur background, fuente monospace
+- AE: Text layer con `Position` keyframes de derecha a izquierda
+
+**StyleSimulatedHover:**
+- Simula estado hover en un frame específico del video
+- Animación de scale (1→1.05→1), shadow increase, translateY
+- Variantes: button, card, link
+- AE: `Scale` keyframes simulando hover pulse
+
+**StyleFakeScroll:**
+- Contenedor que simula scroll de items de abajo hacia arriba
+- Scrollbar visual que se mueve proporcionalmente
+- Items con icono, título y subtítulo
+- AE: Shape container + text layers con `Position` keyframes
+
+**StyleCursor:**
+- Cursor SVG animado que se mueve entre puntos definidos
+- Efecto ripple en puntos de click
+- Scale animation para simular click (1→0.7→1)
+- AE: Shape layer con `Position` + `Scale` keyframes
+
+**StyleBarRace:**
+- Gráfico de barras horizontales que compiten y se reordenan
+- Barras crecen desde 0 hasta su valor con timing staggered
+- Labels y valores integrados en las barras
+- AE: Shape layers con width proporcional y color fill
 
 ### 5. LayerStyle → CSS Converter
 Se creó `layerStyleToCSS()` en `AnimaComposer.tsx` que convierte LayerStyle a `React.CSSProperties`:
@@ -231,6 +284,10 @@ Playground examples en `/admin/animations`:
 - **StyleWatermark (Branding)** — 2 watermarks en esquinas opuestas
 - **StyleCharts (Data Viz)** — BarChart + LineChart + PieChart en una escena
 - **Full Dashboard** — Escena completa con los 15 componentes
+- **StyleAnimateNumber (Counters)** — 3 contadores (percentage, compact, currency)
+- **ScrambleText + Ticker** — 2 scramble texts + ticker de cripto
+- **Simulated Hover + Fake Scroll + Cursor** — Demo completa con hover, scroll y cursor
+- **StyleBarRace (Rankings)** — Top 6 frameworks con contador animado
 
 ## Archivos Modificados
 
@@ -262,13 +319,20 @@ Playground examples en `/admin/animations`:
 | `frontend/src/remotion/components/StyleLineChart.tsx` | Nuevo: Line chart animado |
 | `frontend/src/remotion/components/StylePieChart.tsx` | Nuevo: Pie/donut chart animado |
 | `backend/app/modules/anima_composer/ae_transformer.py` | +_component_to_ae() para 6 componentes |
+| `frontend/src/remotion/components/StyleAnimateNumber.tsx` | Nuevo: Contador animado con formatos |
+| `frontend/src/remotion/components/StyleScrambleText.tsx` | Nuevo: Texto decodificado |
+| `frontend/src/remotion/components/StyleTicker.tsx` | Nuevo: Ticker scrolleable |
+| `frontend/src/remotion/components/StyleSimulatedHover.tsx` | Nuevo: Simulación de hover |
+| `frontend/src/remotion/components/StyleFakeScroll.tsx` | Nuevo: Scroll simulado |
+| `frontend/src/remotion/components/StyleCursor.tsx` | Nuevo: Cursor animado con clicks |
+| `frontend/src/remotion/components/StyleBarRace.tsx` | Nuevo: Bar race chart |
 
 ## Próximas Fases
 
 | Fase | Tarea | Estado |
 |---|---|---|
-| **1-16** | Todas las fases completadas | ✅ Completado |
-| **17** | Horizontal Bar Race chart | Pendiente |
-| **18** | Funnel Chart | Pendiente |
-| **19** | Radar/Spider Chart | Pendiente |
-| **20** | Counter/Number animation | Pendiente |
+| **1-25** | Todas las fases completadas | ✅ Completado |
+| **26** | Improved Spring Physics | Pendiente |
+| **27** | Layout Transitions entre escenas | Pendiente |
+| **28** | Funnel Chart | Pendiente |
+| **29** | Radar/Spider Chart | Pendiente |
