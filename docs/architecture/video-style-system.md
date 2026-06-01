@@ -2,7 +2,7 @@
 
 **Fecha:** 1 de Junio de 2026
 **Tipo:** Architecture Decision Record
-**Estado:** Implementado (Fase 1-3)
+**Estado:** Implementado (Fase 1-7)
 
 ## Resumen
 
@@ -49,11 +49,14 @@ La función `_resolve_spacing` (Python) / `resolveSpacing` (TypeScript) normaliz
 ### 4. Video Style Components (Fase 3)
 Se crearon 3 componentes pre-construidos que usan el sistema de estilos:
 
-| Componente | Variantes | Uso | Animación |
-|---|---|---|---|
-| **StyleButton** | primary, secondary, ghost, outline | CTAs, "Suscríbete", "Link en bio" | Scale + fade (15 frames) |
-| **StyleCard** | elevated, filled, outlined, glass | Contenedores de info, agrupación | Slide-up + fade (20 frames) |
-| **StyleBadge** | success, warning, error, info, neutral | Labels, precios, categorías | Scale bounce (16 frames) |
+| Componente | Variantes | Tamaños | Animación | Uso |
+|---|---|---|---|---|
+| **StyleButton** | primary, secondary, ghost, outline | sm, md, lg | Scale + fade (15 frames) | CTAs, "Suscríbete", "Link en bio" |
+| **StyleCard** | elevated, filled, outlined, glass | custom | Slide-up + fade (20 frames) | Contenedores de info, agrupación |
+| **StyleBadge** | success, warning, error, info, neutral | sm, md, lg | Scale bounce (16 frames) | Labels, precios, categorías |
+| **StyleAvatar** | solid, ring, gradient | sm, md, lg | Scale bounce (20 frames) | Testimonios, perfiles, equipo |
+| **StyleProgressBar** | linear, circular | custom | Animate 0→value (60 frames) | Estadísticas, encuestas, progreso |
+| **StyleDivider** | solid, dashed, dotted, gradient | custom | Grow from center (20 frames) | Separadores, breaks visuales |
 
 Cada componente:
 - Acepta `style` prop con LayerStyle overrides
@@ -159,6 +162,9 @@ Playground examples en `/admin/animations`:
 - **StyleButton (CTA)** — 2 botones con variantes primary/outline
 - **StyleCard (Container)** — Card elevated con padding y boxShadow
 - **StyleBadge (Label)** — 3 badges success/warning/error con stagger
+- **StyleAvatar (Icon-based)** — 3 avatars (ring+badge, gradient, solid) con diferentes tamaños
+- **StyleProgressBar** — Linear (73%) y circular (85%) con animación
+- **StyleDivider** — 4 variantes (solid, dashed, gradient horizontal + vertical)
 
 ## Archivos Modificados
 
@@ -176,17 +182,18 @@ Playground examples en `/admin/animations`:
 | `frontend/src/remotion/composer/AnimaComposer.tsx` | +layerStyleToCSS(), style en todas las primitivas |
 | `backend/app/modules/anima_composer/ae_transformer.py` | +_style_to_ae() para mapeo a AE |
 | `backend/app/modules/llm/component_strategy.py` | +Video Style System docs en prompt |
+| `frontend/src/remotion/components/StyleAvatar.tsx` | Nuevo: Avatar con anillo animado y badge |
+| `frontend/src/remotion/components/StyleProgressBar.tsx` | Nuevo: Barra de progreso linear/circular |
+| `frontend/src/remotion/components/StyleDivider.tsx` | Nuevo: Separador con 4 estilos |
 
 ## Próximas Fases
 
 | Fase | Tarea | Estado |
 |---|---|---|
-| **1** | Extender LayerStyle en schema | ✅ Completado |
-| **2** | Agregar padding/margin al solver | ✅ Completado |
-| **3** | Crear componentes Button, Card, Badge | ✅ Completado |
-| **4** | Integrar estilos en AnimaComposer | ✅ Completado |
-| **5** | Mapear estilos a AE | ✅ Completado |
-| **6** | Actualizar prompt del LLM | ✅ Completado |
-| **7** | Crear componentes Avatar, ProgressBar, Divider | Pendiente |
+| **1-6** | Fases anteriores | ✅ Completado |
+| **7** | Avatar, ProgressBar, Divider | ✅ Completado |
 | **8** | Grid layout support | Pendiente |
 | **9** | Responsive breakpoints por aspect ratio | Pendiente |
+| **10** | Image component con filtros avanzados | Pendiente |
+| **11** | Chip component | Pendiente |
+| **12** | TextBlock component | Pendiente |
