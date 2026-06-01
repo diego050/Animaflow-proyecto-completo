@@ -435,3 +435,80 @@ async def edit_scene(
     except Exception as e:
         logger.exception("Scene edit failed for job %s, scene %d: %s", job_id, scene_index, e)
         raise HTTPException(status_code=500, detail=f"Edit failed: {str(e)}")
+
+
+@router.post("/{job_id}/retry", response_model=JobResponse)
+async def retry_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retry a failed job from the point of failure.
+
+    Determines which pipeline phase failed based on the job's status
+    and resets it to the appropriate retry state for re-processing.
+    """
+    logger = get_logger("api.jobs")
+
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id,
+        JobModel.user_id == current_user.id,
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.status not in ("failed", "failed_render"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be in 'failed' or 'failed_render' status to retry (current: {job.status})"
+        )
+
+    # Determine which phase failed and reset accordingly
+    if job.status == "failed_render":
+        # Render failed — reset to completed so user can trigger render again
+        job.status = "completed"
+        job.error_message = None
+        logger.info("Job %s retry: resetting to completed for re-render", job_id)
+    elif job.status == "failed":
+        # Check if we have a result_spec with scenes (enrichment phase)
+        spec = job.result_spec or {}
+        scenes = spec.get("scenes", [])
+
+        if scenes and any(s.get("anima_composer") for s in scenes):
+            # Enrichment partially or fully completed — reset to completed
+            # (some scenes may have failed, but user can regenerate individually)
+            job.status = "completed"
+            job.error_message = None
+            logger.info("Job %s retry: enrichment partially done, resetting to completed", job_id)
+        elif spec.get("scenes"):
+            # Scenes exist but not enriched — reset to segmented for re-approval
+            # Reset scene states
+            for scene in scenes:
+                scene["audio_url"] = None
+                scene["word_timestamps"] = []
+                scene["type"] = "pending"
+                scene["anima_composer"] = None
+                scene["quality_status"] = None
+            spec["scenes"] = scenes
+            spec["approved"] = False
+            job.result_spec = spec
+            flag_modified(job, "result_spec")
+            job.status = "segmented"
+            job.error_message = None
+            logger.info("Job %s retry: resetting to segmented for re-approval", job_id)
+        else:
+            # No scenes yet — reset to pending for re-segmentation
+            job.status = "pending"
+            job.error_message = None
+            logger.info("Job %s retry: resetting to pending for re-segmentation", job_id)
+
+    db.commit()
+    db.refresh(job)
+
+    return JobResponse(
+        job_id=job.id,
+        status=job.status,
+        result_spec=job.result_spec,
+        video_url=job.video_url,
+        error_message=job.error_message,
+    )

@@ -6,6 +6,7 @@ export interface TypewriterProps extends UniversalProps {
   text: string;
   width?: number;
   speed?: number; // frames per character
+  durationInFrames?: number;
 }
 
 export const Typewriter: React.FC<TypewriterProps> = ({
@@ -15,11 +16,22 @@ export const Typewriter: React.FC<TypewriterProps> = ({
   y = 960,
   fontSize = 60,
   width = 900,
-  speed = 2,
+  speed: speedProp,
   delay = 0,
+  durationInFrames,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
+
+  // Calculate dynamic speed if durationInFrames is available
+  const totalChars = text.length;
+  const reservedFrames = 30; // reserve 1s for cursor blink at end
+  const availableFrames = (durationInFrames || 0) - reservedFrames - Math.round(delay * 30);
+  const dynamicSpeed = availableFrames > 0 && totalChars > 0 
+    ? Math.max(1, Math.floor(availableFrames / totalChars))
+    : (speedProp ?? 2);
+  
+  const speed = speedProp ?? dynamicSpeed;
 
   // Number of characters to show based on current frame
   const charsToShow = Math.floor(adjustedFrame / speed);

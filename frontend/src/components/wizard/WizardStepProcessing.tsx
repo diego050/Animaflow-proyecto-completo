@@ -1,7 +1,8 @@
-import { Loader2, Terminal } from 'lucide-react';
+import { Loader2, Terminal, RotateCw } from 'lucide-react';
 import { ProgressSteps } from '../dashboard/ProgressSteps';
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../../api/client';
+import { useJobsStore } from '../../store/useJobsStore';
 
 export interface WizardStepProcessingProps {
   status?: string;
@@ -104,11 +105,32 @@ export function WizardStepProcessing({ status, jobId, title, description }: Wiza
       </div>
 
       {isFailed && (
-        <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-center">
-          <p className="text-error font-semibold">El procesamiento falló</p>
-          <p className="text-text-secondary text-sm mt-1">
-            Intenta crear un nuevo proyecto con un guión diferente.
-          </p>
+        <div className="bg-error/10 border border-error/20 rounded-xl p-4">
+          <div className="text-center mb-3">
+            <p className="text-error font-semibold">El procesamiento falló</p>
+            <p className="text-text-secondary text-sm mt-1">
+              Puedes reintentar desde el punto donde falló.
+            </p>
+          </div>
+          {jobId && (
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={async () => {
+                  try {
+                    await useJobsStore.getState().retryJob(jobId);
+                  } catch {
+                    // Error already handled by store (toast)
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-cadmium-orange/10 text-cadmium-orange 
+                           border border-cadmium-orange/30 rounded-lg hover:bg-cadmium-orange/20 
+                           transition-colors duration-150 text-sm font-medium"
+              >
+                <RotateCw size={16} />
+                Reintentar
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

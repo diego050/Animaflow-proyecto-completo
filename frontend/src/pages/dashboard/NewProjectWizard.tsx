@@ -139,15 +139,13 @@ export function NewProjectWizard() {
           setWizardStep(4);
         } else if (status === 'completed' || status === 'completed_video') {
           setWizardStep(6);
-        } else if (status === 'failed' || status === 'failed_render') {
-          setWizardStep(6);
         }
+        // On failure, stay on step 3 — WizardStepProcessing shows retry button
       } else if (wizardStep === 5) {
         if (status === 'completed' || status === 'completed_video' || status === 'queued_render') {
           setWizardStep(6);
-        } else if (status === 'failed' || status === 'failed_render') {
-          setWizardStep(6);
         }
+        // On failure, stay on step 5 — WizardStepProcessing shows retry button
       }
     }
   }, [selectedJob?.status, wizardStep, setWizardStep]);

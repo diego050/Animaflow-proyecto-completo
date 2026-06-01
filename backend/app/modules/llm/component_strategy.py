@@ -211,6 +211,7 @@ def _build_strategy_prompt(
     available_components: list[dict],
     aspect_ratio: str = "9:16",
     icon_candidates: list[dict] | None = None,
+    duration_seconds: float = 0.0,
 ) -> str:
     # Group components by role
     by_role = {}
@@ -249,21 +250,28 @@ def _build_strategy_prompt(
     # Build icon suggestions section if candidates are available
     icon_section = ""
     if icon_candidates:
-        icon_list = ", ".join([c["full_id"] for c in icon_candidates])
+        # Build detailed icon list with tags for LLM context
+        icon_lines = []
+        for c in icon_candidates:
+            tags = c.get("tags", [])
+            tags_str = ", ".join(tags[:5]) if tags else "no tags"
+            icon_lines.append(f'  - {c["full_id"]} (score: {c.get("score", 0):.2f}) — representa: {tags_str}')
+
+        icon_list = "\n".join(icon_lines)
         icon_section = f"""
 
-ÍCONOS SUGERIDOS PARA ESTA ESCENA (basado en el contexto):
+ÍCONOS SUGERIDOS PARA ESTA ESCENA (basados en el TEXTO de la escena):
 {icon_list}
-Puedes usar la cantidad de iconos que consideres necesaria (1, 3, 7, etc.) con: type: "component", componentName: "IconifyIcon", icon: "nombre_exacto"
 
-REGLAS DE DISTRIBUCIÓN:
-- **Jerarquía:** Si usas varios, define UNO principal (más grande, cerca del centro) y el resto decorativos (más pequeños, en esquinas o bordes).
-- **Agrupación intencional:** Puedes agrupar 2-3 iconos pequeños cerca para reforzar un concepto (ej: 3 fueguitos juntos = "algo se quema").
-- **NUNCA tapes el texto hablado** ni el componente visual principal.
-- Usa `size` para controlar el tamaño (principal: 100-150, decorativo: 40-80).
-- Usa `opacity` para iconos de fondo (0.3-0.6) y 1.0 para los principales.
+REGLA CRÍTICA DE ÍCONOS:
+- SOLO selecciona íconos que representen LITERALMENTE el sujeto del texto de la escena.
+- Si el texto habla de "gatos", usa un ícono de gato. Si habla de "dinero", usa un ícono de dinero.
+- NO uses íconos abstractos, de "ambiente" o "atmósfera".
+- Máximo 1 ícono por escena. Si ningún ícono es relevante para el sujeto del texto, NO incluyas ningún ícono.
+- Usa type: "component", componentName: "IconifyIcon", icon: "nombre_exacto"
 
-Ejemplo: {{"type": "component", "componentName": "IconifyIcon", "icon": "{icon_candidates[0]['full_id']}", "size": 120, "color": "#ffffff", "x": 0, "y": -100}}
+Ejemplo correcto (texto sobre gatos): {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:cat", "size": 120, "color": "#ffffff", "x": 0, "y": -200}}
+Ejemplo incorrecto (texto sobre gatos): {{"type": "component", "componentName": "IconifyIcon", "icon": "material-symbols:computer-sound-sharp", ...}} ← NO representa un gato
 """
 
     width, height = _get_canvas_dimensions(aspect_ratio)
@@ -292,11 +300,57 @@ Ejemplo: {{"type": "component", "componentName": "IconifyIcon", "icon": "{icon_c
 {text_safe_zone}
 """
 
+    # Timing context
+    timing_context = ""
+    if duration_seconds > 0:
+        fps = 30
+        duration_in_frames = int(duration_seconds * fps)
+        words = len(text.split())
+        wps = words / duration_seconds if duration_seconds > 0 else 0
+        rhythm = "rápido" if wps > 4 else ("medio" if wps > 2.5 else "lento")
+        max_entry_delay = round(duration_seconds * 0.2, 1)
+
+        timing_context = f"""
+DURACIÓN DE LA ESCENA: {duration_seconds} segundos ({duration_in_frames} frames a 30fps)
+PALABRAS: {words}
+RITMO DEL AUDIO: {rhythm} ({wps:.1f} palabras/segundo)
+
+TIMING RECOMENDADO:
+- Entrada de elementos: frames 0 a {int(duration_in_frames * 0.25)}
+- Elementos visibles: frames {int(duration_in_frames * 0.25)} a {int(duration_in_frames * 0.7)}
+- Salida de elementos (exit): frames {int(duration_in_frames * 0.7)} a {duration_in_frames}
+- entryDelay máximo: {max_entry_delay} segundos (no más del 20% de la duración)
+- Si la escena dura menos de 3 segundos, usa entryDelay de 0 o muy pequeño.
+"""
+
+    # Exit animation instructions
+    exit_start_frame = "los últimos frames"
+    if duration_seconds > 0:
+        exit_start_frame = str(int(duration_seconds * 30 * 0.75))
+
+    exit_instructions = f"""
+ANIMACIONES DE SALIDA (exit):
+CADA capa debe tener una animación de salida para transiciones suaves entre escenas.
+Usa la propiedad `exit` para animaciones de salida. Valores válidos:
+- "fade-out": desaparece gradualmente
+- "slide-up": sale hacia arriba
+- "slide-down": sale hacia abajo
+- "slide-left": sale hacia la izquierda
+- "slide-right": sale hacia la derecha
+- "scale-out": desaparece con efecto de escala
+- "bounce-out": sale con efecto de rebote
+
+Las animaciones de salida deben empezar en el frame {exit_start_frame} (último 25% de la escena).
+El background debe mantener su color durante toda la escena (no necesita exit).
+
+Ejemplo: "exit": "fade-out"
+"""
+
     return f"""Eres el director de escena de AnimaFlow. Tu trabajo es diseñar la composición de UNA escena de video devolviendo un JSON AnimaComposerSpec.
 
 TEXTO DE LA ESCENA: "{text}"
 DESCRIPCION VISUAL: "{media_query}"
-
+{timing_context}
 PASO 1 - IDENTIFICA EL SUJETO: Lee el texto y la descripción visual. ¿Cuál es el objeto/sujeto/tema principal de esta escena? (ej: un perro, una manzana, el dinero, un corazón, un planeta, etc.)
 
 PASO 2 - SELECCIONA COMPONENTES: Elige 2-4 componentes de la lista disponible que mejor representen visualmente el sujeto y el mensaje de la escena. Combina componentes de diferentes roles (background + text + decorative/ui) para crear una composición rica y profesional.
@@ -378,7 +432,7 @@ Usa la propiedad `entry` para animaciones de entrada simples. Valores válidos:
 - "bounce-in": aparece con efecto de rebote
 Opcionalmente agrega `entryDelay` (en segundos) para retrasar la animación.
 Ejemplo: `"entry": "slide-up", "entryDelay": 0.5`
-
+{exit_instructions}
 IMPORTANTE:
 - Si un componente necesita propiedades adicionales (como speed, color, textColor, url, x, y), pásalas directamente como propiedades de la capa, en el mismo nivel que "type" y "componentName". La propiedad "props" NO existe.
 DEVUELVE SOLO JSON VALIDO, SIN MARKDOWN."""
@@ -395,6 +449,7 @@ def generate_scene_composer(
     db: Optional[Session] = None,  # NEW: SQLAlchemy session for vector search
     aspect_ratio: str = "9:16",
     composition_version: str = "v2",
+    duration_seconds: float = 0.0,
 ) -> AnimaComposerSpec:
     """
     Pregunta al LLM por la composición AnimaComposer (JSON) de la escena.
@@ -417,12 +472,12 @@ def generate_scene_composer(
     # Buscar iconos relevantes para la escena
     icon_candidates = []
     try:
-        icon_candidates = find_best_icons(db, media_query, limit=5)
+        icon_candidates = find_best_icons(db, text, limit=5)
         logger.info("Found %d relevant icons for scene", len(icon_candidates))
     except Exception as e:
         logger.warning("Icon search failed, continuing without icons: %s", e)
 
-    prompt = _build_strategy_prompt(text, media_query, components, aspect_ratio, icon_candidates)
+    prompt = _build_strategy_prompt(text, media_query, components, aspect_ratio, icon_candidates, duration_seconds)
 
     # Fallback default si hay error
     default_fallback = AnimaComposerSpec(

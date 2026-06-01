@@ -189,6 +189,7 @@ async def _process_chunks_async(
                 model=model_to_use,
                 db=db,
                 aspect_ratio=aspect_ratio,
+                duration_seconds=scene.get("duration_seconds", 0.0),
             )
 
             scene["type"] = "custom"
@@ -248,6 +249,7 @@ async def _regenerate_components_for_reformat(
             model=model_to_use,
             db=db,
             aspect_ratio=aspect_ratio,
+            duration_seconds=scene.get("duration_seconds", 0.0),
         )
         
         scene["type"] = "custom"
