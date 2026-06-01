@@ -14,9 +14,11 @@ export interface JobsState {
   selectedJob: JobDetail | null;
   selectedJobLoading: boolean;
   pollingJobId: string | null;
+  formats: Array<{ job_id: string; aspect_ratio: string; status: string; name: string | null; is_current: boolean }>;
 
   fetchJobs: () => Promise<void>;
   selectJob: (jobId: string) => Promise<void>;
+  fetchFormats: (jobId: string) => Promise<void>;
   createJob: (
     scriptText: string,
     aspectRatio: string,
@@ -80,6 +82,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   selectedJob: null,
   selectedJobLoading: false,
   pollingJobId: null,
+  formats: [],
 
   fetchJobs: async () => {
     set({ jobsLoading: true, jobsError: null });
@@ -103,6 +106,17 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         err instanceof Error ? err.message : 'Error loading job detail';
       set({ selectedJobLoading: false });
       useToastStore.getState().addToast('error', message);
+    }
+  },
+
+  fetchFormats: async (jobId: string) => {
+    try {
+      const data = await api.get<Array<{ job_id: string; aspect_ratio: string; status: string; name: string | null; is_current: boolean }>>(
+        `/api/jobs/${jobId}/formats`
+      );
+      set({ formats: data });
+    } catch {
+      // Ignore errors silently
     }
   },
 

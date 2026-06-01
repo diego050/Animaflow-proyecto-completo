@@ -1,7 +1,9 @@
 import { useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Film, Layers, Clock } from 'lucide-react';
 import { StatusBadge } from '../../components/dashboard/StatusBadge';
 import { ReformatButton } from './ReformatButton';
+import { useJobsStore } from '../../store/useJobsStore';
 
 interface ProjectHeaderProps {
   jobId: string;
@@ -41,6 +43,9 @@ export function ProjectHeader({
   thumbnailUrl,
 }: ProjectHeaderProps) {
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+  const formats = useJobsStore((s) => s.formats);
+  const fetchFormats = useJobsStore((s) => s.fetchFormats);
 
   useEffect(() => {
     if (isEditing && nameInputRef.current) {
@@ -48,6 +53,10 @@ export function ProjectHeader({
       nameInputRef.current.select();
     }
   }, [isEditing]);
+
+  useEffect(() => {
+    fetchFormats(jobId);
+  }, [jobId, fetchFormats]);
 
   return (
     <div className="flex items-start gap-4 mb-6">
@@ -106,6 +115,21 @@ export function ProjectHeader({
             <span className="bg-surface-high px-2 py-0.5 rounded text-xs font-mono text-text-secondary/70">
               {aspectRatio}
             </span>
+          )}
+          {formats.length > 0 && (
+            <select
+              value={formats.find(f => f.is_current)?.job_id || ''}
+              onChange={(e) => {
+                if (e.target.value) navigate(`/dashboard/project/${e.target.value}`);
+              }}
+              className="bg-surface-container border border-border-tech rounded px-2 py-1 text-sm text-text-primary"
+            >
+              {formats.map(f => (
+                <option key={f.job_id} value={f.job_id}>
+                  {f.aspect_ratio} {f.is_current ? '(Actual)' : ''}
+                </option>
+              ))}
+            </select>
           )}
           {sceneCount !== undefined && sceneCount > 0 && (
             <span className="flex items-center gap-1 text-xs text-text-secondary/50">

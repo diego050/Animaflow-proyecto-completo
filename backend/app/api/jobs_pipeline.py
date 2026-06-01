@@ -437,6 +437,46 @@ async def edit_scene(
         raise HTTPException(status_code=500, detail=f"Edit failed: {str(e)}")
 
 
+@router.get("/{job_id}/formats")
+async def get_job_formats(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve all aspect ratio variations (reformats) for a given job.
+
+    Finds the root job (either the job itself or its parent), then returns
+    all sibling reformats including the root. Each entry includes an
+    `is_current` flag to identify the requested job.
+    """
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id,
+        JobModel.user_id == current_user.id,
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Determine the root job
+    root_job_id = job.parent_job_id if job.parent_job_id else job.id
+
+    # Fetch root job and all its children (reformats)
+    related_jobs = db.query(JobModel).filter(
+        JobModel.user_id == current_user.id,
+        (JobModel.id == root_job_id) | (JobModel.parent_job_id == root_job_id),
+    ).order_by(JobModel.created_at).all()
+
+    return [
+        {
+            "job_id": j.id,
+            "aspect_ratio": j.aspect_ratio,
+            "status": j.status,
+            "name": (j.result_spec or {}).get("name") if j.result_spec else None,
+            "is_current": j.id == job_id,
+        }
+        for j in related_jobs
+    ]
+
+
 @router.post("/{job_id}/retry", response_model=JobResponse)
 async def retry_job(
     job_id: str,
