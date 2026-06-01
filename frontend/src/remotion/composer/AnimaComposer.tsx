@@ -23,7 +23,9 @@ import { AnimaParticles } from '../primitives/AnimaParticles';
 import { AnimaGradient } from '../primitives/AnimaGradient';
 import { COMPONENT_REGISTRY } from '../registry';
 import { AnimatedWrapper } from '../AnimatedWrapper';
-import { solveLayout, SolvedLayer } from '../utils/layoutSolver';
+import type { EntryType, ExitType } from '../AnimatedWrapper';
+import { solveLayout } from '../utils/layoutSolver';
+import type { SolvedLayer } from '../utils/layoutSolver';
 
 import type { AnimValue } from '../primitives/types';
 
@@ -199,18 +201,18 @@ function renderSingleLayer(
   index: number,
   ctx: RenderContext,
 ): React.ReactNode {
-  const key = layer.id ?? `layer-${index}`;
+  const key = (layer.id as string | undefined) ?? `layer-${index}`;
 
   // --- Texto: resolver {{text}} placeholder ---
   const displayText =
-    layer.type === 'text'
-      ? layer.text?.replace('{{text}}', ctx.text) ?? ''
+    (layer.type as string) === 'text'
+      ? (layer.text as string | undefined)?.replace('{{text}}', ctx.text) ?? ''
       : undefined;
 
   // --- Construir el elemento según el tipo ---
   let element: React.ReactNode;
 
-  switch (layer.type) {
+  switch (layer.type as string) {
     // ===================================================================
     // RECT
     // ===================================================================
@@ -234,11 +236,11 @@ function renderSingleLayer(
       // Envolver con entry si no hay soporte nativo
       element = (
         <AnimatedWrapper
-          entry={layer.entry ?? null}
-          exit={layer.exit ?? null}
-          delay={layer.entryDelay ?? 0}
-          entryDuration={layer.entryDuration ?? 30}
-          exitDuration={layer.exitDuration ?? 30}
+          entry={(layer.entry as EntryType | null) ?? null}
+          exit={(layer.exit as ExitType | null) ?? null}
+          delay={(layer.entryDelay as number | undefined) ?? 0}
+          entryDuration={(layer.entryDuration as number | undefined) ?? 30}
+          exitDuration={(layer.exitDuration as number | undefined) ?? 30}
           durationInFrames={ctx.durationInFrames}
         >
           {element}
@@ -246,7 +248,7 @@ function renderSingleLayer(
       );
 
       // Envolver con filter si está definido
-      element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
+      element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
     }
@@ -279,18 +281,18 @@ function renderSingleLayer(
       // Entry wrapper
       element = (
         <AnimatedWrapper
-          entry={layer.entry ?? null}
-          exit={layer.exit ?? null}
-          delay={layer.entryDelay ?? 0}
-          entryDuration={layer.entryDuration ?? 30}
-          exitDuration={layer.exitDuration ?? 30}
+          entry={(layer.entry as EntryType | null) ?? null}
+          exit={(layer.exit as ExitType | null) ?? null}
+          delay={(layer.entryDelay as number | undefined) ?? 0}
+          entryDuration={(layer.entryDuration as number | undefined) ?? 30}
+          exitDuration={(layer.exitDuration as number | undefined) ?? 30}
           durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
       );
 
-      element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
+      element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
     }
@@ -322,18 +324,18 @@ function renderSingleLayer(
 
       element = (
         <AnimatedWrapper
-          entry={layer.entry ?? null}
-          exit={layer.exit ?? null}
-          delay={layer.entryDelay ?? 0}
-          entryDuration={layer.entryDuration ?? 30}
-          exitDuration={layer.exitDuration ?? 30}
+          entry={(layer.entry as EntryType | null) ?? null}
+          exit={(layer.exit as ExitType | null) ?? null}
+          delay={(layer.entryDelay as number | undefined) ?? 0}
+          entryDuration={(layer.entryDuration as number | undefined) ?? 30}
+          exitDuration={(layer.exitDuration as number | undefined) ?? 30}
           durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
       );
 
-      element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
+      element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
     }
@@ -360,18 +362,18 @@ function renderSingleLayer(
 
       element = (
         <AnimatedWrapper
-          entry={layer.entry ?? null}
-          exit={layer.exit ?? null}
-          delay={layer.entryDelay ?? 0}
-          entryDuration={layer.entryDuration ?? 30}
-          exitDuration={layer.exitDuration ?? 30}
+          entry={(layer.entry as EntryType | null) ?? null}
+          exit={(layer.exit as ExitType | null) ?? null}
+          delay={(layer.entryDelay as number | undefined) ?? 0}
+          entryDuration={(layer.entryDuration as number | undefined) ?? 30}
+          exitDuration={(layer.exitDuration as number | undefined) ?? 30}
           durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
       );
 
-      element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
+      element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
     }
@@ -404,18 +406,18 @@ function renderSingleLayer(
 
       element = (
         <AnimatedWrapper
-          entry={layer.entry ?? null}
-          exit={layer.exit ?? null}
-          delay={layer.entryDelay ?? 0}
-          entryDuration={layer.entryDuration ?? 30}
-          exitDuration={layer.exitDuration ?? 30}
+          entry={(layer.entry as EntryType | null) ?? null}
+          exit={(layer.exit as ExitType | null) ?? null}
+          delay={(layer.entryDelay as number | undefined) ?? 0}
+          entryDuration={(layer.entryDuration as number | undefined) ?? 30}
+          exitDuration={(layer.exitDuration as number | undefined) ?? 30}
           durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
       );
 
-      element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
+      element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
     }
@@ -427,21 +429,21 @@ function renderSingleLayer(
       const children = (layer.children ?? []) as SolvedLayer[];
 
       // If this is a flex group, render children with absolute positions
-      if (layer.layout === 'flex') {
+      if ((layer.layout as string | undefined) === 'flex') {
         element = (
           <div
             style={{
               position: 'absolute',
-              left: layer.x,
-              top: layer.y,
-              width: layer.width,
-              height: layer.height,
+              left: layer.x as number | undefined,
+              top: layer.y as number | undefined,
+              width: layer.width as number | undefined,
+              height: layer.height as number | undefined,
               display: 'flex',
               flexDirection: (layer.direction as 'row' | 'column') || 'column',
               justifyContent: (layer.justifyContent as React.CSSProperties['justifyContent']) || 'flex-start',
               alignItems: (layer.alignItems as React.CSSProperties['alignItems']) || 'flex-start',
-              gap: layer.gap || 0,
-              zIndex: layer.zIndex || 0,
+              gap: (layer.gap as number | undefined) || 0,
+              zIndex: (layer.zIndex as number | undefined) || 0,
             }}
           >
             {renderLayerList(children, ctx)}
@@ -464,18 +466,18 @@ function renderSingleLayer(
 
       element = (
         <AnimatedWrapper
-          entry={layer.entry ?? null}
-          exit={layer.exit ?? null}
-          delay={layer.entryDelay ?? 0}
-          entryDuration={layer.entryDuration ?? 30}
-          exitDuration={layer.exitDuration ?? 30}
+          entry={(layer.entry as EntryType | null) ?? null}
+          exit={(layer.exit as ExitType | null) ?? null}
+          delay={(layer.entryDelay as number | undefined) ?? 0}
+          entryDuration={(layer.entryDuration as number | undefined) ?? 30}
+          exitDuration={(layer.exitDuration as number | undefined) ?? 30}
           durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
       );
 
-      element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
+      element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
     }
@@ -500,18 +502,18 @@ function renderSingleLayer(
 
       element = (
         <AnimatedWrapper
-          entry={layer.entry ?? null}
-          exit={layer.exit ?? null}
-          delay={layer.entryDelay ?? 0}
-          entryDuration={layer.entryDuration ?? 30}
-          exitDuration={layer.exitDuration ?? 30}
+          entry={(layer.entry as EntryType | null) ?? null}
+          exit={(layer.exit as ExitType | null) ?? null}
+          delay={(layer.entryDelay as number | undefined) ?? 0}
+          entryDuration={(layer.entryDuration as number | undefined) ?? 30}
+          exitDuration={(layer.exitDuration as number | undefined) ?? 30}
           durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
       );
 
-      element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
+      element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
     }
@@ -520,28 +522,29 @@ function renderSingleLayer(
     // COMPONENT (Standard Library integration)
     // ===================================================================
     case 'component': {
-      if (!layer.componentName) {
+      const componentName = layer.componentName as string | undefined;
+      if (!componentName) {
         console.warn(`[AnimaComposer] Layer "${key}" type "component" requires "componentName".`);
         return null;
       }
       
-      const ComponentToRender = COMPONENT_REGISTRY[layer.componentName];
+      const ComponentToRender = COMPONENT_REGISTRY[componentName];
       if (!ComponentToRender) {
-        console.warn(`[AnimaComposer] Component "${layer.componentName}" not found in registry.`);
+        console.warn(`[AnimaComposer] Component "${componentName}" not found in registry.`);
         return null;
       }
 
       // Use solved absolute coordinates directly
-      const absoluteX = layer.x;
-      const absoluteY = layer.y;
+      const absoluteX = layer.x as number;
+      const absoluteY = layer.y as number;
 
       // Merge props and resolve {{text}} placeholder if present
       const mergedProps: Record<string, any> = {
-        ...layer,
+        ...(layer as unknown as Record<string, any>),
         x: absoluteX,
         y: absoluteY,
         text: typeof layer.text === 'string' 
-          ? layer.text.replace('{{text}}', ctx.text) 
+          ? (layer.text as string).replace('{{text}}', ctx.text) 
           : ctx.text,
       };
 
@@ -549,18 +552,18 @@ function renderSingleLayer(
 
       element = (
         <AnimatedWrapper
-          entry={layer.entry ?? null}
-          exit={layer.exit ?? null}
-          delay={layer.entryDelay ?? 0}
-          entryDuration={layer.entryDuration ?? 30}
-          exitDuration={layer.exitDuration ?? 30}
+          entry={(layer.entry as EntryType | null) ?? null}
+          exit={(layer.exit as ExitType | null) ?? null}
+          delay={(layer.entryDelay as number | undefined) ?? 0}
+          entryDuration={(layer.entryDuration as number | undefined) ?? 30}
+          exitDuration={(layer.exitDuration as number | undefined) ?? 30}
           durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
       );
 
-      element = <FilterWrapper filter={layer.filter}>{element}</FilterWrapper>;
+      element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
     }
@@ -627,7 +630,7 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
   const actualDurationInFrames = _durationInFrames || Math.round((spec.layers.length > 0 ? 3 : 3) * fps);
 
   // Solve layout to get absolute coordinates
-  const solvedLayers = solveLayout(spec, width, height);
+  const solvedLayers = solveLayout(spec as unknown as Parameters<typeof solveLayout>[0], width, height);
 
   // -----------------------------------------------------------------------
   // Background with crossfade (z-index: 0)
