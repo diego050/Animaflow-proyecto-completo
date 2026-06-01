@@ -91,7 +91,7 @@ class PaginatedJobsResponse(BaseModel):
 
 class AdminUserCreate(BaseModel):
     email: str
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=8, max_length=72)
     name: str = Field(min_length=1, max_length=100)
     role: str = Field(pattern=r"^(founder|agency|user|admin)$")
 

@@ -3,7 +3,7 @@ Auth schemas for AnimaFlow - Pydantic v2 models mirroring frontend TS interfaces
 """
 import re
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, Literal
 from datetime import datetime
 
@@ -12,7 +12,7 @@ UserRole = Literal["founder", "agency", "user", "admin"]
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, max_length=72)
     name: str
     role: UserRole = "user"
 
@@ -56,7 +56,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     current_password: Optional[str] = None
-    new_password: Optional[str] = None
+    new_password: Optional[str] = Field(default=None, min_length=8, max_length=72)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -65,4 +65,4 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(min_length=8, max_length=72)
