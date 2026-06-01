@@ -157,7 +157,9 @@ class ApiKey(Base):
 
     @property
     def api_key(self):
-        return decrypt_value(self._api_key_encrypted)
+        if not hasattr(self, '_cached_api_key'):
+            self._cached_api_key = decrypt_value(self._api_key_encrypted)
+        return self._cached_api_key
 
     @property
     def api_key_last_four(self) -> str | None:
@@ -232,7 +234,7 @@ class ComponentModel(Base):
     tags = Column(JSON, server_default="[]")
     tsx_path = Column(String(500), nullable=False)
     props_schema = Column(JSON, server_default="{}")
-    embedding = Column(JSON, nullable=True)
+    embedding = Column(Vector(768), nullable=True)  # Gemini embedding dimension
     is_active = Column(Boolean, server_default="true")
     created_at = Column(
         DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc)

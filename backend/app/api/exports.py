@@ -128,36 +128,14 @@ async def export_spec_json(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Exporta el spec.json de un job.
-
-    Args:
-        job_id: ID del job
-        db: Sesión de SQLAlchemy
-        current_user: Authenticated user
-
-    Returns:
-        Archivo JSON descargable
-    """
+    """Exporta el spec.json de un job."""
     job = get_job_or_404(db, job_id, current_user.id)
 
     if not job.result_spec:
         raise HTTPException(status_code=400, detail="Job does not have a generated spec.json")
 
-    # Guardar spec.json temporalmente
-    from tempfile import NamedTemporaryFile
-
-    with NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    ) as f:
-        import json
-
-        json.dump(job.result_spec, f, indent=2)
-        temp_path = f.name
-
-    return FileResponse(
-        path=temp_path,
-        filename=f"animaflow_{job_id}_spec.json",
+    return StreamingResponse(
+        io.BytesIO(json.dumps(job.result_spec, indent=2).encode("utf-8")),
         media_type="application/json",
         headers={
             "Content-Disposition": f"attachment; filename=animaflow_{job_id}_spec.json"
