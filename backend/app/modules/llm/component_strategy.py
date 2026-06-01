@@ -753,6 +753,145 @@ Use `layout: "grid"` for 2D layouts instead of flex.
 - `alignItems`: "flex-start" | "center" | "stretch" — vertical alignment within cells
 - Use for: Feature grids, team layouts, comparison tables, card grids
 
+## Complete Component Library (108 Components)
+
+### Generic UI Components (22 Style* components)
+These are the primary components the LLM should use for most scenes. They support full LayerStyle overrides.
+- StyleButton: `text`, `variant`, `size`, `icon`, `iconPosition` — Premium CTA button
+- StyleCard: `title`, `subtitle`, `variant`, `width` — Content container card
+- StyleBadge: `text`, `variant`, `size`, `icon` — Pill-shaped label
+- StyleAvatar: `icon`, `name`, `subtitle`, `size`, `variant`, `showBadge`, `badgeText` — Icon-based avatar with ring
+- StyleProgressBar: `value`, `max`, `variant`, `color`, `showLabel`, `labelPosition`, `size`, `strokeWidth` — Progress indicator
+- StyleDivider: `orientation`, `style`, `color`, `thickness`, `width`, `height` — Visual separator
+- StyleChip: `text`, `icon`, `deletable`, `variant`, `size` — Tag/chip for filters
+- StyleTextBlock: `text`, `variant`, `align`, `maxLines`, `width` — Text block with variants
+- StyleCallout: `text`, `direction`, `variant` — Annotation with arrow
+- StyleWatermark: `src`, `icon`, `position`, `opacity`, `size` — Brand logo overlay
+- StyleVideoPlayer: `src`, `variant`, `size`, `autoplay`, `loop`, `muted` — Video embed
+- StyleBarChart: `data`, `variant`, `showLabels`, `showValues` — Animated bar chart
+- StyleLineChart: `data`, `showDots`, `showGrid`, `showLabels`, `lineColor`, `fillArea` — Animated line chart
+- StylePieChart: `data`, `variant`, `showLabels`, `showValues`, `explodeSlice` — Pie/donut chart
+- StyleBarRace: `data`, `barHeight`, `gap`, `showLabels`, `showValues`, `duration` — Horizontal bar race
+- StyleFunnelChart: `data`, `showLabels`, `showValues`, `showPercentages` — Conversion funnel
+- StyleRadarChart: `data`, `maxValue`, `showLabels`, `showGrid`, `showValues`, `fillColor`, `lineColor`, `size` — Radar/spider chart
+- StyleAnimateNumber: `value`, `from`, `prefix`, `suffix`, `format`, `decimals`, `duration` — Animated counter
+- StyleScrambleText: `text`, `speed`, `characters`, `loop` — Decoding text effect
+- StyleTicker: `text`, `speed`, `separator` — Scrolling ticker
+- StyleSimulatedHover: `text`, `icon`, `hoverFrame`, `hoverDuration`, `variant` — Simulated hover state
+- StyleFakeScroll: `items`, `speed`, `itemHeight`, `visibleItems`, `showScrollbar` — Simulated scroll
+- StyleCursor: `points`, `speed`, `showRipple` — Animated cursor with clicks
+
+### Counters & Timers (8)
+- CounterNumber: `value`, `duration`, `prefix`, `suffix` — Animated number counter
+- CountdownTimer: `targetDate`, `format` — Countdown to a date
+- FlashSaleTimer: `endTime`, `text` — Flash sale countdown
+- FollowerCounter: `count`, `platform` — Social media follower count
+- PercentageRing: `value`, `size` — Circular percentage ring
+- ScoreboardCounter: `score`, `team` — Sports scoreboard
+- ProgressPill: `value`, `label` — Progress pill indicator
+- LoadingSpinner: `size`, `color` — Loading spinner animation
+
+### Social Media Overlays (7)
+- TikTokOverlay: `username`, `likes`, `comments` — TikTok-style overlay
+- InstagramPost: `username`, `likes`, `caption` — Instagram post mockup
+- TweetCard: `username`, `text`, `likes` — Tweet card
+- YouTubeEndScreen: `channel`, `subscribe` — YouTube end screen
+- TinderSwipeCard: `name`, `age`, `bio` — Tinder swipe card
+- MusicPlayerUI: `title`, `artist`, `progress` — Music player UI
+- TerminalHacker: `lines`, `speed` — Hacker terminal effect
+
+### Text Effects (13)
+- Typewriter: `text`, `speed` — Typewriter effect
+- TextReveal: `text`, `direction` — Text reveal animation
+- TextSwap: `texts`, `interval` — Text swapping animation
+- SplitText: `text`, `split` — Split text animation
+- GlitchTitle: `text`, `intensity` — Glitch text effect
+- StrikethroughText: `text` — Animated strikethrough
+- UnderlineReveal: `text` — Underline reveal
+- HighlightText: `text`, `highlight` — Text highlighting
+- SearchEngineTyping: `query`, `results` — Search engine typing effect
+- EmojiFloat: `emoji`, `count` — Floating emojis
+- CursorClick: `x`, `y`, `clicks` — Cursor click animation
+- AnimatedArrow: `direction`, `color` — Animated arrow
+- AnimatedLine: `points`, `color` — Animated line drawing
+
+### Charts & Data Viz (12)
+- BarChartReveal: `data`, `colors` — Bar chart with reveal
+- PieChartReveal: `data`, `colors` — Pie chart with reveal
+- FunnelChart: `stages`, `values` — Conversion funnel
+- HorizontalBarRace: `data`, `duration` — Bar race chart
+- RadarSpiderChart: `axes`, `values` — Radar/spider chart
+- StockCandlestick: `data`, `period` — Stock candlestick chart
+- GitCommitGraph: `commits`, `branch` — Git commit graph
+- TrendLine: `data`, `direction` — Trend line
+- AudioSpectrumBars: `data`, `bars` — Audio spectrum bars
+- SoundWaveCircle: `data`, `radius` — Sound wave circle
+- WaveformVisualizer: `data`, `bars` — Waveform visualizer
+- NetworkNodes: `nodes`, `edges` — Network nodes graph
+
+### Transitions (5)
+- GlitchTransition: `duration`, `intensity` — Glitch scene transition
+- ZoomBlurTransition: `duration`, `zoom` — Zoom blur transition
+- WipeTransition: `direction`, `duration` — Wipe transition
+- LightLeakTransition: `color`, `duration` — Light leak transition
+- GradientOverlay: `colors`, `duration` — Gradient overlay transition
+
+### Backgrounds & VFX (11)
+- KineticBackground: `type`, `colors` — Kinetic animated background
+- FloatingBlobs: `count`, `colors` — Floating blob animation
+- ParticleField: `count`, `spread` — Particle field
+- RaysOfLight: `count`, `angle` — Light rays
+- RippleEffect: `x`, `y`, `count` — Ripple effect
+- GradientOverlay: `colors`, `angle` — Gradient overlay
+- GlobalVFX: `type`, `intensity` — Global VFX effect
+- AbstractWave: `waves`, `colors` — Abstract wave animation
+- GridPerspective: `rows`, `cols` — Perspective grid
+- MaskedReveal: `mask`, `direction` — Masked reveal
+- SplitScreenGrid: `cols`, `rows` — Split screen grid
+
+### Cards & Mockups (10)
+- PodcastGuestCard: `name`, `role`, `avatar` — Podcast guest card
+- TestimonialReview: `text`, `author`, `rating` — Testimonial with rating
+- MediaFrame: `src`, `caption` — Media frame
+- BrowserWindow: `url`, `content` — Browser window mockup
+- PhoneMockup: `screen`, `notch` — Phone mockup
+- CalendarDatePop: `date`, `event` — Calendar date popup
+- SizeSelector: `sizes`, `selected` — Size selector
+- ShoppingCartBadge: `count`, `icon` — Shopping cart badge
+- PricingTableReveal: `plans`, `features` — Pricing table
+- ProductCardReveal: `name`, `price`, `image` — Product card
+
+### Notifications & Alerts (6)
+- BreakingNewsAlert: `text`, `variant` — Breaking news alert
+- BreakingNewsTicker: `text`, `speed` — News ticker
+- NotificationToast: `text`, `type`, `icon` — Toast notification
+- MessageBubble: `text`, `sender`, `avatar` — Message bubble
+- TextBubble: `text`, `variant` — Text bubble
+- FloatingBadge: `text`, `icon`, `variant` — Floating badge
+
+### Buttons & CTAs (3)
+- SubscribeButton: `text`, `clickedText`, `clickFrame` — Subscribe button
+- AppStoreButtons: `platform`, `text` — App Store/Google Play buttons
+- PromoCodeBanner: `code`, `text`, `discount` — Promo code banner
+
+### Misc (8)
+- AnimatedShape: `shape`, `color` — Animated shape
+- AnimatedIcon: `icon`, `size` — Animated icon
+- IconifyIcon: `name`, `size`, `color` — Iconify icon
+- CodeBlockHighlight: `code`, `language` — Code block
+- VersusScreen: `left`, `right` — Versus screen
+- APIRequestFlow: `method`, `url`, `response` — API request flow
+- SocialProgressBar: `platform`, `count`, `target` — Social progress bar
+- SocialSharePopup: `platform`, `count` — Social share popup
+
+## Component Selection Rules
+1. **Prefer Style* components** for generic UI (buttons, cards, badges, charts) — they support full LayerStyle overrides
+2. **Use specialized components** when the scene matches their specific use case (e.g., TikTokOverlay for TikTok videos, StockCandlestick for finance)
+3. **Use Text Effects** for animated text (Typewriter, GlitchTitle, TextReveal)
+4. **Use Transitions** for scene-to-scene transitions (GlitchTransition, WipeTransition)
+5. **Use Backgrounds & VFX** for visual atmosphere (KineticBackground, FloatingBlobs, ParticleField)
+6. **Combine components** using layout groups (flex/grid) for complex scenes
+
 ## Improved Spring Physics
 
 All entrance/exit animations now use improved spring physics based on Framer Motion's formula:

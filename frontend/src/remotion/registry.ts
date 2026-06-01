@@ -331,3 +331,89 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   YouTubeEndScreen,
   ZoomBlurTransition,
 };
+
+// ---------------------------------------------------------------------------
+// Component Aliases (Deprecated → Style* equivalents)
+// These are kept for backward compatibility. New scenes should use Style* components.
+// ---------------------------------------------------------------------------
+
+export const COMPONENT_ALIASES: Record<string, string> = {
+  // Charts
+  'BarChartReveal': 'StyleBarChart',
+  'PieChartReveal': 'StylePieChart',
+  'FunnelChart': 'StyleFunnelChart',
+  'HorizontalBarRace': 'StyleBarRace',
+  'RadarSpiderChart': 'StyleRadarChart',
+
+  // Counters
+  'CounterNumber': 'StyleAnimateNumber',
+  'PercentageRing': 'StyleProgressBar',
+  'ScoreboardCounter': 'StyleAnimateNumber',
+  'FollowerCounter': 'StyleAnimateNumber',
+  'FlashSaleTimer': 'StyleAnimateNumber',
+  'CountdownTimer': 'StyleAnimateNumber',
+
+  // Text
+  'BreakingNewsTicker': 'StyleTicker',
+  'TextReveal': 'StyleTextBlock',
+  'Typewriter': 'StyleTextBlock',
+  'TextSwap': 'StyleTextBlock',
+  'SplitText': 'StyleTextBlock',
+  'GlitchTitle': 'StyleScrambleText',
+  'StrikethroughText': 'StyleTextBlock',
+  'UnderlineReveal': 'StyleTextBlock',
+  'HighlightText': 'StyleTextBlock',
+
+  // Buttons/CTAs
+  'SubscribeButton': 'StyleButton',
+  'AppStoreButtons': 'StyleButton',
+  'PromoCodeBanner': 'StyleCard',
+
+  // UI
+  'NotificationToast': 'StyleBadge',
+  'MessageBubble': 'StyleCard',
+  'TextBubble': 'StyleCard',
+  'FloatingBadge': 'StyleBadge',
+  'ProgressPill': 'StyleProgressBar',
+  'LoadingSpinner': 'StyleProgressBar',
+
+  // Social
+  'SocialProgressBar': 'StyleProgressBar',
+  'SocialSharePopup': 'StyleCard',
+  'ShoppingCartBadge': 'StyleBadge',
+  'SizeSelector': 'StyleChip',
+
+  // Cards
+  'PodcastGuestCard': 'StyleCard',
+  'TestimonialReview': 'StyleCard',
+  'PricingTableReveal': 'StyleCard',
+  'ProductCardReveal': 'StyleCard',
+  'CalendarDatePop': 'StyleCard',
+  'MediaFrame': 'StyleCard',
+
+  // Misc
+  'AnimatedShape': 'StyleDivider',
+  'AnimatedIcon': 'IconifyIcon',
+  'AnimatedArrow': 'StyleCallout',
+  'AnimatedLine': 'StyleDivider',
+  'VersusScreen': 'StyleCard',
+  'APIRequestFlow': 'StyleCard',
+  'CodeBlockHighlight': 'StyleCard',
+  'BrowserWindow': 'StyleCard',
+  'PhoneMockup': 'StyleCard',
+  'MusicPlayerUI': 'StyleCard',
+  'TerminalHacker': 'StyleCard',
+  'TinderSwipeCard': 'StyleCard',
+  'TweetCard': 'StyleCard',
+  'InstagramPost': 'StyleCard',
+  'TikTokOverlay': 'StyleCard',
+  'YouTubeEndScreen': 'StyleCard',
+};
+
+/**
+ * Resolve a component name, following aliases to their Style* equivalent.
+ * Returns the resolved component name.
+ */
+export function resolveComponentAlias(name: string): string {
+  return COMPONENT_ALIASES[name] ?? name;
+}

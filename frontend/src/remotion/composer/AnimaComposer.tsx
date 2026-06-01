@@ -21,7 +21,7 @@ import { AnimaImage } from '../primitives/AnimaImage';
 import { AnimaGroup } from '../primitives/AnimaGroup';
 import { AnimaParticles } from '../primitives/AnimaParticles';
 import { AnimaGradient } from '../primitives/AnimaGradient';
-import { COMPONENT_REGISTRY } from '../registry';
+import { COMPONENT_REGISTRY, resolveComponentAlias } from '../registry';
 import { AnimatedWrapper } from '../AnimatedWrapper';
 import type { EntryType, ExitType } from '../AnimatedWrapper';
 import { solveLayout } from '../utils/layoutSolver';
@@ -764,9 +764,10 @@ function renderSingleLayer(
         return null;
       }
       
-      const ComponentToRender = COMPONENT_REGISTRY[componentName];
+      const resolvedName = resolveComponentAlias(componentName);
+      const ComponentToRender = COMPONENT_REGISTRY[resolvedName];
       if (!ComponentToRender) {
-        console.warn(`[AnimaComposer] Component "${componentName}" not found in registry.`);
+        console.warn(`[AnimaComposer] Component "${componentName}" (resolved: "${resolvedName}") not found in registry.`);
         return null;
       }
 
