@@ -120,7 +120,6 @@ class Voice(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
-    voicebox_profile_id = Column(String(255), nullable=True)
     gender = Column(String(50), nullable=False, default="neutral")
     language = Column(String(10), nullable=False, default="es")
     is_default = Column(Boolean, nullable=False, default=False)

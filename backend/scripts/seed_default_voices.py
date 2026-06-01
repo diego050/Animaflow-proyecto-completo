@@ -42,7 +42,6 @@ def seed_default_voices():
                 gender="neutral",
                 language="es",
                 is_default=True,
-                voicebox_profile_id="es_ES-carlfm-x_low",
             )
             db.add(default_voice)
             created += 1

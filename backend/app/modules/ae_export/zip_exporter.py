@@ -34,7 +34,7 @@ def get_resolution(aspect_ratio: str) -> Tuple[int, int]:
 def download_audio_files(job: JobModel, audio_dir: str) -> List[str]:
     """
     Descarga los archivos de audio cacheados localmente para el job.
-    Usa el cache local en storage/audio/ en vez de descargar de Voicebox.
+    Usa el cache local en storage/audio/.
     """
     if not job.result_spec:
         return []

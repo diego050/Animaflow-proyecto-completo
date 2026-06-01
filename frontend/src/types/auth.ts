@@ -42,7 +42,6 @@ export interface BackendVoice {
   id: string;
   user_id: string;
   name: string;
-  voicebox_profile_id: string | null;
   gender: 'male' | 'female' | 'neutral';
   language: string;
   is_default: boolean;
