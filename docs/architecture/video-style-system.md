@@ -2,7 +2,7 @@
 
 **Fecha:** 1 de Junio de 2026
 **Tipo:** Architecture Decision Record
-**Estado:** Implementado (Fase 1-7)
+**Estado:** Implementado (Fase 1-12)
 
 ## Resumen
 
@@ -47,7 +47,7 @@ La función `_resolve_spacing` (Python) / `resolveSpacing` (TypeScript) normaliz
 - Four values: `[10, 20, 30, 40]` → `[10, 20, 30, 40]` (top, right, bottom, left)
 
 ### 4. Video Style Components (Fase 3)
-Se crearon 3 componentes pre-construidos que usan el sistema de estilos:
+Se crearon componentes pre-construidos que usan el sistema de estilos:
 
 | Componente | Variantes | Tamaños | Animación | Uso |
 |---|---|---|---|---|
@@ -57,12 +57,23 @@ Se crearon 3 componentes pre-construidos que usan el sistema de estilos:
 | **StyleAvatar** | solid, ring, gradient | sm, md, lg | Scale bounce (20 frames) | Testimonios, perfiles, equipo |
 | **StyleProgressBar** | linear, circular | custom | Animate 0→value (60 frames) | Estadísticas, encuestas, progreso |
 | **StyleDivider** | solid, dashed, dotted, gradient | custom | Grow from center (20 frames) | Separadores, breaks visuales |
+| **StyleChip** | filled, outlined, soft | sm, md, lg | Scale + fade (12 frames) | Tech stacks, filtros, categorías |
+| **StyleTextBlock** | heading, body, caption, quote | width custom | Fade + slide-up (15 frames) | Títulos, descripciones, quotes |
 
 Cada componente:
 - Acepta `style` prop con LayerStyle overrides
 - Usa `AnimatedWrapper` para animaciones de entrada
 - Es compatible con Remotion y AE (vía `_style_to_ae`)
 - Tiene tamaños predefinidos (sm/md/lg para Button/Badge)
+
+### 7. Grid Layout (Fase 8)
+Se agregó soporte para CSS Grid en el Layout Solver:
+- `layout: "grid"` con `gridCols`, `gridRows`, `gap`
+- Auto-cálculo de filas cuando `gridRows` no se especifica
+- `justifyContent` y `alignItems` para alineación dentro de celdas
+- Compatible con padding y spacing
+- Renderizado en Remotion vía `display: grid`
+- Coordenadas calculadas por solver para AE export
 
 ### 5. LayerStyle → CSS Converter
 Se creó `layerStyleToCSS()` en `AnimaComposer.tsx` que convierte LayerStyle a `React.CSSProperties`:
@@ -165,6 +176,10 @@ Playground examples en `/admin/animations`:
 - **StyleAvatar (Icon-based)** — 3 avatars (ring+badge, gradient, solid) con diferentes tamaños
 - **StyleProgressBar** — Linear (73%) y circular (85%) con animación
 - **StyleDivider** — 4 variantes (solid, dashed, gradient horizontal + vertical)
+- **Grid Layout (2x2)** — 4 badges en grid con padding
+- **StyleChip (Tags)** — 3 tech chips (React, TypeScript, Python) con variantes
+- **StyleTextBlock** — 4 variantes de texto (heading, quote, body, caption)
+- **Full Composition** — Escena completa combinando los 9 componentes
 
 ## Archivos Modificados
 
@@ -185,15 +200,22 @@ Playground examples en `/admin/animations`:
 | `frontend/src/remotion/components/StyleAvatar.tsx` | Nuevo: Avatar con anillo animado y badge |
 | `frontend/src/remotion/components/StyleProgressBar.tsx` | Nuevo: Barra de progreso linear/circular |
 | `frontend/src/remotion/components/StyleDivider.tsx` | Nuevo: Separador con 4 estilos |
+| `backend/app/services/layout_solver.py` | +_apply_grid() para distribución 2D |
+| `frontend/src/remotion/utils/layoutSolver.ts` | +applyGrid() para grid en TypeScript |
+| `frontend/src/remotion/components/StyleChip.tsx` | Nuevo: Chip/tag con 3 variantes |
+| `frontend/src/remotion/components/StyleTextBlock.tsx` | Nuevo: Text block con 4 variantes |
 
 ## Próximas Fases
 
 | Fase | Tarea | Estado |
 |---|---|---|
-| **1-6** | Fases anteriores | ✅ Completado |
-| **7** | Avatar, ProgressBar, Divider | ✅ Completado |
-| **8** | Grid layout support | Pendiente |
-| **9** | Responsive breakpoints por aspect ratio | Pendiente |
-| **10** | Image component con filtros avanzados | Pendiente |
-| **11** | Chip component | Pendiente |
-| **12** | TextBlock component | Pendiente |
+| **1-7** | Fases anteriores | ✅ Completado |
+| **8** | Grid layout support | ✅ Completado |
+| **9** | Responsive breakpoints | ✅ Completado (auto-adaptativo) |
+| **10** | Image component con filtros | ✅ Completado (AnimaImage + style) |
+| **11** | Chip component | ✅ Completado |
+| **12** | TextBlock component | ✅ Completado |
+| **13** | VideoPlayer component | Pendiente |
+| **14** | Chart components (bar/line/pie) | Pendiente |
+| **15** | Modal/Tooltip (solo preview) | Pendiente |
+| **16** | Table component | Pendiente |
