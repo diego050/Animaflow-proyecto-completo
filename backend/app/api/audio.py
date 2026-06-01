@@ -91,19 +91,3 @@ async def get_audio(
 
     ext = os.path.splitext(local_path)[1]
     return FileResponse(local_path, media_type=get_media_type(ext))
-
-
-# Keep old route for backward compatibility during transition
-@router.get("/audio/{job_id}_{scene_id}.mp3")
-async def get_audio_legacy(
-    job_id: str,
-    scene_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
-):
-    """Legacy endpoint - redirects to generic filename handler."""
-    return await get_audio(
-        f"{job_id}_{scene_id}.mp3",
-        db=db,
-        current_user=current_user,
-    )

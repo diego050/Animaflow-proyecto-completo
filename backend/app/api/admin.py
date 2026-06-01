@@ -18,11 +18,12 @@ from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel, ConfigDict
 
 from app.db.session import get_db
-from app.db.models import User, JobModel, Voice
+from app.db.models import User, JobModel, Voice, AdminSettings
 from app.core.security import require_admin, get_password_hash
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.storage_paths import get_storage_dir
+from app.core.audit import log_audit_event
 from app.services.job_cleanup import delete_job_files
 
 router = APIRouter()
@@ -212,6 +213,7 @@ def toggle_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     user.is_active = not user.is_active
     db.commit()
+    log_audit_event(db, current_user.id, "user_toggle", ip_address=request.client.host if request.client else None, details={"target_user_id": user_id, "new_status": user.is_active})
     return {"id": user.id, "is_active": user.is_active}
 
 
@@ -232,6 +234,7 @@ def change_user_role(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     user.role = role
     db.commit()
+    log_audit_event(db, current_user.id, "role_change", ip_address=request.client.host if request.client else None, details={"target_user_id": user_id, "new_role": role})
     return {"id": user.id, "role": user.role}
 
 
@@ -286,6 +289,7 @@ def delete_user(
     # 3. Delete user
     db.delete(user)
     db.commit()
+    log_audit_event(db, current_user.id, "user_delete", ip_address=request.client.host if request.client else None, details={"target_user_id": user_id, "target_email": user.email})
     return {"message": "User and all associated data deleted permanently"}
 
 
@@ -326,6 +330,7 @@ def create_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+    log_audit_event(db, current_user.id, "user_create", ip_address=request.client.host if request.client else None, details={"new_user_id": user.id, "new_user_email": user.email})
 
     return AdminUserResponse(
         id=user.id,
@@ -405,6 +410,7 @@ def retry_job(
 
     job.status = "pending"
     db.commit()
+    log_audit_event(db, current_user.id, "job_retry", ip_address=request.client.host if request.client else None, details={"job_id": job_id})
 
     return {"message": "Job queued for retry (picked up by scheduler)", "job_id": job_id}
 
@@ -429,6 +435,7 @@ def cancel_job(
     job.status = "failed"
     job.error_message = "Job cancelled by admin"
     db.commit()
+    log_audit_event(db, current_user.id, "job_cancel", ip_address=request.client.host if request.client else None, details={"job_id": job_id})
     return {"message": "Job cancelled", "job_id": job_id}
 
 
@@ -450,6 +457,7 @@ def delete_job(
 
     db.delete(job)
     db.commit()
+    log_audit_event(db, current_user.id, "job_delete", ip_address=request.client.host if request.client else None, details={"job_id": job_id})
     return {"message": "Job deleted"}
 
 
@@ -544,8 +552,30 @@ def get_business_metrics(
         activated_users = 0
     activation_rate = (activated_users / len(new_user_ids) * 100) if new_user_ids else 0
 
-    # 3. Tiempo promedio registro -> primer export
-    avg_time_to_first_export = 0  # TODO: implement when tracking export events
+    # 3. Tiempo promedio registro -> primer export (en horas)
+    # Calculate average time from user registration to first completed job
+    first_export_times = (
+        db.query(
+            func.min(JobModel.created_at - User.created_at).label("time_to_first_export")
+        )
+        .join(User, JobModel.user_id == User.id)
+        .filter(
+            JobModel.user_id.isnot(None),
+            JobModel.status.in_(["completed", "completed_video"]),
+        )
+        .group_by(JobModel.user_id)
+        .all()
+    )
+
+    if first_export_times:
+        total_hours = sum(
+            row.time_to_first_export.total_seconds() / 3600
+            for row in first_export_times
+            if row.time_to_first_export is not None
+        )
+        avg_time_to_first_export = round(total_hours / len(first_export_times), 1)
+    else:
+        avg_time_to_first_export = 0
 
     # 4. Tasa de retención semanal (usuarios que renderizaron semana pasada Y esta semana)
     # Fixed N+1: fetch only distinct user_ids instead of full JobModel rows
@@ -582,8 +612,35 @@ def get_business_metrics(
     active_this_month = db.query(User).filter(User.created_at >= month_ago).count()  # Simplification
     churn_rate = ((total_users - active_this_month) / total_users * 100) if total_users else 0
 
-    # 6. Usuarios reactivados
-    reactivated_users = 0  # TODO: implement when tracking login events
+    # 6. Usuarios reactivados (inactivos >30 días pero con actividad en los últimos 7 días)
+    # Find users who had no completed jobs between 30-7 days ago, but have completed jobs in last 7 days
+    recently_active_user_ids = {
+        row[0] for row in
+        db.query(JobModel.user_id)
+        .filter(
+            JobModel.created_at >= week_ago,
+            JobModel.status.in_(["completed", "completed_video"]),
+            JobModel.user_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    }
+
+    previously_active_user_ids = {
+        row[0] for row in
+        db.query(JobModel.user_id)
+        .filter(
+            JobModel.created_at >= month_ago,
+            JobModel.created_at < week_ago,
+            JobModel.status.in_(["completed", "completed_video"]),
+            JobModel.user_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    }
+
+    # Reactivated = active now but NOT active in the previous period (30-7 days ago)
+    reactivated_users = len(recently_active_user_ids - previously_active_user_ids)
 
     # 7. MRR (Monthly Recurring Revenue) - placeholder
     mrr = 0
@@ -606,15 +663,25 @@ def get_business_metrics(
 @limiter.limit("30/minute")
 def get_admin_settings(
     request: Request,
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Return admin-configurable settings."""
-    return {
+    """Return admin-configurable settings from the database."""
+    # Default settings
+    defaults = {
         "site_name": "AnimaFlow",
         "max_jobs_per_user": 10,
         "default_voice": "es_ES-carlfm-x_low",
         "maintenance_mode": False,
     }
+
+    # Override with DB values
+    settings_rows = db.query(AdminSettings).all()
+    for s in settings_rows:
+        if s.key in defaults:
+            defaults[s.key] = s.value
+
+    return defaults
 
 
 @router.put("/settings")
@@ -622,11 +689,25 @@ def get_admin_settings(
 def update_admin_settings(
     request: Request,
     settings_payload: dict = Body(...),
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Update admin settings.
+    """Update admin settings in the database."""
+    allowed_keys = {"site_name", "max_jobs_per_user", "default_voice", "maintenance_mode"}
 
-    For MVP, settings are not persisted to DB.
-    In production, these would be stored in a settings table or config store.
-    """
+    for key, value in settings_payload.items():
+        if key not in allowed_keys:
+            continue
+
+        # Upsert: update existing or create new
+        setting = db.query(AdminSettings).filter(AdminSettings.key == key).first()
+        if setting:
+            setting.value = value
+            setting.updated_at = datetime.datetime.now(datetime.timezone.utc)
+        else:
+            setting = AdminSettings(key=key, value=value)
+            db.add(setting)
+
+    db.commit()
+
     return {"message": "Settings updated", "settings": settings_payload}

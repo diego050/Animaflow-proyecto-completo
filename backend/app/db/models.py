@@ -57,14 +57,13 @@ class User(Base):
     jobs = relationship("JobModel", back_populates="user", lazy="select")
     voices = relationship("Voice", back_populates="user", lazy="select")
     design_templates = relationship("DesignTemplate", back_populates="user", lazy="select")
+    audit_logs = relationship("AuditLog", back_populates="user", lazy="select")
+    token_blacklist = relationship("TokenBlacklist", back_populates="user", lazy="select")
 
 
 class JobModel(Base):
     """
     Job model for the video pipeline.
-
-    TODO: After migration period, make user_id non-nullable to enforce
-    ownership for all new jobs.
     """
 
     __tablename__ = "jobs"
@@ -78,7 +77,7 @@ class JobModel(Base):
     )
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     status = Column(String, default="pending")
     error_message = Column(Text, nullable=True)
     script_text = Column(String, nullable=False)
@@ -289,3 +288,62 @@ class IconifyIcon(Base):
     tags = Column(JSON, nullable=True)  # ["ecg", "heart", "medical"]
     embedding = Column(Vector(768))  # Gemini embedding dimension
     created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+
+
+class AuditLog(Base):
+    """
+    Audit log for tracking security-relevant events.
+
+    Records login, logout, password changes, role changes, and other
+    admin actions for compliance and debugging.
+    """
+
+    __tablename__ = "audit_logs"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    action = Column(String(100), nullable=False, index=True)  # login, logout, password_reset, role_change, etc.
+    ip_address = Column(String(45), nullable=True)  # IPv6 max length
+    user_agent = Column(String(500), nullable=True)
+    details = Column(JSON, nullable=True)  # Additional context
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc), index=True)
+
+    # Relationship
+    user = relationship("User", back_populates="audit_logs", lazy="select")
+
+
+class AdminSettings(Base):
+    """
+    Admin-configurable system settings.
+
+    Stores settings as key-value pairs in the database, allowing
+    administrators to modify system behavior without code changes.
+    """
+
+    __tablename__ = "admin_settings"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    key = Column(String(100), unique=True, nullable=False, index=True)
+    value = Column(JSON, nullable=True)  # Flexible JSON value
+    description = Column(String(500), nullable=True)
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc), onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
+
+
+class TokenBlacklist(Base):
+    """
+    Blacklisted JWT tokens for logout functionality.
+
+    When a user logs out, their current token's JTI (JWT ID) is stored here
+    to prevent reuse until the token's natural expiration.
+    """
+
+    __tablename__ = "token_blacklist"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    jti = Column(String(255), unique=True, nullable=False, index=True)  # JWT ID
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)  # When the token naturally expires
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+
+    # Relationship
+    user = relationship("User", back_populates="token_blacklist", lazy="select")

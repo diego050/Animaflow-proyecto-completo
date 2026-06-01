@@ -113,9 +113,15 @@ def regenerate_single_scene_sync(
     # Open DB session first so vector search can use it during regeneration
     db = SessionLocal()
     try:
-        updated_spec = asyncio.run(
-            _regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text, user_id, db=db)
-        )
+        coro = _regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text, user_id, db=db)
+        try:
+            updated_spec = asyncio.run(coro)
+        except RuntimeError as e:
+            if "event loop" in str(e).lower():
+                # Called from within an existing event loop
+                updated_spec = asyncio.get_event_loop().run_until_complete(coro)
+            else:
+                raise
 
         # Persist to DB — the RQ worker receives a serialized copy, so we must
         # write back using the same session.

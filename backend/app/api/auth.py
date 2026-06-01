@@ -2,7 +2,7 @@
 Auth API router for AnimaFlow - register, login, profile management, password reset.
 """
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone as dt_timezone, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
@@ -26,6 +26,11 @@ from app.core.security import (
 from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.core.email import send_password_reset_email
+from app.core.audit import log_audit_event
+from app.core.security import decode_access_token
+from app.db.models import TokenBlacklist
+from jose import jwt
+from app.core.config import settings
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = get_logger("auth")
@@ -67,6 +72,8 @@ def register(request: Request, user_data: UserCreate, db: Session = Depends(get_
     db.add(default_voice)
     db.commit()
 
+    log_audit_event(db, user.id, "register", ip_address=request.client.host if request.client else None)
+
     access_token = create_access_token(data={"sub": user.id})
     return Token(
         access_token=access_token,
@@ -92,6 +99,8 @@ def login(request: Request, credentials: UserLogin, db: Session = Depends(get_db
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
 
+    log_audit_event(db, user.id, "login", ip_address=request.client.host if request.client else None)
+
     access_token = create_access_token(data={"sub": user.id})
     return Token(
         access_token=access_token,
@@ -108,6 +117,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 @router.put("/me", response_model=UserResponse)
 def update_me(
+    request: Request,
     update_data: UserUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -129,6 +139,7 @@ def update_me(
         ):
             raise HTTPException(status_code=400, detail="Invalid current password")
         current_user.hashed_password = get_password_hash(update_data.new_password)
+        log_audit_event(db, current_user.id, "password_change", ip_address=request.client.host if request.client else None)
 
     db.commit()
     db.refresh(current_user)
@@ -212,5 +223,47 @@ def reset_password(
     user.reset_token_expires_at = None
     db.commit()
 
+    log_audit_event(db, user.id, "password_reset", ip_address=request.client.host if request.client else None)
+
     logger.info("Password reset successful for user %s", user.id)
     return {"message": "Contraseña actualizada correctamente."}
+
+
+@router.post("/logout")
+def logout(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Logout the current user by blacklisting their token.
+
+    The token's JTI (JWT ID) is stored in the blacklist to prevent reuse
+    until the token's natural expiration.
+    """
+    # Extract the token from the Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            jti = payload.get("jti")
+            exp = payload.get("exp")
+
+            if jti and exp:
+                # Check if already blacklisted
+                existing = db.query(TokenBlacklist).filter(TokenBlacklist.jti == jti).first()
+                if not existing:
+                    blacklist_entry = TokenBlacklist(
+                        jti=jti,
+                        user_id=current_user.id,
+                        expires_at=datetime.fromtimestamp(exp, tz=dt_timezone.utc),
+                    )
+                    db.add(blacklist_entry)
+                    db.commit()
+        except Exception:
+            pass  # Invalid token, just proceed
+
+    log_audit_event(db, current_user.id, "logout", ip_address=request.client.host if request.client else None)
+
+    return {"message": "Logged out successfully"}
