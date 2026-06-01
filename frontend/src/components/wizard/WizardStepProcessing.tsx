@@ -70,7 +70,7 @@ export function WizardStepProcessing({ status, jobId, title, description }: Wiza
 
         {/* Live Logs Terminal */}
         {jobId && (
-          <div className="mt-6 border border-border-tech rounded-lg bg-[#0a0f18] overflow-hidden flex flex-col">
+          <div className="mt-6 border border-border-tech rounded-lg bg-surface-lowest overflow-hidden flex flex-col">
             <div className="bg-surface-highest px-3 py-1.5 border-b border-border-tech flex items-center gap-2">
               <Terminal size={14} className="text-mint-precision" />
               <span className="text-xs font-mono text-text-secondary font-medium">Worker Logs</span>
