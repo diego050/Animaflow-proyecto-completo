@@ -83,8 +83,8 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   fetchJobs: async () => {
     set({ jobsLoading: true, jobsError: null });
     try {
-      const data = await api.get<JobSummary[]>('/api/jobs');
-      set({ jobs: data, jobsLoading: false });
+      const data = await api.get<{ jobs: JobSummary[]; total: number; page: number; per_page: number; total_pages: number }>('/api/jobs');
+      set({ jobs: data.jobs, jobsLoading: false });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Error fetching jobs';
