@@ -7,6 +7,7 @@ from app.schemas.job import (
     JobResponse,
     SceneRegenerateRequest,
     SceneApprovalRequest,
+    SceneEditRequest,
 )
 from app.db.session import get_db
 from app.db.models import JobModel, User
@@ -14,17 +15,6 @@ from app.core.logging import get_logger
 from app.core.security import get_current_user
 from app.core.limiter import limiter
 from app.api.deps import get_job_or_404
-
-from pydantic import BaseModel
-
-
-class SceneEditRequest(BaseModel):
-    """Request body for editing a scene's spec."""
-    mode: Literal["manual", "conversational"]
-    # For manual mode
-    changes: list[dict[str, Any]] | None = None  # [{"field_path": "...", "value": ...}]
-    # For conversational mode
-    prompt: str | None = None
 
 
 router = APIRouter()

@@ -1,13 +1,11 @@
 import asyncio
 import json
-import asyncpg
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.db.models import JobModel, User
 from app.core.security import get_current_user_from_token
-from app.core.config import settings
 
 router = APIRouter()
 
@@ -20,19 +18,11 @@ async def job_stream(
 ):
     """
     Server-Sent Events (SSE) endpoint to stream job progress.
-    Uses PostgreSQL LISTEN/NOTIFY for real-time updates with fallback polling.
+    Uses polling with 5-second intervals for real-time updates.
     """
     async def event_generator():
         heartbeat_counter = 0
         last_status = None
-
-        # Set up asyncpg listener for real-time notifications
-        notify_conn = None
-        try:
-            notify_conn = await asyncpg.connect(settings.DATABASE_URL)
-            await notify_conn.add_listener('jobs', lambda *args: None)
-        except Exception:
-            pass
 
         try:
             while True:
@@ -40,7 +30,7 @@ async def job_stream(
                     break
 
                 # Refresh DB session to get fresh data
-                db.commit()
+                db.expire_all()
                 job = db.query(JobModel).filter(
                     JobModel.id == job_id,
                     JobModel.user_id == current_user.id,
@@ -64,17 +54,8 @@ async def job_stream(
                 if job.status in ("completed", "failed"):
                     break
 
-                # Wait for notification or timeout (5s fallback poll)
-                if notify_conn:
-                    try:
-                        await asyncio.wait_for(
-                            notify_conn.run_in_transaction(lambda: None),
-                            timeout=5.0,
-                        )
-                    except asyncio.TimeoutError:
-                        pass
-                else:
-                    await asyncio.sleep(5.0)
+                # Poll every 5 seconds
+                await asyncio.sleep(5.0)
 
                 heartbeat_counter += 5
                 if heartbeat_counter >= 15:
@@ -86,9 +67,6 @@ async def job_stream(
         except Exception as e:
             data = {"error": str(e)}
             yield f"event: error\ndata: {json.dumps(data)}\n\n"
-        finally:
-            if notify_conn:
-                await notify_conn.close()
 
     return StreamingResponse(
         event_generator(),
