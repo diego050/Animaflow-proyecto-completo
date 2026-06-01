@@ -151,7 +151,7 @@ async def preview_voice(
 
     # Check cache first for this text + voice profile
     profile_id = voice.voicebox_profile_id or "es_ES-carlfm-x_low"
-    text_hash = hashlib.md5(f"{profile_id}_{preview_data.text}".encode()).hexdigest()
+    text_hash = hashlib.md5(f"{profile_id}_{preview_data.text}".encode()).hexdigest()  # nosec B324 -- cache filename, not security
     cache_filename = f"preview_{text_hash}.wav"
     audio_storage = get_storage_dir("audio")
     cache_path = os.path.join(audio_storage, cache_filename)

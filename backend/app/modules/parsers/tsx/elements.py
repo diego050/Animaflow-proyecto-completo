@@ -1,4 +1,5 @@
 """TSX map expansion extractor."""
+import ast
 import random
 import re
 from typing import List, Dict, Any
@@ -107,7 +108,7 @@ def _extract_map_expansions(tsx_code: str, fps: int, width: int, height: int) ->
                         if delay_var and delay_var in token:
                             expr = token.replace(delay_var, str(delay_frames))
                             try:
-                                resolved_inputs.append(eval(expr))
+                                resolved_inputs.append(ast.literal_eval(expr))
                             except (SyntaxError, NameError, TypeError, ValueError):
                                 # Fallback: use delay_frames if eval fails
                                 resolved_inputs.append(delay_frames)

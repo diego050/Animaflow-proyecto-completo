@@ -59,7 +59,7 @@ def render_video_pipeline(job_id: str):
                     encoding="utf-8",
                     env=os.environ.copy(),
                     timeout=600,  # 10 minutos máximo
-                    shell=(os.name == "nt"),
+                    shell=(os.name == "nt"),  # nosec B602 -- required for Windows Remotion CLI
                 )
             finally:
                 try:
