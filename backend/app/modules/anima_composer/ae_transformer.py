@@ -20,6 +20,7 @@ import json
 from typing import Any
 
 from .utils import hex_to_ae_array, hex_to_rgb
+from app.services.layout_solver import solve_layout
 
 
 # ---------------------------------------------------------------------------
@@ -410,12 +411,10 @@ def generate_ae_layer(
     # --- Grupo (pre-composicion) -------------------------------------------
     elif layer_type == "group":
         children = layer.get("children", [])
-        # Los grupos en AE se representan como capas anidadas (sin pre-comp)
         lines.append(f"// Group: {lid} ({len(children)} children)")
-        lines.append(
-            "// Los grupos en AE se representan como capas con nombres similares, "
-            "no como pre-composiciones."
-        )
+        # If this group has solved coordinates, add a comment for AE organization
+        if "x" in layer and "y" in layer:
+            lines.append(f"// Group bounds: x={layer['x']}, y={layer['y']}, w={layer.get('width', 'auto')}, h={layer.get('height', 'auto')}")
         for ci, child in enumerate(children):
             # Indice compuesto para evitar colision de nombres de variable
             child_code = generate_ae_layer(
@@ -534,8 +533,11 @@ def anima_composer_to_aescript(
     lines.extend(bg_lines)
     lines.append("")
 
+    # Solve layout to get absolute coordinates
+    solved_spec = solve_layout(spec, width, height)
+    
     # Layers
-    layers = spec.get("layers", [])
+    layers = solved_spec.get("layers", [])
     for i, layer in enumerate(layers):
         layer_lines = generate_ae_layer(
             layer, i, duration, width, height, fps, text
