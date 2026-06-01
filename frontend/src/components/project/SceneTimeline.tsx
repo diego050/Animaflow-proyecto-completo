@@ -1,6 +1,9 @@
-import { Layers, Clock, Monitor } from 'lucide-react';
+import { useState } from 'react';
+import { Layers, Clock, Monitor, CheckCheck, Expand } from 'lucide-react';
+import { motion } from 'framer-motion';
 import type { TimelineSpec, Spec } from '../../types/spec';
 import { SceneEditorCard } from './SceneEditorCard';
+import { SceneTimelineBar } from './SceneTimelineBar';
 
 interface SceneTimelineProps {
   spec: TimelineSpec;
@@ -23,7 +26,18 @@ export function SceneTimeline({
   isSegmented = false,
   onSpecChange,
 }: SceneTimelineProps) {
+  const [focusSceneIndex, setFocusSceneIndex] = useState<number | null>(null);
+
   const totalDuration = spec.scenes.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0);
+
+  const handleSceneClick = (index: number) => {
+    setFocusSceneIndex(index);
+    // Scroll to the scene card
+    const card = document.getElementById(`scene-card-${index}`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   const handleSplitScene = (index: number) => {
     const scene = spec.scenes[index];
@@ -109,25 +123,67 @@ export function SceneTimeline({
         </div>
       </div>
 
-      {/* Scene breakdown with inline editors */}
-      <h3 className="text-sm font-semibold text-text-primary mt-6 mb-2">Desglose por escenas</h3>
-      <div className="space-y-3">
+      {/* Visual timeline bar */}
+      <SceneTimelineBar
+        spec={spec}
+        jobId={jobId}
+        focusSceneIndex={focusSceneIndex}
+        onSceneClick={handleSceneClick}
+      />
+
+      {/* Scene breakdown header */}
+      <div className="flex items-center justify-between mt-6">
+        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+          <Layers size={16} className="text-mint-precision/70" />
+          Desglose por escenas
+        </h3>
+        <div className="flex items-center gap-2">
+          {isSegmented && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-mint-precision/10 text-mint-precision border border-mint-precision/30 hover:bg-mint-precision/20 transition-colors"
+            >
+              <CheckCheck size={12} />
+              Aprobar todas
+            </motion.button>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-surface-high text-text-secondary/70 border border-border-tech/50 hover:text-text-primary hover:border-border-tech transition-colors"
+          >
+            <Expand size={12} />
+            Expandir todas
+          </motion.button>
+        </div>
+      </div>
+
+      {/* Scene cards grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {spec.scenes.map((scene, idx) => (
-          <SceneEditorCard
+          <motion.div
             key={idx}
-            scene={scene}
-            index={idx}
-            totalScenes={spec.scenes.length}
-            jobId={jobId}
-            onRegenerate={onRegenerateScene}
-            onPreview={onPreviewScene}
-            isSelected={selectedScenes?.has(idx)}
-            onToggleSelection={onToggleSceneSelection}
-            isSegmented={isSegmented}
-            onSplitScene={isSegmented ? handleSplitScene : undefined}
-            onMergeScene={isSegmented ? handleMergeScene : undefined}
-            onSegmentedChange={isSegmented ? handleSegmentedChange : undefined}
-          />
+            id={`scene-card-${idx}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, delay: idx * 0.03 }}
+          >
+            <SceneEditorCard
+              scene={scene}
+              index={idx}
+              totalScenes={spec.scenes.length}
+              jobId={jobId}
+              onRegenerate={onRegenerateScene}
+              onPreview={onPreviewScene}
+              isSelected={selectedScenes?.has(idx)}
+              onToggleSelection={onToggleSceneSelection}
+              isSegmented={isSegmented}
+              onSplitScene={isSegmented ? handleSplitScene : undefined}
+              onMergeScene={isSegmented ? handleMergeScene : undefined}
+              onSegmentedChange={isSegmented ? handleSegmentedChange : undefined}
+            />
+          </motion.div>
         ))}
       </div>
     </div>

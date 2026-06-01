@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Plus, Trash2, Film } from 'lucide-react';
 import { useToastStore } from '../store/useToastStore';
 import type { TimelineSpec } from '../types/spec';
 
@@ -50,62 +51,78 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectJob, onCreateNew }
   };
 
   const handleDelete = async (e: React.MouseEvent, jobId: string) => {
-    e.stopPropagation(); // Evitar abrir el proyecto al hacer clic en borrar
+    e.stopPropagation();
     if (!confirm("¿Seguro que deseas eliminar este proyecto de la base de datos?")) return;
 
     try {
       await fetch(`/api/jobs/${jobId}`, {
         method: "DELETE"
       });
-      fetchJobs(); // Recargar la lista
+      fetchJobs();
     } catch {
       addToast('error', 'Error al eliminar el proyecto.');
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    const isCompleted = ['completed', 'completed_video', 'queued_render', 'rendering'].includes(status);
+    return isCompleted
+      ? 'bg-mint-precision/10 text-mint-precision text-[10px] font-bold px-2 py-1 rounded-full border border-mint-precision/20'
+      : 'bg-cadmium-orange/10 text-cadmium-orange text-[10px] font-bold px-2 py-1 rounded-full border border-cadmium-orange/20 uppercase';
+  };
+
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col gap-8">
-      <div className="flex justify-between items-center bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
+      <div className="flex justify-between items-center bg-surface-container p-6 rounded-2xl border border-border-tech shadow-xl">
         <div>
-          <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">Tus Proyectos</h2>
-          <p className="text-slate-400 mt-1">Historial de videos generados con AnimaFlow</p>
+          <h2 className="text-3xl font-display font-bold text-text-primary">Tus Proyectos</h2>
+          <p className="text-text-secondary mt-1">Historial de videos generados con AnimaFlow</p>
         </div>
-        <button 
+        <button
           onClick={onCreateNew}
-          className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-all shadow-lg shadow-blue-600/30 flex items-center gap-2"
+          className="bg-mint-precision text-deep-slate hover:bg-white hover:-translate-y-0.5 font-bold py-3 px-6 rounded-lg transition-all shadow-lg shadow-mint-precision/10 flex items-center gap-2"
         >
-          <span>+</span> Crear Nuevo Video
+          <Plus size={16} /> Crear Nuevo Video
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-slate-500 animate-pulse">Cargando proyectos...</div>
+        <div className="text-center py-20 text-text-secondary/50 animate-pulse">Cargando proyectos...</div>
       ) : jobs.length === 0 ? (
-        <div className="text-center py-20 text-slate-500">Aún no has generado ningún video. ¡Anímate a crear el primero!</div>
+        <div className="text-center py-20 text-text-secondary/50">Aún no has generado ningún video. ¡Anímate a crear el primero!</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {jobs.map(job => (
-            <div key={job.job_id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg hover:border-slate-600 transition-all flex flex-col cursor-pointer group" onClick={() => handleOpenJob(job.job_id, job.status, job.script_text)}>
-              <div className="h-32 bg-slate-950 p-4 relative overflow-hidden">
-                <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-blue-500 to-emerald-500 group-hover:opacity-40 transition-opacity"></div>
-                <p className="text-slate-300 text-sm italic relative z-10 line-clamp-4">"{job.script_text}"</p>
+            <div
+              key={job.job_id}
+              className="bg-surface-container border border-border-tech rounded-xl overflow-hidden shadow-lg hover:border-mint-precision/40 hover:bg-surface-high transition-all flex flex-col cursor-pointer group"
+              onClick={() => handleOpenJob(job.job_id, job.status, job.script_text)}
+            >
+              <div className="h-32 bg-surface-lowest p-4 relative overflow-hidden">
+                <div className="absolute inset-0 opacity-10 bg-gradient-to-br from-mint-precision/20 to-cadmium-orange/10 group-hover:opacity-20 transition-opacity" />
+                <p className="text-text-primary text-sm italic relative z-10 line-clamp-4">&ldquo;{job.script_text}&rdquo;</p>
               </div>
               <div className="p-4 flex flex-col gap-2 flex-1">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-500 font-mono" title={job.job_id}>ID: {job.job_id.split('-')[0]}</span>
-                  {job.status === "completed" || job.status === "queued_render" || job.status === "rendering" ? (
-                     <span className="bg-emerald-900/50 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-800">COMPLETADO</span>
-                  ) : (
-                     <span className="bg-amber-900/50 text-amber-400 text-[10px] font-bold px-2 py-1 rounded-full border border-amber-800 uppercase">{job.status}</span>
-                  )}
+                  <span className="text-xs text-text-secondary/40 font-mono" title={job.job_id}>ID: {job.job_id.split('-')[0]}</span>
+                  <span className={getStatusBadge(job.status)}>
+                    {job.status === 'completed' || job.status === 'completed_video' ? 'COMPLETADO' : job.status}
+                  </span>
                 </div>
-                
+
                 <div className="mt-auto pt-4 flex justify-between items-center text-xs">
-                   <span className="text-slate-500">{job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Reciente'}</span>
-                   <div className="flex gap-4 items-center">
-                     <button onClick={(e) => handleDelete(e, job.job_id)} className="text-red-500 hover:text-red-400 font-semibold transition-colors">🗑️ Borrar</button>
-                     <button className="text-blue-400 group-hover:text-blue-300 font-semibold transition-colors">Abrir →</button>
-                   </div>
+                  <span className="text-text-secondary/50">{job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Reciente'}</span>
+                  <div className="flex gap-4 items-center">
+                    <button
+                      onClick={(e) => handleDelete(e, job.job_id)}
+                      className="flex items-center gap-1 text-text-secondary/50 hover:text-error transition-colors"
+                    >
+                      <Trash2 size={12} /> Eliminar
+                    </button>
+                    <span className="text-mint-precision/70 group-hover:text-mint-precision font-semibold transition-colors">
+                      Abrir →
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

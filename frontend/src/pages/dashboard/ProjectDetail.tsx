@@ -305,6 +305,10 @@ export function ProjectDetail() {
   const isProcessing = isProcessingStatus(selectedJob.status);
   const isFailed = selectedJob.status === 'failed' || selectedJob.status === 'failed_render';
 
+  // Calculate total duration from spec scenes
+  const totalDuration = spec?.scenes.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0) ?? 0;
+  const sceneCount = spec?.scenes.length ?? 0;
+
   return (
     <div className="p-6 lg:p-8">
       <ProjectHeader
@@ -312,7 +316,8 @@ export function ProjectDetail() {
         projectName={projectName}
         status={selectedJob.status}
         aspectRatio={selectedJob.result_spec?.aspect_ratio}
-        sceneCount={spec?.scenes.length ?? 0}
+        sceneCount={sceneCount}
+        totalDuration={totalDuration}
         selectedScenes={Array.from(selectedSceneIndices)}
         currentSceneIndex={focusSceneIndex ?? undefined}
         isEditing={isEditingName}
@@ -324,6 +329,7 @@ export function ProjectDetail() {
         onReformat={() => {
           fetchJobs();
         }}
+        thumbnailUrl={selectedJob.video_url ?? null}
       />
 
       <ProjectStatusBanner
@@ -339,6 +345,9 @@ export function ProjectDetail() {
         onTabChange={setActiveTab}
         hasSpec={!!spec}
         isSegmented={selectedJob.status === 'segmented'}
+        sceneCount={sceneCount}
+        isReadyToRender={isReadyToRender}
+        hasExports={selectedJob.status === 'completed_video'}
       />
 
       <div className="min-h-[400px]">

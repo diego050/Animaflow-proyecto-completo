@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pencil, Check, X as XIcon, Loader2, Split, Merge, ArrowRight } from 'lucide-react';
+import { Play, Pencil, Check, X as XIcon, Loader2, Split, Merge, ArrowRight, Clock, Sparkles, Music, Download } from 'lucide-react';
 import { useToastStore } from '../../store/useToastStore';
 import type { Spec as SceneSpec } from '../../types/spec';
 import { SceneDownloadMenu } from './SceneDownloadMenu';
@@ -91,13 +91,14 @@ export function SceneEditorCard({
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.05 }}
-        className="rounded-xl border border-mint-precision/30 bg-surface-container overflow-hidden"
+        transition={{ delay: index * 0.08 }}
+        whileHover={{ boxShadow: '0 4px 20px rgba(0, 255, 171, 0.05)' }}
+        className="rounded-xl border border-l-[3px] border-l-cadmium-orange/40 border-border-tech bg-surface-container overflow-hidden"
       >
         <div className="p-5">
           {/* Scene header */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
               {onToggleSelection && (
                 <input
                   type="checkbox"
@@ -106,21 +107,25 @@ export function SceneEditorCard({
                   className="accent-mint-precision w-3.5 h-3.5 cursor-pointer"
                 />
               )}
-              <span className="text-xs font-bold text-mint-precision bg-mint-precision/10 px-2.5 py-1 rounded-full">
+              <span className="w-7 h-7 flex items-center justify-center rounded-full bg-mint-precision/10 text-xs font-bold text-mint-precision">
+                {index + 1}
+              </span>
+              <span className="text-xs font-semibold text-text-primary">
                 Escena {index + 1}
               </span>
-              <span className="text-[10px] uppercase tracking-wider text-amber-400/70 bg-amber-400/10 px-2 py-0.5 rounded-full font-semibold">
+              <span className="bg-cadmium-orange/10 text-cadmium-orange/80 px-2.5 py-1 rounded-full text-[10px] font-semibold">
                 Borrador
               </span>
             </div>
-            <span className="text-xs text-text-secondary/50 font-mono">
+            <span className="flex items-center gap-1 text-xs text-text-secondary/50 font-mono">
+              <Clock size={12} />
               {durationDisplay}
             </span>
           </div>
 
           {/* Editable text */}
           <div className="mb-3">
-            <label className="block text-xs font-semibold text-text-secondary/60 mb-1.5">
+            <label className="block text-[10px] uppercase tracking-wider text-text-secondary/40 mb-1.5 font-semibold">
               Texto a Mostrar y Narrar (TTS)
             </label>
             <textarea
@@ -134,13 +139,14 @@ export function SceneEditorCard({
 
           {/* Editable media_query */}
           <div className="mb-4">
-            <label className="block text-xs font-semibold text-text-secondary/60 mb-1.5">
+            <label className="block text-[10px] uppercase tracking-wider text-text-secondary/40 mb-1.5 font-semibold flex items-center gap-1">
+              <Sparkles size={12} className="text-mint-precision/60" />
               Prompt Visual (Motor Generativo)
             </label>
             <textarea
               value={scene.media_query}
               onChange={(e) => onSegmentedChange?.(index, 'media_query', e.target.value)}
-              className="w-full bg-surface-lowest border border-emerald-900/40 rounded-lg px-3 py-2.5 text-sm text-emerald-400/90 font-mono placeholder:text-text-secondary/30 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-colors resize-none"
+              className="w-full bg-surface-lowest border border-mint-precision/30 rounded-lg px-3 py-2.5 text-sm text-mint-precision/90 font-mono placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors resize-none"
               rows={4}
               placeholder="Describe los elementos visuales..."
             />
@@ -179,7 +185,8 @@ export function SceneEditorCard({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: index * 0.08 }}
+      whileHover={{ boxShadow: '0 4px 20px rgba(0, 255, 171, 0.05)' }}
       className={`rounded-xl border overflow-hidden transition-colors ${
         isEditing
           ? 'bg-surface-high border-mint-precision/40'
@@ -188,8 +195,8 @@ export function SceneEditorCard({
     >
       <div className="p-5">
         {/* Scene header row */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
             {onToggleSelection && (
               <input
                 type="checkbox"
@@ -198,17 +205,21 @@ export function SceneEditorCard({
                 className="accent-mint-precision w-3.5 h-3.5 cursor-pointer"
               />
             )}
-            <span className="text-xs font-bold text-mint-precision bg-mint-precision/10 px-2.5 py-1 rounded-full">
+            <span className="w-7 h-7 flex items-center justify-center rounded-full bg-mint-precision/10 text-xs font-bold text-mint-precision">
+              {index + 1}
+            </span>
+            <span className="text-xs font-semibold text-text-primary">
               Escena {index + 1}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-text-secondary/50 font-mono">
+            <span className="flex items-center gap-1 text-xs text-text-secondary/50 font-mono">
+              <Clock size={12} />
               {scene.duration_seconds}s
             </span>
             <button
               onClick={() => onPreview(index)}
-              className="p-1.5 rounded-md text-text-secondary/50 hover:text-mint-precision hover:bg-mint-precision/10 transition-colors"
+              className="p-2 rounded-lg bg-surface-high text-text-secondary/50 hover:bg-mint-precision/10 hover:text-mint-precision transition-colors"
               title="Preview de esta escena"
             >
               <Play size={14} />
@@ -220,7 +231,7 @@ export function SceneEditorCard({
         {isEditing ? (
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-text-secondary/60 mb-1.5">
+              <label className="block text-[10px] uppercase tracking-wider text-text-secondary/40 mb-1.5 font-semibold">
                 Texto a Mostrar y Narrar (TTS)
               </label>
               <textarea
@@ -231,13 +242,14 @@ export function SceneEditorCard({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-text-secondary/60 mb-1.5">
+              <label className="block text-[10px] uppercase tracking-wider text-text-secondary/40 mb-1.5 font-semibold flex items-center gap-1">
+                <Sparkles size={12} className="text-mint-precision/60" />
                 Prompt Visual (Motor Generativo)
               </label>
               <textarea
                 value={editMedia}
                 onChange={(e) => setEditMedia(e.target.value)}
-                className="w-full bg-surface-container border border-emerald-900/30 rounded-lg px-3 py-2.5 text-sm text-emerald-400/90 font-mono placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors resize-none"
+                className="w-full bg-surface-container border border-mint-precision/20 rounded-lg px-3 py-2.5 text-sm text-mint-precision/90 font-mono placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors resize-none"
                 rows={4}
               />
             </div>
@@ -270,36 +282,63 @@ export function SceneEditorCard({
           </div>
         ) : (
           <>
-            <p className="text-text-primary text-sm mb-3 leading-relaxed">&ldquo;{scene.text}&rdquo;</p>
-            <div className="bg-surface-lowest rounded-lg p-3 border border-border-tech/50">
-              <p className="text-[10px] uppercase tracking-wider text-text-secondary/40 mb-1 font-semibold">Media Query</p>
-              <p className="text-emerald-400/80 font-mono text-xs break-words">
+            {/* Scene text with styled quote */}
+            <div className="border-l-2 border-l-mint-precision/30 pl-3 mb-4">
+              <p className="text-sm leading-relaxed text-text-primary line-clamp-3 cursor-pointer hover:text-mint-precision/80 transition-colors" title="Click para expandir">
+                &ldquo;{scene.text}&rdquo;
+              </p>
+            </div>
+
+            {/* Media Query as "Prompt Visual" */}
+            <div className="bg-surface-lowest rounded-lg p-3 border border-border-tech/50 mb-3">
+              <p className="text-[10px] uppercase tracking-wider text-text-secondary/40 mb-1.5 font-semibold flex items-center gap-1">
+                <Sparkles size={12} className="text-mint-precision/60" />
+                Prompt Visual
+              </p>
+              <p className="text-mint-precision/80 font-mono text-xs break-words">
                 {scene.media_query}
               </p>
             </div>
+
+            {/* SFX Cues */}
             {scene.sfx && scene.sfx.length > 0 && (
-              <div className="mt-3">
-                <p className="text-[10px] uppercase tracking-wider text-text-secondary/40 mb-1.5 font-semibold">SFX Cues</p>
+              <div className="mb-3">
+                <p className="text-[10px] uppercase tracking-wider text-text-secondary/40 mb-2 font-semibold flex items-center gap-1">
+                  <Music size={12} className="text-text-secondary/30" />
+                  Efectos de Sonido
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {scene.sfx.map((sfx, sIdx) => (
                     <span
                       key={sIdx}
-                      className="text-[10px] bg-surface-high text-text-secondary/70 px-2 py-1 rounded-full"
+                      className="flex items-center gap-1 bg-surface-high text-text-secondary/70 px-2.5 py-1 rounded-full text-[11px]"
                     >
+                      <Music size={10} className="text-text-secondary/40" />
                       {sfx.keyword} @ {sfx.time_in_seconds}s
                     </span>
                   ))}
                 </div>
               </div>
             )}
-            <div className="mt-3 flex items-center justify-between">
-              <button
-                onClick={handleStartEdit}
-                className="flex items-center gap-1.5 text-xs font-medium text-text-secondary/60 hover:text-mint-precision transition-colors"
-              >
-                <Pencil size={12} />
-                Editar escena
-              </button>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-between pt-2 border-t border-border-tech/30">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleStartEdit}
+                  className="flex items-center gap-1.5 text-xs font-medium text-text-secondary/60 hover:text-mint-precision transition-colors"
+                >
+                  <Pencil size={12} />
+                  Editar
+                </button>
+                <button
+                  onClick={handleStartEdit}
+                  className="flex items-center gap-1.5 text-xs font-medium text-text-secondary/60 hover:text-cadmium-orange transition-colors"
+                >
+                  <Loader2 size={12} />
+                  Regenerar
+                </button>
+              </div>
               <SceneDownloadMenu jobId={jobId} sceneIndex={index} />
             </div>
           </>

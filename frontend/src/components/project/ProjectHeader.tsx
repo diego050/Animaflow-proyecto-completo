@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Film, Layers, Clock } from 'lucide-react';
 import { StatusBadge } from '../../components/dashboard/StatusBadge';
 import { ReformatButton } from './ReformatButton';
 
@@ -9,6 +9,7 @@ interface ProjectHeaderProps {
   status: string;
   aspectRatio?: string;
   sceneCount?: number;
+  totalDuration?: number;
   selectedScenes?: number[];
   currentSceneIndex?: number;
   isEditing: boolean;
@@ -18,6 +19,7 @@ interface ProjectHeaderProps {
   onNameChange: (name: string) => void;
   onNavigateBack: () => void;
   onReformat?: () => void;
+  thumbnailUrl?: string | null;
 }
 
 export function ProjectHeader({
@@ -26,6 +28,7 @@ export function ProjectHeader({
   status,
   aspectRatio,
   sceneCount,
+  totalDuration,
   selectedScenes,
   currentSceneIndex,
   isEditing,
@@ -35,6 +38,7 @@ export function ProjectHeader({
   onNameChange,
   onNavigateBack,
   onReformat,
+  thumbnailUrl,
 }: ProjectHeaderProps) {
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,37 +50,75 @@ export function ProjectHeader({
   }, [isEditing]);
 
   return (
-    <div className="flex items-center gap-4 mb-6">
+    <div className="flex items-start gap-4 mb-6">
+      {/* Back button */}
       <button
         onClick={onNavigateBack}
-        className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-high transition-colors shrink-0"
+        className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-high transition-colors shrink-0 mt-1"
       >
         <ArrowLeft size={20} />
       </button>
-      <div className="flex-1 min-w-0">
-        {isEditing ? (
-          <input
-            ref={nameInputRef}
-            value={projectName}
-            onChange={(e) => onNameChange(e.target.value)}
-            onBlur={onSaveName}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onSaveName();
-              if (e.key === 'Escape') onCancelEdit();
-            }}
-            className="text-xl font-display font-bold text-text-primary bg-surface-high border border-mint-precision/40 rounded-lg px-2 py-0.5 outline-none w-full max-w-xs"
+
+      {/* Thumbnail */}
+      <div className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg border border-border-tech overflow-hidden bg-gradient-to-br from-mint-precision/10 to-cadmium-orange/10 flex items-center justify-center">
+        {thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            alt="Project thumbnail"
+            className="w-full h-full object-cover"
           />
         ) : (
-          <h1
-            className="text-xl font-display font-bold text-text-primary truncate cursor-pointer hover:text-mint-precision transition-colors"
-            onClick={onStartEdit}
-            title="Click para editar el nombre"
-          >
-            {projectName}
-          </h1>
+          <Film size={24} className="text-text-secondary/40" />
         )}
-        <div className="flex items-center gap-3 mt-1 flex-wrap">
+      </div>
+
+      {/* Project info */}
+      <div className="flex-1 min-w-0">
+        {/* Name + Status row */}
+        <div className="flex items-start gap-3 flex-wrap">
+          {isEditing ? (
+            <input
+              ref={nameInputRef}
+              value={projectName}
+              onChange={(e) => onNameChange(e.target.value)}
+              onBlur={onSaveName}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onSaveName();
+                if (e.key === 'Escape') onCancelEdit();
+              }}
+              className="text-xl sm:text-2xl font-display font-bold text-text-primary bg-surface-high border border-mint-precision/40 rounded-lg px-2 py-0.5 outline-none w-full max-w-xs"
+            />
+          ) : (
+            <h1
+              className="text-xl sm:text-2xl font-display font-bold text-text-primary truncate cursor-pointer hover:text-mint-precision transition-colors"
+              onClick={onStartEdit}
+              title="Click para editar el nombre"
+            >
+              {projectName}
+            </h1>
+          )}
           <StatusBadge status={status} size="md" />
+        </div>
+
+        {/* Metadata row */}
+        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+          {aspectRatio && (
+            <span className="bg-surface-high px-2 py-0.5 rounded text-xs font-mono text-text-secondary/70">
+              {aspectRatio}
+            </span>
+          )}
+          {sceneCount !== undefined && sceneCount > 0 && (
+            <span className="flex items-center gap-1 text-xs text-text-secondary/50">
+              <Layers size={12} />
+              {sceneCount} {sceneCount === 1 ? 'escena' : 'escenas'}
+            </span>
+          )}
+          {totalDuration !== undefined && totalDuration > 0 && (
+            <span className="flex items-center gap-1 text-xs text-text-secondary/50">
+              <Clock size={12} />
+              {totalDuration.toFixed(1)}s
+            </span>
+          )}
           {aspectRatio && onReformat && (
             <ReformatButton
               currentRatio={aspectRatio}
@@ -87,10 +129,12 @@ export function ProjectHeader({
               onReformat={onReformat}
             />
           )}
-          <span className="text-xs text-text-secondary/50 font-mono truncate">
-            {jobId}
-          </span>
         </div>
+
+        {/* Job ID */}
+        <span className="text-[10px] text-text-secondary/30 font-mono mt-1 block">
+          {jobId}
+        </span>
       </div>
     </div>
   );
