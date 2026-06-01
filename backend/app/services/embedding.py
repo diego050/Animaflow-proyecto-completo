@@ -48,8 +48,13 @@ def generate_embedding(text: str, api_key: Optional[str] = None) -> Optional[lis
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     """Compute cosine similarity between two vectors."""
-    if not a or not b:
+    if len(a) == 0 or len(b) == 0:
         return 0.0
+    # Convert to list if numpy array
+    if hasattr(a, 'tolist'):
+        a = a.tolist()
+    if hasattr(b, 'tolist'):
+        b = b.tolist()
     dot = sum(x * y for x, y in zip(a, b))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(x * x for x in b))
