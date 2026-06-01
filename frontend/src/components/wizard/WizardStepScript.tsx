@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Sparkles, Loader2, ChevronDown, ChevronUp, Plus, Trash2, Upload, Minus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2, Upload, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DesignTemplateManager } from './DesignTemplateManager';
 
@@ -230,19 +230,6 @@ export function WizardStepScript({
         </div>
 
         {renderCustomInstructions()}
-
-        <button
-          onClick={onContinue}
-          disabled={scenes.length === 0 || scenes.some(s => !s.media_query.trim())}
-          className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-lg text-sm font-bold transition-all duration-200 ${
-            scenes.length > 0 && !scenes.some(s => !s.media_query.trim())
-              ? 'bg-mint-precision text-deep-slate hover:bg-white hover:shadow-[0_0_20px_rgba(0,255,171,0.25)] hover:-translate-y-0.5'
-              : 'bg-surface-high text-text-secondary/40 cursor-not-allowed opacity-40'
-          }`}
-        >
-          <ArrowRight size={16} />
-          Crear Proyecto
-        </button>
       </div>
     );
   }
@@ -374,19 +361,6 @@ export function WizardStepScript({
         </div>
 
         {renderCustomInstructions()}
-
-        <button
-          onClick={onContinue}
-          disabled={ownScriptMode === 'with-prompts' ? scenes.length === 0 || scenes.some(s => !s.text.trim()) : !info.trim()}
-          className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-lg text-sm font-bold transition-all duration-200 ${
-            (ownScriptMode === 'with-prompts' ? scenes.length > 0 && !scenes.some(s => !s.text.trim()) : info.trim())
-              ? 'bg-mint-precision text-deep-slate hover:bg-white hover:shadow-[0_0_20px_rgba(0,255,171,0.25)] hover:-translate-y-0.5'
-              : 'bg-surface-high text-text-secondary/40 cursor-not-allowed opacity-40'
-          }`}
-        >
-          <ArrowRight size={16} />
-          Continuar
-        </button>
       </div>
     );
   }
@@ -463,28 +437,6 @@ export function WizardStepScript({
       </div>
 
       {renderCustomInstructions()}
-
-      <button
-        onClick={onGenerate}
-        disabled={loading || !info.trim()}
-        className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-lg text-sm font-bold transition-all duration-200 ${
-          info.trim() && !loading
-            ? 'bg-mint-precision text-deep-slate hover:bg-white hover:shadow-[0_0_20px_rgba(0,255,171,0.25)] hover:-translate-y-0.5'
-            : 'bg-surface-high text-text-secondary/40 cursor-not-allowed opacity-40'
-        }`}
-      >
-        {loading ? (
-          <>
-            <Loader2 size={16} className="animate-spin" />
-            Generando guión...
-          </>
-        ) : (
-          <>
-            <Sparkles size={16} />
-            Generar Guión con IA
-          </>
-        )}
-      </button>
     </div>
   );
 }
