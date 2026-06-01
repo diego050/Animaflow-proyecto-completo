@@ -56,6 +56,7 @@ class User(Base):
     assets = relationship("Asset", back_populates="user", lazy="select")
     jobs = relationship("JobModel", back_populates="user", lazy="select")
     voices = relationship("Voice", back_populates="user", lazy="select")
+    design_templates = relationship("DesignTemplate", back_populates="user", lazy="select")
 
 
 class JobModel(Base):
@@ -210,7 +211,7 @@ class DesignTemplate(Base):
     )
 
     # Relationship
-    user = relationship("User", backref="design_templates")
+    user = relationship("User", back_populates="design_templates")
 
 
 

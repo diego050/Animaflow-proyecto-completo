@@ -17,6 +17,16 @@ from app.core.security import get_current_user
 from app.core.limiter import limiter
 from app.api.deps import get_job_or_404
 
+# Service imports
+from app.modules.pipeline.scene_manager import regenerate_single_scene_sync
+from app.services.scene_editor import (
+    apply_manual_changes,
+    apply_conversational_changes,
+    validate_scene_spec,
+)
+from app.services.context_manager import save_message, get_history
+from app.services.intent_router import classify_intent, answer_query
+
 
 router = APIRouter()
 
@@ -204,8 +214,6 @@ async def trigger_scene_regenerate(
     - Visual spec (anima_composer) regeneration
     - DB persistence
     """
-    from app.modules.pipeline.scene_manager import regenerate_single_scene_sync
-
     job = db.query(JobModel).filter(
         JobModel.id == job_id,
         JobModel.user_id == current_user.id,
@@ -262,12 +270,6 @@ async def edit_scene(
     Manual mode: Direct field path modifications
     Conversational mode: LLM parses natural language prompt
     """
-    from app.services.scene_editor import (
-        apply_manual_changes,
-        apply_conversational_changes,
-        validate_scene_spec,
-    )
-
     logger = get_logger("api.jobs")
 
     # Find the job
@@ -305,9 +307,6 @@ async def edit_scene(
                 raise HTTPException(status_code=400, detail="Prompt is required for conversational mode")
 
             # Step 1: Save user message to history
-            from app.services.context_manager import save_message, get_history
-            from app.services.intent_router import classify_intent, answer_query
-
             await save_message(
                 db=db,
                 job_id=job_id,

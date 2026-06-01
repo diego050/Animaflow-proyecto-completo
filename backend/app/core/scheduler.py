@@ -23,7 +23,7 @@ class Scheduler:
         self.render_semaphore = asyncio.Semaphore(3)
         self._stop_event = asyncio.Event()
         self._notify_event = asyncio.Event()
-        self.active_tasks: list = []
+        self.active_tasks: list[asyncio.Task] = []
 
     def wake_up(self, connection, pid, channel, payload):
         self._notify_event.set()

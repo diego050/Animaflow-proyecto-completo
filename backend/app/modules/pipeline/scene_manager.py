@@ -75,7 +75,8 @@ async def _regenerate_scene_async(
     logger.info("Regenerando JSON para escena %d...", scene_index, extra={"job_id": job_id})
     
     from app.modules.pipeline.orchestrator import _get_user_api_key
-    groq_api_key = _get_user_api_key(user_id, "groq", SessionLocal())
+    with SessionLocal() as temp_session:
+        groq_api_key = _get_user_api_key(user_id, "groq", temp_session)
     api_key = groq_api_key or os.getenv("GROQ_API_KEY") or ""
     
     composer_spec = generate_scene_composer(
