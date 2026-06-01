@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Any, Literal
 import datetime
+import re
 
 JobStatus = Literal[
     "draft",
@@ -45,6 +46,20 @@ class JobCreate(BaseModel):
     system_prompt: Optional[str] = Field(default=None, description="Optional custom system prompt for LLM visual generation")
     animation_only: bool = Field(default=False, description="If true, skips TTS and Audio alignment")
     model: Optional[str] = Field(default=None, description="Optional LLM model override")
+
+    @field_validator("aspect_ratio")
+    @classmethod
+    def validate_aspect_ratio(cls, v: str) -> str:
+        """Accept ratio format (e.g., '9:16') or pixel format (e.g., '1900x2000')."""
+        ratio_pattern = r"^\d+:\d+$"      # e.g., "9:16", "16:9"
+        pixel_pattern = r"^\d+x\d+$"       # e.g., "1900x2000", "1080x1920"
+        if not re.match(ratio_pattern, v) and not re.match(pixel_pattern, v):
+            raise ValueError(
+                f"Invalid aspect ratio '{v}'. "
+                "Use ratio format (e.g., '9:16', '16:9', '1:1') "
+                "or pixel format (e.g., '1900x2000', '1080x1920')."
+            )
+        return v
 
 class JobDraftRequest(BaseModel):
     draft_data: Dict[str, Any]

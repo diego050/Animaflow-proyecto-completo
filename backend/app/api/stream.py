@@ -2,8 +2,7 @@ import asyncio
 import json
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from app.db.session import get_db
+from app.db.session import SessionLocal
 from app.db.models import JobModel, User
 from app.core.security import get_current_user_from_token
 
@@ -13,7 +12,6 @@ router = APIRouter()
 async def job_stream(
     request: Request,
     job_id: str,
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_from_token),
 ):
     """
@@ -29,30 +27,30 @@ async def job_stream(
                 if await request.is_disconnected():
                     break
 
-                # Refresh DB session to get fresh data
-                db.expire_all()
-                job = db.query(JobModel).filter(
-                    JobModel.id == job_id,
-                    JobModel.user_id == current_user.id,
-                ).first()
+                # Create a fresh DB session for each poll iteration
+                with SessionLocal() as session:
+                    job = session.query(JobModel).filter(
+                        JobModel.id == job_id,
+                        JobModel.user_id == current_user.id,
+                    ).first()
 
-                if not job:
-                    data = {"error": "Job not found"}
-                    yield f"event: error\ndata: {json.dumps(data)}\n\n"
-                    break
+                    if not job:
+                        data = {"error": "Job not found"}
+                        yield f"event: error\ndata: {json.dumps(data)}\n\n"
+                        break
 
-                # Only send progress when status changes
-                if job.status != last_status:
-                    data = {
-                        "status": job.status,
-                        "video_url": job.video_url,
-                        "error_message": job.error_message,
-                    }
-                    yield f"event: progress\ndata: {json.dumps(data)}\n\n"
-                    last_status = job.status
+                    # Only send progress when status changes
+                    if job.status != last_status:
+                        data = {
+                            "status": job.status,
+                            "video_url": job.video_url,
+                            "error_message": job.error_message,
+                        }
+                        yield f"event: progress\ndata: {json.dumps(data)}\n\n"
+                        last_status = job.status
 
-                if job.status in ("completed", "failed"):
-                    break
+                    if job.status in ("completed", "failed"):
+                        break
 
                 # Poll every 5 seconds
                 await asyncio.sleep(5.0)

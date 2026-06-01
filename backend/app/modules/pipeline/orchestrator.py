@@ -44,9 +44,9 @@ def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
             logger.warning("Job %s not found in approved pipeline", job_id)
             return
 
-        if job.status not in ["segmented", "pending"]:
+        if job.status not in ["segmented"]:
             logger.warning(
-                "Job %s is in status '%s', expected 'segmented' or 'pending'",
+                "Job %s is in status '%s', expected 'segmented'",
                 job_id, job.status,
             )
             return
@@ -136,7 +136,13 @@ async def _process_chunks_async(
                 current_offset += duration + (GAP_MS / 1000)
 
             except Exception as e:
-                logger.warning("TTS failed for scene %d: %s. Using estimated duration.", i + 1, e)
+                error_msg = str(e)
+                if error_msg.startswith("[TTS_"):
+                    # Preserve the error code for the frontend to display the right message
+                    JobFileLogger.log(job_id, "ERROR", f"TTS error: {error_msg}")
+                    scene["tts_error_code"] = error_msg.split("]")[0].lstrip("[")
+                else:
+                    logger.warning("TTS failed for scene %d: %s. Using estimated duration.", i + 1, e)
                 word_count = len(scene_text.split())
                 estimated_duration = max(3.0, word_count / 2.17)
                 scene["duration_seconds"] = round(estimated_duration, 2)
@@ -145,45 +151,49 @@ async def _process_chunks_async(
                 scene["word_timestamps"] = []
                 current_offset += estimated_duration + (GAP_MS / 1000)
         else:
-            # Scene already has audio_url (e.g., from manual upload) — just update timing
+            # Scene already has audio_url (e.g., from manual upload or previous run) — skip TTS
+            logger.info("Scene %d already has audio, skipping TTS", i + 1)
             duration = scene.get("duration_seconds", 3.0)
             scene["start_time_seconds"] = round(current_offset, 2)
             current_offset += duration + (GAP_MS / 1000)
 
         # ── Step 2: Generate anima_composer (visual component spec) ──
-        visual_spec = VisualSpecResult(
-            media_query=scene.get("media_query", ""),
-            backgroundColor=scene.get("remotion_props", {}).get("backgroundColor", "#0f172a"),
-            textColor=scene.get("remotion_props", {}).get("textColor", "#38bdf8"),
-        )
+        if scene.get("anima_composer"):
+            logger.info("Scene %d already has animation spec, skipping LLM call", i + 1)
+        else:
+            visual_spec = VisualSpecResult(
+                media_query=scene.get("media_query", ""),
+                backgroundColor=scene.get("remotion_props", {}).get("backgroundColor", "#0f172a"),
+                textColor=scene.get("remotion_props", {}).get("textColor", "#38bdf8"),
+            )
 
-        logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
+            logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
 
-        try:
-            creds = resolve_llm_credentials(user_id, provider_override="gemini")
-            api_key = creds.api_key
-            model_to_use = creds.model
-        except Exception:
-            if db:
-                gemini_api_key = _get_user_api_key(user_id, "gemini", db)
-            else:
-                with SessionLocal() as temp_session:
-                    gemini_api_key = _get_user_api_key(user_id, "gemini", temp_session)
-            api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
-            model_to_use = llm_model
+            try:
+                creds = resolve_llm_credentials(user_id, provider_override="gemini")
+                api_key = creds.api_key
+                model_to_use = creds.model
+            except Exception:
+                if db:
+                    gemini_api_key = _get_user_api_key(user_id, "gemini", db)
+                else:
+                    with SessionLocal() as temp_session:
+                        gemini_api_key = _get_user_api_key(user_id, "gemini", temp_session)
+                api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
+                model_to_use = llm_model
 
-        composer_spec = generate_scene_composer(
-            text=scene.get("text", ""),
-            media_query=scene.get("media_query", ""),
-            api_key=api_key,
-            model=model_to_use,
-            db=db,
-            aspect_ratio=aspect_ratio,
-        )
+            composer_spec = generate_scene_composer(
+                text=scene.get("text", ""),
+                media_query=scene.get("media_query", ""),
+                api_key=api_key,
+                model=model_to_use,
+                db=db,
+                aspect_ratio=aspect_ratio,
+            )
 
-        scene["type"] = "custom"
-        scene["quality_status"] = "passed"
-        scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
+            scene["type"] = "custom"
+            scene["quality_status"] = "passed"
+            scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
 
         # Pausa para evitar límites de RPM (Requests Per Minute) del plan gratuito de Gemini
         if i < len(timeline_scenes) - 1:
@@ -381,9 +391,9 @@ def run_pipeline_enrichment(
         if not job:
             return
 
-        if job.status not in ["segmented", "visuals_generating", "queued_enrichment", "pending"]:
+        if job.status not in ["segmented", "visuals_generating", "queued_enrichment"]:
             logger.warning(
-                "Job %s is not in 'segmented' or 'visuals_generating' status (current: %s), skipping approval pipeline",
+                "Job %s is not in 'segmented', 'visuals_generating', or 'queued_enrichment' status (current: %s), skipping approval pipeline",
                 job_id,
                 job.status,
                 extra={"job_id": job_id},

@@ -4,20 +4,14 @@ from typing import Any
 
 
 def run_async(coro) -> Any:
-    """Run an async coroutine from sync code, handling existing event loops.
+    """Run an async coroutine from sync code.
     
-    First tries asyncio.run() (the modern approach). If an event loop is already
-    running, creates a fresh event loop, runs the coroutine, and cleans up.
+    This function is designed to be called from synchronous context only,
+    typically from a thread pool executor (e.g., scheduler.run_in_executor).
+    Thread pool workers have no event loop, so asyncio.run() works correctly.
+    
+    If called from within an existing event loop (e.g., directly from a
+    FastAPI endpoint), it will raise a RuntimeError with a clear message.
+    In that case, use 'await coro' directly instead.
     """
-    try:
-        return asyncio.run(coro)
-    except RuntimeError as e:
-        if "cannot be called from a running event loop" in str(e) or "already running" in str(e):
-            loop = asyncio.new_event_loop()
-            try:
-                asyncio.set_event_loop(loop)
-                return loop.run_until_complete(coro)
-            finally:
-                asyncio.set_event_loop(None)
-                loop.close()
-        raise
+    return asyncio.run(coro)

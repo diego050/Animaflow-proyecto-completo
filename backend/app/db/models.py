@@ -93,6 +93,7 @@ class JobModel(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+    completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Reformatting support
     parent_job_id = Column(String(36), ForeignKey("jobs.id"), nullable=True, index=True)

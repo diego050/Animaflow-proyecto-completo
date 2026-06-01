@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from sqlalchemy import text
 from app.db.session import SessionLocal
-from app.db.models import JobModel
+from app.db.models import JobModel, TokenBlacklist
 from app.core.logging import get_logger
 from app.core.config import settings
 from app.core.render_adapter import RenderAdapter
@@ -48,6 +48,7 @@ class Scheduler:
                         if job_in_session:
                             job_in_session.status = 'failed'
                             job_in_session.error_message = f"Pipeline task failed: {exc}"
+                            job_in_session.completed_at = datetime.now(timezone.utc)
                             session.commit()
             except Exception as e:
                 logger.error(f"Failed to update job {job_id} status after task failure: {e}")
@@ -57,7 +58,7 @@ class Scheduler:
         with SessionLocal() as session:
             job = session.query(JobModel).filter_by(id=job_id).first()
             if job:
-                # Detach from session so it can be used outside the context
+                # Desvincular de la sesión para poder usarlo fuera del contexto
                 session.expunge(job)
             return job
 
@@ -73,6 +74,20 @@ class Scheduler:
             if task in self.active_tasks:
                 self.active_tasks.remove(task)
 
+    def _cleanup_expired_blacklist(self):
+        """Remove expired entries from the token blacklist table."""
+        try:
+            with SessionLocal() as session:
+                now = datetime.now(timezone.utc)
+                deleted = session.query(TokenBlacklist).filter(
+                    TokenBlacklist.expires_at < now
+                ).delete()
+                if deleted:
+                    session.commit()
+                    logger.info(f"Cleaned up {deleted} expired blacklist entries.")
+        except Exception as e:
+            logger.error(f"Failed to cleanup blacklist: {e}")
+
     async def run_forever(self):
         logger.info("Starting PG Scheduler with asyncpg LISTEN...")
 
@@ -80,6 +95,8 @@ class Scheduler:
         try:
             conn = await asyncpg.connect(settings.DATABASE_URL)
             await conn.add_listener('jobs', self.wake_up)
+
+            self._cleanup_expired_blacklist()
 
             while not self._stop_event.is_set():
                 try:
@@ -142,7 +159,7 @@ class Scheduler:
                 if not job:
                     return None
 
-                # Must change status before committing so we don't pick it up again immediately
+                # Cambiar el estado antes del commit para no volver a tomarlo inmediatamente
                 if status == 'pending':
                     if job.result_spec and job.result_spec.get('scenes') and job.result_spec.get('approved'):
                         job.status = 'visuals_generating'
@@ -153,7 +170,7 @@ class Scheduler:
                         session.commit()
                         return (job_id, 'segmentation')
                 elif status == 'segmented':
-                    # Only process if approved, else ignore (release lock)
+                    # Solo procesar si está aprobado, si no ignorar (liberar lock)
                     if job.result_spec and job.result_spec.get('approved'):
                         job.status = 'visuals_generating'
                         session.commit()
@@ -234,6 +251,7 @@ class Scheduler:
                 if job_in_session and job_in_session.status not in ('completed', 'failed'):
                     job_in_session.status = 'failed'
                     job_in_session.error_message = f"Segmentation failed: {e}"
+                    job_in_session.completed_at = datetime.now(timezone.utc)
                     session.commit()
 
     async def _phase_enrichment(self, job_id: str):
@@ -261,6 +279,7 @@ class Scheduler:
                 if job_in_session and job_in_session.status not in ('completed', 'failed'):
                     job_in_session.status = 'failed'
                     job_in_session.error_message = f"Enrichment failed: {e}"
+                    job_in_session.completed_at = datetime.now(timezone.utc)
                     session.commit()
 
     async def _phase_render(self, job_id: str):
@@ -272,7 +291,7 @@ class Scheduler:
             aspect_ratio = job.aspect_ratio
                 
             async with self.render_semaphore:
-                # Use RenderAdapter natively async instead of the synchronous orchestrator
+                # Usar RenderAdapter de forma nativa asíncrona en vez del orchestrator síncrono
                 result = await self._get_render_adapter().render(
                     job_id=job_id,
                     scenes=scenes,
@@ -286,10 +305,12 @@ class Scheduler:
 
                 if result.get("success"):
                     job_in_session.status = 'completed'
+                    job_in_session.completed_at = datetime.now(timezone.utc)
                     job_in_session.video_url = result.get("video_url")
                     logger.info(f"Job {job_id} successfully rendered.")
                 else:
                     job_in_session.status = 'failed'
+                    job_in_session.completed_at = datetime.now(timezone.utc)
                     job_in_session.error_message = result.get("error", "Unknown render error")
                     logger.error(f"Job {job_id} failed to render: {job_in_session.error_message}")
                 session.commit()
@@ -300,6 +321,7 @@ class Scheduler:
                 job_in_session = session.query(JobModel).filter_by(id=job_id).first()
                 if job_in_session:
                     job_in_session.status = 'failed'
+                    job_in_session.completed_at = datetime.now(timezone.utc)
                     job_in_session.error_message = str(e)
                     session.commit()
 

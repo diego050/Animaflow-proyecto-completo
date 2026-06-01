@@ -13,7 +13,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from sqlalchemy import Integer, func, text
 from sqlalchemy.orm import Session, joinedload
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.session import get_db
 from app.db.models import User, JobModel, Voice, AdminSettings
@@ -87,6 +87,13 @@ class PaginatedJobsResponse(BaseModel):
     total: int
     page: int
     per_page: int
+
+
+class AdminUserCreate(BaseModel):
+    email: str
+    password: str = Field(min_length=8)
+    name: str = Field(min_length=1, max_length=100)
+    role: str = Field(pattern=r"^(founder|agency|user|admin)$")
 
 
 # ---------------------------------------------------------------------------
@@ -307,22 +314,15 @@ def delete_user(
 @limiter.limit("30/minute")
 def create_user(
     request: Request,
-    data: dict = Body(...),
+    data: AdminUserCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """Create a new user from admin panel."""
-    email = data.get("email")
-    password = data.get("password")
-    name = data.get("name", "User")
-    role = data.get("role", "user")
-
-    # Validate
-    if not email or not password:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email and password required")
-
-    if role not in ["founder", "agency", "user", "admin"]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
+    email = data.email
+    password = data.password
+    name = data.name
+    role = data.role
 
     # Check if exists
     existing = db.query(User).filter(User.email == email).first()
