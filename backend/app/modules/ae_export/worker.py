@@ -5,8 +5,7 @@ import json
 import os
 from typing import Tuple
 
-import psycopg2
-from sqlalchemy.engine.url import make_url
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.db.models import JobModel
 from app.db.session import SessionLocal, get_db_context
@@ -34,43 +33,28 @@ def get_resolution(aspect_ratio: str) -> Tuple[int, int]:
 
 def _persist_job_spec(job_id: str, spec_dict: dict):
     """
-    Persist job.result_spec using a separate psycopg2 connection.
-    Bypasses SQLAlchemy ORM entirely to avoid JSON change detection issues.
-    Works in both local (localhost) and Docker (postgres hostname) environments.
+    Persist job.result_spec using SQLAlchemy with flag_modified.
+    Properly notifies SQLAlchemy of JSON column changes.
     """
     try:
-        url = make_url(settings.sqlalchemy_database_uri)
-        conn = psycopg2.connect(
-            host=url.host,
-            port=url.port or 5432,
-            user=url.username,
-            password=url.password,
-            database=url.database
-        )
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE jobs SET result_spec = %s WHERE id = %s",
-            (json.dumps(spec_dict), job_id)
-        )
-        conn.commit()
-        logger.info("result_spec persisted for job %s", job_id)
-    except psycopg2.Error as e:
-        logger.error("Failed to persist result_spec for job %s: %s", job_id, e)
-        raise
+        with get_db_context() as db:
+            job = db.query(JobModel).filter(JobModel.id == job_id).first()
+            if not job:
+                logger.error("Job %s not found for result_spec persistence", job_id)
+                raise ValueError(f"Job {job_id} not found")
+            job.result_spec = spec_dict
+            flag_modified(job, "result_spec")
+            db.commit()
+            logger.info("result_spec persisted for job %s", job_id)
     except Exception as e:
-        # Fallback: log unexpected error and re-raise
         logger.exception("Failed to persist result_spec for job %s: %s", job_id, e)
         raise
-    finally:
-        if 'conn' in locals():
-            conn.close()
 
 
 def generate_ae_export_async(job_id: str, force: bool = False):
     """
     RQ worker function: generates AE scripts for all scenes, then creates zip.
     Progress stored in result_spec._ae_export_status and _ae_export_progress.
-    Uses separate psycopg2 connection for JSON persistence to bypass SQLAlchemy issues.
     """
     with get_db_context() as db:
         try:
@@ -229,7 +213,7 @@ def generate_ae_export_async(job_id: str, force: bool = False):
                 logger.error("Failed to create zip")
                 _persist_job_spec(job_id, job.result_spec)
 
-        except (OSError, psycopg2.Error, ValueError) as e:
+        except (OSError, ValueError) as e:
             logger.error("Error: %s", e)
             job = db.query(JobModel).filter(JobModel.id == job_id).first()
             if job and job.result_spec:

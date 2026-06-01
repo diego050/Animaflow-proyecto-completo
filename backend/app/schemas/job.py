@@ -79,3 +79,12 @@ class ScriptGenerateRequest(BaseModel):
 
 class ScriptGenerateResponse(BaseModel):
     script_text: str
+
+
+class SceneEditRequest(BaseModel):
+    """Request body for editing a scene's spec."""
+    mode: Literal["manual", "conversational"]
+    # For manual mode
+    changes: list[dict[str, Any]] | None = None  # [{"field_path": "...", "value": ...}]
+    # For conversational mode
+    prompt: str | None = None
