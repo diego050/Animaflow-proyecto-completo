@@ -61,28 +61,6 @@ def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
         if job.status != "queued_render":
             return
 
-        # Phase 3: Render sincrónico
-        try:
-            spec = job.result_spec
-            if not spec or not spec.get("scenes"):
-                job.status = "failed"
-                job.error_message = "No scenes to render"
-                db.commit()
-                return
-
-            timeline_scenes = spec["scenes"]
-            aspect_ratio = spec.get("aspect_ratio", "9:16")
-
-
-        except Exception as e:
-            logger.exception(
-                "Approved pipeline render failed: %s", e,
-                extra={"job_id": job_id},
-            )
-            job.status = "failed"
-            job.error_message = str(e)
-            db.commit()
-
 
 async def _process_chunks_async(
     job_id: str,
