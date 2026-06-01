@@ -103,6 +103,90 @@ def _style_to_ae(style: dict | None) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Component-specific AE mappings
+# ---------------------------------------------------------------------------
+
+def _component_to_ae(component_name: str, layer: dict) -> str | None:
+    """Generate AE JSX code for specific components."""
+    
+    if component_name == "StyleBarChart":
+        data = layer.get("data", [])
+        variant = layer.get("variant", "vertical")
+        max_val = max((d.get("value", 0) for d in data), default=1)
+        
+        jsx_lines = []
+        if variant == "vertical":
+            for i, bar in enumerate(data):
+                color = bar.get("color", "#00FFAB")
+                height = int((bar["value"] / max_val) * 200)
+                jsx_lines.append(f'// Bar {i}: {bar["label"]} = {bar["value"]}')
+                jsx_lines.append(f'var bar{i} = comp.layers.addShape();')
+                jsx_lines.append(f'bar{i}.name = "Bar_{bar["label"]}";')
+                jsx_lines.append(f'var rect{i} = bar{i}.property("ADBE Vector Shape - Group").setValue(createRectPath(0, 0, 40, {height}));')
+                jsx_lines.append(f'bar{i}.property("ADBE Vector Fill Color").setValue({hex_to_ae_array(color)});')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StylePieChart":
+        data = layer.get("data", [])
+        total = sum(d.get("value", 0) for d in data)
+        
+        jsx_lines = []
+        cumulative = 0
+        for i, slice_data in enumerate(data):
+            color = slice_data.get("color", "#00FFAB")
+            percent = slice_data["value"] / total
+            start_angle = cumulative * 360
+            cumulative += percent
+            end_angle = cumulative * 360
+            jsx_lines.append(f'// Slice {i}: {slice_data["label"]} = {slice_data["value"]}%')
+            jsx_lines.append(f'var slice{i} = comp.layers.addShape();')
+            jsx_lines.append(f'slice{i}.name = "Slice_{slice_data["label"]}";')
+            jsx_lines.append(f'// Ellipse from {start_angle}° to {end_angle}°')
+            jsx_lines.append(f'slice{i}.property("ADBE Vector Fill Color").setValue({hex_to_ae_array(color)});')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleLineChart":
+        data = layer.get("data", [])
+        line_color = layer.get("lineColor", "#00FFAB")
+        
+        jsx_lines = [f'// Line Chart with {len(data)} points']
+        jsx_lines.append(f'var lineLayer = comp.layers.addShape();')
+        jsx_lines.append(f'lineLayer.name = "LineChart";')
+        jsx_lines.append(f'lineLayer.property("ADBE Vector Stroke Color").setValue({hex_to_ae_array(line_color)});')
+        jsx_lines.append(f'lineLayer.property("ADBE Vector Stroke Width").setValue(3);')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleVideoPlayer":
+        src = layer.get("src", "")
+        jsx_lines = [f'// Video Player: {src}']
+        jsx_lines.append(f'var footageItem = app.project.importFileWithSequence(new ImportOptions(new File("{src}")));')
+        jsx_lines.append(f'var videoLayer = comp.layers.add(footageItem);')
+        jsx_lines.append(f'videoLayer.name = "VideoPlayer";')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleWatermark":
+        opacity = layer.get("opacity", 0.3) * 100
+        jsx_lines = [f'// Watermark']
+        jsx_lines.append(f'var wmLayer = comp.layers.addShape();')
+        jsx_lines.append(f'wmLayer.name = "Watermark";')
+        jsx_lines.append(f'wmLayer.property("ADBE Vector Fill Color").setValue([1, 1, 1]);')
+        jsx_lines.append(f'wmLayer.property("ADBE Transform Group").property("ADBE Opacity").setValue({opacity});')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleCallout":
+        text = layer.get("text", "")
+        direction = layer.get("direction", "right")
+        jsx_lines = [f'// Callout: {text}']
+        jsx_lines.append(f'var calloutLayer = comp.layers.addShape();')
+        jsx_lines.append(f'calloutLayer.name = "Callout";')
+        jsx_lines.append(f'var textLayer = comp.layers.addText("{text}");')
+        jsx_lines.append(f'textLayer.name = "CalloutText";')
+        return "\n".join(jsx_lines)
+    
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Resolucion de valores animados
 # ---------------------------------------------------------------------------
 

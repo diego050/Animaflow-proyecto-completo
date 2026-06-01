@@ -594,6 +594,65 @@ A text block for longer content with variants and line clamping.
 - `width`: Width in pixels
 - Use for: Titles, descriptions, quotes, captions, body text
 
+### StyleCallout
+An annotation with arrow pointing to a target area.
+- `componentName`: "StyleCallout"
+- `text`: Annotation text
+- `direction`: "left" | "right" | "top" | "bottom"
+- `variant`: "arrow" | "circle" | "highlight"
+- Use for: Pointing to features, highlighting areas, tutorial annotations
+
+### StyleWatermark
+A brand logo overlay with controlled opacity.
+- `componentName`: "StyleWatermark"
+- `src`: Image URL (optional)
+- `icon`: Iconify icon name (fallback)
+- `position`: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center"
+- `opacity`: 0-1 (default 0.3)
+- `size`: Size in pixels (default 60)
+- Use for: Branding, logos, watermarks
+
+### StyleVideoPlayer
+A video embed for picture-in-picture and media.
+- `componentName`: "StyleVideoPlayer"
+- `src`: Video URL
+- `variant`: "pip" | "fullscreen" | "inline"
+- `size`: "sm" | "md" | "lg"
+- `autoplay`: boolean (default true)
+- `loop`: boolean (default true)
+- `muted`: boolean (default true)
+- Use for: B-roll, screen recordings, PiP content
+
+### StyleBarChart
+An animated bar chart for data visualization.
+- `componentName`: "StyleBarChart"
+- `data`: [{ label, value, color }]
+- `variant`: "vertical" | "horizontal"
+- `showLabels`: boolean
+- `showValues`: boolean
+- Use for: Comparisons, monthly data, rankings
+
+### StyleLineChart
+An animated line chart with dots and grid.
+- `componentName`: "StyleLineChart"
+- `data`: [{ x, y }]
+- `showDots`: boolean
+- `showGrid`: boolean
+- `showLabels`: boolean
+- `lineColor`: string
+- `fillArea`: boolean
+- Use for: Trends, growth, time series
+
+### StylePieChart
+An animated pie/donut chart.
+- `componentName`: "StylePieChart"
+- `data`: [{ label, value, color }]
+- `variant`: "pie" | "donut"
+- `showLabels`: boolean
+- `showValues`: boolean
+- `explodeSlice`: index of slice to explode (optional)
+- Use for: Percentages, distribution, market share
+
 ### Grid Layout
 Use `layout: "grid"` for 2D layouts instead of flex.
 - `layout`: "grid"
