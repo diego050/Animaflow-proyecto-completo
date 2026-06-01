@@ -15,6 +15,7 @@ from app.core.logging import get_logger
 from app.core.security import get_current_user
 from app.core.limiter import limiter
 from app.api.deps import get_job_or_404
+from app.core.scheduler import scheduler
 
 # Service imports
 from app.modules.pipeline.scene_manager import regenerate_single_scene_sync
@@ -170,7 +171,9 @@ async def trigger_render(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Verify current_user owns this job before triggering render
+    """Trigger MP4 render on-demand. Only jobs in 'completed' status can be rendered."""
+    logger = get_logger("api.jobs")
+
     job = db.query(JobModel).filter(
         JobModel.id == job_id,
         JobModel.user_id == current_user.id,
@@ -183,19 +186,43 @@ async def trigger_render(
             status_code=400, detail="Job does not have a generated spec to render"
         )
 
+    # Only allow render from 'completed' status (enrichment finished, ready for preview)
+    # Also allow re-render from 'completed' if user wants a fresh MP4
+    if job.status not in ("completed",):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be in 'completed' status to trigger render (current: {job.status})"
+        )
+
     if job.status == "rendering":
         raise HTTPException(status_code=400, detail="Job is already rendering")
 
-    job.status = "queued_render"
+    # Set status to rendering and commit before starting the potentially long render
+    job.status = "rendering"
     db.commit()
 
-    return JobResponse(
-        job_id=job.id,
-        status=job.status,
-        result_spec=job.result_spec,
-        video_url=job.video_url,
-        error_message=job.error_message,
-    )
+    try:
+        # Directly invoke the render phase (same logic the scheduler used, but on-demand)
+        await scheduler._phase_render(job_id)
+
+        # Refresh job to get updated status/video_url from _phase_render
+        db.refresh(job)
+
+        return JobResponse(
+            job_id=job.id,
+            status=job.status,
+            result_spec=job.result_spec,
+            video_url=job.video_url,
+            error_message=job.error_message,
+        )
+    except Exception as e:
+        logger.exception("Render failed for job %s: %s", job_id, e)
+        # Update job status on unexpected error
+        job.status = "failed"
+        job.error_message = f"Render failed: {str(e)}"
+        db.commit()
+        db.refresh(job)
+        raise HTTPException(status_code=500, detail=f"Render failed: {str(e)}")
 
 
 @router.post("/{job_id}/scenes/{scene_index}/regenerate", response_model=JobResponse)
