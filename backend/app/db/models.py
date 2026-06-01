@@ -211,67 +211,6 @@ class DesignTemplate(Base):
     user = relationship("User", backref="design_templates")
 
 
-class CommunityComponent(Base):
-    """
-    CommunityComponent model for the Marketplace of reusable animation components.
-    
-    Users can create components (JSON or TSX format), publish them for review,
-    and admins can approve/reject them to make them publicly available.
-    """
-
-    __tablename__ = "community_components"
-    __table_args__ = (
-        CheckConstraint(
-            "status IN ('pending', 'approved', 'rejected')",
-            name="ck_community_component_status"
-        ),
-        CheckConstraint(
-            "format IN ('json', 'tsx')",
-            name="ck_community_component_format"
-        ),
-    )
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(100), unique=True, nullable=False, index=True)
-    description = Column(Text, nullable=True)
-    author_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-
-    # "json" for AnimaComposer JSON, "tsx" for full React component code
-    format = Column(String(20), nullable=False, default="json")
-
-    # The component content - JSON string or TSX code
-    content = Column(Text, nullable=False)
-
-    # Metadata
-    category = Column(String(50), nullable=True, default="uncategorized")
-    preview_url = Column(String(500), nullable=True)
-    tags = Column(Text, nullable=True)  # JSON array as string
-
-    # Workflow status
-    status = Column(String(20), nullable=False, default="pending")  # pending | approved | rejected
-    reviewer_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    reviewed_at = Column(DateTime, nullable=True)
-    rejection_reason = Column(Text, nullable=True)
-
-    # Statistics
-    downloads = Column(Integer, nullable=False, default=0)
-    likes = Column(Integer, nullable=False, default=0)
-
-    # Timestamps
-    created_at = Column(
-        DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc)
-    )
-    updated_at = Column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
-        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
-    )
-    approved_at = Column(DateTime, nullable=True)
-
-    # Relationships
-    author = relationship("User", foreign_keys=[author_id], lazy="joined")
-    reviewer = relationship("User", foreign_keys=[reviewer_id], lazy="joined")
 
 
 class ComponentModel(Base):

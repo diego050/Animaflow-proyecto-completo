@@ -122,8 +122,13 @@ async def _process_chunks_async(
     tts_key = None
     groq_api_key = None
     if user_id:
-        tts_key = _get_user_api_key(user_id, tts_provider, SessionLocal())
-        groq_api_key = _get_user_api_key(user_id, "groq", SessionLocal())
+        if db:
+            tts_key = _get_user_api_key(user_id, tts_provider, db)
+            groq_api_key = _get_user_api_key(user_id, "groq", db)
+        else:
+            with SessionLocal() as temp_session:
+                tts_key = _get_user_api_key(user_id, tts_provider, temp_session)
+                groq_api_key = _get_user_api_key(user_id, "groq", temp_session)
 
     for i, scene in enumerate(timeline_scenes):
         JobFileLogger.log(job_id, "INFO", f"Procesando escena {i+1}/{len(timeline_scenes)}...")
@@ -197,7 +202,11 @@ async def _process_chunks_async(
             api_key = creds.api_key
             model_to_use = creds.model
         except Exception:
-            gemini_api_key = _get_user_api_key(user_id, "gemini", SessionLocal())
+            if db:
+                gemini_api_key = _get_user_api_key(user_id, "gemini", db)
+            else:
+                with SessionLocal() as temp_session:
+                    gemini_api_key = _get_user_api_key(user_id, "gemini", temp_session)
             api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
             model_to_use = llm_model
 
@@ -252,7 +261,11 @@ async def _regenerate_components_for_reformat(
             api_key = creds.api_key
             model_to_use = creds.model
         except Exception:
-            gemini_api_key = _get_user_api_key(user_id, "gemini", SessionLocal())
+            if db:
+                gemini_api_key = _get_user_api_key(user_id, "gemini", db)
+            else:
+                with SessionLocal() as temp_session:
+                    gemini_api_key = _get_user_api_key(user_id, "gemini", temp_session)
             api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
             model_to_use = llm_model
         

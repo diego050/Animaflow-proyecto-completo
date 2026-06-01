@@ -122,7 +122,7 @@ def update_settings(
 
 
 @router.get("/models", response_model=list[str])
-def list_models(
+async def list_models(
     provider: str = Query(..., description="LLM provider: gemini, openai, anthropic"),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -146,5 +146,5 @@ def list_models(
         if key_record:
             api_key = key_record.api_key
 
-    models = fetch_available_models(provider, api_key)
+    models = await fetch_available_models(provider, api_key)
     return models
