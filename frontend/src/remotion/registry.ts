@@ -68,18 +68,25 @@ import { SplitText } from './components/SplitText';
 import { StockCandlestick } from './components/StockCandlestick';
 import { StrikethroughText } from './components/StrikethroughText';
 import { SubscribeButton } from './components/SubscribeButton';
+import { StyleAnimateNumber } from './components/StyleAnimateNumber';
 import { StyleAvatar } from './components/StyleAvatar';
 import { StyleBarChart } from './components/StyleBarChart';
+import { StyleBarRace } from './components/StyleBarRace';
 import { StyleBadge } from './components/StyleBadge';
 import { StyleButton } from './components/StyleButton';
 import { StyleCallout } from './components/StyleCallout';
 import { StyleCard } from './components/StyleCard';
 import { StyleChip } from './components/StyleChip';
+import { StyleCursor } from './components/StyleCursor';
 import { StyleDivider } from './components/StyleDivider';
+import { StyleFakeScroll } from './components/StyleFakeScroll';
 import { StyleLineChart } from './components/StyleLineChart';
 import { StylePieChart } from './components/StylePieChart';
 import { StyleProgressBar } from './components/StyleProgressBar';
+import { StyleScrambleText } from './components/StyleScrambleText';
+import { StyleSimulatedHover } from './components/StyleSimulatedHover';
 import { StyleTextBlock } from './components/StyleTextBlock';
+import { StyleTicker } from './components/StyleTicker';
 import { StyleVideoPlayer } from './components/StyleVideoPlayer';
 import { StyleWatermark } from './components/StyleWatermark';
 import { TerminalHacker } from './components/TerminalHacker';
@@ -170,18 +177,25 @@ export const COMPONENT_NAMES = [
   'StockCandlestick',
   'StrikethroughText',
   'SubscribeButton',
+  'StyleAnimateNumber',
   'StyleAvatar',
   'StyleBarChart',
+  'StyleBarRace',
   'StyleBadge',
   'StyleButton',
   'StyleCallout',
   'StyleCard',
   'StyleChip',
+  'StyleCursor',
   'StyleDivider',
+  'StyleFakeScroll',
   'StyleLineChart',
   'StylePieChart',
   'StyleProgressBar',
+  'StyleScrambleText',
+  'StyleSimulatedHover',
   'StyleTextBlock',
+  'StyleTicker',
   'StyleVideoPlayer',
   'StyleWatermark',
   'TerminalHacker',
@@ -273,18 +287,25 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   StockCandlestick,
   StrikethroughText,
   SubscribeButton,
+  StyleAnimateNumber,
   StyleAvatar,
   StyleBarChart,
+  StyleBarRace,
   StyleBadge,
   StyleButton,
   StyleCallout,
   StyleCard,
   StyleChip,
+  StyleCursor,
   StyleDivider,
+  StyleFakeScroll,
   StyleLineChart,
   StylePieChart,
   StyleProgressBar,
+  StyleScrambleText,
+  StyleSimulatedHover,
   StyleTextBlock,
+  StyleTicker,
   StyleVideoPlayer,
   StyleWatermark,
   TerminalHacker,

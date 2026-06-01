@@ -292,7 +292,11 @@ class BaseAnimaLayer(BaseModel):
         "ProductCardReveal", "ProgressPill", "PromoCodeBanner", "QuoteBlock", "RadarSpiderChart", "RaysOfLight",
         "RippleEffect", "ScoreboardCounter", "SearchEngineTyping", "ShoppingCartBadge", "SizeSelector",
         "SocialProgressBar", "SocialSharePopup", "SoundWaveCircle", "SplitScreenGrid", "SplitText",
-        "StockCandlestick", "StrikethroughText", "StyleAvatar", "StyleBadge", "StyleBarChart", "StyleButton", "StyleCallout", "StyleCard", "StyleChip", "StyleDivider", "StyleLineChart", "StylePieChart", "StyleProgressBar", "StyleTextBlock", "StyleVideoPlayer", "StyleWatermark", "SubscribeButton", "TerminalHacker", "TestimonialReview",
+        "StockCandlestick", "StrikethroughText", "StyleAnimateNumber", "StyleAvatar", "StyleBadge", "StyleBarChart",
+        "StyleBarRace", "StyleButton", "StyleCallout", "StyleCard", "StyleChip", "StyleCursor", "StyleDivider",
+        "StyleFakeScroll", "StyleLineChart", "StylePieChart", "StyleProgressBar", "StyleScrambleText",
+        "StyleSimulatedHover", "StyleTextBlock", "StyleTicker", "StyleVideoPlayer", "StyleWatermark",
+        "SubscribeButton", "TerminalHacker", "TestimonialReview",
         "TextBubble", "TextReveal", "TextSwap", "TikTokOverlay", "TinderSwipeCard", "TrendLine", "TweetCard",
         "Typewriter", "UnderlineReveal", "VersusScreen", "WaveformVisualizer", "WipeTransition",
         "YouTubeEndScreen", "ZoomBlurTransition"

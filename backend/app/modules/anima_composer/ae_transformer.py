@@ -183,6 +183,96 @@ def _component_to_ae(component_name: str, layer: dict) -> str | None:
         jsx_lines.append(f'textLayer.name = "CalloutText";')
         return "\n".join(jsx_lines)
     
+    if component_name == "StyleAnimateNumber":
+        value = layer.get("value", 100)
+        prefix = layer.get("prefix", "")
+        suffix = layer.get("suffix", "")
+        format_type = layer.get("format", "number")
+        jsx_lines = [f'// Animated Number: {value}']
+        jsx_lines.append(f'var numLayer = comp.layers.addText("{prefix}{value}{suffix}");')
+        jsx_lines.append(f'numLayer.name = "AnimateNumber";')
+        jsx_lines.append(f'// Animate sourceText from 0 to {value} over frames')
+        jsx_lines.append(f'var numProp = numLayer.property("Source Text");')
+        jsx_lines.append(f'numProp.setValueAtTime(0, "{prefix}0{suffix}");')
+        jsx_lines.append(f'numProp.setValueAtTime(2, "{prefix}{value}{suffix}");')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleScrambleText":
+        text = layer.get("text", "ACCESS GRANTED")
+        jsx_lines = [f'// Scramble Text: {text}']
+        jsx_lines.append(f'var scrambleLayer = comp.layers.addText("{text}");')
+        jsx_lines.append(f'scrambleLayer.name = "ScrambleText";')
+        jsx_lines.append(f'// Animate sourceText with scramble effect')
+        jsx_lines.append(f'var scrambleProp = scrambleLayer.property("Source Text");')
+        jsx_lines.append(f'scrambleProp.setValueAtTime(0, {"#" * len(text)});')
+        jsx_lines.append(f'scrambleProp.setValueAtTime(1.5, "{text}");')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleTicker":
+        text = layer.get("text", "Breaking News")
+        jsx_lines = [f'// Ticker: {text}']
+        jsx_lines.append(f'var tickerLayer = comp.layers.addText("{text}");')
+        jsx_lines.append(f'tickerLayer.name = "Ticker";')
+        jsx_lines.append(f'// Animate position from right to left')
+        jsx_lines.append(f'var posProp = tickerLayer.property("Transform").property("Position");')
+        jsx_lines.append(f'posProp.setValueAtTime(0, [1920, 1800]);')
+        jsx_lines.append(f'posProp.setValueAtTime(5, [-1000, 1800]);')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleSimulatedHover":
+        text = layer.get("text", "Button")
+        hover_frame = layer.get("hoverFrame", 60)
+        jsx_lines = [f'// Simulated Hover: {text}']
+        jsx_lines.append(f'var hoverLayer = comp.layers.addShape();')
+        jsx_lines.append(f'hoverLayer.name = "SimulatedHover";')
+        jsx_lines.append(f'var textLayer = comp.layers.addText("{text}");')
+        jsx_lines.append(f'textLayer.name = "HoverText";')
+        jsx_lines.append(f'// Scale animation at frame {hover_frame / 30:.1f}s')
+        jsx_lines.append(f'var scaleProp = hoverLayer.property("Transform").property("Scale");')
+        jsx_lines.append(f'scaleProp.setValueAtTime({hover_frame / 30 - 0.25}, [100, 100]);')
+        jsx_lines.append(f'scaleProp.setValueAtTime({hover_frame / 30}, [105, 105]);')
+        jsx_lines.append(f'scaleProp.setValueAtTime({hover_frame / 30 + 0.25}, [100, 100]);')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleFakeScroll":
+        items = layer.get("items", [])
+        jsx_lines = [f'// Fake Scroll with {len(items)} items']
+        jsx_lines.append(f'var scrollComp = comp.layers.addShape();')
+        jsx_lines.append(f'scrollComp.name = "FakeScroll";')
+        for i, item in enumerate(items):
+            jsx_lines.append(f'var item{i} = comp.layers.addText("{item.get("content", "")}");')
+            jsx_lines.append(f'item{i}.name = "ScrollItem_{i}";')
+            jsx_lines.append(f'// Position keyframes for scroll animation')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleCursor":
+        points = layer.get("points", [])
+        jsx_lines = [f'// Cursor with {len(points)} points']
+        jsx_lines.append(f'var cursorLayer = comp.layers.addShape();')
+        jsx_lines.append(f'cursorLayer.name = "Cursor";')
+        jsx_lines.append(f'var posProp = cursorLayer.property("Transform").property("Position");')
+        for i, point in enumerate(points):
+            jsx_lines.append(f'posProp.setValueAtTime({i * 1}, [{point.get("x", 0)}, {point.get("y", 0)}]);')
+            if point.get("click"):
+                jsx_lines.append(f'// Click animation at point {i}')
+                jsx_lines.append(f'var scaleProp = cursorLayer.property("Transform").property("Scale");')
+                jsx_lines.append(f'scaleProp.setValueAtTime({i * 1}, [100, 100]);')
+                jsx_lines.append(f'scaleProp.setValueAtTime({i * 1 + 0.15}, [70, 70]);')
+                jsx_lines.append(f'scaleProp.setValueAtTime({i * 1 + 0.3}, [100, 100]);')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleBarRace":
+        data = layer.get("data", [])
+        jsx_lines = [f'// Bar Race with {len(data)} items']
+        for i, bar in enumerate(data):
+            color = bar.get("color", "#00FFAB")
+            width = int((bar["value"] / max((d.get("value", 1) for d in data), default=1)) * 400)
+            jsx_lines.append(f'var bar{i} = comp.layers.addShape();')
+            jsx_lines.append(f'bar{i}.name = "BarRace_{bar["label"]}";')
+            jsx_lines.append(f'var rect{i} = bar{i}.property("ADBE Vector Shape - Group").setValue(createRectPath(0, 0, {width}, 32));')
+            jsx_lines.append(f'bar{i}.property("ADBE Vector Fill Color").setValue({hex_to_ae_array(color)});')
+        return "\n".join(jsx_lines)
+    
     return None
 
 

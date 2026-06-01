@@ -653,6 +653,74 @@ An animated pie/donut chart.
 - `explodeSlice`: index of slice to explode (optional)
 - Use for: Percentages, distribution, market share
 
+### StyleAnimateNumber
+An animated counter that counts from 0 to a target value.
+- `componentName`: "StyleAnimateNumber"
+- `value`: Target number
+- `from`: Starting number (default 0)
+- `prefix`: Text before number (e.g., "$", "+")
+- `suffix`: Text after number (e.g., "%", "K")
+- `format`: "number" | "currency" | "percentage" | "compact"
+- `decimals`: Number of decimal places
+- `duration`: Animation duration in frames
+- Use for: Statistics, metrics, revenue, growth numbers
+
+### StyleScrambleText
+Text that decodes from random characters to the final message.
+- `componentName`: "StyleScrambleText"
+- `text`: Final text to reveal
+- `speed`: Characters revealed per frame
+- `characters`: Random character set (default: "#$%&@!?*+=^~01")
+- `loop`: boolean — Re-scramble after reveal
+- Use for: Tech intros, cybersecurity, suspense reveals, hacker-style effects
+
+### StyleTicker
+Horizontally scrolling text (news/crypto style).
+- `componentName`: "StyleTicker"
+- `text`: Ticker content (use " • " as separator)
+- `speed`: Pixels per frame
+- `separator`: Text separator between repeats
+- Use for: Breaking news, crypto prices, stock tickers, live updates
+
+### StyleSimulatedHover
+Simulates a hover state at a specific frame.
+- `componentName`: "StyleSimulatedHover"
+- `text`: Button/card text
+- `icon`: Iconify icon name (optional)
+- `hoverFrame`: Frame when hover starts
+- `hoverDuration`: Duration of hover effect in frames
+- `variant`: "button" | "card" | "link"
+- Use for: Product demos, UI tutorials, interactive-looking buttons
+
+### StyleFakeScroll
+Simulates scrolling through a list of items.
+- `componentName`: "StyleFakeScroll"
+- `items`: [{ content, subtitle, icon }]
+- `speed`: Pixels per frame
+- `itemHeight`: Height of each item
+- `visibleItems`: Number of visible items
+- `showScrollbar`: boolean
+- Use for: Social media feeds, testimonials, product lists, comments
+
+### StyleCursor
+Animated cursor that moves between points and simulates clicks.
+- `componentName`: "StyleCursor"
+- `points`: [{ x, y, click: boolean, holdFrames: number }]
+- `speed`: Movement speed
+- `showRipple`: boolean — Show click ripple effect
+- Use for: Tutorials, demos, showing user interactions
+
+### StyleBarRace
+Horizontal bar race chart where items compete and reorder.
+- `componentName`: "StyleBarRace"
+- `data`: [{ label, value, color }]
+- `barHeight`: Height of each bar
+- `gap`: Gap between bars
+- `showLabels`: boolean
+- `showValues`: boolean
+- `duration`: Animation duration in frames
+- Use for: Rankings, competitions, "top 10" videos, comparisons
+
 ### Grid Layout
 Use `layout: "grid"` for 2D layouts instead of flex.
 - `layout`: "grid"
