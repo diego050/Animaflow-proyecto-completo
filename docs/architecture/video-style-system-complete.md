@@ -1,8 +1,8 @@
-# Video Style System — Complete Documentation (Phases 1-29)
+# Video Style System — Complete Documentation (Phases 1-31)
 
 **Fecha:** 1 de Junio de 2026
 **Tipo:** Architecture Decision Record
-**Estado:** Implementado (Fase 1-29)
+**Estado:** Implementado (Fase 1-31)
 **Owner:** AnimaFlow Team
 
 ---
@@ -106,6 +106,7 @@ Se implementó un sistema completo de estilos declarativos y componentes de vide
 | **StyleSimulatedHover** | button, card, link | Scale + shadow pulse | Demos de producto |
 | **StyleFakeScroll** | scroll container | Linear scroll + scrollbar | Feeds, testimonios |
 | **StyleCursor** | pointer + ripple | Path + click animation | Tutoriales, demos |
+| **Improved Springs** | gentle, default, snappy, bouncy, stiff, slow | N/A | F = -kx - cv formula | Animaciones naturales, orgánicas |
 
 ---
 
@@ -185,6 +186,8 @@ Se implementó un sistema completo de estilos declarativos y componentes de vide
 23. StyleBarRace (Rankings)
 24. StyleFunnelChart (Conversion)
 25. StyleRadarChart (Multi-axis)
+26. Improved Spring Physics — 4 badges comparando presets (gentle, snappy, bouncy, stiff)
+27. Layout Transitions — 2 avatars con transiciones suaves entre posiciones
 
 ---
 
@@ -201,7 +204,10 @@ Se implementó un sistema completo de estilos declarativos y componentes de vide
 | `frontend/src/remotion/composer/AnimaComposer.tsx` | Remotion scene interpreter (layerStyleToCSS) |
 | `frontend/src/remotion/registry.ts` | Component registry (24 componentes) |
 | `frontend/src/remotion/components/Style*.tsx` | 24 componentes de video |
-| `frontend/src/pages/admin/AnimationPlayground.tsx` | Playground con 25 ejemplos |
+| `frontend/src/pages/admin/AnimationPlayground.tsx` | Playground con 27 ejemplos |
+| `frontend/src/remotion/utils/springPhysics.ts` | Nuevo: Física de springs mejorada |
+| `frontend/src/remotion/utils/layoutTransitions.ts` | Nuevo: Transiciones de layout |
+| `backend/app/modules/anima_composer/ae_transformer.py` | +transitionDuration, transitionEasing, transitionSpring |
 | `backend/tests/test_layout_solver.py` | 30 tests de layout |
 
 ---
@@ -233,12 +239,29 @@ Se implementó un sistema completo de estilos declarativos y componentes de vide
 | **21** | StyleFakeScroll | ✅ |
 | **22** | StyleCursor | ✅ |
 | **23** | StyleBarRace | ✅ |
-| **24** | Improved Spring Physics | ⏳ Pendiente |
-| **25** | Layout Transitions entre escenas | ⏳ Pendiente |
+| **24** | Improved Spring Physics | ✅ |
+| **25** | Layout Transitions entre escenas | ✅ |
 | **26** | StyleFunnelChart | ✅ |
 | **27** | StyleRadarChart | ✅ |
 | **28** | Funnel Chart | ✅ |
 | **29** | Radar/Spider Chart | ✅ |
+| **1-31** | Todas las fases completadas | ✅ Completado |
+
+### 11. Improved Spring Physics (Fase 24)
+Sistema de física de springs basado en la fórmula de Framer Motion:
+- **Fórmula:** `F = -kx - cv` (Ley de Hooke + Amortiguamiento)
+- **6 presets:** gentle (80/12/1.2), default (100/10/1), snappy (180/12/0.8), bouncy (120/6/0.6), stiff (260/20/0.9), slow (60/15/1.5)
+- **generateSpringKeyframes():** Pre-calcula valores por frame para rendering determinista en Remotion
+- **createSpringEasing():** Función de easing compatible con `interpolate()` de Remotion
+- **Ventaja:** Movimiento más natural y orgánico vs springs básicos de Remotion
+
+### 12. Layout Transitions (Fase 25)
+Sistema que detecta cambios de posición entre escenas y genera transiciones suaves:
+- **Detección automática:** Compara posiciones de elementos con mismo `id` entre escenas
+- **Umbral:** Cambios >2px generan transición
+- **Easing:** ease-out, ease-in-out, spring
+- **Configurable:** `transitionDuration`, `transitionEasing`, `transitionSpring`
+- **AE Export:** Mapea a `transitionDuration`, `transitionEasing` (Easy Ease Out, Easy Ease, Exponential Scale)
 
 ---
 
@@ -262,4 +285,4 @@ Se implementó un sistema completo de estilos declarativos y componentes de vide
 
 ---
 
-*Documento generado el 1 de Junio de 2026. Última actualización: Fase 29.*
+*Documento generado el 1 de Junio de 2026. Última actualización: Fase 31.*
