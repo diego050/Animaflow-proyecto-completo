@@ -1,7 +1,6 @@
 """
 RQ worker entry point for AE export.
 """
-import json
 import os
 from typing import Tuple
 

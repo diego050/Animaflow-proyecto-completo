@@ -1,5 +1,4 @@
 import asyncio
-import json
 import asyncpg
 from datetime import datetime, timezone, timedelta
 from typing import Optional

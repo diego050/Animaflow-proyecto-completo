@@ -449,7 +449,7 @@ def run_pipeline_enrichment(
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
             job.result_spec = final_spec
             flag_modified(job, "result_spec")
-            job.status = "completed"
+            job.status = "queued_render"
             db.commit()
 
         except Exception as e:

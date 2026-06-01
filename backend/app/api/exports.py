@@ -10,7 +10,6 @@ from app.db.models import User
 from app.modules.ae_export.zip_exporter import create_export_zip
 from app.modules.ae_export.worker import generate_ae_export_async, _persist_job_spec
 from app.db.models import JobModel
-from app.core.config import settings
 from app.core.security import get_current_user
 from app.api.deps import get_job_or_404
 from app.core.limiter import limiter

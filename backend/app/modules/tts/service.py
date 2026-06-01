@@ -66,8 +66,9 @@ async def generate_tts_audio_only(
         }
     """
     if provider_name not in PROVIDERS:
-        logger.warning("Unknown TTS provider: %s. Falling back to openai_tts.", provider_name)
-        provider_name = "openai_tts"
+        logger.warning("Unknown TTS provider: %s. Falling back to local_piper.", provider_name)
+        provider_name = "local_piper"
+        voice_id = "es_ES-carlfm-x_low"
 
     provider = PROVIDERS[provider_name]
 
@@ -111,8 +112,9 @@ async def generate_tts_with_timestamps(
         }
     """
     if provider_name not in PROVIDERS:
-        logger.warning("Unknown TTS provider: %s. Falling back to openai_tts.", provider_name)
-        provider_name = "openai_tts"
+        logger.warning("Unknown TTS provider: %s. Falling back to local_piper.", provider_name)
+        provider_name = "local_piper"
+        voice_id = "es_ES-carlfm-x_low"
 
     provider = PROVIDERS[provider_name]
 
