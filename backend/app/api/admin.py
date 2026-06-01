@@ -10,7 +10,9 @@ import datetime
 from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
+from sqlalchemy import Integer
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, ConfigDict
 
 from app.db.session import get_db
 from app.db.models import User, JobModel
@@ -22,9 +24,66 @@ router = APIRouter()
 
 
 # ---------------------------------------------------------------------------
+# Response Models
+# ---------------------------------------------------------------------------
+class AdminUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    email: str
+    name: str
+    role: str
+    is_active: bool
+    created_at: Optional[str] = None
+    last_login: Optional[str] = None
+    total_jobs: int = 0
+    completed_jobs: int = 0
+
+
+class AdminJobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    job_id: str
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    status: str
+    script_text: Optional[str] = None
+    aspect_ratio: Optional[str] = None
+    created_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    video_url: Optional[str] = None
+    error_message: Optional[str] = None
+
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    active_users: int
+    total_jobs: int
+    completed_jobs: int
+    failed_jobs: int
+    rendering_jobs: int
+    pending_jobs: int
+    total_storage_mb: float
+    avg_render_time_seconds: float
+    success_rate: float
+
+
+class PaginatedUsersResponse(BaseModel):
+    users: list[AdminUserResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class PaginatedJobsResponse(BaseModel):
+    jobs: list[AdminJobResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+# ---------------------------------------------------------------------------
 # Stats
 # ---------------------------------------------------------------------------
-@router.get("/stats")
+@router.get("/stats", response_model=AdminStatsResponse)
 @limiter.limit("30/minute")
 def get_admin_stats(
     request: Request,
@@ -56,50 +115,85 @@ def get_admin_stats(
     # Avg render time (placeholder for now)
     avg_render_time_seconds = 0
 
-    return {
-        "total_users": total_users,
-        "active_users": active_users,
-        "total_jobs": total_jobs,
-        "completed_jobs": completed_jobs,
-        "failed_jobs": failed_jobs,
-        "rendering_jobs": rendering_jobs,
-        "pending_jobs": pending_jobs,
-        "total_storage_mb": total_storage_mb,
-        "avg_render_time_seconds": avg_render_time_seconds,
-        "success_rate": success_rate,
-    }
+    return AdminStatsResponse(
+        total_users=total_users,
+        active_users=active_users,
+        total_jobs=total_jobs,
+        completed_jobs=completed_jobs,
+        failed_jobs=failed_jobs,
+        rendering_jobs=rendering_jobs,
+        pending_jobs=pending_jobs,
+        total_storage_mb=total_storage_mb,
+        avg_render_time_seconds=avg_render_time_seconds,
+        success_rate=success_rate,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Users
 # ---------------------------------------------------------------------------
-@router.get("/users")
+@router.get("/users", response_model=PaginatedUsersResponse)
 @limiter.limit("30/minute")
 def list_admin_users(
     request: Request,
+    page: int = 1,
+    per_page: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """List all users with stats."""
-    users = db.query(User).filter(User.is_deleted.is_(False)).all()
-    total = len(users)
-    return {
-        "users": [
-            {
-                "id": u.id,
-                "email": u.email,
-                "name": u.name,
-                "role": u.role,
-                "is_active": u.is_active,
-                "created_at": u.created_at.isoformat() if u.created_at else None,
-                "last_login": None,  # TODO: track last login
-                "total_jobs": db.query(JobModel).filter(JobModel.user_id == u.id).count(),
-                "completed_jobs": db.query(JobModel).filter(JobModel.user_id == u.id, JobModel.status == "completed").count(),
-            }
-            for u in users
-        ],
-        "total": total,
-    }
+    """List all users with stats, with pagination."""
+    from sqlalchemy import func
+
+    # Get paginated users first
+    users = (
+        db.query(User)
+        .filter(User.is_deleted.is_(False))
+        .order_by(User.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    total = db.query(User).filter(User.is_deleted.is_(False)).count()
+
+    # Get job counts for these users only (1 query instead of N*2)
+    user_ids = [u.id for u in users]
+    if user_ids:
+        job_stats = (
+            db.query(
+                JobModel.user_id,
+                func.count(JobModel.id).label("total"),
+                func.sum(func.cast(JobModel.status == "completed", Integer)).label("completed"),
+            )
+            .filter(JobModel.user_id.in_(user_ids))
+            .group_by(JobModel.user_id)
+            .all()
+        )
+        stats_map = {row.user_id: {"total": row.total, "completed": row.completed or 0} for row in job_stats}
+    else:
+        stats_map = {}
+
+    user_responses = []
+    for u in users:
+        stats = stats_map.get(u.id, {"total": 0, "completed": 0})
+        user_responses.append(AdminUserResponse(
+            id=u.id,
+            email=u.email,
+            name=u.name,
+            role=u.role,
+            is_active=u.is_active,
+            created_at=u.created_at.isoformat() if u.created_at else None,
+            last_login=None,
+            total_jobs=stats["total"],
+            completed_jobs=stats["completed"],
+        ))
+
+    return PaginatedUsersResponse(
+        users=user_responses,
+        total=total,
+        page=page,
+        per_page=per_page,
+    )
 
 
 @router.put("/users/{user_id}/toggle")
@@ -196,7 +290,7 @@ def delete_user(
     return {"message": "User and all associated data deleted permanently"}
 
 
-@router.post("/users")
+@router.post("/users", response_model=AdminUserResponse)
 @limiter.limit("30/minute")
 def create_user(
     request: Request,
@@ -234,50 +328,63 @@ def create_user(
     db.commit()
     db.refresh(user)
 
-    return {
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
-        "role": user.role,
-    }
+    return AdminUserResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at.isoformat() if user.created_at else None,
+        last_login=None,
+        total_jobs=0,
+        completed_jobs=0,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Jobs
 # ---------------------------------------------------------------------------
-@router.get("/jobs")
+@router.get("/jobs", response_model=PaginatedJobsResponse)
 @limiter.limit("30/minute")
 def list_admin_jobs(
     request: Request,
-    status: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """List all jobs with optional status filter."""
-    query = db.query(JobModel)
-    if status:
-        query = query.filter(JobModel.status == status)
-    jobs = query.order_by(JobModel.created_at.desc()).all()
-    total = len(jobs)
+    """List all jobs with optional status filter and pagination."""
+    from sqlalchemy.orm import joinedload
 
-    return {
-        "jobs": [
-            {
-                "job_id": j.id,
-                "user_id": j.user_id,
-                "user_email": j.user.email if j.user else "Unknown",
-                "status": j.status,
-                "script_text": (j.script_text[:100] + "...") if j.script_text else None,
-                "aspect_ratio": j.aspect_ratio or "9:16",
-                "created_at": j.created_at.isoformat() if j.created_at else None,
-                "completed_at": None,  # TODO: track completion time
-                "video_url": j.video_url,
-                "error_message": None,  # TODO: track errors
-            }
-            for j in jobs
-        ],
-        "total": total,
-    }
+    query = db.query(JobModel).options(joinedload(JobModel.user))
+    if status_filter:
+        query = query.filter(JobModel.status == status_filter)
+
+    total = query.count()
+    jobs = query.order_by(JobModel.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+
+    job_responses = []
+    for j in jobs:
+        job_responses.append(AdminJobResponse(
+            job_id=j.id,
+            user_id=j.user_id,
+            user_email=j.user.email if j.user else "Unknown",
+            status=j.status,
+            script_text=(j.script_text[:100] + "...") if j.script_text else None,
+            aspect_ratio=j.aspect_ratio or "9:16",
+            created_at=j.created_at.isoformat() if j.created_at else None,
+            completed_at=None,
+            video_url=j.video_url,
+            error_message=j.error_message,
+        ))
+
+    return PaginatedJobsResponse(
+        jobs=job_responses,
+        total=total,
+        page=page,
+        per_page=per_page,
+    )
 
 
 @router.post("/jobs/{job_id}/retry")

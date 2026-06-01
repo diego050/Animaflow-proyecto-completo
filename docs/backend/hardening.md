@@ -169,26 +169,22 @@ docker-compose -f docker-compose.prod.yml up -d
 | `postgres` | 1 | Database |
 | `redis` | 1 | Queue broker |
 
-## Remaining Tasks (Sección 2 — 19 fixes pendientes)
+## Remaining Tasks (Batch D — 5 fixes pendientes)
 
 | Priority | Task | Effort |
 |----------|------|--------|
-| P1 | Eliminar código muerto (4 archivos) | ~15min |
-| P1 | Dedicar `get_job_or_404` a deps.py | ~10min |
-| P1 | Extraer job cleanup a servicio | ~20min |
-| P1 | Unificar audio search | ~20min |
-| P1 | Crear `__init__.py` faltantes (6 dirs) | ~5min |
-| P1 | Pydantic v2 consistency | ~10min |
-| P1 | Boolean comparisons SQLAlchemy | ~10min |
-| P1 | datetime.utcnow() → now(timezone.utc) | ~10min |
-| P1 | Eliminar get_current_active_user redundante | ~20min |
-| P1 | Eliminar torch del Dockerfile | ~2min |
-| P2 | Split jobs.py (778 líneas) | ~1hr |
-| P2 | Fix N+1 queries en admin | ~30min |
-| P2 | Admin con response_model | ~30min |
-| P2 | Paginación en admin lists | ~20min |
-| P2 | Temp file leak en export | ~10min |
+| P2 | Temp file leak en export_spec_json | ~10min |
 | P2 | GET con side-effects en list_voices | ~20min |
 | P2 | SSE polling → LISTEN/NOTIFY | ~1hr |
 | P2 | Cachear ApiKey decrypt | ~10min |
 | P2 | Embedding como Vector column | ~30min |
+
+## Completed Batches Summary
+
+| Batch | Fixes | Status |
+|-------|-------|--------|
+| Sección 1 (Critical) | 8 fixes | ✅ Completado |
+| Batch A (Limpieza) | 5 fixes | ✅ Completado |
+| Batch B (Consistencia) | 5 fixes | ✅ Completado |
+| Batch C (Refactor) | 4 fixes | ✅ Completado |
+| **Total** | **22 fixes** | ✅ |
