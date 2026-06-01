@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.security import get_current_user
 from app.api.deps import get_job_or_404
 from app.core.limiter import limiter
+from app.services.audio_finder import find_audio_file
 
 import os
 import io
@@ -161,8 +162,6 @@ async def download_scene_audio(
     scenes = job.result_spec["scenes"]
     if scene_index < 0 or scene_index >= len(scenes):
         raise HTTPException(status_code=404, detail="Scene not found")
-
-    from app.services.audio_finder import find_audio_file
 
     base_name = f"{job_id}_{scene_index}"
     audio_path = find_audio_file(base_name)

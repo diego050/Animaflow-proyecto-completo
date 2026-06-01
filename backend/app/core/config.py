@@ -78,7 +78,6 @@ class Settings(BaseSettings):
         1. FRONTEND_DIR environment variable
         2. Auto-detection from this file's location
         """
-        import os
         if self.FRONTEND_DIR:
             path = os.path.abspath(self.FRONTEND_DIR)
             if os.path.isdir(path):

@@ -1,5 +1,10 @@
 """Voice management API endpoints."""
 
+import hashlib
+import os
+import shutil
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
@@ -8,10 +13,9 @@ from app.db.models import Voice, User
 from app.schemas.voice import VoiceCreate, VoiceUpdate, VoiceResponse, VoicePreviewRequest
 from app.core.security import get_current_user
 from app.core.config import settings
+from app.core.storage_paths import get_storage_dir
 from app.modules.tts.service import generate_tts_audio_only
-
-import os
-import uuid
+from app.modules.tts.whisper_timestamps import get_audio_duration
 
 router = APIRouter(prefix="/api/voices", tags=["voices"])
 
@@ -143,10 +147,6 @@ async def preview_voice(
     if not voice:
         raise HTTPException(status_code=404, detail="Voice not found")
 
-    import hashlib
-    from app.core.storage_paths import get_storage_dir
-    import os
-    
     # Check cache first for this text + voice profile
     profile_id = voice.voicebox_profile_id or "es_ES-carlfm-x_low"
     text_hash = hashlib.md5(f"{profile_id}_{preview_data.text}".encode()).hexdigest()
@@ -155,7 +155,6 @@ async def preview_voice(
     cache_path = os.path.join(audio_storage, cache_filename)
     
     if os.path.exists(cache_path):
-        from app.modules.tts.whisper_timestamps import get_audio_duration
         duration = get_audio_duration(cache_path)
         return {"audio_url": f"/api/audio/{cache_filename}", "duration": duration}
 
@@ -170,7 +169,6 @@ async def preview_voice(
         )
         
         # Save to cache path
-        import shutil
         shutil.move(result["audio_path"], cache_path)
         
         audio_url = f"/api/audio/{cache_filename}"
@@ -224,8 +222,6 @@ def delete_voice(
     db: Session = Depends(get_db),
 ):
     """Delete voice permanently including audio file."""
-    import os
-
     voice = db.query(Voice).filter(Voice.id == voice_id, Voice.user_id == current_user.id).first()
     if not voice:
         raise HTTPException(status_code=404, detail="Voice not found")
