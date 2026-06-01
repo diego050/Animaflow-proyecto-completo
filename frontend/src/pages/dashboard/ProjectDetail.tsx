@@ -16,7 +16,7 @@ import { ExportPanel } from '../../components/project/ExportPanel';
 export function ProjectDetail() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-  const { selectedJob, selectedJobLoading, selectJob, fetchJobs, triggerRender, triggerAEExport, regenerateAEExport, startPolling, stopPolling, approveScenes } =
+  const { selectedJob, selectedJobLoading, selectJob, fetchJobs, triggerRender, triggerAEExport, regenerateAEExport, startPolling, stopPolling, approveScenes, retryJob } =
     useJobsStore();
   const { addToast } = useToastStore();
   const [activeTab, setActiveTab] = useState<TabKey>('script');
@@ -95,6 +95,17 @@ export function ProjectDetail() {
       stopPolling();
     };
   }, [currentJobId, isTerminal, startPolling, stopPolling]);
+
+  const handleRetry = useCallback(async () => {
+    if (!jobId) return;
+    try {
+      await retryJob(jobId);
+      // Restart polling since retry puts job back in non-terminal state
+      startPolling(jobId);
+    } catch {
+      // Error already handled by store (toast)
+    }
+  }, [jobId, retryJob, startPolling]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -338,6 +349,8 @@ export function ProjectDetail() {
         isRendering={isRendering}
         isFailed={isFailed}
         errorMessage={selectedJob.error_message}
+        jobId={jobId}
+        onRetry={handleRetry}
       />
 
       <ProjectTabs

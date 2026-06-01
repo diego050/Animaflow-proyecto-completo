@@ -65,6 +65,7 @@ export interface JobsState {
     status: string;
     result_spec: Record<string, unknown> | null;
   }>;
+  retryJob: (jobId: string) => Promise<void>;
   startPolling: (jobId: string) => void;
   stopPolling: () => void;
   refreshSelectedJob: () => Promise<void>;
@@ -282,6 +283,37 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     await get().refreshSelectedJob();
     await get().fetchJobs();
     return data;
+  },
+
+  retryJob: async (jobId: string) => {
+    try {
+      const data = await api.post<{
+        job_id: string;
+        status: string;
+        result_spec: Record<string, unknown> | null;
+        error_message: string | null;
+      }>(`/api/jobs/${jobId}/retry`);
+      
+      // Update selected job in store
+      set((state) => ({
+        selectedJob: state.selectedJob?.job_id === jobId
+          ? { ...state.selectedJob, status: data.status, error_message: data.error_message, result_spec: data.result_spec }
+          : state.selectedJob,
+        jobs: state.jobs.map((j) =>
+          j.job_id === jobId ? { ...j, status: data.status, error_message: data.error_message } : j,
+        ),
+      }));
+      
+      useToastStore.getState().addToast('success', 'Proceso reintentado exitosamente');
+      
+      // Restart polling if the job is now in a non-terminal state
+      const { startPolling } = get();
+      startPolling(jobId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al reintentar';
+      useToastStore.getState().addToast('error', message);
+      throw err;
+    }
   },
 
   startPolling: (jobId: string) => {

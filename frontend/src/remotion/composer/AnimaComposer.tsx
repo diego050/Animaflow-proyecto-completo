@@ -115,6 +115,9 @@ export interface AnimaComposerProps {
 
   /** Duración total en frames (override de useVideoConfig si se provee). */
   durationInFrames?: number;
+
+  /** Background colors of the NEXT scene (for crossfade transition). */
+  nextSceneBackgroundColors?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -128,6 +131,7 @@ interface RenderContext {
   height: number;
   fps: number;
   text: string;
+  durationInFrames: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +218,7 @@ function renderSingleLayer(
           delay={layer.entryDelay ?? 0}
           entryDuration={layer.entryDuration ?? 30}
           exitDuration={layer.exitDuration ?? 30}
+          durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
@@ -258,6 +263,7 @@ function renderSingleLayer(
           delay={layer.entryDelay ?? 0}
           entryDuration={layer.entryDuration ?? 30}
           exitDuration={layer.exitDuration ?? 30}
+          durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
@@ -300,6 +306,7 @@ function renderSingleLayer(
           delay={layer.entryDelay ?? 0}
           entryDuration={layer.entryDuration ?? 30}
           exitDuration={layer.exitDuration ?? 30}
+          durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
@@ -337,6 +344,7 @@ function renderSingleLayer(
           delay={layer.entryDelay ?? 0}
           entryDuration={layer.entryDuration ?? 30}
           exitDuration={layer.exitDuration ?? 30}
+          durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
@@ -380,6 +388,7 @@ function renderSingleLayer(
           delay={layer.entryDelay ?? 0}
           entryDuration={layer.entryDuration ?? 30}
           exitDuration={layer.exitDuration ?? 30}
+          durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
@@ -415,6 +424,7 @@ function renderSingleLayer(
           delay={layer.entryDelay ?? 0}
           entryDuration={layer.entryDuration ?? 30}
           exitDuration={layer.exitDuration ?? 30}
+          durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
@@ -450,6 +460,7 @@ function renderSingleLayer(
           delay={layer.entryDelay ?? 0}
           entryDuration={layer.entryDuration ?? 30}
           exitDuration={layer.exitDuration ?? 30}
+          durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
@@ -504,6 +515,7 @@ function renderSingleLayer(
           delay={layer.entryDelay ?? 0}
           entryDuration={layer.entryDuration ?? 30}
           exitDuration={layer.exitDuration ?? 30}
+          durationInFrames={ctx.durationInFrames}
         >
           {element}
         </AnimatedWrapper>
@@ -568,19 +580,38 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
   spec,
   text = '',
   durationInFrames: _durationInFrames,
+  nextSceneBackgroundColors,
 }) => {
   const frame = useCurrentFrame();
   const { width, height, fps } = useVideoConfig();
 
+  const actualDurationInFrames = _durationInFrames || Math.round((spec.layers.length > 0 ? 3 : 3) * fps);
+
   // -----------------------------------------------------------------------
-  // Background (z-index: 0)
+  // Background with crossfade (z-index: 0)
   // -----------------------------------------------------------------------
+  const crossfadeFrames = 15; // last 15 frames (0.5s at 30fps)
+  const crossfadeStart = actualDurationInFrames - crossfadeFrames;
+
+  let backgroundColors = spec.background.colors;
+  let backgroundType = spec.background.type;
+  let backgroundAngle = spec.background.angle;
+  let backgroundCenter = spec.background.center;
+
+  // If we have next scene colors and we're in the crossfade window, interpolate
+  if (nextSceneBackgroundColors && nextSceneBackgroundColors.length > 0 && frame >= crossfadeStart) {
+    const progress = Math.min(1, (frame - crossfadeStart) / crossfadeFrames);
+    // Use the next scene's colors as the target
+    backgroundColors = nextSceneBackgroundColors;
+    backgroundType = spec.background.type; // keep same gradient type
+  }
+
   const background = (
     <AnimaGradient
-      type={spec.background.type}
-      colors={spec.background.colors}
-      angle={spec.background.angle}
-      center={spec.background.center}
+      type={backgroundType}
+      colors={backgroundColors}
+      angle={backgroundAngle}
+      center={backgroundCenter}
       width={width}
       height={height}
     />
@@ -589,7 +620,7 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
   // -----------------------------------------------------------------------
   // Layers (z-index: 1+)
   // -----------------------------------------------------------------------
-  const ctx: RenderContext = { frame, width, height, fps, text };
+  const ctx: RenderContext = { frame, width, height, fps, text, durationInFrames: actualDurationInFrames };
 
   return (
     <div

@@ -29,6 +29,7 @@ interface AnimatedWrapperProps {
   delay?: number; // in seconds
   entryDuration?: number; // in frames (default: 30)
   exitDuration?: number; // in frames (default: 30)
+  durationInFrames?: number;
   children: React.ReactNode;
 }
 
@@ -38,6 +39,7 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
   delay = 0,
   entryDuration = 30,
   exitDuration = 30,
+  durationInFrames,
   children,
 }) => {
   if (!entry && !exit) return <>{children}</>;
@@ -105,7 +107,10 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
   if (exit) {
     // Exit starts near the end of the scene
     // We'll use a large start value that gets calculated at runtime
-    const exitStart = 999999; // Placeholder - will be overridden by parent
+    // Exit starts at 75% of the scene duration (last 25% for exit animation)
+    const exitStart = durationInFrames 
+      ? Math.max(0, Math.floor(durationInFrames * 0.75))
+      : 999999; // fallback if no duration provided
 
     switch (exit) {
       case 'fade-out':
