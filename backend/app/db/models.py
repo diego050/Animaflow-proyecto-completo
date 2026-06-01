@@ -5,7 +5,7 @@ from pgvector.sqlalchemy import Vector
 from app.db.session import Base
 from app.core.encryption import encrypt_value, decrypt_value
 import uuid
-import datetime
+from datetime import datetime, timezone
 
 
 class User(Base):
@@ -30,13 +30,13 @@ class User(Base):
     )  # founder, agency, user, admin
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(
-        DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc)
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
-        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     is_deleted = Column(Boolean, nullable=False, default=False)
@@ -84,11 +84,11 @@ class JobModel(Base):
     aspect_ratio = Column(String, default="9:16")
     result_spec = Column(MutableDict.as_mutable(JSON), nullable=True)
     video_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
-        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
 
@@ -123,12 +123,12 @@ class Voice(Base):
     is_default = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
     audio_sample_path = Column(String(500), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
-        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     user = relationship("User", back_populates="voices")
@@ -150,7 +150,7 @@ class ApiKey(Base):
     provider = Column(String(50), nullable=False)  # gemini, openai, anthropic, grok
     _api_key_encrypted = Column("api_key", Text, nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     user = relationship("User", back_populates="api_keys")
@@ -184,7 +184,7 @@ class Asset(Base):
     original_name = Column(String(255), nullable=False)  # original upload name
     file_type = Column(String(50), nullable=False)  # image/png, image/jpeg, image/svg+xml
     file_size = Column(Integer, nullable=False)  # in bytes
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     # Relationship
     user = relationship("User", back_populates="assets")
@@ -201,12 +201,12 @@ class DesignTemplate(Base):
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
-        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     # Relationship
@@ -237,13 +237,13 @@ class ComponentModel(Base):
     embedding = Column(Vector(768), nullable=True)  # Gemini embedding dimension
     is_active = Column(Boolean, server_default="true")
     created_at = Column(
-        DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc)
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
-        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
@@ -267,7 +267,7 @@ class ConversationHistory(Base):
     role = Column(String(20), nullable=False)  # 'user', 'assistant', 'system'
     content = Column(Text, nullable=False)
     metadata_ = Column("metadata", JSON, nullable=True)  # Stores intent, tokens, etc.
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class IconifyIcon(Base):
@@ -287,7 +287,7 @@ class IconifyIcon(Base):
     full_id = Column(String(255), nullable=False, unique=True, index=True)  # e.g. "mdi:ecg-heart"
     tags = Column(JSON, nullable=True)  # ["ecg", "heart", "medical"]
     embedding = Column(Vector(768))  # Gemini embedding dimension
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class AuditLog(Base):
@@ -306,7 +306,7 @@ class AuditLog(Base):
     ip_address = Column(String(45), nullable=True)  # IPv6 max length
     user_agent = Column(String(500), nullable=True)
     details = Column(JSON, nullable=True)  # Additional context
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc), index=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
 
     # Relationship
     user = relationship("User", back_populates="audit_logs", lazy="select")
@@ -326,7 +326,7 @@ class AdminSettings(Base):
     key = Column(String(100), unique=True, nullable=False, index=True)
     value = Column(JSON, nullable=True)  # Flexible JSON value
     description = Column(String(500), nullable=True)
-    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc), onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class TokenBlacklist(Base):
@@ -343,7 +343,7 @@ class TokenBlacklist(Base):
     jti = Column(String(255), unique=True, nullable=False, index=True)  # JWT ID
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     expires_at = Column(DateTime, nullable=False)  # When the token naturally expires
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     # Relationship
     user = relationship("User", back_populates="token_blacklist", lazy="select")

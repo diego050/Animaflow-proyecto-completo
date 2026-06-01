@@ -14,7 +14,6 @@ from app.modules.pipeline.orchestrator import (
 )
 
 logger = get_logger("scheduler")
-render_adapter = RenderAdapter(render_server_url=settings.RENDER_SERVER_URL)
 
 class Scheduler:
     def __init__(self):
@@ -25,7 +24,13 @@ class Scheduler:
         self._notify_event = asyncio.Event()
         self.active_tasks: list[asyncio.Task] = []
 
-    def wake_up(self, connection, pid, channel, payload):
+    def _get_render_adapter(self):
+        """Lazy-initialize RenderAdapter to ensure settings are fully loaded."""
+        if not hasattr(self, '_render_adapter'):
+            self._render_adapter = RenderAdapter(render_server_url=settings.RENDER_SERVER_URL)
+        return self._render_adapter
+
+    def wake_up(self, _connection, _pid, _channel, _payload):
         self._notify_event.set()
 
     def _task_done_callback(self, task, job_id, phase):
@@ -243,7 +248,7 @@ class Scheduler:
                 
             async with self.render_semaphore:
                 # Usar RenderAdapter de forma nativa asíncrona, en vez del orchestrator síncrono.
-                result = await render_adapter.render(
+                result = await self._get_render_adapter().render(
                     job_id=job_id,
                     scenes=scenes,
                     aspect_ratio=aspect_ratio,

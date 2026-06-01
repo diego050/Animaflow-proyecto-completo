@@ -13,12 +13,12 @@ from sqlalchemy.orm.attributes import flag_modified
 
 logger = get_logger("pipeline")
 
-from ..tts.service import AUDIO_STORAGE
-from ..segmentation.service import split_text_into_chunks
-from ..llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
-from ..llm.component_strategy import generate_scene_composer
-from ..remotion.scene_renderer import render_single_scene, SCENES_STORAGE
-from ..video.concat import concat_scenes, VIDEOS_STORAGE
+from app.modules.tts.service import AUDIO_STORAGE
+from app.modules.segmentation.service import split_text_into_chunks
+from app.modules.llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
+from app.modules.llm.component_strategy import generate_scene_composer
+from app.modules.remotion.scene_renderer import render_single_scene, SCENES_STORAGE
+from app.modules.video.concat import concat_scenes, VIDEOS_STORAGE
 
 
 def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]:
@@ -71,7 +71,7 @@ async def _process_chunks_async(
     db: Session = None,
 ) -> list[dict]:
     """Fase 2: Genera TTS por escena + componentes visuales (anima_composer)."""
-    from ..tts.service import generate_tts_with_timestamps
+    from app.modules.tts.service import generate_tts_with_timestamps
     from app.modules.llm.resolver import resolve_llm_credentials
 
     previous_scene_tsx = None
@@ -447,8 +447,6 @@ def run_pipeline_enrichment(
                     raise
 
             # Limpiar archivos TSX de jobs anteriores para evitar errores de compilación
-            # No more TSX files to cleanup
-            # Regenerar index.ts sin los archivos eliminados (ya no es necesario)
 
             # Fase 2 finalizada, se queda en el preview. El MP4 se renderiza a demanda.
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}

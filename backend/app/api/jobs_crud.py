@@ -1,5 +1,4 @@
 import os
-from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -76,7 +75,6 @@ async def create_job(
     db.refresh(new_job)
 
     # El scheduler se encargará de esto ahora que está en 'pending'
-    # db.refresh(new_job) fue llamado arriba.
 
     return JobResponse(job_id=new_job.id, status=new_job.status, error_message=new_job.error_message)
 
@@ -255,7 +253,7 @@ def generate_script(
     return ScriptGenerateResponse(script_text=script)
 
 
-@router.get("", response_model=List[JobListResponse])
+@router.get("", response_model=list[JobListResponse])
 async def get_all_jobs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

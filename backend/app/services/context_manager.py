@@ -3,14 +3,14 @@ Context Manager — Handles persistent conversation history for scene editing.
 Stores and retrieves chat messages linked to specific jobs.
 """
 
-import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import ProgrammingError, OperationalError
 from app.db.models import ConversationHistory
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger("context_manager")
 
 
 async def get_history(db: Session, job_id: str, limit: int = 15) -> list[dict[str, Any]]:

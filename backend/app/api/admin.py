@@ -6,11 +6,9 @@ health checks, and configurable settings for administrators.
 """
 
 from typing import Optional
-import datetime
 import os
 import time
-from datetime import timezone
-import re
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from sqlalchemy import Integer, func, text
@@ -27,6 +25,9 @@ from app.core.audit import log_audit_event
 from app.services.job_cleanup import delete_job_files
 
 router = APIRouter()
+
+# Track app start time for uptime calculation
+_APP_START_TIME = time.time()
 
 
 # ---------------------------------------------------------------------------
@@ -97,13 +98,24 @@ def get_admin_stats(
     current_user: User = Depends(require_admin),
 ):
     """Return dashboard stats for admin panel."""
+    # Single aggregated query for all job stats (was 5 separate queries)
+    job_stats = db.query(
+        func.count(JobModel.id).label("total"),
+        func.sum(func.cast(JobModel.status == "completed", Integer)).label("completed"),
+        func.sum(func.cast(JobModel.status.in_(["failed", "failed_render"]), Integer)).label("failed"),
+        func.sum(func.cast(JobModel.status == "rendering", Integer)).label("rendering"),
+        func.sum(func.cast(JobModel.status == "pending", Integer)).label("pending"),
+    ).first()
+
+    total_jobs = job_stats.total or 0
+    completed_jobs = job_stats.completed or 0
+    failed_jobs = job_stats.failed or 0
+    rendering_jobs = job_stats.rendering or 0
+    pending_jobs = job_stats.pending or 0
+
+    # User stats (2 queries is fine for this)
     total_users = db.query(User).count()
     active_users = db.query(User).filter(User.is_active.is_(True)).count()
-    total_jobs = db.query(JobModel).count()
-    completed_jobs = db.query(JobModel).filter(JobModel.status == "completed").count()
-    failed_jobs = db.query(JobModel).filter(JobModel.status.in_(["failed", "failed_render"])).count()
-    rendering_jobs = db.query(JobModel).filter(JobModel.status == "rendering").count()
-    pending_jobs = db.query(JobModel).filter(JobModel.status == "pending").count()
 
     # Calculate success rate
     finished_jobs = completed_jobs + failed_jobs
@@ -491,9 +503,7 @@ def system_health(
         pass
 
     # Uptime (process start time approximation)
-    uptime_seconds = time.time() - getattr(system_health, '_start_time', time.time())
-    if not hasattr(system_health, '_start_time'):
-        system_health._start_time = time.time()
+    uptime_seconds = time.time() - _APP_START_TIME
 
     return {
         "redis_connected": False,
@@ -507,7 +517,7 @@ def system_health(
         "uptime_seconds": uptime_seconds,
         "last_worker_heartbeat": None,
         "status": "healthy",
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -523,10 +533,10 @@ def get_business_metrics(
 ):
     """Return business metrics for the admin dashboard."""
 
-    now = datetime.datetime.now(timezone.utc)
-    week_ago = now - datetime.timedelta(days=7)
-    two_weeks_ago = now - datetime.timedelta(days=14)
-    month_ago = now - datetime.timedelta(days=30)
+    now = datetime.now(timezone.utc)
+    week_ago = now - timedelta(days=7)
+    two_weeks_ago = now - timedelta(days=14)
+    month_ago = now - timedelta(days=30)
 
     # 1. Usuarios registrados esta semana
     users_this_week = db.query(User).filter(User.created_at >= week_ago).count()
@@ -703,7 +713,7 @@ def update_admin_settings(
         setting = db.query(AdminSettings).filter(AdminSettings.key == key).first()
         if setting:
             setting.value = value
-            setting.updated_at = datetime.datetime.now(datetime.timezone.utc)
+            setting.updated_at = datetime.now(timezone.utc)
         else:
             setting = AdminSettings(key=key, value=value)
             db.add(setting)

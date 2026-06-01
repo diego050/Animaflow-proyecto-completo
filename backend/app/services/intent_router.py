@@ -9,10 +9,9 @@ Routes messages into three categories:
 Uses the same LLM model as editing, but with a much shorter prompt for queries.
 """
 
-import logging
-from typing import Any
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger("intent_router")
 
 INTENT_SYSTEM_PROMPT = """You are a message classifier for a video animation editing assistant.
 Classify the user's message into exactly one category:
@@ -40,7 +39,7 @@ Background types: solid, linear-gradient, radial-gradient
 Keep answers concise and in Spanish. Do not mention technical details like JSON or field paths."""
 
 
-async def classify_intent(user_message: str, llm_service: Any = None, history: list[dict] | None = None) -> str:
+async def classify_intent(user_message: str, history: list[dict] | None = None) -> str:
     """
     Classify user message intent using LLM.
     
@@ -77,7 +76,7 @@ async def classify_intent(user_message: str, llm_service: Any = None, history: l
         return "edit"
 
 
-async def answer_query(user_message: str, llm_service: Any = None, history: list[dict] | None = None) -> str:
+async def answer_query(user_message: str, history: list[dict] | None = None) -> str:
     """
     Answer user questions without needing the scene spec.
     Uses a lightweight prompt with general animation info.
