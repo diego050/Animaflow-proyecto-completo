@@ -88,3 +88,11 @@ class SceneEditRequest(BaseModel):
     changes: list[dict[str, Any]] | None = None  # [{"field_path": "...", "value": ...}]
     # For conversational mode
     prompt: str | None = None
+
+
+class JobReformatRequest(BaseModel):
+    """Request body for reformatting a job to a new aspect ratio."""
+    aspect_ratio: str = Field(..., description="Aspect ratio in 'width:height' format (e.g., '16:9', '2.39:1')")
+    scene_selection: Literal["all", "selected", "current"] = Field(default="all", description="Which scenes to reformat")
+    scene_indices: list[int] = Field(default=[], description="Required when scene_selection='selected'")
+    current_scene_index: Optional[int] = Field(default=None, description="Required when scene_selection='current'")
