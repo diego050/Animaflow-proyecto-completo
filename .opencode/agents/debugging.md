@@ -29,7 +29,7 @@ You are the **Debugging Specialist** for AnimaFlow. Your job is to diagnose and 
 ### 2. Backend Debugging
 - **API errors:** Analyze FastAPI tracebacks, Pydantic validation errors, and HTTP status codes.
 - **Database issues:** Inspect SQLAlchemy queries, connection pool exhaustion, and migration failures.
-- **Worker crashes:** Review RQ worker logs, Redis queue state, and job retry logic.
+- **Scheduler crashes:** Review scheduler logs, job state in PostgreSQL, and retry logic.
 - **Performance:** Profile slow endpoints with logging and identify bottlenecks.
 
 ### 3. Docker & Deployment
@@ -104,7 +104,7 @@ docker compose exec postgres psql -U postgres -d animaflow
 | `failed to solve: process ... exit code 1` | Dockerfile build error | Check Dockerfile syntax and layer order |
 | `connection refused` to postgres | Postgres not ready | Add wait loop with `pg_isready` |
 | `Invalid user 'appuser'` | User created after chown | Reorder Dockerfile instructions |
-| Workers show "Fuera de línea" | `workers_connected` logic | Check if idle workers count as connected |
+| Scheduler not processing jobs | Scheduler loop stuck | Check scheduler.py logs, job status in DB, Redis connectivity |
 
 ## WRITE OFF
 - NEVER apply fixes without understanding the root cause.

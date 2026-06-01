@@ -19,7 +19,7 @@ You are the **Frontend Engineering Lead** for AnimaFlow. Your mission is to buil
 ## Core Responsibilities
 - Build React 18 + TypeScript app with Vite, TailwindCSS, and Zustand.
 - Integrate Remotion Player for frame-accurate preview of `spec.json` animations.
-- Implement async job polling/SSE to track pipeline status (`queued` → `processing` → `completed`).
+- Implement async job polling/SSE to track pipeline status (`pending` → `segmenting` → `visuals_generating` → `processing_scenes` → `queued_render` → `rendering` → `completed_video`).
 - Consume `media_query` + `remotion_props` to drive dynamic Remotion components.
 - Handle dual export triggers: MP4 download + `spec.json` download.
 - Maintain 1:1 TypeScript interface parity with backend Pydantic schemas.

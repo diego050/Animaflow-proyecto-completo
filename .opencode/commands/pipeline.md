@@ -1,5 +1,5 @@
 ﻿---
-description: "Revisa el estado del pipeline async (RQ workers, Redis, jobs en cola, errores)"
+description: "Revisa el estado del pipeline async (scheduler, jobs en DB, errores)"
 agent: backend
 ---
 
@@ -7,39 +7,20 @@ agent: backend
 
 ## Instrucciones
 
-### 1. Verificar conectividad a Redis
+### 1. Verificar scheduler activo
 ```bash
-redis-cli ping
-# Debe responder: PONG
+# El scheduler corre como parte del proceso de FastAPI
+# Verificar logs:
+grep -E "\[Scheduler\]" backend/logs/*.log 2>/dev/null || echo "No hay logs de scheduler"
 ```
 
-### 2. Revisar workers RQ
+### 2. Verificar Render Server
 ```bash
-rq info
-# O conectar a Redis y verificar:
-redis-cli keys "rq:worker:*"
+curl http://localhost:3001/health
+# Debe responder 200
 ```
 
-### 3. Listar jobs en cola
-```bash
-redis-cli llen rq:default
-redis-cli lrange rq:default 0 -1
-```
-
-### 4. Ver jobs fallidos
-```bash
-redis-cli llen rq:failed
-redis-cli lrange rq:failed 0 10
-```
-
-### 5. Revisar logs del pipeline (Backend)
-```bash
-# Si está corriendo en consola, revisar output
-# O buscar en logs:
-grep -E "\[.*\] (Pipeline|LLM|TTS|Render)" backend/logs/*.log 2>/dev/null || echo "No hay logs"
-```
-
-### 6. Verificar estado de jobs en DB
+### 3. Listar jobs recientes en DB
 ```bash
 cd backend
 python -c "
@@ -48,37 +29,44 @@ from app.db.models import JobModel
 db = SessionLocal()
 jobs = db.query(JobModel).order_by(JobModel.created_at.desc()).limit(10).all()
 for j in jobs:
-    print(f'{j.job_id[:8]} | {j.status:12} | {j.created_at}')
+    print(f'{j.id[:8]} | {j.status:20} | {j.created_at}')
 db.close()
 "
 ```
 
-### 7. Diagnóstico
+### 4. Ver jobs fallidos
+```bash
+cd backend
+python -c "
+from app.db.session import SessionLocal
+from app.db.models import JobModel
+db = SessionLocal()
+jobs = db.query(JobModel).filter(JobModel.status.like('failed%')).order_by(JobModel.created_at.desc()).limit(10).all()
+for j in jobs:
+    print(f'{j.id[:8]} | {j.status:20} | {j.error_message or \"N/A\"}')
+db.close()
+"
+```
+
+### 5. Revisar logs del pipeline
+```bash
+grep -E "\[Pipeline\]|\[LLM\]|\[TTS\]|\[Render\]" backend/logs/*.log 2>/dev/null || echo "No hay logs"
+```
+
+### 6. Diagnóstico
 
 Reportar:
-- ✅ Redis: Conectado / ❌ Sin conexión
-- 📊 Workers activos: N
-- ⏳ Jobs en cola: N
+- ✅ Scheduler: Activo / ❌ Inactivo
+- ✅ Render Server: Healthy / ❌ Down
+- 📊 Jobs totales: N
+- ⏳ Jobs en progreso: N
 - ❌ Jobs fallidos: N
 - 📝 Últimos jobs: lista con estado
 
-### 8. Si hay errores
+### 7. Si hay errores
 
 Para jobs fallidos:
 1. Identificar el job_id
-2. Revisar el error específico en Redis
+2. Revisar el error en la columna error_message
 3. Determinar causa: timeout, error de LLM, error de TTS, error de render
 4. Sugerir retry o fix
-
-## Comandos Útiles
-
-### Limpiar jobs fallidos
-```bash
-redis-cli del rq:failed
-```
-
-### Reiniciar workers
-```bash
-# Matar workers existentes y reiniciar
-rq worker --url redis://localhost:6379 &
-```

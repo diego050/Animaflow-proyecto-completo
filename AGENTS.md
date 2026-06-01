@@ -8,8 +8,8 @@ AnimaFlow is a SaaS platform that converts text/audio into editable, frame-accur
 ## Tech Stack
 - **Frontend:** React 18 + TypeScript, Vite, TailwindCSS, Zustand, Remotion
 - **Backend:** FastAPI (Python 3.11+), Pydantic v2, SQLAlchemy 2.0 + Alembic (PostgreSQL)
-- **Async Workers:** RQ + Redis (background rendering, TTS, LLM correction, prompt generation)
-- **Infra:** Docker Compose (Postgres, Redis), VPS/Hostinger deploy
+- **Async Workers:** DB-driven scheduler (asyncio) + Render Server (Node.js)
+- **Infra:** Docker Compose (Postgres, Redis, API, Frontend, Render Server), VPS/Hostinger deploy
 - **Auth:** JWT native (FastAPI + python-jose/PyJWT), role-based (founder, agency, user, admin)
 
 ## Project Structure
@@ -20,7 +20,7 @@ AnimaFlow is a SaaS platform that converts text/audio into editable, frame-accur
 │   │   ├── /api        # FastAPI routers
 │   │   ├── /core       # Config, security, JWT, logging
 │   │   ├── /db         # SQLAlchemy models, Alembic migrations
-│   │   ├── /services   # Remotion trigger, TTS, LLM, RQ workers
+│   │   ├── /services   # Remotion trigger, TTS, LLM, scheduler
 │   │   └── /schemas    # Pydantic models (spec.json validation)
 │   ├── requirements.txt
 │   └── Dockerfile
@@ -37,9 +37,9 @@ AnimaFlow is a SaaS platform that converts text/audio into editable, frame-accur
 │   └── spec_schema.json # Source of truth for pipeline
 ├── /docs               # Architecture, ADRs, sprint reports
 ├── /spec.md            # Product specification
-├── /.opencode/agents/  # Agent definitions
-├── /.agents/skills/    # Installed skills
-└── docker-compose.yml
+├── /.opencode/         # Agents, commands, skills
+├── /.agents/skills/    # Installed skills (OpenCode compatible)
+└── docker-compose.prod.yml
 ```
 
 ## Critical Rules
@@ -49,6 +49,13 @@ AnimaFlow is a SaaS platform that converts text/audio into editable, frame-accur
 - Follow "Mom Test" framework rigorously for interviews
 - Never mention specific tools (After Effects), technical internals (spec.json), or dual export in initial user conversations
 
+### MVP Prioritization
+- MVP functional in 20 days max priority
+- "MVP first, visual UI later": initial editor is code/prompt-driven only
+- Drag-and-drop UI is strictly v2 roadmap
+- Dual export (MP4 + spec.json) is mandatory, must work between Sprint 1-2
+- Stability > Features: 95% render success rate required before scaling
+
 ### Architecture & Animation Standards
 - **High-Fidelity Automated Graphics:** Abandon raw SVG/React generation via LLM. Use declarative physics (`spring`, `interpolate`) via `Remotion Animated` or pre-built `Remocn` / `shadcn` registries.
 - **Strict Determinism:** NEVER use Framer Motion, standard Tailwind `animate-*` utilities, or GSAP without forced time-mocking (`useCurrentFrame`).
@@ -56,7 +63,7 @@ AnimaFlow is a SaaS platform that converts text/audio into editable, frame-accur
 - Dual export (MP4 + spec.json) remains mandatory.
 - **Stability > Features**: 95% render success rate required before scaling.
 
-### Development
+### Development & Technical Debt
 - Avoid over-engineering: use managed services until WTP is validated
 - Living Documentation: every technical decision logged immediately with date & owner
 - No payments/subscriptions before Sprint 5
@@ -64,11 +71,11 @@ AnimaFlow is a SaaS platform that converts text/audio into editable, frame-accur
 
 ## Core Pipeline
 ```
-Input → job_id (immediate) → RQ workers → Frontend polling → MP4 + spec.json
-  1. TTS Worker: audio.mp3 + word-level timestamps
-  2. Segmentation Worker: ~7s chunks
-  3. LLM Worker: boundary correction + media_query + remotion_props + SFX
-  4. Render Worker: spec.json → Remotion → MP4
+Input → job_id (immediate) → scheduler.py (asyncio) → Frontend polling → MP4 + spec.json
+  1. TTS: audio.mp3 + word-level timestamps
+  2. Segmentation: ~7s chunks
+  3. LLM: boundary correction + media_query + remotion_props + SFX
+  4. Render: spec.json → Render Server → MP4
 ```
 
 **Never block the main thread.** All async, idempotent, retry-safe.
@@ -78,7 +85,7 @@ Input → job_id (immediate) → RQ workers → Frontend polling → MP4 + spec.
 ### Initialization
 ```bash
 # 1. Infrastructure
-docker-compose up -d postgres redis
+docker-compose -f docker-compose.prod.yml up -d postgres redis
 
 # 2. Backend
 cd backend && pip install -r requirements.txt
@@ -93,7 +100,7 @@ npm run dev  # port 3000
 ### Agent Coordination
 - **Orchestrator** (`@orchestrator`): Primary agent. Manages stack coordination, pipeline flow, code quality.
 - **Architecture** (`@architecture`): spec.json schema, pipeline topology, system diagrams.
-- **Backend** (`@backend`): FastAPI, Pydantic, SQLAlchemy, Alembic, RQ workers.
+- **Backend** (`@backend`): FastAPI, Pydantic, SQLAlchemy, Alembic, scheduler, render adapter.
 - **Frontend** (`@frontend`): React UI, Zustand, Remotion player, export triggers.
 - **QA** (`@qa`): pytest, vitest, Playwright E2E, spec.json validation.
 
@@ -109,3 +116,38 @@ npm run dev  # port 3000
 - Every external dependency (TTS, LLM, Storage) needs deterministic fallback
 - If feature adds >2 days complexity or unmanaged infra → defer to v2
 - Prioritize "functional, measurable, stable" over "perfect, scalable"
+
+---
+
+## Design System: "The Blueprint Palette"
+
+### Color Palette
+| Token | Value | Usage |
+|---|---|---|
+| primary | `#2C3E50` (Steel Blue) | Stability, technical professionalism |
+| secondary | `#FF8C00` (Cadmium Orange) | Precision indicators, anchor points, alerts |
+| accent/cta | `#00FFAB` (Mint Precision) | Positive actions, "Sync Ready" states |
+| background | `#0F172A` (Deep Slate) | Main background, reduces eye fatigue |
+| surface | `#1E293B` | Side panels, controls |
+| border | `#334155` | 1px defined borders |
+
+### Typography
+| Role | Font | Weight | Usage |
+|---|---|---|---|
+| Display | Inter Tight | Bold/SemiBold | Technical titles |
+| Body/UI | Inter | Regular/Medium | SaaS interface standard |
+| Mono | JetBrains Mono | — | Timestamps, JSON specs, code |
+
+### Motion Principles
+- **Deliberate rhythm:** No playful bounces. Transitions 150ms-250ms with `cubic-bezier(0.4, 0, 0.2, 1)`
+- **Microinteractions:** Hover = subtle border expansion (1px → 2px). Export feedback via segmented progress bars
+- **State handling:** Technical skeletons showing layer structure before content loads
+
+### Visual Metaphors
+**✅ Allowed:** Nodes & connectors, separated layers (z-index), reference grids (20px dots), wireframes during processing, exact frame timestamps
+**❌ Prohibited:** Brains/neurons, star dust/magic, humanoids/robots, iridescent gradients, extreme diffuse shadows
+
+### Logo Concepts
+1. **Sync Frame:** Technical brackets enclosing a central anchor point
+2. **Layer Bridge:** Three staggered horizontal lines forming a flow arrow
+3. **The Spec Grid:** A "P" formed by grid dots connected by thin lines

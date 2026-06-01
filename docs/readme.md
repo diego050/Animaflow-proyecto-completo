@@ -15,7 +15,7 @@ AnimaFlow es una plataforma SaaS que convierte texto/audio en proyectos de video
 **Stack técnico:**
 - **Frontend:** React 18 + TypeScript, Vite, TailwindCSS, Zustand, Remotion
 - **Backend:** FastAPI (Python 3.11+), Pydantic v2, SQLAlchemy 2.0 + Alembic (PostgreSQL)
-- **Async Workers:** RQ + Redis (TTS, LLM, renderizado)
+- **Async Workers:** DB-driven scheduler (asyncio) + Render Server (Node.js)
 - **Auth:** JWT nativo (FastAPI + python-jose), roles (founder, agency, user, admin)
 
 ---
@@ -24,7 +24,7 @@ AnimaFlow es una plataforma SaaS que convierte texto/audio en proyectos de video
 
 ```bash
 # 1. Infraestructura
-docker-compose up -d postgres redis
+docker-compose -f docker-compose.prod.yml up -d postgres redis
 
 # 2. Backend
 cd backend && pip install -r requirements.txt
@@ -54,7 +54,7 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [`qa/`](qa/) | Guía de testing, checklist manual |
 | [`adr/`](adr/) | Architecture Decision Records |
 | [`sprints/`](sprints/) | Reportes por sprint |
-| [`temp/`](temp/) | Archivos temporales de desarrollo |
+| [`sessions/`](sessions/) | Session reports de desarrollo |
 
 ---
 
@@ -94,7 +94,6 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [`backend/auth-system.md`](backend/auth-system.md) | Sistema de autenticación JWT |
 | [`backend/voice-management.md`](backend/voice-management.md) | Gestión de voces TTS |
 | [`backend/pipeline-overview.md`](backend/pipeline-overview.md) | Pipeline completo con RQ workers |
-| [`backend/estado_actual.md`](backend/estado_actual.md) | Estado actual de la API |
 | [`backend/pipeline_narrative_animation.md`](backend/pipeline_narrative_animation.md) | Pipeline de animación narrativa |
 | [`backend/ae_export_fixes_sesion6.md`](backend/ae_export_fixes_sesion6.md) | Fixes de exportación AE |
 | [`backend/modularization.md`](backend/modularization.md) | Guía de modularización del backend (7 dominios) |
@@ -108,7 +107,6 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 |---|---|
 | [`frontend/dashboard-architecture.md`](frontend/dashboard-architecture.md) | Arquitectura del dashboard, Zustand, routing |
 | [`frontend/auth-integration.md`](frontend/auth-integration.md) | Integración de autenticación |
-| [`frontend/estado_actual.md`](frontend/estado_actual.md) | Estado actual del frontend |
 | [`frontend/remotion_generated_components.md`](frontend/remotion_generated_components.md) | Componentes Remotion generados |
 | [`frontend/frontend-audit.md`](frontend/frontend-audit.md) | Resultado del audit y acciones tomadas |
 | [`frontend/component-structure.md`](frontend/component-structure.md) | Estructura de componentes extraídos (ProjectDetail, Settings, Wizard) |
@@ -146,12 +144,12 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 
 | Documento | Fecha | Descripción |
 |---|---|---|
-| [Session 2026-05-25 (Scheduler & UX)](session-2026-05-25-scheduler-ux-design-templates.md) | 2026-05-25 | Scheduler Optimization, UX Overhaul & Design Templates |
-| [Session 2026-05-25 (LLM & UX)](session-2026-05-25-llm-stability-dashboard-fixes.md) | 2026-05-25 | LLM Stability, Positioning Engine & Dashboard UX Overhaul |
-| [Session 2026-05-25 (Transitions)](session-2026-05-25-transitions-vector-search.md) | 2026-05-25 | Transitions, Vector Search & Component Intelligence |
-| [Session 2026-05-23](session-2026-05-23-transparency-animations.md) | 2026-05-23 | Transparencia, Playground y Continuidad |
-| [Session 2026-05-22](session-2026-05-22-component-architecture-v2.md) | 2026-05-22 | Component Architecture v2 (33 componentes) |
-| [Session 2026-05-20](cleanup-session-2026-05-20.md) | 2026-05-20 | Limpieza y Corrección (36 fixes) |
+| [Session 2026-05-25 (Scheduler & UX)](sessions/session-2026-05-25-scheduler-ux-design-templates.md) | 2026-05-25 | Scheduler Optimization, UX Overhaul & Design Templates |
+| [Session 2026-05-25 (LLM & UX)](sessions/session-2026-05-25-llm-stability-dashboard-fixes.md) | 2026-05-25 | LLM Stability, Positioning Engine & Dashboard UX Overhaul |
+| [Session 2026-05-25 (Transitions)](sessions/session-2026-05-25-transitions-vector-search.md) | 2026-05-25 | Transitions, Vector Search & Component Intelligence |
+| [Session 2026-05-23](sessions/session-2026-05-23-transparency-animations.md) | 2026-05-23 | Transparencia, Playground y Continuidad |
+| [Session 2026-05-22](sessions/session-2026-05-22-component-architecture-v2.md) | 2026-05-22 | Component Architecture v2 (33 componentes) |
+| [Session 2026-05-20](sessions/cleanup-session-2026-05-20.md) | 2026-05-20 | Limpieza y Corrección (36 fixes) |
 
 ### New ADRs
 | ADR | Título | Estado |

@@ -23,7 +23,7 @@ You are the guardian of the `spec.json` contract and the async render pipeline. 
 - Evolve, version, and rigorously validate the `spec.json` schema. Ensure it remains the single source of truth for video structure, layers, keyframes, and timing.
 - Architect the frame-accurate synchronization flow:
   `Input → LLM (script segmentation) → TTS (audio + timestamps) → LLM Correction (media_query + remotion_props) → spec.json → Remotion Render`.
-- Define the asynchronous worker topology (RQ + Redis) to handle rendering and TTS processing without blocking the main API.
+- Define the asynchronous pipeline (DB-driven scheduler via asyncio + Render Server) to handle rendering and TTS processing without blocking the main API.
 - Plan v2 scalability (drag-and-drop editor, multi-tenant isolation) without compromising MVP delivery or over-engineering.
 
 ## System Topology & Data Flow
@@ -34,17 +34,17 @@ You are the guardian of the `spec.json` contract and the async render pipeline. 
   - See `spec.md` in the project root for the full product specification and schema details.
 - **Async Pipeline Flow:**
   - **FastAPI** receives input → creates Job → returns `job_id`.
-  - **RQ Workers** process the job:
-    1. **TTS Worker:** Generates voice + word-level timestamps.
-    2. **Segmentation Worker:** Splits audio/text into ~7s chunks.
-    3. **LLM Worker:** Corrects boundaries + generates `media_query` + `remotion_props`.
-    4. **Render Worker:** Consumes `spec.json` → renders Remotion → outputs MP4 + `spec.json`.
+  - **Scheduler (asyncio)** processes the job:
+    1. **TTS:** Generates voice + word-level timestamps.
+    2. **Segmentation:** Splits audio/text into ~7s chunks.
+    3. **LLM:** Corrects boundaries + generates `media_query` + `remotion_props`.
+    4. **Render Server:** Consumes `spec.json` → renders Remotion → outputs MP4 + `spec.json`.
   - **Frontend:** Polls for status or uses SSE to update UI.
 - **State Management:** All workers must be idempotent and retry-safe. If a render fails, the state must be preserved in Redis/Postgres for debugging, not lost.
 
 ## Infrastructure & Storage
-- **Queue Topology:** FastAPI → Redis (enqueue) → RQ Workers → PostgreSQL (status/metadata) → Frontend.
-- **Worker Separation:** Keep `render_worker` (Remotion/Node) and `tts_worker` (ElevenLabs/PlayHT) distinct to prevent resource contention.
+- **Queue Topology:** FastAPI → PostgreSQL (job status) → Scheduler (asyncio) → Render Server → Frontend.
+- **Service Separation:** Keep Render Server (Node.js/Remotion) and TTS service distinct to prevent resource contention.
 - **Storage Strategy:** Use AWS S3 or VPS local storage for MP4 + `spec.json` assets. Implement signed, time-limited URLs for secure delivery.
 - **Database Migrations:** Use **SQLAlchemy + Alembic** exclusively. Validate all schema changes with `alembic revision --autogenerate` and review migration scripts to prevent data loss or table locks.
 - **Deployment:** VPS/Hostinger via Docker Compose. Prioritize managed services in early stages to reduce operational overhead.
