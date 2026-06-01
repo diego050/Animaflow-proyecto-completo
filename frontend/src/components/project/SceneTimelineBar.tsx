@@ -5,7 +5,7 @@ import type { TimelineSpec } from '../../types/spec';
 
 interface SceneTimelineBarProps {
   spec: TimelineSpec;
-  jobId: string;
+  jobId?: string;
   focusSceneIndex: number | null;
   onSceneClick?: (index: number) => void;
   isPlaying?: boolean;
