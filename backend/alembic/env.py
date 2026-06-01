@@ -21,7 +21,11 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from app.db.session import Base
-from app.db.models import JobModel, User
+from app.db.models import (
+    User, JobModel, Voice, ApiKey, Asset,
+    DesignTemplate, CommunityComponent, ComponentModel,
+    ConversationHistory, IconifyIcon,
+)
 from app.core.config import settings
 
 target_metadata = Base.metadata

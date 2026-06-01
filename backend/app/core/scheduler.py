@@ -23,9 +23,32 @@ class Scheduler:
         self.render_semaphore = asyncio.Semaphore(3)
         self._stop_event = asyncio.Event()
         self._notify_event = asyncio.Event()
+        self.active_tasks: list = []
 
     def wake_up(self, connection, pid, channel, payload):
         self._notify_event.set()
+
+    def _task_done_callback(self, task, job_id, phase):
+        if task in self.active_tasks:
+            self.active_tasks.remove(task)
+        if task.exception():
+            exc = task.exception()
+            logger.error(f"Task for job {job_id} phase {phase} failed: {exc}")
+            try:
+                with SessionLocal() as session:
+                    job = session.query(JobModel).filter_by(id=job_id).first()
+                    if job and job.status not in ('completed', 'failed'):
+                        job.status = 'failed'
+                        job.error_message = f"Pipeline task failed: {exc}"
+                        session.commit()
+            except Exception as e:
+                logger.error(f"Failed to update job {job_id} status after task failure: {e}")
+
+    def _cleanup_done_tasks(self):
+        done_tasks = [t for t in self.active_tasks if t.done()]
+        for task in done_tasks:
+            if task in self.active_tasks:
+                self.active_tasks.remove(task)
 
     async def run_forever(self):
         logger.info("Starting PG Scheduler with asyncpg LISTEN...")
@@ -38,6 +61,7 @@ class Scheduler:
         while not self._stop_event.is_set():
             try:
                 await self.recover_stuck_jobs()
+                self._cleanup_done_tasks()
                 job_processed = await self.take_and_process_job()
                 
                 if not job_processed:
@@ -126,11 +150,17 @@ class Scheduler:
         logger.info(f"Scheduler picked up job {job_id} for phase {phase}")
         
         if phase == 'segmentation':
-            asyncio.create_task(self._phase_segmentation(job_id))
+            task = asyncio.create_task(self._phase_segmentation(job_id))
+            self.active_tasks.append(task)
+            task.add_done_callback(lambda t: self._task_done_callback(t, job_id, phase))
         elif phase == 'enrichment':
-            asyncio.create_task(self._phase_enrichment(job_id))
+            task = asyncio.create_task(self._phase_enrichment(job_id))
+            self.active_tasks.append(task)
+            task.add_done_callback(lambda t: self._task_done_callback(t, job_id, phase))
         elif phase == 'render':
-            asyncio.create_task(self._phase_render(job_id))
+            task = asyncio.create_task(self._phase_render(job_id))
+            self.active_tasks.append(task)
+            task.add_done_callback(lambda t: self._task_done_callback(t, job_id, phase))
             
         return True
 

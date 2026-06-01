@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 import os
-import requests
+import httpx
 
 from app.core.config import settings
 
@@ -30,25 +30,26 @@ async def send_contact_email(req: ContactRequest):
         )
 
     try:
-        response = requests.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {resend_api_key}"},
-            json={
-                "from": "onboarding@resend.dev",
-                "to": [to_email],
-                "subject": f"Nuevo contacto de {req.name}",
-                "html": f"""
-                <h2>Nuevo mensaje desde AnimaFlow</h2>
-                <p><strong>Nombre:</strong> {req.name}</p>
-                <p><strong>Email:</strong> {req.email}</p>
-                <p><strong>Mensaje:</strong> {req.message}</p>
-                """,
-            },
-            timeout=10,
-        )
-        response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {resend_api_key}"},
+                json={
+                    "from": "onboarding@resend.dev",
+                    "to": [to_email],
+                    "subject": f"Nuevo contacto de {req.name}",
+                    "html": f"""
+                    <h2>Nuevo mensaje desde AnimaFlow</h2>
+                    <p><strong>Nombre:</strong> {req.name}</p>
+                    <p><strong>Email:</strong> {req.email}</p>
+                    <p><strong>Mensaje:</strong> {req.message}</p>
+                    """,
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
         return {"message": "Email sent successfully"}
-    except requests.RequestException as e:
+    except httpx.HTTPError as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to send email: {str(e)}"
         )

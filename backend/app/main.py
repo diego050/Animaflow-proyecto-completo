@@ -1,11 +1,9 @@
-import sys
-sys.set_int_max_str_digits(0)
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import JSONResponse
-from app.api import jobs, exports, audio, auth, voices, api_keys, assets, admin, contact, scenes, design_templates, components, stream
+from app.api import jobs, exports, audio, auth, voices, api_keys, assets, admin, contact, scenes, design_templates, stream
 from app.core.config import settings
 from app.core.limiter import limiter, RateLimitExceeded
 from app.core.storage_paths import get_storage_dir
@@ -43,7 +41,6 @@ app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(contact.router)
 app.include_router(scenes.router, tags=["scenes"])
 app.include_router(design_templates.router, prefix="/api/design-templates", tags=["Design Templates"])
-app.include_router(components.router, tags=["Components"])
 
 # Serve video files from storage/videos directory
 VIDEO_DIR = get_storage_dir("videos")
