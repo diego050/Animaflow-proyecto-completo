@@ -2,7 +2,7 @@
 
 **Fecha:** 1 de Junio de 2026
 **Tipo:** Architecture Decision Record
-**Estado:** Implementado (Fase 1-12)
+**Estado:** Implementado (Fase 1-16)
 
 ## Resumen
 
@@ -59,6 +59,12 @@ Se crearon componentes pre-construidos que usan el sistema de estilos:
 | **StyleDivider** | solid, dashed, dotted, gradient | custom | Grow from center (20 frames) | Separadores, breaks visuales |
 | **StyleChip** | filled, outlined, soft | sm, md, lg | Scale + fade (12 frames) | Tech stacks, filtros, categorías |
 | **StyleTextBlock** | heading, body, caption, quote | width custom | Fade + slide-up (15 frames) | Títulos, descripciones, quotes |
+| **StyleCallout** | arrow, circle, highlight | custom | Slide + fade (15 frames) | Anotaciones, tutoriales |
+| **StyleWatermark** | icon, image | custom | Fade-in (20 frames) | Branding, logos, marcas de agua |
+| **StyleVideoPlayer** | pip, fullscreen, inline | sm, md, lg | Scale + fade (15 frames) | B-roll, PiP, screen recordings |
+| **StyleBarChart** | vertical, horizontal | custom | Bars grow 0→value (30 frames) | Comparaciones, rankings |
+| **StyleLineChart** | line + dots + grid | custom | Path draw animation (40 frames) | Tendencias, growth, time series |
+| **StylePieChart** | pie, donut | custom | Slices stagger (20 frames) | Porcentajes, distribución |
 
 Cada componente:
 - Acepta `style` prop con LayerStyle overrides
@@ -74,6 +80,47 @@ Se agregó soporte para CSS Grid en el Layout Solver:
 - Compatible con padding y spacing
 - Renderizado en Remotion vía `display: grid`
 - Coordenadas calculadas por solver para AE export
+
+### 8. Chart Components (Fase 14)
+Se crearon 3 componentes de visualización de datos animados:
+
+**StyleBarChart:**
+- Barras verticales u horizontales con animación staggered
+- Cada barra crece desde 0 hasta su valor en 30 frames
+- Soporta labels, valores, colores personalizados
+- AE: Shape layers con `Rectangle Path` animado
+
+**StyleLineChart:**
+- Línea SVG con animación `stroke-dashoffset`
+- Dots que aparecen con spring animation
+- Grid lines opcionales, fill area con opacidad
+- AE: Shape layer con `Path` + `Trim Paths` effect
+
+**StylePieChart:**
+- Sectores que aparecen uno por uno (staggered)
+- Soporte para pie y donut variants
+- `explodeSlice` para destacar un sector
+- Leyenda automática con colores
+- AE: Shape layers con `Ellipse Path` + `Trim Paths`
+
+### 9. Media Components (Fase 13, 15, 16)
+**StyleVideoPlayer:**
+- Embed de video con Remotion `<Video>` component
+- 3 tamaños, autoplay/loop/muted controls
+- Border radius, shadow, border styling
+- AE: Footage Layer import via `ImportOptions`
+
+**StyleCallout:**
+- Flecha SVG + texto que señala un área
+- 3 variantes: arrow, circle, highlight
+- Dirección-aware (left/right/top/bottom)
+- AE: Shape layer + Text layer
+
+**StyleWatermark:**
+- Logo overlay con 5 posiciones predefinidas
+- Soporte para imagen o Iconify icon
+- Opacidad controlada (default 0.3)
+- AE: Shape layer con opacity transform
 
 ### 5. LayerStyle → CSS Converter
 Se creó `layerStyleToCSS()` en `AnimaComposer.tsx` que convierte LayerStyle a `React.CSSProperties`:
@@ -180,6 +227,10 @@ Playground examples en `/admin/animations`:
 - **StyleChip (Tags)** — 3 tech chips (React, TypeScript, Python) con variantes
 - **StyleTextBlock** — 4 variantes de texto (heading, quote, body, caption)
 - **Full Composition** — Escena completa combinando los 9 componentes
+- **StyleCallout (Annotations)** — Card con flechas y círculos de anotación
+- **StyleWatermark (Branding)** — 2 watermarks en esquinas opuestas
+- **StyleCharts (Data Viz)** — BarChart + LineChart + PieChart en una escena
+- **Full Dashboard** — Escena completa con los 15 componentes
 
 ## Archivos Modificados
 
@@ -204,18 +255,20 @@ Playground examples en `/admin/animations`:
 | `frontend/src/remotion/utils/layoutSolver.ts` | +applyGrid() para grid en TypeScript |
 | `frontend/src/remotion/components/StyleChip.tsx` | Nuevo: Chip/tag con 3 variantes |
 | `frontend/src/remotion/components/StyleTextBlock.tsx` | Nuevo: Text block con 4 variantes |
+| `frontend/src/remotion/components/StyleCallout.tsx` | Nuevo: Anotación con flechas |
+| `frontend/src/remotion/components/StyleWatermark.tsx` | Nuevo: Watermark/branding |
+| `frontend/src/remotion/components/StyleVideoPlayer.tsx` | Nuevo: Video embed PiP |
+| `frontend/src/remotion/components/StyleBarChart.tsx` | Nuevo: Bar chart animado |
+| `frontend/src/remotion/components/StyleLineChart.tsx` | Nuevo: Line chart animado |
+| `frontend/src/remotion/components/StylePieChart.tsx` | Nuevo: Pie/donut chart animado |
+| `backend/app/modules/anima_composer/ae_transformer.py` | +_component_to_ae() para 6 componentes |
 
 ## Próximas Fases
 
 | Fase | Tarea | Estado |
 |---|---|---|
-| **1-7** | Fases anteriores | ✅ Completado |
-| **8** | Grid layout support | ✅ Completado |
-| **9** | Responsive breakpoints | ✅ Completado (auto-adaptativo) |
-| **10** | Image component con filtros | ✅ Completado (AnimaImage + style) |
-| **11** | Chip component | ✅ Completado |
-| **12** | TextBlock component | ✅ Completado |
-| **13** | VideoPlayer component | Pendiente |
-| **14** | Chart components (bar/line/pie) | Pendiente |
-| **15** | Modal/Tooltip (solo preview) | Pendiente |
-| **16** | Table component | Pendiente |
+| **1-16** | Todas las fases completadas | ✅ Completado |
+| **17** | Horizontal Bar Race chart | Pendiente |
+| **18** | Funnel Chart | Pendiente |
+| **19** | Radar/Spider Chart | Pendiente |
+| **20** | Counter/Number animation | Pendiente |
