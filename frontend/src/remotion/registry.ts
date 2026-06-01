@@ -68,6 +68,9 @@ import { SplitText } from './components/SplitText';
 import { StockCandlestick } from './components/StockCandlestick';
 import { StrikethroughText } from './components/StrikethroughText';
 import { SubscribeButton } from './components/SubscribeButton';
+import { StyleBadge } from './components/StyleBadge';
+import { StyleButton } from './components/StyleButton';
+import { StyleCard } from './components/StyleCard';
 import { TerminalHacker } from './components/TerminalHacker';
 import { TestimonialReview } from './components/TestimonialReview';
 import { TextBubble } from './components/TextBubble';
@@ -156,6 +159,9 @@ export const COMPONENT_NAMES = [
   'StockCandlestick',
   'StrikethroughText',
   'SubscribeButton',
+  'StyleBadge',
+  'StyleButton',
+  'StyleCard',
   'TerminalHacker',
   'TestimonialReview',
   'TextBubble',
@@ -245,6 +251,9 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   StockCandlestick,
   StrikethroughText,
   SubscribeButton,
+  StyleBadge,
+  StyleButton,
+  StyleCard,
   TerminalHacker,
   TestimonialReview,
   TextBubble,

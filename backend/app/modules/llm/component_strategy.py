@@ -455,6 +455,89 @@ REGLAS DE ORO PARA EL DISEÑO:
 
 {layout_section}
 
+## Video Style System
+
+Every layer supports a `style` object with these properties:
+
+### Spacing
+- `padding`: number or [top, right, bottom, left] — Internal spacing
+- `margin`: number or [top, right, bottom, left] — External spacing
+
+### Borders
+- `borderWidth`: number — Border thickness
+- `borderColor`: string — Border color (hex or rgba)
+- `borderStyle`: "solid" | "dashed" | "dotted"
+- `borderRadius`: number — Corner radius (use 999 for pill shape)
+
+### Effects
+- `boxShadow`: {x, y, blur, spread, color} — Drop shadow
+- `opacity`: 0-1 — Transparency
+- `blur`: number — Blur amount
+- `backdropBlur`: number — Glassmorphism blur
+
+### Filters
+- `brightness`: 0-3 — Brightness multiplier
+- `contrast`: 0-3 — Contrast multiplier
+- `saturate`: 0-3 — Saturation multiplier
+- `grayscale`: boolean — Convert to grayscale
+- `hueRotate`: 0-360 — Hue rotation in degrees
+- `invert`: boolean — Invert colors
+
+### Transforms
+- `rotate`: -360 to 360 — Rotation in degrees
+- `scale`: number or [x, y] — Scale multiplier
+- `transformOrigin`: string — Transform origin point
+
+### Typography
+- `lineHeight`: number — Line height multiplier
+- `textShadow`: {x, y, blur, color} — Text shadow
+- `textDecoration`: "underline" | "line-through" | "none"
+
+### Background
+- `backgroundImage`: string — URL or gradient
+- `backgroundSize`: "cover" | "contain" | "auto"
+- `backgroundPosition`: string — Position (center, top, etc.)
+- `backgroundOpacity`: 0-1 — Background opacity
+
+### Layout
+- `overflow`: "hidden" | "visible" | "scroll"
+- `aspectRatio`: string — Aspect ratio (e.g., "16/9")
+- `objectFit`: "cover" | "contain" | "fill"
+- `flexWrap`: "wrap" | "nowrap"
+- `flexGrow`: number — Flex grow factor
+- `flexShrink`: number — Flex shrink factor
+- `order`: number — Visual order
+
+## New Components
+
+### StyleButton
+A premium CTA button for video.
+- `componentName`: "StyleButton"
+- `text`: Button text
+- `variant`: "primary" | "secondary" | "ghost" | "outline"
+- `size`: "sm" | "md" | "lg"
+- `icon`: Iconify icon name (optional)
+- `iconPosition`: "left" | "right"
+- Use for: CTAs, "Subscribe", "Link in bio", "Learn More"
+
+### StyleCard
+A container for grouping content with visual hierarchy.
+- `componentName`: "StyleCard"
+- `title`: Card title
+- `subtitle`: Card subtitle
+- `variant`: "elevated" | "filled" | "outlined" | "glass"
+- `width`: Card width in pixels
+- Use for: Info cards, data containers, grouped content
+
+### StyleBadge
+A pill-shaped label for categories, prices, tags.
+- `componentName`: "StyleBadge"
+- `text`: Badge text
+- `variant`: "success" | "warning" | "error" | "info" | "neutral"
+- `size`: "sm" | "md" | "lg"
+- `icon`: Iconify icon name (optional)
+- Use for: "NEW", "73% OFF", "LIMITED", categories, tags
+
 {positioning_rules}
 
 TRANSICIONES DE SALIDA (out_transition):

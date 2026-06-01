@@ -95,6 +95,111 @@ const STYLE_SYSTEM_EXAMPLES = [
         lineHeight: 1.5
       }
     }
+  },
+  // --- Video Style System Components ---
+  {
+    id: 'style-button',
+    name: 'StyleButton (CTA)',
+    icon: '🔘',
+    spec: {
+      version: '1.0',
+      background: { type: 'radial-gradient', colors: ['#1a0a2e', '#0f172a'], angle: 0 },
+      layers: [
+        {
+          type: 'component',
+          componentName: 'StyleButton',
+          text: 'Suscríbete Ahora',
+          variant: 'primary',
+          size: 'lg',
+          icon: 'mdi:arrow-right',
+          iconPosition: 'right',
+          x: 540,
+          y: 960,
+          entry: 'spring-in',
+          entryDelay: 0.5,
+        },
+        {
+          type: 'component',
+          componentName: 'StyleButton',
+          text: 'Ver Demo',
+          variant: 'outline',
+          size: 'md',
+          x: 540,
+          y: 1060,
+          entry: 'spring-in',
+          entryDelay: 1,
+        },
+      ],
+    },
+  },
+  {
+    id: 'style-card',
+    name: 'StyleCard (Container)',
+    icon: '📋',
+    spec: {
+      version: '1.0',
+      background: { type: 'radial-gradient', colors: ['#0a1628', '#0f172a'], angle: 0 },
+      layers: [
+        {
+          type: 'component',
+          componentName: 'StyleCard',
+          title: 'Datos Increíbles',
+          subtitle: 'El 73% de los usuarios prefieren video',
+          variant: 'elevated',
+          x: 540,
+          y: 960,
+          width: 400,
+          entry: 'slide-up',
+          entryDelay: 0.3,
+          style: { padding: 32, borderRadius: 16, boxShadow: { x: 0, y: 8, blur: 32, spread: 0, color: 'rgba(0,0,0,0.4)' } },
+        },
+      ],
+    },
+  },
+  {
+    id: 'style-badge',
+    name: 'StyleBadge (Label)',
+    icon: '🏅',
+    spec: {
+      version: '1.0',
+      background: { type: 'radial-gradient', colors: ['#1a0a00', '#0f172a'], angle: 0 },
+      layers: [
+        {
+          type: 'component',
+          componentName: 'StyleBadge',
+          text: 'NUEVO',
+          variant: 'success',
+          size: 'lg',
+          icon: 'mdi:sparkles',
+          x: 540,
+          y: 300,
+          entry: 'spring-in',
+          entryDelay: 0.2,
+        },
+        {
+          type: 'component',
+          componentName: 'StyleBadge',
+          text: '73% OFF',
+          variant: 'warning',
+          size: 'md',
+          x: 540,
+          y: 400,
+          entry: 'spring-in',
+          entryDelay: 0.5,
+        },
+        {
+          type: 'component',
+          componentName: 'StyleBadge',
+          text: 'LIMITADO',
+          variant: 'error',
+          size: 'sm',
+          x: 540,
+          y: 480,
+          entry: 'spring-in',
+          entryDelay: 0.8,
+        },
+      ],
+    },
   }
 ];
 

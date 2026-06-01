@@ -24,6 +24,85 @@ from app.services.layout_solver import solve_layout
 
 
 # ---------------------------------------------------------------------------
+# LayerStyle → After Effects properties
+# ---------------------------------------------------------------------------
+
+def _style_to_ae(style: dict | None) -> dict:
+    """Convert LayerStyle dict to After Effects JSX properties."""
+    if not style:
+        return {}
+
+    ae_props = {}
+
+    # Borders
+    if style.get("borderWidth"):
+        ae_props["strokeWidth"] = style["borderWidth"]
+    if style.get("borderColor"):
+        ae_props["strokeColor"] = style["borderColor"]
+    if style.get("borderRadius"):
+        ae_props["roundedCorner"] = style["borderRadius"]
+
+    # Effects
+    if style.get("boxShadow"):
+        shadow = style["boxShadow"]
+        ae_props["dropShadow"] = {
+            "x": shadow.get("x", 0),
+            "y": shadow.get("y", 4),
+            "blur": shadow.get("blur", 12),
+            "color": shadow.get("color", "rgba(0,0,0,0.3)"),
+        }
+    if style.get("opacity") is not None:
+        ae_props["opacity"] = style["opacity"] * 100  # AE uses 0-100
+    if style.get("blur"):
+        ae_props["fastBlur"] = style["blur"]
+    if style.get("backdropBlur"):
+        ae_props["compoundBlur"] = style["backdropBlur"]
+
+    # Filters
+    if style.get("brightness"):
+        ae_props["brightness"] = style["brightness"]
+    if style.get("contrast"):
+        ae_props["contrast"] = style["contrast"]
+    if style.get("saturate"):
+        ae_props["saturation"] = style["saturate"]
+    if style.get("grayscale"):
+        ae_props["tint"] = {"blackColor": [128, 128, 128], "whiteColor": [128, 128, 128]}
+    if style.get("hueRotate"):
+        ae_props["hueShift"] = style["hueRotate"]
+    if style.get("invert"):
+        ae_props["invert"] = True
+
+    # Transforms
+    if style.get("rotate"):
+        ae_props["rotation"] = style["rotate"]
+    if style.get("scale"):
+        s = style["scale"]
+        ae_props["scale"] = [s, s] if isinstance(s, (int, float)) else [s[0] * 100, s[1] * 100]
+    if style.get("transformOrigin"):
+        ae_props["anchorPoint"] = style["transformOrigin"]
+
+    # Typography
+    if style.get("lineHeight"):
+        ae_props["leading"] = style["lineHeight"]
+    if style.get("textShadow"):
+        ts = style["textShadow"]
+        ae_props["textDropShadow"] = {
+            "x": ts.get("x", 0),
+            "y": ts.get("y", 0),
+            "blur": ts.get("blur", 4),
+            "color": ts.get("color", "rgba(0,0,0,0.5)"),
+        }
+    if style.get("textDecoration") == "underline":
+        ae_props["underline"] = True
+
+    # Layout
+    if style.get("overflow") == "hidden":
+        ae_props["trackMatte"] = "alpha"
+
+    return ae_props
+
+
+# ---------------------------------------------------------------------------
 # Resolucion de valores animados
 # ---------------------------------------------------------------------------
 
@@ -166,6 +245,10 @@ def generate_ae_layer(
     lines: list[str] = []
     layer_type = layer.get("type", "")
     lid = layer.get("id", f"Layer_{index}")
+
+    # Extract style and convert to AE props
+    layer_style = layer.get("style", {})
+    ae_style_props = _style_to_ae(layer_style)
 
     # --- Rectangulo --------------------------------------------------------
     if layer_type == "rect":
