@@ -335,64 +335,13 @@ def delete_job(
     current_user: User = Depends(require_admin),
 ):
     """Delete a job and all associated files from disk."""
-    import os
-    import shutil
-    from app.core.storage_paths import get_storage_dir
+    from app.services.job_cleanup import delete_job_files
 
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    # 1. Video file
-    videos_dir = get_storage_dir("videos")
-    for ext in (".mp4", ".webm"):
-        video_path = os.path.join(videos_dir, f"{job_id}{ext}")
-        if os.path.exists(video_path):
-            try:
-                os.remove(video_path)
-            except OSError:
-                pass
-
-    # 2. Scene MP4s
-    scenes_dir = os.path.join(get_storage_dir("scenes"), job_id)
-    if os.path.isdir(scenes_dir):
-        shutil.rmtree(scenes_dir, ignore_errors=True)
-
-    # 3. Audio files
-    audio_dir = get_storage_dir("audio")
-    if os.path.isdir(audio_dir):
-        for fname in os.listdir(audio_dir):
-            if fname.startswith(f"{job_id}_"):
-                try:
-                    os.remove(os.path.join(audio_dir, fname))
-                except OSError:
-                    pass
-
-    # 4. TSX components
-    generated_dir = os.path.join(settings.frontend_path, "src", "remotion", "generated") if hasattr(settings, "frontend_path") else None
-    if generated_dir:
-        user_dir = os.path.join(generated_dir, f"user_{job.user_id}")
-        if os.path.isdir(user_dir):
-            for fname in os.listdir(user_dir):
-                if fname.startswith(f"Scene_{job_id}_") and fname.endswith(".tsx"):
-                    try:
-                        os.remove(os.path.join(user_dir, fname))
-                    except OSError:
-                        pass
-
-    # 5. AE exports
-    ae_dir = get_storage_dir("ae_exports")
-    if os.path.isdir(ae_dir):
-        for fname in os.listdir(ae_dir):
-            if job_id in fname:
-                fpath = os.path.join(ae_dir, fname)
-                try:
-                    if os.path.isdir(fpath):
-                        shutil.rmtree(fpath, ignore_errors=True)
-                    else:
-                        os.remove(fpath)
-                except OSError:
-                    pass
+    delete_job_files(job_id, job.user_id)
 
     db.delete(job)
     db.commit()

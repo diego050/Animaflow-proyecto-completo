@@ -19,61 +19,6 @@ async def job_stream(
     """
     Server-Sent Events (SSE) endpoint to stream job progress.
     """
-    async def event_generator():
-        try:
-            while True:
-                # If client disconnected, stop
-                if await request.is_disconnected():
-                    break
-
-                # Fetch job from db
-                # Since we are in a loop, we need to make sure we get fresh data.
-                # Setting autoflush might be necessary, or we just do a fresh query.
-                job = db.query(JobModel).filter(
-                    JobModel.id == job_id,
-                    JobModel.user_id == current_user.id
-                ).first()
-
-                if not job:
-                    # Job not found
-                    data = {"error": "Job not found"}
-                    yield f"event: error\ndata: {json.dumps(data)}\n\n"
-                    break
-
-                # Yield progress
-                data = {
-                    "status": job.status,
-                    "video_url": job.video_url,
-                    "error_message": job.error_message
-                }
-                yield f"event: progress\ndata: {json.dumps(data)}\n\n"
-
-                # Stop if completed or failed
-                if job.status in ["completed", "failed"]:
-                    break
-
-                # Sleep and check again
-                # Also yield heartbeat every 15s to keep connection alive
-                # Instead of sleeping 15s, we sleep 0.5s and check DB.
-                # We can implement a counter for heartbeat.
-                for _ in range(30): # 30 * 0.5s = 15s
-                    await asyncio.sleep(0.5)
-                    if await request.is_disconnected():
-                        return
-                    
-                    # Instead of just sleeping, we actually want to poll the db every 0.5s
-                    # So let's break this inner loop and re-fetch.
-                    # Wait, the instruction says:
-                    # - "loop, checking the job status from the database every 0.5s"
-                    # - "Yield event: heartbeat every 15 seconds"
-                    break
-                    
-        except Exception as e:
-            # Handle unexpected errors
-            data = {"error": str(e)}
-            yield f"event: error\ndata: {json.dumps(data)}\n\n"
-
-    # Redoing the loop to properly handle 0.5s poll and 15s heartbeat
     async def event_generator_correct():
         heartbeat_counter = 0
         last_status = None

@@ -78,62 +78,16 @@ async def get_audio(
         logger.debug("Audio not found at %s, searching subdirs...", local_path)
         logger.debug("AUDIO_STORAGE resolved to: %s", AUDIO_STORAGE)
 
-        # Fallback 1: check known provider subdirectories directly
-        found = False
-        PROVIDER_SUBDIRS = ["piper", "elevenlabs", "google", "gemini"]
-        for subdir in PROVIDER_SUBDIRS:
-            candidate = os.path.abspath(os.path.join(AUDIO_STORAGE, subdir, sanitized))
-            if candidate.startswith(AUDIO_STORAGE + os.sep) and os.path.exists(candidate):
-                local_path = candidate
-                found = True
-                logger.debug("Found audio in subdir: %s", local_path)
-                break
+        from app.services.audio_finder import find_audio_file
 
-        # Fallback 2: full directory walk (catches any provider)
-        if not found:
-            logger.debug("Walking AUDIO_STORAGE: %s", AUDIO_STORAGE)
-            for root, dirs, files in os.walk(AUDIO_STORAGE):
-                if sanitized in files:
-                    candidate = os.path.abspath(os.path.join(root, sanitized))
-                    if candidate.startswith(AUDIO_STORAGE + os.sep):
-                        local_path = candidate
-                        found = True
-                        logger.debug("Found audio via walk: %s", local_path)
-                        break
+        base = os.path.splitext(sanitized)[0]
+        found_path = find_audio_file(base)
 
-        # Fallback 3: try other common extensions
-        if not found:
-            base = os.path.splitext(sanitized)[0]
-            for ext in [".mp3", ".wav", ".ogg", ".m4a"]:
-                # Check root first
-                candidate = os.path.abspath(os.path.join(AUDIO_STORAGE, base + ext))
-                if candidate.startswith(AUDIO_STORAGE + os.sep) and os.path.exists(candidate):
-                    local_path = candidate
-                    found = True
-                    break
-                # Check known subdirectories
-                for subdir in PROVIDER_SUBDIRS:
-                    candidate = os.path.abspath(os.path.join(AUDIO_STORAGE, subdir, base + ext))
-                    if candidate.startswith(AUDIO_STORAGE + os.sep) and os.path.exists(candidate):
-                        local_path = candidate
-                        found = True
-                        break
-                if found:
-                    break
-                # Last resort: walk
-                for root, dirs, files in os.walk(AUDIO_STORAGE):
-                    if base + ext in files:
-                        candidate = os.path.abspath(os.path.join(root, base + ext))
-                        if candidate.startswith(AUDIO_STORAGE + os.sep):
-                            local_path = candidate
-                            found = True
-                            break
-                if found:
-                    break
+        if not found_path:
+            logger.warning("Audio file not found: %s in %s", sanitized, AUDIO_STORAGE)
+            raise HTTPException(status_code=404, detail="Audio not found")
 
-            if not found:
-                logger.warning("Audio file not found: %s in %s", sanitized, AUDIO_STORAGE)
-                raise HTTPException(status_code=404, detail="Audio not found")
+        local_path = found_path
 
     ext = os.path.splitext(local_path)[1]
     return FileResponse(local_path, media_type=get_media_type(ext))

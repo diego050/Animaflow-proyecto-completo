@@ -27,6 +27,7 @@ from app.core.limiter import limiter
 from app.core.storage_paths import get_storage_dir
 from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_enrichment
 from app.core.file_logger import JobFileLogger
+from app.api.deps import get_job_or_404
 
 from pydantic import BaseModel
 from sqlalchemy.orm.attributes import flag_modified
@@ -42,16 +43,6 @@ class SceneEditRequest(BaseModel):
 
 
 VIDEOS_STORAGE = get_storage_dir("videos")
-
-
-def get_job_or_404(db: Session, job_id: str, user_id: str) -> JobModel:
-    job = db.query(JobModel).filter(
-        JobModel.id == job_id,
-        JobModel.user_id == user_id,
-    ).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
 
 router = APIRouter()
 
@@ -402,10 +393,7 @@ async def delete_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    import os
-    import shutil
-    from app.core.storage_paths import get_storage_dir
-    from app.core.config import settings as app_settings
+    from app.services.job_cleanup import delete_job_files
 
     # Verify current_user owns this job before deletion
     job = db.query(JobModel).filter(
@@ -415,55 +403,7 @@ async def delete_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # 1. Delete final video file (storage/videos/{job_id}.mp4)
-    videos_dir = get_storage_dir("videos")
-    for ext in (".mp4", ".webm"):
-        video_path = os.path.join(videos_dir, f"{job_id}{ext}")
-        if os.path.exists(video_path):
-            try:
-                os.remove(video_path)
-            except OSError:
-                pass
-
-    # 2. Delete scene MP4s directory (storage/scenes/{job_id}/)
-    scenes_dir = os.path.join(get_storage_dir("scenes"), job_id)
-    if os.path.isdir(scenes_dir):
-        shutil.rmtree(scenes_dir, ignore_errors=True)
-
-    # 3. Delete audio files (storage/audio/{job_id}_*.wav)
-    audio_dir = get_storage_dir("audio")
-    if os.path.isdir(audio_dir):
-        for fname in os.listdir(audio_dir):
-            if fname.startswith(f"{job_id}_"):
-                try:
-                    os.remove(os.path.join(audio_dir, fname))
-                except OSError:
-                    pass
-
-    # 4. Delete generated TSX components (frontend/src/remotion/generated/user_*/Scene_{job_id}_*.tsx)
-    generated_dir = os.path.join(app_settings.frontend_path, "src", "remotion", "generated")
-    user_dir = os.path.join(generated_dir, f"user_{current_user.id}")
-    if os.path.isdir(user_dir):
-        for fname in os.listdir(user_dir):
-            if fname.startswith(f"Scene_{job_id}_") and fname.endswith(".tsx"):
-                try:
-                    os.remove(os.path.join(user_dir, fname))
-                except OSError:
-                    pass
-
-    # 5. Delete AE export files (storage/ae_exports/{job_id}*)
-    ae_dir = get_storage_dir("ae_exports")
-    if os.path.isdir(ae_dir):
-        for fname in os.listdir(ae_dir):
-            if job_id in fname:
-                fpath = os.path.join(ae_dir, fname)
-                try:
-                    if os.path.isdir(fpath):
-                        shutil.rmtree(fpath, ignore_errors=True)
-                    else:
-                        os.remove(fpath)
-                except OSError:
-                    pass
+    delete_job_files(job_id, current_user.id)
 
     # 6. Delete DB record
     db.delete(job)
