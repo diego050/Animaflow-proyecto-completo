@@ -118,8 +118,8 @@ class TestPipelineSnapshot:
         run_pipeline_approved(job.id, None)
         db_session.refresh(job)
 
-        # Assert: job queued for render
-        assert job.status == "queued_render"
+        # Assert: job completed (render triggered on-demand via API)
+        assert job.status == "completed"
 
         # Assert: each scene now has generated fields
         spec = job.result_spec
@@ -145,7 +145,7 @@ class TestPipelineSnapshot:
         # Phase 2: Approve and generate visuals
         run_pipeline_approved(job.id, None)
         db_session.refresh(job)
-        assert job.status == "queued_render"
+        assert job.status == "completed"
 
         spec = job.result_spec
         assert spec is not None
@@ -225,7 +225,7 @@ class TestPipelineIdempotency:
         # Phase 2: Approve and generate visuals
         run_pipeline_approved(job.id, None)
         db_session.refresh(job)
-        assert job.status == "queued_render"
+        assert job.status == "completed"
         first_spec = job.result_spec
 
         # Re-run phase 1 + 2
@@ -235,7 +235,7 @@ class TestPipelineIdempotency:
 
         run_pipeline_approved(job.id, None)
         db_session.refresh(job)
-        assert job.status == "queued_render"
+        assert job.status == "completed"
         second_spec = job.result_spec
 
         assert first_spec == second_spec
