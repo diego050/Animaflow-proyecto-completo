@@ -72,3 +72,42 @@ export interface AdminSettingsUpdate {
   default_tts_provider?: string;
   storage_retention_days?: number;
 }
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'founder' | 'agency' | 'user' | 'admin';
+  is_active: boolean;
+  created_at: string;
+  last_login: string | null;
+  total_jobs: number;
+  completed_jobs: number;
+}
+
+export interface AdminJob {
+  job_id: string;
+  user_id: string;
+  user_email: string;
+  status: string;
+  script_text: string;
+  aspect_ratio: string;
+  created_at: string;
+  completed_at: string | null;
+  video_url: string | null;
+  error_message: string | null;
+}
+
+export interface PaginatedUsersResponse {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface PaginatedJobsResponse {
+  jobs: AdminJob[];
+  total: number;
+  page: number;
+  per_page: number;
+}

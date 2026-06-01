@@ -9,6 +9,7 @@ export function AdminUsersPage() {
     usersLoading,
     usersTotal,
     usersPage,
+    usersPerPage,
     fetchUsers,
     toggleUserStatus,
     deleteUser,
@@ -240,10 +241,10 @@ export function AdminUsersPage() {
             </table>
           </div>
 
-          {usersTotal > 20 && (
+          {usersTotal > usersPerPage && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
               <p className="text-xs text-gray-500">
-                Mostrando {(usersPage - 1) * 20 + 1}-{Math.min(usersPage * 20, usersTotal)} de {usersTotal}
+                Mostrando {(usersPage - 1) * usersPerPage + 1}-{Math.min(usersPage * usersPerPage, usersTotal)} de {usersTotal}
               </p>
               <div className="flex gap-2">
                 <button
@@ -255,7 +256,7 @@ export function AdminUsersPage() {
                 </button>
                 <button
                   onClick={() => fetchUsers(usersPage + 1, search)}
-                  disabled={usersPage * 20 >= usersTotal}
+                  disabled={usersPage * usersPerPage >= usersTotal}
                   className="px-3 py-1.5 text-xs font-medium rounded bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Siguiente

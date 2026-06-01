@@ -2,7 +2,7 @@
 
 Índice maestro para navegación técnica y comprensión de arquitectura (Humanos & IA).
 
-> **Última actualización:** 1 Junio 2026 | **Sprints cubiertos:** 1–7+
+> **Última actualización:** 1 Junio 2026 (Completo) | **Sprints cubiertos:** 1–7+
 
 ---
 
@@ -70,6 +70,7 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [Post-Production](session-2026-05-25-llm-stability-dashboard-fixes.md) | May 2026 | LLM Stability + Positioning Engine + Dashboard UX | ✅ Completado |
 | [Backend Critical Fixes](sessions/session-2026-05-31-backend-critical-fixes.md) | May 2026 | 8 Critical Security & Stability Fixes | ✅ Completado |
 | [Backend Refactor Batches A-C](sessions/session-2026-06-01-backend-refactor-batches-abc.md) | Jun 2026 | 14 Fixes: Cleanup, Consistency, Refactor | ✅ Completado |
+| [Backend Batch D](sessions/session-2026-06-01-backend-batch-d.md) | Jun 2026 | 5 Final Bug Fixes & Optimizations | ✅ Completado |
 
 ---
 
@@ -155,6 +156,7 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [Session 2026-05-20](sessions/cleanup-session-2026-05-20.md) | 2026-05-20 | Limpieza y Corrección (36 fixes) |
 | [Session 2026-05-31 (Backend Fixes)](sessions/session-2026-05-31-backend-critical-fixes.md) | 2026-05-31 | 8 Critical Backend Security & Stability Fixes |
 | [Session 2026-06-01 (Refactor Batches)](sessions/session-2026-06-01-backend-refactor-batches-abc.md) | 2026-06-01 | 14 Backend Refactor Fixes (Batches A, B, C) |
+| [Session 2026-06-01 (Batch D)](sessions/session-2026-06-01-backend-batch-d.md) | 2026-06-01 | 5 Final Backend Bug Fixes & Optimizations |
 
 ### New ADRs
 | ADR | Título | Estado |

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.db.models import User
+from app.db.models import User, Voice
 from app.schemas.auth import (
     UserCreate,
     UserLogin,
@@ -53,6 +53,18 @@ def register(request: Request, user_data: UserCreate, db: Session = Depends(get_
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # Create default voice for the new user
+    default_voice = Voice(
+        user_id=user.id,
+        name="Carl (Default)",
+        gender="neutral",
+        language="es",
+        is_default=True,
+        voicebox_profile_id="es_ES-carlfm-x_low",
+    )
+    db.add(default_voice)
+    db.commit()
 
     access_token = create_access_token(data={"sub": user.id})
     return Token(
