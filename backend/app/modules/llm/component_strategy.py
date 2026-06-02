@@ -496,7 +496,7 @@ Every layer supports a `style` object with these properties:
 - `borderRadius`: number — Corner radius (use 999 for pill shape)
 
 ### Effects
-- `boxShadow`: {x, y, blur, spread, color} — Drop shadow
+- `boxShadow`: {{x, y, blur, spread, color}} — Drop shadow
 - `opacity`: 0-1 — Transparency
 - `blur`: number — Blur amount
 - `backdropBlur`: number — Glassmorphism blur
@@ -516,7 +516,7 @@ Every layer supports a `style` object with these properties:
 
 ### Typography
 - `lineHeight`: number — Line height multiplier
-- `textShadow`: {x, y, blur, color} — Text shadow
+- `textShadow`: {{x, y, blur, color}} — Text shadow
 - `textDecoration`: "underline" | "line-through" | "none"
 
 ### Background
