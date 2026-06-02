@@ -650,3 +650,197 @@ def test_align_items_center_in_column():
     # x = (1080 - 100) // 2 = 490
     assert children[0]["x"] == 490
     assert children[1]["x"] == 490
+
+
+# ---------------------------------------------------------------------------
+# 8. Padding & Margin in Flex Layouts
+# ---------------------------------------------------------------------------
+
+def test_flex_row_with_padding():
+    """Test that padding offsets children correctly in a row layout."""
+    spec = {
+        "layers": [{
+            "type": "group",
+            "layout": "flex",
+            "direction": "row",
+            "gap": 10,
+            "style": {"padding": 20},
+            "children": [
+                {"type": "text", "text": "Left"},
+                {"type": "text", "text": "Right"},
+            ],
+        }]
+    }
+    result = solve_layout(spec, 1080, 1920)
+    group = result["layers"][0]
+    # Children should start at x=20 (padding), not x=0
+    assert group["children"][0]["x"] == 20
+    assert group["children"][1]["x"] > 20  # After first child + gap
+
+
+def test_flex_column_with_padding():
+    """Test that padding offsets children correctly in a column layout."""
+    spec = {
+        "layers": [{
+            "type": "group",
+            "layout": "flex",
+            "direction": "column",
+            "gap": 10,
+            "style": {"padding": 30},
+            "children": [
+                {"type": "text", "text": "Top"},
+                {"type": "text", "text": "Bottom"},
+            ],
+        }]
+    }
+    result = solve_layout(spec, 1080, 1920)
+    group = result["layers"][0]
+    assert group["children"][0]["y"] == 30
+    assert group["children"][1]["y"] > 30
+
+
+def test_flex_with_asymmetric_padding():
+    """Test [top, right, bottom, left] padding array."""
+    spec = {
+        "layers": [{
+            "type": "group",
+            "layout": "flex",
+            "direction": "row",
+            "style": {"padding": [10, 20, 30, 40]},
+            "children": [
+                {"type": "text", "text": "Item"},
+            ],
+        }]
+    }
+    result = solve_layout(spec, 1080, 1920)
+    group = result["layers"][0]
+    assert group["children"][0]["x"] == 40  # left padding
+    assert group["children"][0]["y"] == 10  # top padding
+
+
+def test_resolve_spacing_helper():
+    """Test the _resolve_spacing helper function."""
+    from app.services.layout_solver import _resolve_spacing
+
+    # Single value
+    layer = {"style": {"padding": 10}}
+    p = _resolve_spacing(layer)
+    assert p == (10, 10, 10, 10, 0, 0, 0, 0)
+
+    # Two values [vertical, horizontal]
+    layer = {"style": {"padding": [10, 20]}}
+    p = _resolve_spacing(layer)
+    assert p == (10, 20, 10, 20, 0, 0, 0, 0)
+
+    # Four values [top, right, bottom, left]
+    layer = {"style": {"padding": [10, 20, 30, 40]}}
+    p = _resolve_spacing(layer)
+    assert p == (10, 20, 30, 40, 0, 0, 0, 0)
+
+    # No style
+    layer = {}
+    p = _resolve_spacing(layer)
+    assert p == (0, 0, 0, 0, 0, 0, 0, 0)
+
+
+# ---------------------------------------------------------------------------
+# 9. Grid Layout
+# ---------------------------------------------------------------------------
+
+def test_grid_2x2():
+    """Test 2x2 grid distribution."""
+    spec = {
+        "layers": [{
+            "type": "group",
+            "layout": "grid",
+            "gridCols": 2,
+            "gridRows": 2,
+            "gap": 10,
+            "children": [
+                {"type": "text", "text": "1"},
+                {"type": "text", "text": "2"},
+                {"type": "text", "text": "3"},
+                {"type": "text", "text": "4"},
+            ],
+        }]
+    }
+    result = solve_layout(spec, 1080, 1920)
+    group = result["layers"][0]
+    children = group["children"]
+
+    # 4 children in 2x2 grid
+    assert len(children) == 4
+    # First row: y should be same
+    assert children[0]["y"] == children[1]["y"]
+    # Second row: y should be greater
+    assert children[2]["y"] > children[0]["y"]
+    # First column: x should be same
+    assert children[0]["x"] == children[2]["x"]
+    # Second column: x should be greater
+    assert children[1]["x"] > children[0]["x"]
+
+
+def test_grid_auto_rows():
+    """Test grid with auto-calculated rows."""
+    spec = {
+        "layers": [{
+            "type": "group",
+            "layout": "grid",
+            "gridCols": 3,
+            "gap": 10,
+            "children": [
+                {"type": "text", "text": str(i)} for i in range(7)
+            ],
+        }]
+    }
+    result = solve_layout(spec, 1080, 1920)
+    group = result["layers"][0]
+    children = group["children"]
+
+    # 7 children in 3 columns = 3 rows
+    assert len(children) == 7
+    # Last child should be in row 3
+    assert children[6]["y"] > children[3]["y"]
+
+
+def test_grid_with_padding():
+    """Test grid with padding offsets children correctly."""
+    spec = {
+        "layers": [{
+            "type": "group",
+            "layout": "grid",
+            "gridCols": 2,
+            "gap": 10,
+            "style": {"padding": 20},
+            "children": [
+                {"type": "text", "text": "A"},
+                {"type": "text", "text": "B"},
+            ],
+        }]
+    }
+    result = solve_layout(spec, 1080, 1920)
+    group = result["layers"][0]
+    # First child should start at x=20, y=20 (padding)
+    assert group["children"][0]["x"] == 20
+    assert group["children"][0]["y"] == 20
+
+
+def test_grid_centered_items():
+    """Test grid with justifyContent center."""
+    spec = {
+        "layers": [{
+            "type": "group",
+            "layout": "grid",
+            "gridCols": 2,
+            "gap": 10,
+            "justifyContent": "center",
+            "children": [
+                {"type": "text", "text": "A", "width": 100},
+                {"type": "text", "text": "B", "width": 100},
+            ],
+        }]
+    }
+    result = solve_layout(spec, 1080, 1920)
+    group = result["layers"][0]
+    # Items should be centered within their cells
+    assert group["children"][0]["x"] > 0  # Not at edge

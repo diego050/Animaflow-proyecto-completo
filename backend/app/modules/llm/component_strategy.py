@@ -247,6 +247,22 @@ def _build_strategy_prompt(
 
     components_list = "\n".join(components_list_parts)
 
+    # Build compact reference for ONLY the components selected by vector search
+    # This replaces the hardcoded 108-component library to save ~2,500 tokens per call
+    selected_component_ref = "\n".join(
+        f"- **{c['name']}** ({c.get('role', 'general')}): {c.get('description', '')}\n  Props: {c.get('props', 'none required')}"
+        for c in available_components
+    )
+
+    # Also check which Style* components are in the selected list
+    style_components_in_list = [c for c in available_components if c['name'].startswith('Style')]
+    style_component_ref = ""
+    if style_components_in_list:
+        style_component_ref = "\n\n## Style* Components Available (support LayerStyle overrides):\n" + "\n".join(
+            f"- **{c['name']}**: {c.get('description', '')}\n  Props: {c.get('props', 'none required')}"
+            for c in style_components_in_list
+        )
+
     # Build icon suggestions section if candidates are available
     icon_section = ""
     if icon_candidates:
@@ -267,7 +283,9 @@ REGLA CRÍTICA DE ÍCONOS:
 - SOLO selecciona íconos que representen LITERALMENTE el sujeto del texto de la escena.
 - Si el texto habla de "gatos", usa un ícono de gato. Si habla de "dinero", usa un ícono de dinero.
 - NO uses íconos abstractos, de "ambiente" o "atmósfera".
-- Máximo 1 ícono por escena. Si ningún ícono es relevante para el sujeto del texto, NO incluyas ningún ícono.
+- Usa tantos íconos como la escena necesite. Si el texto menciona múltiples conceptos, usa un ícono para cada uno.
+- Si ningún ícono es relevante para el sujeto del texto, NO incluyas ningún ícono.
+- Los íconos pueden ser decorativos, funcionales (dentro de botones/badges), o representativos del contenido.
 - Usa type: "component", componentName: "IconifyIcon", icon: "nombre_exacto"
 
 Ejemplo correcto (texto sobre gatos): {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:cat", "size": 120, "color": "#ffffff", "x": 0, "y": -200}}
@@ -426,7 +444,15 @@ DESCRIPCION VISUAL: "{media_query}"
 {timing_context}
 PASO 1 - IDENTIFICA EL SUJETO: Lee el texto y la descripción visual. ¿Cuál es el objeto/sujeto/tema principal de esta escena? (ej: un perro, una manzana, el dinero, un corazón, un planeta, etc.)
 
-PASO 2 - SELECCIONA COMPONENTES: Elige 2-4 componentes de la lista disponible que mejor representen visualmente el sujeto y el mensaje de la escena. Combina componentes de diferentes roles (background + text + decorative/ui) para crear una composición rica y profesional.
+PASO 2 - COMPOSICIÓN LIBRE: Selecciona TODOS los componentes necesarios para representar visualmente el sujeto y el mensaje de la escena. NO hay límite de componentes. Puedes usar 1 componente o 15 — lo que la escena necesite.
+
+Ejemplos de composiciones válidas:
+- Simple: 1 background + 1 texto (escena minimalista)
+- Media: 1 background + 2 botones + 1 texto arriba + 1 badge (CTA con contexto)
+- Compleja: 1 background + 3 cards en grid + 2 badges + 1 texto título + 1 ícono decorativo (comparativa)
+- Rica: 1 background + 1 gráfico + 2 textos + 1 progress bar + 2 íconos + 1 watermark (data-driven)
+
+REGLA: Usa grupos flex/grid para organizar múltiples elementos. Cada componente debe tener un propósito claro en la escena.
 
 REGLA CRÍTICA: SOLO usa type: "component" para elementos visuales y type: "text" para el texto hablado. NO uses type: "path", "rect", "circle". Esos tipos están PROHIBIDOS.
 
@@ -454,6 +480,462 @@ REGLAS DE ORO PARA EL DISEÑO:
 6. **FORMATO NUMÉRICO ESTRICTO:** Para `lineWidth`, usa SOLO números ENTEROS (0, 1, 2, 3... 20). NUNCA uses decimales. Ejemplos válidos: `0`, `4`, `10`. Ejemplos INVÁLIDOS: `0.5`, `4.5`, `10.25`.
 
 {layout_section}
+
+## Video Style System
+
+Every layer supports a `style` object with these properties:
+
+### Spacing
+- `padding`: number or [top, right, bottom, left] — Internal spacing
+- `margin`: number or [top, right, bottom, left] — External spacing
+
+### Borders
+- `borderWidth`: number — Border thickness
+- `borderColor`: string — Border color (hex or rgba)
+- `borderStyle`: "solid" | "dashed" | "dotted"
+- `borderRadius`: number — Corner radius (use 999 for pill shape)
+
+### Effects
+- `boxShadow`: {x, y, blur, spread, color} — Drop shadow
+- `opacity`: 0-1 — Transparency
+- `blur`: number — Blur amount
+- `backdropBlur`: number — Glassmorphism blur
+
+### Filters
+- `brightness`: 0-3 — Brightness multiplier
+- `contrast`: 0-3 — Contrast multiplier
+- `saturate`: 0-3 — Saturation multiplier
+- `grayscale`: boolean — Convert to grayscale
+- `hueRotate`: 0-360 — Hue rotation in degrees
+- `invert`: boolean — Invert colors
+
+### Transforms
+- `rotate`: -360 to 360 — Rotation in degrees
+- `scale`: number or [x, y] — Scale multiplier
+- `transformOrigin`: string — Transform origin point
+
+### Typography
+- `lineHeight`: number — Line height multiplier
+- `textShadow`: {x, y, blur, color} — Text shadow
+- `textDecoration`: "underline" | "line-through" | "none"
+
+### Background
+- `backgroundImage`: string — URL or gradient
+- `backgroundSize`: "cover" | "contain" | "auto"
+- `backgroundPosition`: string — Position (center, top, etc.)
+- `backgroundOpacity`: 0-1 — Background opacity
+
+### Layout
+- `overflow`: "hidden" | "visible" | "scroll"
+- `aspectRatio`: string — Aspect ratio (e.g., "16/9")
+- `objectFit`: "cover" | "contain" | "fill"
+- `flexWrap`: "wrap" | "nowrap"
+- `flexGrow`: number — Flex grow factor
+- `flexShrink`: number — Flex shrink factor
+- `order`: number — Visual order
+
+## Video Style System (Style* Components)
+Estos componentes soportan overrides completos de LayerStyle. Solo se incluyen los relevantes para esta escena.
+
+## New Components
+
+### StyleButton
+A premium CTA button for video.
+- `componentName`: "StyleButton"
+- `text`: Button text
+- `variant`: "primary" | "secondary" | "ghost" | "outline"
+- `size`: "sm" | "md" | "lg"
+- `icon`: Iconify icon name (optional)
+- `iconPosition`: "left" | "right"
+- Use for: CTAs, "Subscribe", "Link in bio", "Learn More"
+
+### StyleCard
+A container for grouping content with visual hierarchy.
+- `componentName`: "StyleCard"
+- `title`: Card title
+- `subtitle`: Card subtitle
+- `variant`: "elevated" | "filled" | "outlined" | "glass"
+- `width`: Card width in pixels
+- Use for: Info cards, data containers, grouped content
+
+### StyleBadge
+A pill-shaped label for categories, prices, tags.
+- `componentName`: "StyleBadge"
+- `text`: Badge text
+- `variant`: "success" | "warning" | "error" | "info" | "neutral"
+- `size`: "sm" | "md" | "lg"
+- `icon`: Iconify icon name (optional)
+- Use for: "NEW", "73% OFF", "LIMITED", categories, tags
+
+### StyleAvatar
+An icon-based avatar with animated ring and optional badge.
+- `componentName`: "StyleAvatar"
+- `icon`: Iconify icon name (e.g., "mdi:account")
+- `name`: Display name below avatar
+- `subtitle`: Optional subtitle (e.g., rating, title)
+- `size`: "sm" | "md" | "lg"
+- `variant`: "solid" | "ring" | "gradient"
+- `showBadge`: boolean — Show notification badge
+- `badgeText`: Badge text (e.g., "NEW", "•")
+- Use for: Testimonials, team members, social profiles, user mentions
+
+### StyleProgressBar
+A progress indicator with linear and circular variants.
+- `componentName`: "StyleProgressBar"
+- `value`: Current value (0-100)
+- `max`: Maximum value
+- `variant`: "linear" | "circular"
+- `color`: Progress bar color
+- `showLabel`: boolean — Show percentage label
+- `labelPosition`: "top" | "bottom" | "inside"
+- `size`: Size for circular variant (default 120)
+- `strokeWidth`: Stroke width for circular variant
+- Use for: Survey results, completion status, statistics, comparisons
+
+### StyleDivider
+A visual separator with multiple styles.
+- `componentName`: "StyleDivider"
+- `orientation`: "horizontal" | "vertical"
+- `style`: "solid" | "dashed" | "dotted" | "gradient"
+- `color`: Divider color
+- `thickness`: Line thickness
+- `width`: Width for horizontal dividers
+- `height`: Height for vertical dividers
+- Use for: Section separators, visual breaks, content grouping
+
+### StyleChip
+A tag/chip for filters, categories, and tech stacks.
+- `componentName`: "StyleChip"
+- `text`: Chip text
+- `icon`: Iconify icon name (optional)
+- `deletable`: boolean — Show delete X icon
+- `variant`: "filled" | "outlined" | "soft"
+- `size`: "sm" | "md" | "lg"
+- Use for: Tech stacks, filter tags, category labels, skill badges
+
+### StyleTextBlock
+A text block for longer content with variants and line clamping.
+- `componentName`: "StyleTextBlock"
+- `text`: Text content
+- `variant`: "heading" | "body" | "caption" | "quote"
+- `align`: "left" | "center" | "right"
+- `maxLines`: number — Limit visible lines (optional)
+- `width`: Width in pixels
+- Use for: Titles, descriptions, quotes, captions, body text
+
+### StyleCallout
+An annotation with arrow pointing to a target area.
+- `componentName`: "StyleCallout"
+- `text`: Annotation text
+- `direction`: "left" | "right" | "top" | "bottom"
+- `variant`: "arrow" | "circle" | "highlight"
+- Use for: Pointing to features, highlighting areas, tutorial annotations
+
+### StyleWatermark
+A brand logo overlay with controlled opacity.
+- `componentName`: "StyleWatermark"
+- `src`: Image URL (optional)
+- `icon`: Iconify icon name (fallback)
+- `position`: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center"
+- `opacity`: 0-1 (default 0.3)
+- `size`: Size in pixels (default 60)
+- Use for: Branding, logos, watermarks
+
+### StyleVideoPlayer
+A video embed for picture-in-picture and media.
+- `componentName`: "StyleVideoPlayer"
+- `src`: Video URL
+- `variant`: "pip" | "fullscreen" | "inline"
+- `size`: "sm" | "md" | "lg"
+- `autoplay`: boolean (default true)
+- `loop`: boolean (default true)
+- `muted`: boolean (default true)
+- Use for: B-roll, screen recordings, PiP content
+
+### StyleBarChart
+An animated bar chart for data visualization.
+- `componentName`: "StyleBarChart"
+- `data`: [{ label, value, color }]
+- `variant`: "vertical" | "horizontal"
+- `showLabels`: boolean
+- `showValues`: boolean
+- Use for: Comparisons, monthly data, rankings
+
+### StyleLineChart
+An animated line chart with dots and grid.
+- `componentName`: "StyleLineChart"
+- `data`: [{ x, y }]
+- `showDots`: boolean
+- `showGrid`: boolean
+- `showLabels`: boolean
+- `lineColor`: string
+- `fillArea`: boolean
+- Use for: Trends, growth, time series
+
+### StylePieChart
+An animated pie/donut chart.
+- `componentName`: "StylePieChart"
+- `data`: [{ label, value, color }]
+- `variant`: "pie" | "donut"
+- `showLabels`: boolean
+- `showValues`: boolean
+- `explodeSlice`: index of slice to explode (optional)
+- Use for: Percentages, distribution, market share
+
+### StyleAnimateNumber
+An animated counter that counts from 0 to a target value.
+- `componentName`: "StyleAnimateNumber"
+- `value`: Target number
+- `from`: Starting number (default 0)
+- `prefix`: Text before number (e.g., "$", "+")
+- `suffix`: Text after number (e.g., "%", "K")
+- `format`: "number" | "currency" | "percentage" | "compact"
+- `decimals`: Number of decimal places
+- `duration`: Animation duration in frames
+- Use for: Statistics, metrics, revenue, growth numbers
+
+### StyleScrambleText
+Text that decodes from random characters to the final message.
+- `componentName`: "StyleScrambleText"
+- `text`: Final text to reveal
+- `speed`: Characters revealed per frame
+- `characters`: Random character set (default: "#$%&@!?*+=^~01")
+- `loop`: boolean — Re-scramble after reveal
+- Use for: Tech intros, cybersecurity, suspense reveals, hacker-style effects
+
+### StyleTicker
+Horizontally scrolling text (news/crypto style).
+- `componentName`: "StyleTicker"
+- `text`: Ticker content (use " • " as separator)
+- `speed`: Pixels per frame
+- `separator`: Text separator between repeats
+- Use for: Breaking news, crypto prices, stock tickers, live updates
+
+### StyleSimulatedHover
+Simulates a hover state at a specific frame.
+- `componentName`: "StyleSimulatedHover"
+- `text`: Button/card text
+- `icon`: Iconify icon name (optional)
+- `hoverFrame`: Frame when hover starts
+- `hoverDuration`: Duration of hover effect in frames
+- `variant`: "button" | "card" | "link"
+- Use for: Product demos, UI tutorials, interactive-looking buttons
+
+### StyleFakeScroll
+Simulates scrolling through a list of items.
+- `componentName`: "StyleFakeScroll"
+- `items`: [{ content, subtitle, icon }]
+- `speed`: Pixels per frame
+- `itemHeight`: Height of each item
+- `visibleItems`: Number of visible items
+- `showScrollbar`: boolean
+- Use for: Social media feeds, testimonials, product lists, comments
+
+### StyleCursor
+Animated cursor that moves between points and simulates clicks.
+- `componentName`: "StyleCursor"
+- `points`: [{ x, y, click: boolean, holdFrames: number }]
+- `speed`: Movement speed
+- `showRipple`: boolean — Show click ripple effect
+- Use for: Tutorials, demos, showing user interactions
+
+### StyleBarRace
+Horizontal bar race chart where items compete and reorder.
+- `componentName`: "StyleBarRace"
+- `data`: [{ label, value, color }]
+- `barHeight`: Height of each bar
+- `gap`: Gap between bars
+- `showLabels`: boolean
+- `showValues`: boolean
+- `duration`: Animation duration in frames
+- Use for: Rankings, competitions, "top 10" videos, comparisons
+
+### StyleFunnelChart
+A conversion funnel chart with animated stages.
+- `componentName`: "StyleFunnelChart"
+- `data`: [{ label, value, color }]
+- `showLabels`: boolean
+- `showValues`: boolean
+- `showPercentages`: boolean — Shows conversion rate between stages
+- Use for: Conversion funnels, sales pipelines, user journey, drop-off analysis
+
+### StyleRadarChart
+A radar/spider chart for multi-dimensional data visualization.
+- `componentName`: "StyleRadarChart"
+- `data`: [{ label, value }]
+- `maxValue`: Maximum value (default 100)
+- `showLabels`: boolean
+- `showGrid`: boolean — Show concentric grid circles
+- `showValues`: boolean — Show values next to labels
+- `fillColor`: Fill color with alpha (default "rgba(0, 255, 171, 0.15)")
+- `lineColor`: Line color (default "#00FFAB")
+- `size`: Chart size in pixels (default 240)
+- Use for: Skill comparisons, performance metrics, multi-axis analysis
+
+### Grid Layout
+Use `layout: "grid"` for 2D layouts instead of flex.
+- `layout`: "grid"
+- `gridCols`: number of columns
+- `gridRows`: number of rows (auto-calculated if omitted)
+- `gap`: spacing between cells
+- `justifyContent`: "flex-start" | "center" | "flex-end" — horizontal alignment within cells
+- `alignItems`: "flex-start" | "center" | "stretch" — vertical alignment within cells
+- Use for: Feature grids, team layouts, comparison tables, card grids
+
+## Componentes Seleccionados para Esta Escena (vector search)
+Estos son los componentes más relevantes para el texto y contexto de esta escena:
+{selected_component_ref}
+{style_component_ref}
+
+## Reglas de Selección de Componentes
+1. **NO HAY LÍMITE DE COMPONENTES** — Usa tantos como la escena necesite. Una escena puede tener 1 elemento o 20+.
+2. **Los componentes listados arriba** son los más relevantes para esta escena. Úsalos como base.
+3. **Si necesitas un componente que no está en la lista**, puedes usar cualquier componente de la Standard Library, pero prioriza los seleccionados.
+4. **Íconos libres** — Usa IconifyIcon para representar conceptos visuales. Múltiples íconos por escena están permitidos.
+5. **Jerarquía visual** — Usa zIndex, tamaños y posición para crear jerarquía. El elemento más importante debe ser el más prominente.
+6. **No sobre-cargar** — Aunque no hay límite, cada componente debe tener un propósito. Evita elementos decorativos sin función.
+7. **Combina componentes** usando layout groups (flex/grid) para escenas complejas.
+
+## Ejemplos de Referencia: Composiciones Complejas
+Estos ejemplos muestran cómo combinar múltiples componentes usando layout groups:
+
+Ejemplo A - Escena con múltiples botones y texto:
+{{
+  "background": {{"type": "gradient", "colors": ["#0f172a", "#1e293b"]}},
+  "layers": [
+    {{
+      "type": "group",
+      "layout": "flex",
+      "direction": "column",
+      "alignItems": "center",
+      "gap": 30,
+      "children": [
+        {{"type": "text", "text": "Elige tu plan", "fontSize": 48, "fontWeight": 900}},
+        {{
+          "type": "group",
+          "layout": "flex",
+          "direction": "row",
+          "gap": 20,
+          "children": [
+            {{"type": "component", "componentName": "StyleButton", "text": "Básico", "variant": "outline"}},
+            {{"type": "component", "componentName": "StyleButton", "text": "Pro", "variant": "primary"}},
+            {{"type": "component", "componentName": "StyleButton", "text": "Enterprise", "variant": "outline"}}
+          ]
+        }},
+        {{"type": "component", "componentName": "StyleBadge", "text": "Ahorra 50%", "variant": "success"}}
+      ]
+    }}
+  ]
+}}
+
+Ejemplo B - Escena con cards, badges e íconos:
+{{
+  "background": {{"type": "gradient", "colors": ["#0f172a", "#1e293b"]}},
+  "layers": [
+    {{
+      "type": "group",
+      "layout": "grid",
+      "gridCols": 2,
+      "gap": 24,
+      "children": [
+        {{
+          "type": "group",
+          "layout": "flex",
+          "direction": "column",
+          "gap": 12,
+          "children": [
+            {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:rocket-launch", "size": 48}},
+            {{"type": "component", "componentName": "StyleCard", "title": "Rápido", "subtitle": "Deploy en segundos"}},
+            {{"type": "component", "componentName": "StyleBadge", "text": "NEW", "variant": "info"}}
+          ]
+        }},
+        {{
+          "type": "group",
+          "layout": "flex",
+          "direction": "column",
+          "gap": 12,
+          "children": [
+            {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:shield-check", "size": 48}},
+            {{"type": "component", "componentName": "StyleCard", "title": "Seguro", "subtitle": "SSL incluido"}},
+            {{"type": "component", "componentName": "StyleBadge", "text": "POPULAR", "variant": "warning"}}
+          ]
+        }}
+      ]
+    }}
+  ]
+}}
+
+Ejemplo C - Escena data-driven con múltiples elementos:
+{{
+  "background": {{"type": "gradient", "colors": ["#0f172a", "#1e293b"]}},
+  "layers": [
+    {{
+      "type": "group",
+      "layout": "flex",
+      "direction": "column",
+      "alignItems": "center",
+      "gap": 20,
+      "children": [
+        {{"type": "text", "text": "Resultados del trimestre", "fontSize": 42, "fontWeight": 900}},
+        {{"type": "component", "componentName": "StyleBarChart", "data": [{{"label": "Q1", "value": 65}}, {{"label": "Q2", "value": 80}}, {{"label": "Q3", "value": 95}}]}},
+        {{
+          "type": "group",
+          "layout": "flex",
+          "direction": "row",
+          "gap": 16,
+          "children": [
+            {{"type": "component", "componentName": "StyleAnimateNumber", "value": 95, "suffix": "%", "prefix": "+"}},
+            {{"type": "component", "componentName": "StyleAnimateNumber", "value": 2400, "prefix": "$", "format": "compact"}},
+            {{"type": "component", "componentName": "StyleProgressBar", "value": 73, "showLabel": true}}
+          ]
+        }}
+      ]
+    }}
+  ]
+}}
+
+## Improved Spring Physics
+
+All entrance/exit animations now use improved spring physics based on Framer Motion's formula:
+- `F = -kx - cv` (Hooke's Law + Damping)
+- More natural, organic movement compared to basic springs
+- 6 presets available: `gentle`, `default`, `snappy`, `bouncy`, `stiff`, `slow`
+
+### Spring Presets
+| Preset | Stiffness | Damping | Mass | Feel |
+|---|---|---|---|---|
+| gentle | 80 | 12 | 1.2 | Soft, smooth |
+| default | 100 | 10 | 1.0 | Balanced |
+| snappy | 180 | 12 | 0.8 | Quick, responsive |
+| bouncy | 120 | 6 | 0.6 | Playful bounce |
+| stiff | 260 | 20 | 0.9 | Firm, precise |
+| slow | 60 | 15 | 1.5 | Relaxed, heavy |
+
+## Layout Transitions
+
+When elements change position between scenes, smooth transitions are automatically generated:
+- `transitionDuration`: Duration in frames (default: 15)
+- `transitionEasing`: "ease-out" | "ease-in-out" | "spring"
+- `transitionSpring`: Spring preset name (when easing is "spring")
+
+Transitions are detected automatically when:
+- An element's position changes by more than 2px between scenes
+- The element has a consistent `id` across scenes
+
+### Example
+```json
+{
+  "type": "component",
+  "componentName": "StyleBadge",
+  "id": "badge-1",
+  "text": "NEW",
+  "x": 540,
+  "y": 300,
+  "transitionDuration": 20,
+  "transitionEasing": "spring",
+  "transitionSpring": "bouncy"
+}
+```
 
 {positioning_rules}
 
@@ -535,7 +1017,7 @@ def generate_scene_composer(
     if db is not None:
         # Use intelligent vector search with diversity quotas
         from app.services.embedding import get_relevant_components
-        relevant = get_relevant_components(db, text, media_query, top_k=10)
+        relevant = get_relevant_components(db, text, media_query, top_k=15)
         components = relevant  # Already list[dict] from _format_component
         component_names = [c["name"] for c in relevant]
         logger.info("Vector search returned %d relevant components: %s", len(component_names), component_names[:5])

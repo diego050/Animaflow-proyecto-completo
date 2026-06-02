@@ -23,6 +23,39 @@ _DEFAULT_JUSTIFY: str = "flex-start"
 _DEFAULT_ALIGN: str = "flex-start"
 _DEFAULT_LAYER_HEIGHT: int = 100  # fallback when height is unspecified
 _DEFAULT_LAYER_WIDTH: int = 200  # fallback when width is unspecified
+_DEFAULT_GRID_COLS: int = 2
+_DEFAULT_GRID_ROWS: int = 1
+
+
+def _resolve_spacing(layer: dict) -> tuple[int, int, int, int, int, int, int, int]:
+    """
+    Resolve padding and margin from a layer's style.
+
+    Returns:
+        (padding_top, padding_right, padding_bottom, padding_left,
+         margin_top, margin_right, margin_bottom, margin_left)
+    """
+    style = layer.get("style", {}) or {}
+
+    def _expand_spacing(value, default=0):
+        if value is None:
+            return [default, default, default, default]
+        if isinstance(value, (int, float)):
+            return [int(value)] * 4
+        if isinstance(value, list):
+            if len(value) == 1:
+                return [int(value[0])] * 4
+            elif len(value) == 2:
+                return [int(value[0]), int(value[1]), int(value[0]), int(value[1])]
+            elif len(value) == 4:
+                return [int(v) for v in value]
+        return [default] * 4
+
+    padding = _expand_spacing(style.get("padding"))
+    margin = _expand_spacing(style.get("margin"))
+
+    return (padding[0], padding[1], padding[2], padding[3],
+            margin[0], margin[1], margin[2], margin[3])
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +132,20 @@ def _resolve_layer(
     # --- Flex layout --------------------------------------------------------
     if layout == "flex":
         _apply_flex(
+            layer,
+            parent_x,
+            parent_y,
+            parent_width,
+            parent_height,
+            canvas_width,
+            canvas_height,
+        )
+        _recurse_children(layer, canvas_width, canvas_height)
+        return
+
+    # --- Grid layout --------------------------------------------------------
+    if layout == "grid":
+        _apply_grid(
             layer,
             parent_x,
             parent_y,
@@ -225,8 +272,12 @@ def _apply_flex(
 ) -> None:
     """
     Resolve flex container dimensions and distribute children along
-    the main and cross axes.
+    the main and cross axes, accounting for padding.
     """
+    padding_top, padding_right, padding_bottom, padding_left, _, _, _, _ = _resolve_spacing(layer)
+    padding_x = padding_left + padding_right
+    padding_y = padding_top + padding_bottom
+
     # Container fills available space by default
     width = _get_dimension(layer, "width", parent_width)
     height = _get_dimension(layer, "height", parent_height)
@@ -240,15 +291,111 @@ def _apply_flex(
     if not children:
         return
 
+    # Available space for children (subtract padding)
+    available_width = max(0, width - padding_x)
+    available_height = max(0, height - padding_y)
+
     direction = layer.get("direction", _DEFAULT_DIRECTION)
     gap = layer.get("gap", _DEFAULT_GAP)
     justify = layer.get("justifyContent", _DEFAULT_JUSTIFY)
     align = layer.get("alignItems", _DEFAULT_ALIGN)
 
     if direction == "row":
-        _distribute_row(children, width, height, gap, justify, align)
+        _distribute_row(children, available_width, available_height, gap, justify, align, padding_left, padding_top)
     else:
-        _distribute_column(children, width, height, gap, justify, align)
+        _distribute_column(children, available_width, available_height, gap, justify, align, padding_left, padding_top)
+
+
+def _apply_grid(
+    layer: dict,
+    parent_x: int,
+    parent_y: int,
+    parent_width: int,
+    parent_height: int,
+    canvas_width: int,
+    canvas_height: int,
+) -> None:
+    """
+    Resolve grid container dimensions and distribute children in a 2D grid.
+    """
+    padding_top, padding_right, padding_bottom, padding_left, _, _, _, _ = _resolve_spacing(layer)
+    padding_x = padding_left + padding_right
+    padding_y = padding_top + padding_bottom
+
+    width = _get_dimension(layer, "width", parent_width)
+    height = _get_dimension(layer, "height", parent_height)
+
+    layer["x"] = parent_x
+    layer["y"] = parent_y
+    layer["width"] = width
+    layer["height"] = height
+
+    children = layer.get("children", [])
+    if not children:
+        return
+
+    available_width = max(0, width - padding_x)
+    available_height = max(0, height - padding_y)
+
+    num_cols = layer.get("gridCols", _DEFAULT_GRID_COLS)
+    num_rows = layer.get("gridRows", _DEFAULT_GRID_ROWS)
+    gap = layer.get("gap", _DEFAULT_GAP)
+    justify = layer.get("justifyContent", _DEFAULT_JUSTIFY)
+    align = layer.get("alignItems", _DEFAULT_ALIGN)
+
+    # Auto-calculate rows if not specified
+    if num_rows == 1 and len(children) > num_cols:
+        num_rows = -(-len(children) // num_cols)  # ceiling division
+
+    # Calculate cell dimensions
+    col_gap_total = gap * (num_cols - 1) if num_cols > 1 else 0
+    row_gap_total = gap * (num_rows - 1) if num_rows > 1 else 0
+    cell_width = (available_width - col_gap_total) / num_cols if num_cols > 0 else available_width
+    cell_height = (available_height - row_gap_total) / num_rows if num_rows > 0 else available_height
+
+    # Position children in grid
+    for i, child in enumerate(children):
+        col = i % num_cols
+        row = i // num_cols
+
+        child_x = padding_left + col * (cell_width + gap)
+        child_y = padding_top + row * (cell_height + gap)
+
+        # Apply justify/align within cell
+        child_w = child.get("width")
+        child_h = child.get("height")
+        if child_w is None:
+            child["width"] = int(cell_width)
+            child_w = cell_width
+        else:
+            child_w = int(child_w)
+
+        if child_h is None:
+            child["height"] = int(cell_height)
+            child_h = cell_height
+        else:
+            child_h = int(child_h)
+
+        # Justify within cell (horizontal)
+        if justify == "center":
+            child_x += (cell_width - child_w) / 2
+        elif justify == "flex-end":
+            child_x += cell_width - child_w
+        elif justify == "space-between" and num_cols > 1:
+            child_x += col * (cell_width - child_w) / (num_cols - 1)
+
+        # Align within cell (vertical)
+        if align == "center":
+            child_y += (cell_height - child_h) / 2
+        elif align == "flex-end":
+            child_y += cell_height - child_h
+        elif align == "stretch":
+            child["height"] = int(cell_height)
+            child_y = padding_top + row * (cell_height + gap)
+
+        child["x"] = int(child_x)
+        child["y"] = int(child_y)
+        child["_flex_positioned"] = True  # reuse flag for grid-positioned
 
 
 # ---------------------------------------------------------------------------
@@ -263,17 +410,19 @@ def _distribute_row(
     gap: int,
     justify: str,
     align: str,
+    padding_x: int = 0,
+    padding_y: int = 0,
 ) -> None:
-    """Distribute children horizontally (main axis = X)."""
+    """Distribute children horizontally (main axis = X), with padding offset."""
     if len(children) == 1:
         _size_single_child(children[0], container_width, container_height, align)
-        children[0]["x"] = 0
-        children[0]["y"] = _align_cross(children[0]["height"], container_height, align)
+        children[0]["x"] = padding_x
+        children[0]["y"] = padding_y + _align_cross(children[0]["height"], container_height, align)
         children[0]["_flex_positioned"] = True
         return
 
     # --- Determine widths ---------------------------------------------------
-    flex_children: list[tuple[int, dict]] = []  # (index, child)
+    flex_children: list[tuple[int, dict]] = []
     fixed_total: int = 0
 
     for i, child in enumerate(children):
@@ -286,17 +435,14 @@ def _distribute_row(
     remaining = max(0, container_width - fixed_total - gap * (len(children) - 1))
     flex_total = sum(_get_flex(child) for _, child in flex_children) or 1
 
-    # Assign widths to flex children
     for _, child in flex_children:
         f = _get_flex(child)
         child["width"] = int(remaining * f / flex_total)
 
-    # Ensure every child has a height
     for child in children:
         if "height" not in child:
             child["height"] = _DEFAULT_LAYER_HEIGHT
 
-    # --- Justify content (main axis) ----------------------------------------
     offsets = _justify_positions(
         sizes=[c["width"] for c in children],
         gap=gap,
@@ -304,10 +450,9 @@ def _distribute_row(
         justify=justify,
     )
 
-    # --- Position children --------------------------------------------------
     for i, child in enumerate(children):
-        child["x"] = offsets[i]
-        child["y"] = _align_cross(child["height"], container_height, align)
+        child["x"] = padding_x + offsets[i]
+        child["y"] = padding_y + _align_cross(child["height"], container_height, align)
         child["_flex_positioned"] = True
 
 
@@ -318,16 +463,17 @@ def _distribute_column(
     gap: int,
     justify: str,
     align: str,
+    padding_x: int = 0,
+    padding_y: int = 0,
 ) -> None:
-    """Distribute children vertically (main axis = Y)."""
+    """Distribute children vertically (main axis = Y), with padding offset."""
     if len(children) == 1:
         _size_single_child(children[0], container_width, container_height, align)
-        children[0]["y"] = 0
-        children[0]["x"] = _align_cross_horizontal(children[0]["width"], container_width, align)
+        children[0]["y"] = padding_y
+        children[0]["x"] = padding_x + _align_cross_horizontal(children[0]["width"], container_width, align)
         children[0]["_flex_positioned"] = True
         return
 
-    # --- Determine heights --------------------------------------------------
     flex_children: list[tuple[int, dict]] = []
     fixed_total: int = 0
 
@@ -360,8 +506,8 @@ def _distribute_column(
 
     # --- Position children --------------------------------------------------
     for i, child in enumerate(children):
-        child["y"] = offsets[i]
-        child["x"] = _align_cross_horizontal(child["width"], container_width, align)
+        child["y"] = padding_y + offsets[i]
+        child["x"] = padding_x + _align_cross_horizontal(child["width"], container_width, align)
         child["_flex_positioned"] = True
 
 

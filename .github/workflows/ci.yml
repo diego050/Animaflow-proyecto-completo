@@ -28,13 +28,19 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - name: Pull postgres image with retries
-        run: |
-          for i in 1 2 3; do
-            docker pull pgvector/pgvector:pg15 && break || echo "Retry $i/3 failed, waiting..." && sleep 10
-          done
-
       - uses: actions/checkout@v4
+
+      - name: Pull pgvector image (with mirror fallback)
+        run: |
+          echo "🔄 Trying Docker Hub..."
+          if docker pull pgvector/pgvector:pg15 2>/dev/null; then
+            echo "✅ Pulled from Docker Hub"
+          else
+            echo "⚠️ Docker Hub failed, trying GitHub mirror..."
+            docker pull mirror.gcr.io/pgvector/pgvector:pg15
+            docker tag mirror.gcr.io/pgvector/pgvector:pg15 pgvector/pgvector:pg15
+            echo "✅ Pulled from GitHub mirror"
+          fi
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5

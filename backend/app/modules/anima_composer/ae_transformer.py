@@ -24,6 +24,296 @@ from app.services.layout_solver import solve_layout
 
 
 # ---------------------------------------------------------------------------
+# LayerStyle → After Effects properties
+# ---------------------------------------------------------------------------
+
+def _style_to_ae(style: dict | None) -> dict:
+    """Convert LayerStyle dict to After Effects JSX properties."""
+    if not style:
+        return {}
+
+    ae_props = {}
+
+    # Borders
+    if style.get("borderWidth"):
+        ae_props["strokeWidth"] = style["borderWidth"]
+    if style.get("borderColor"):
+        ae_props["strokeColor"] = style["borderColor"]
+    if style.get("borderRadius"):
+        ae_props["roundedCorner"] = style["borderRadius"]
+
+    # Effects
+    if style.get("boxShadow"):
+        shadow = style["boxShadow"]
+        ae_props["dropShadow"] = {
+            "x": shadow.get("x", 0),
+            "y": shadow.get("y", 4),
+            "blur": shadow.get("blur", 12),
+            "color": shadow.get("color", "rgba(0,0,0,0.3)"),
+        }
+    if style.get("opacity") is not None:
+        ae_props["opacity"] = style["opacity"] * 100  # AE uses 0-100
+    if style.get("blur"):
+        ae_props["fastBlur"] = style["blur"]
+    if style.get("backdropBlur"):
+        ae_props["compoundBlur"] = style["backdropBlur"]
+
+    # Filters
+    if style.get("brightness"):
+        ae_props["brightness"] = style["brightness"]
+    if style.get("contrast"):
+        ae_props["contrast"] = style["contrast"]
+    if style.get("saturate"):
+        ae_props["saturation"] = style["saturate"]
+    if style.get("grayscale"):
+        ae_props["tint"] = {"blackColor": [128, 128, 128], "whiteColor": [128, 128, 128]}
+    if style.get("hueRotate"):
+        ae_props["hueShift"] = style["hueRotate"]
+    if style.get("invert"):
+        ae_props["invert"] = True
+
+    # Transforms
+    if style.get("rotate"):
+        ae_props["rotation"] = style["rotate"]
+    if style.get("scale"):
+        s = style["scale"]
+        ae_props["scale"] = [s, s] if isinstance(s, (int, float)) else [s[0] * 100, s[1] * 100]
+    if style.get("transformOrigin"):
+        ae_props["anchorPoint"] = style["transformOrigin"]
+
+    # Typography
+    if style.get("lineHeight"):
+        ae_props["leading"] = style["lineHeight"]
+    if style.get("textShadow"):
+        ts = style["textShadow"]
+        ae_props["textDropShadow"] = {
+            "x": ts.get("x", 0),
+            "y": ts.get("y", 0),
+            "blur": ts.get("blur", 4),
+            "color": ts.get("color", "rgba(0,0,0,0.5)"),
+        }
+    if style.get("textDecoration") == "underline":
+        ae_props["underline"] = True
+
+    # Layout
+    if style.get("overflow") == "hidden":
+        ae_props["trackMatte"] = "alpha"
+
+    # Transitions
+    if style.get("transition_duration"):
+        ae_props["transitionDuration"] = style["transition_duration"]
+    if style.get("transition_easing"):
+        easing_map = {
+            "ease-out": "Easy Ease Out",
+            "ease-in-out": "Easy Ease",
+            "spring": "Exponential Scale",
+        }
+        ae_props["transitionEasing"] = easing_map.get(style["transition_easing"], "Linear")
+    if style.get("transition_spring"):
+        ae_props["transitionSpring"] = style["transition_spring"]
+
+    return ae_props
+
+
+# ---------------------------------------------------------------------------
+# Component-specific AE mappings
+# ---------------------------------------------------------------------------
+
+def _component_to_ae(component_name: str, layer: dict) -> str | None:
+    """Generate AE JSX code for specific components."""
+    
+    if component_name == "StyleBarChart":
+        data = layer.get("data", [])
+        variant = layer.get("variant", "vertical")
+        max_val = max((d.get("value", 0) for d in data), default=1)
+        
+        jsx_lines = []
+        if variant == "vertical":
+            for i, bar in enumerate(data):
+                color = bar.get("color", "#00FFAB")
+                height = int((bar["value"] / max_val) * 200)
+                jsx_lines.append(f'// Bar {i}: {bar["label"]} = {bar["value"]}')
+                jsx_lines.append(f'var bar{i} = comp.layers.addShape();')
+                jsx_lines.append(f'bar{i}.name = "Bar_{bar["label"]}";')
+                jsx_lines.append(f'var rect{i} = bar{i}.property("ADBE Vector Shape - Group").setValue(createRectPath(0, 0, 40, {height}));')
+                jsx_lines.append(f'bar{i}.property("ADBE Vector Fill Color").setValue({hex_to_ae_array(color)});')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StylePieChart":
+        data = layer.get("data", [])
+        total = sum(d.get("value", 0) for d in data)
+        
+        jsx_lines = []
+        cumulative = 0
+        for i, slice_data in enumerate(data):
+            color = slice_data.get("color", "#00FFAB")
+            percent = slice_data["value"] / total
+            start_angle = cumulative * 360
+            cumulative += percent
+            end_angle = cumulative * 360
+            jsx_lines.append(f'// Slice {i}: {slice_data["label"]} = {slice_data["value"]}%')
+            jsx_lines.append(f'var slice{i} = comp.layers.addShape();')
+            jsx_lines.append(f'slice{i}.name = "Slice_{slice_data["label"]}";')
+            jsx_lines.append(f'// Ellipse from {start_angle}° to {end_angle}°')
+            jsx_lines.append(f'slice{i}.property("ADBE Vector Fill Color").setValue({hex_to_ae_array(color)});')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleLineChart":
+        data = layer.get("data", [])
+        line_color = layer.get("lineColor", "#00FFAB")
+        
+        jsx_lines = [f'// Line Chart with {len(data)} points']
+        jsx_lines.append(f'var lineLayer = comp.layers.addShape();')
+        jsx_lines.append(f'lineLayer.name = "LineChart";')
+        jsx_lines.append(f'lineLayer.property("ADBE Vector Stroke Color").setValue({hex_to_ae_array(line_color)});')
+        jsx_lines.append(f'lineLayer.property("ADBE Vector Stroke Width").setValue(3);')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleVideoPlayer":
+        src = layer.get("src", "")
+        jsx_lines = [f'// Video Player: {src}']
+        jsx_lines.append(f'var footageItem = app.project.importFileWithSequence(new ImportOptions(new File("{src}")));')
+        jsx_lines.append(f'var videoLayer = comp.layers.add(footageItem);')
+        jsx_lines.append(f'videoLayer.name = "VideoPlayer";')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleWatermark":
+        opacity = layer.get("opacity", 0.3) * 100
+        jsx_lines = [f'// Watermark']
+        jsx_lines.append(f'var wmLayer = comp.layers.addShape();')
+        jsx_lines.append(f'wmLayer.name = "Watermark";')
+        jsx_lines.append(f'wmLayer.property("ADBE Vector Fill Color").setValue([1, 1, 1]);')
+        jsx_lines.append(f'wmLayer.property("ADBE Transform Group").property("ADBE Opacity").setValue({opacity});')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleCallout":
+        text = layer.get("text", "")
+        direction = layer.get("direction", "right")
+        jsx_lines = [f'// Callout: {text}']
+        jsx_lines.append(f'var calloutLayer = comp.layers.addShape();')
+        jsx_lines.append(f'calloutLayer.name = "Callout";')
+        jsx_lines.append(f'var textLayer = comp.layers.addText("{text}");')
+        jsx_lines.append(f'textLayer.name = "CalloutText";')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleAnimateNumber":
+        value = layer.get("value", 100)
+        prefix = layer.get("prefix", "")
+        suffix = layer.get("suffix", "")
+        format_type = layer.get("format", "number")
+        jsx_lines = [f'// Animated Number: {value}']
+        jsx_lines.append(f'var numLayer = comp.layers.addText("{prefix}{value}{suffix}");')
+        jsx_lines.append(f'numLayer.name = "AnimateNumber";')
+        jsx_lines.append(f'// Animate sourceText from 0 to {value} over frames')
+        jsx_lines.append(f'var numProp = numLayer.property("Source Text");')
+        jsx_lines.append(f'numProp.setValueAtTime(0, "{prefix}0{suffix}");')
+        jsx_lines.append(f'numProp.setValueAtTime(2, "{prefix}{value}{suffix}");')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleScrambleText":
+        text = layer.get("text", "ACCESS GRANTED")
+        jsx_lines = [f'// Scramble Text: {text}']
+        jsx_lines.append(f'var scrambleLayer = comp.layers.addText("{text}");')
+        jsx_lines.append(f'scrambleLayer.name = "ScrambleText";')
+        jsx_lines.append(f'// Animate sourceText with scramble effect')
+        jsx_lines.append(f'var scrambleProp = scrambleLayer.property("Source Text");')
+        jsx_lines.append(f'scrambleProp.setValueAtTime(0, {"#" * len(text)});')
+        jsx_lines.append(f'scrambleProp.setValueAtTime(1.5, "{text}");')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleTicker":
+        text = layer.get("text", "Breaking News")
+        jsx_lines = [f'// Ticker: {text}']
+        jsx_lines.append(f'var tickerLayer = comp.layers.addText("{text}");')
+        jsx_lines.append(f'tickerLayer.name = "Ticker";')
+        jsx_lines.append(f'// Animate position from right to left')
+        jsx_lines.append(f'var posProp = tickerLayer.property("Transform").property("Position");')
+        jsx_lines.append(f'posProp.setValueAtTime(0, [1920, 1800]);')
+        jsx_lines.append(f'posProp.setValueAtTime(5, [-1000, 1800]);')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleSimulatedHover":
+        text = layer.get("text", "Button")
+        hover_frame = layer.get("hoverFrame", 60)
+        jsx_lines = [f'// Simulated Hover: {text}']
+        jsx_lines.append(f'var hoverLayer = comp.layers.addShape();')
+        jsx_lines.append(f'hoverLayer.name = "SimulatedHover";')
+        jsx_lines.append(f'var textLayer = comp.layers.addText("{text}");')
+        jsx_lines.append(f'textLayer.name = "HoverText";')
+        jsx_lines.append(f'// Scale animation at frame {hover_frame / 30:.1f}s')
+        jsx_lines.append(f'var scaleProp = hoverLayer.property("Transform").property("Scale");')
+        jsx_lines.append(f'scaleProp.setValueAtTime({hover_frame / 30 - 0.25}, [100, 100]);')
+        jsx_lines.append(f'scaleProp.setValueAtTime({hover_frame / 30}, [105, 105]);')
+        jsx_lines.append(f'scaleProp.setValueAtTime({hover_frame / 30 + 0.25}, [100, 100]);')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleFakeScroll":
+        items = layer.get("items", [])
+        jsx_lines = [f'// Fake Scroll with {len(items)} items']
+        jsx_lines.append(f'var scrollComp = comp.layers.addShape();')
+        jsx_lines.append(f'scrollComp.name = "FakeScroll";')
+        for i, item in enumerate(items):
+            jsx_lines.append(f'var item{i} = comp.layers.addText("{item.get("content", "")}");')
+            jsx_lines.append(f'item{i}.name = "ScrollItem_{i}";')
+            jsx_lines.append(f'// Position keyframes for scroll animation')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleCursor":
+        points = layer.get("points", [])
+        jsx_lines = [f'// Cursor with {len(points)} points']
+        jsx_lines.append(f'var cursorLayer = comp.layers.addShape();')
+        jsx_lines.append(f'cursorLayer.name = "Cursor";')
+        jsx_lines.append(f'var posProp = cursorLayer.property("Transform").property("Position");')
+        for i, point in enumerate(points):
+            jsx_lines.append(f'posProp.setValueAtTime({i * 1}, [{point.get("x", 0)}, {point.get("y", 0)}]);')
+            if point.get("click"):
+                jsx_lines.append(f'// Click animation at point {i}')
+                jsx_lines.append(f'var scaleProp = cursorLayer.property("Transform").property("Scale");')
+                jsx_lines.append(f'scaleProp.setValueAtTime({i * 1}, [100, 100]);')
+                jsx_lines.append(f'scaleProp.setValueAtTime({i * 1 + 0.15}, [70, 70]);')
+                jsx_lines.append(f'scaleProp.setValueAtTime({i * 1 + 0.3}, [100, 100]);')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleBarRace":
+        data = layer.get("data", [])
+        jsx_lines = [f'// Bar Race with {len(data)} items']
+        for i, bar in enumerate(data):
+            color = bar.get("color", "#00FFAB")
+            width = int((bar["value"] / max((d.get("value", 1) for d in data), default=1)) * 400)
+            jsx_lines.append(f'var bar{i} = comp.layers.addShape();')
+            jsx_lines.append(f'bar{i}.name = "BarRace_{bar["label"]}";')
+            jsx_lines.append(f'var rect{i} = bar{i}.property("ADBE Vector Shape - Group").setValue(createRectPath(0, 0, {width}, 32));')
+            jsx_lines.append(f'bar{i}.property("ADBE Vector Fill Color").setValue({hex_to_ae_array(color)});')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleFunnelChart":
+        data = layer.get("data", [])
+        max_val = data[0].get("value", 1) if data else 1
+        jsx_lines = [f'// Funnel Chart with {len(data)} stages']
+        for i, stage in enumerate(data):
+            color = stage.get("color", "#00FFAB")
+            width_pct = stage["value"] / max_val
+            jsx_lines.append(f'var funnel{i} = comp.layers.addShape();')
+            jsx_lines.append(f'funnel{i}.name = "Funnel_{stage["label"]}";')
+            jsx_lines.append(f'// Width: {width_pct * 100:.0f}% of max')
+            jsx_lines.append(f'funnel{i}.property("ADBE Vector Fill Color").setValue({hex_to_ae_array(color)});')
+        return "\n".join(jsx_lines)
+    
+    if component_name == "StyleRadarChart":
+        data = layer.get("data", [])
+        line_color = layer.get("lineColor", "#00FFAB")
+        jsx_lines = [f'// Radar Chart with {len(data)} axes']
+        jsx_lines.append(f'var radarLayer = comp.layers.addShape();')
+        jsx_lines.append(f'radarLayer.name = "RadarChart";')
+        jsx_lines.append(f'radarLayer.property("ADBE Vector Stroke Color").setValue({hex_to_ae_array(line_color)});')
+        jsx_lines.append(f'radarLayer.property("ADBE Vector Fill Color").setValue([0, 1, 0.67, 0.15]);')
+        jsx_lines.append(f'// {len(data)} axes with values: {", ".join(d["label"] + ":" + str(d["value"]) for d in data)}')
+        return "\n".join(jsx_lines)
+    
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Resolucion de valores animados
 # ---------------------------------------------------------------------------
 
@@ -166,6 +456,10 @@ def generate_ae_layer(
     lines: list[str] = []
     layer_type = layer.get("type", "")
     lid = layer.get("id", f"Layer_{index}")
+
+    # Extract style and convert to AE props
+    layer_style = layer.get("style", {})
+    ae_style_props = _style_to_ae(layer_style)
 
     # --- Rectangulo --------------------------------------------------------
     if layer_type == "rect":

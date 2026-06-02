@@ -68,6 +68,29 @@ import { SplitText } from './components/SplitText';
 import { StockCandlestick } from './components/StockCandlestick';
 import { StrikethroughText } from './components/StrikethroughText';
 import { SubscribeButton } from './components/SubscribeButton';
+import { StyleAnimateNumber } from './components/StyleAnimateNumber';
+import { StyleAvatar } from './components/StyleAvatar';
+import { StyleBarChart } from './components/StyleBarChart';
+import { StyleBarRace } from './components/StyleBarRace';
+import { StyleBadge } from './components/StyleBadge';
+import { StyleButton } from './components/StyleButton';
+import { StyleCallout } from './components/StyleCallout';
+import { StyleCard } from './components/StyleCard';
+import { StyleChip } from './components/StyleChip';
+import { StyleCursor } from './components/StyleCursor';
+import { StyleDivider } from './components/StyleDivider';
+import { StyleFakeScroll } from './components/StyleFakeScroll';
+import { StyleFunnelChart } from './components/StyleFunnelChart';
+import { StyleLineChart } from './components/StyleLineChart';
+import { StylePieChart } from './components/StylePieChart';
+import { StyleProgressBar } from './components/StyleProgressBar';
+import { StyleRadarChart } from './components/StyleRadarChart';
+import { StyleScrambleText } from './components/StyleScrambleText';
+import { StyleSimulatedHover } from './components/StyleSimulatedHover';
+import { StyleTextBlock } from './components/StyleTextBlock';
+import { StyleTicker } from './components/StyleTicker';
+import { StyleVideoPlayer } from './components/StyleVideoPlayer';
+import { StyleWatermark } from './components/StyleWatermark';
 import { TerminalHacker } from './components/TerminalHacker';
 import { TestimonialReview } from './components/TestimonialReview';
 import { TextBubble } from './components/TextBubble';
@@ -156,6 +179,29 @@ export const COMPONENT_NAMES = [
   'StockCandlestick',
   'StrikethroughText',
   'SubscribeButton',
+  'StyleAnimateNumber',
+  'StyleAvatar',
+  'StyleBarChart',
+  'StyleBarRace',
+  'StyleBadge',
+  'StyleButton',
+  'StyleCallout',
+  'StyleCard',
+  'StyleChip',
+  'StyleCursor',
+  'StyleDivider',
+  'StyleFakeScroll',
+  'StyleFunnelChart',
+  'StyleLineChart',
+  'StylePieChart',
+  'StyleProgressBar',
+  'StyleRadarChart',
+  'StyleScrambleText',
+  'StyleSimulatedHover',
+  'StyleTextBlock',
+  'StyleTicker',
+  'StyleVideoPlayer',
+  'StyleWatermark',
   'TerminalHacker',
   'TestimonialReview',
   'TextBubble',
@@ -245,6 +291,29 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   StockCandlestick,
   StrikethroughText,
   SubscribeButton,
+  StyleAnimateNumber,
+  StyleAvatar,
+  StyleBarChart,
+  StyleBarRace,
+  StyleBadge,
+  StyleButton,
+  StyleCallout,
+  StyleCard,
+  StyleChip,
+  StyleCursor,
+  StyleDivider,
+  StyleFakeScroll,
+  StyleFunnelChart,
+  StyleLineChart,
+  StylePieChart,
+  StyleProgressBar,
+  StyleRadarChart,
+  StyleScrambleText,
+  StyleSimulatedHover,
+  StyleTextBlock,
+  StyleTicker,
+  StyleVideoPlayer,
+  StyleWatermark,
   TerminalHacker,
   TestimonialReview,
   TextBubble,
@@ -262,3 +331,89 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   YouTubeEndScreen,
   ZoomBlurTransition,
 };
+
+// ---------------------------------------------------------------------------
+// Component Aliases (Deprecated → Style* equivalents)
+// These are kept for backward compatibility. New scenes should use Style* components.
+// ---------------------------------------------------------------------------
+
+export const COMPONENT_ALIASES: Record<string, string> = {
+  // Charts
+  'BarChartReveal': 'StyleBarChart',
+  'PieChartReveal': 'StylePieChart',
+  'FunnelChart': 'StyleFunnelChart',
+  'HorizontalBarRace': 'StyleBarRace',
+  'RadarSpiderChart': 'StyleRadarChart',
+
+  // Counters
+  'CounterNumber': 'StyleAnimateNumber',
+  'PercentageRing': 'StyleProgressBar',
+  'ScoreboardCounter': 'StyleAnimateNumber',
+  'FollowerCounter': 'StyleAnimateNumber',
+  'FlashSaleTimer': 'StyleAnimateNumber',
+  'CountdownTimer': 'StyleAnimateNumber',
+
+  // Text
+  'BreakingNewsTicker': 'StyleTicker',
+  'TextReveal': 'StyleTextBlock',
+  'Typewriter': 'StyleTextBlock',
+  'TextSwap': 'StyleTextBlock',
+  'SplitText': 'StyleTextBlock',
+  'GlitchTitle': 'StyleScrambleText',
+  'StrikethroughText': 'StyleTextBlock',
+  'UnderlineReveal': 'StyleTextBlock',
+  'HighlightText': 'StyleTextBlock',
+
+  // Buttons/CTAs
+  'SubscribeButton': 'StyleButton',
+  'AppStoreButtons': 'StyleButton',
+  'PromoCodeBanner': 'StyleCard',
+
+  // UI
+  'NotificationToast': 'StyleBadge',
+  'MessageBubble': 'StyleCard',
+  'TextBubble': 'StyleCard',
+  'FloatingBadge': 'StyleBadge',
+  'ProgressPill': 'StyleProgressBar',
+  'LoadingSpinner': 'StyleProgressBar',
+
+  // Social
+  'SocialProgressBar': 'StyleProgressBar',
+  'SocialSharePopup': 'StyleCard',
+  'ShoppingCartBadge': 'StyleBadge',
+  'SizeSelector': 'StyleChip',
+
+  // Cards
+  'PodcastGuestCard': 'StyleCard',
+  'TestimonialReview': 'StyleCard',
+  'PricingTableReveal': 'StyleCard',
+  'ProductCardReveal': 'StyleCard',
+  'CalendarDatePop': 'StyleCard',
+  'MediaFrame': 'StyleCard',
+
+  // Misc
+  'AnimatedShape': 'StyleDivider',
+  'AnimatedIcon': 'IconifyIcon',
+  'AnimatedArrow': 'StyleCallout',
+  'AnimatedLine': 'StyleDivider',
+  'VersusScreen': 'StyleCard',
+  'APIRequestFlow': 'StyleCard',
+  'CodeBlockHighlight': 'StyleCard',
+  'BrowserWindow': 'StyleCard',
+  'PhoneMockup': 'StyleCard',
+  'MusicPlayerUI': 'StyleCard',
+  'TerminalHacker': 'StyleCard',
+  'TinderSwipeCard': 'StyleCard',
+  'TweetCard': 'StyleCard',
+  'InstagramPost': 'StyleCard',
+  'TikTokOverlay': 'StyleCard',
+  'YouTubeEndScreen': 'StyleCard',
+};
+
+/**
+ * Resolve a component name, following aliases to their Style* equivalent.
+ * Returns the resolved component name.
+ */
+export function resolveComponentAlias(name: string): string {
+  return COMPONENT_ALIASES[name] ?? name;
+}

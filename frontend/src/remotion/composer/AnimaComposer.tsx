@@ -21,7 +21,7 @@ import { AnimaImage } from '../primitives/AnimaImage';
 import { AnimaGroup } from '../primitives/AnimaGroup';
 import { AnimaParticles } from '../primitives/AnimaParticles';
 import { AnimaGradient } from '../primitives/AnimaGradient';
-import { COMPONENT_REGISTRY } from '../registry';
+import { COMPONENT_REGISTRY, resolveComponentAlias } from '../registry';
 import { AnimatedWrapper } from '../AnimatedWrapper';
 import type { EntryType, ExitType } from '../AnimatedWrapper';
 import { solveLayout } from '../utils/layoutSolver';
@@ -113,6 +113,14 @@ export interface LayerSpec {
   flex?: number;
   zIndex?: number;
 
+  // --- Grid Layout ---
+  gridCols?: number;
+  gridRows?: number;
+  gridTemplateColumns?: string;
+  gridTemplateRows?: string;
+  gridColumn?: string;
+  gridRow?: string;
+
   // --- Absolute Positioning (for overlays) ---
   position?: 'relative' | 'absolute';
   top?: number;
@@ -123,6 +131,14 @@ export interface LayerSpec {
   // --- Animation Timing Overrides ---
   stagger?: number; // Delay between children animations (seconds)
   exitStart?: number; // Time in seconds when exit animation starts
+
+  // --- Layout Transitions ---
+  transitionDuration?: number;
+  transitionEasing?: 'ease-out' | 'ease-in-out' | 'spring';
+  transitionSpring?: string;
+
+  // --- LayerStyle ---
+  style?: Record<string, unknown>;
 }
 
 export interface AnimaComposerProps {
@@ -186,6 +202,132 @@ const FilterWrapper: React.FC<{
 };
 
 // ---------------------------------------------------------------------------
+// LayerStyle → CSS converter
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert LayerStyle object to CSS properties for inline styling.
+ */
+function layerStyleToCSS(style: Record<string, unknown> | undefined): React.CSSProperties {
+  if (!style) return {};
+
+  const css: React.CSSProperties = {};
+
+  // Spacing
+  if (style.padding !== undefined) {
+    const p = style.padding;
+    css.padding = typeof p === 'number' ? `${p}px` : Array.isArray(p) ? p.map(v => `${v}px`).join(' ') : `${p}px`;
+  }
+  if (style.margin !== undefined) {
+    const m = style.margin;
+    css.margin = typeof m === 'number' ? `${m}px` : Array.isArray(m) ? m.map(v => `${m}px`).join(' ') : `${m}px`;
+  }
+
+  // Borders
+  if (style.borderWidth !== undefined || style.borderColor !== undefined || style.borderStyle !== undefined) {
+    css.borderWidth = style.borderWidth !== undefined ? `${style.borderWidth}px` : css.borderWidth;
+    css.borderColor = (style.borderColor as string) ?? css.borderColor;
+    css.borderStyle = (style.borderStyle as React.CSSProperties['borderStyle']) ?? css.borderStyle;
+  }
+  if (style.borderRadius !== undefined) {
+    css.borderRadius = `${style.borderRadius}px`;
+  }
+
+  // Effects
+  if (style.boxShadow !== undefined) {
+    const s = style.boxShadow as Record<string, unknown>;
+    css.boxShadow = `${s.x || 0}px ${s.y || 4}px ${s.blur || 12}px ${s.spread || 0}px ${s.color || 'rgba(0,0,0,0.3)'}`;
+  }
+  if (style.opacity !== undefined) {
+    css.opacity = style.opacity as number;
+  }
+  if (style.blur !== undefined) {
+    css.filter = `blur(${style.blur}px)`;
+  }
+  if (style.backdropBlur !== undefined) {
+    css.backdropFilter = `blur(${style.backdropBlur}px)`;
+    css.WebkitBackdropFilter = `blur(${style.backdropBlur}px)`;
+  }
+
+  // Filters (combine into single filter string)
+  const filters: string[] = [];
+  if (style.brightness !== undefined) filters.push(`brightness(${style.brightness})`);
+  if (style.contrast !== undefined) filters.push(`contrast(${style.contrast})`);
+  if (style.saturate !== undefined) filters.push(`saturate(${style.saturate})`);
+  if (style.grayscale === true) filters.push('grayscale(1)');
+  if (style.hueRotate !== undefined) filters.push(`hue-rotate(${style.hueRotate}deg)`);
+  if (style.invert === true) filters.push('invert(1)');
+  if (filters.length > 0) {
+    css.filter = (css.filter ? `${css.filter} ` : '') + filters.join(' ');
+  }
+
+  // Transforms (static)
+  if (style.rotate !== undefined || style.scale !== undefined) {
+    const transforms: string[] = [];
+    if (style.rotate !== undefined) transforms.push(`rotate(${style.rotate}deg)`);
+    if (style.scale !== undefined) {
+      const sc = style.scale;
+      transforms.push(typeof sc === 'number' ? `scale(${sc})` : `scale(${(sc as [number, number])[0]}, ${(sc as [number, number])[1]})`);
+    }
+    css.transform = transforms.join(' ');
+  }
+  if (style.transformOrigin !== undefined) {
+    css.transformOrigin = style.transformOrigin as string;
+  }
+
+  // Typography
+  if (style.lineHeight !== undefined) {
+    css.lineHeight = style.lineHeight as number;
+  }
+  if (style.textShadow !== undefined) {
+    const s = style.textShadow as Record<string, unknown>;
+    css.textShadow = `${s.x || 0}px ${s.y || 0}px ${s.blur || 4}px ${s.color || 'rgba(0,0,0,0.5)'}`;
+  }
+  if (style.textDecoration !== undefined) {
+    css.textDecoration = style.textDecoration as React.CSSProperties['textDecoration'];
+  }
+
+  // Background
+  if (style.backgroundImage !== undefined) {
+    css.backgroundImage = (style.backgroundImage as string).startsWith('url') ? style.backgroundImage as string : `url(${style.backgroundImage})`;
+  }
+  if (style.backgroundSize !== undefined) {
+    css.backgroundSize = style.backgroundSize as React.CSSProperties['backgroundSize'];
+  }
+  if (style.backgroundPosition !== undefined) {
+    css.backgroundPosition = style.backgroundPosition as string;
+  }
+  if (style.backgroundOpacity !== undefined) {
+    (css as Record<string, unknown>).backgroundOpacity = style.backgroundOpacity as number;
+  }
+
+  // Layout
+  if (style.overflow !== undefined) {
+    css.overflow = style.overflow as React.CSSProperties['overflow'];
+  }
+  if (style.aspectRatio !== undefined) {
+    css.aspectRatio = style.aspectRatio as string;
+  }
+  if (style.objectFit !== undefined) {
+    css.objectFit = style.objectFit as React.CSSProperties['objectFit'];
+  }
+  if (style.flexWrap !== undefined) {
+    css.flexWrap = style.flexWrap as React.CSSProperties['flexWrap'];
+  }
+  if (style.flexGrow !== undefined) {
+    css.flexGrow = style.flexGrow as number;
+  }
+  if (style.flexShrink !== undefined) {
+    css.flexShrink = style.flexShrink as number;
+  }
+  if (style.order !== undefined) {
+    css.order = style.order as number;
+  }
+
+  return css;
+}
+
+// ---------------------------------------------------------------------------
 // Renderizador de layers
 // ---------------------------------------------------------------------------
 
@@ -247,6 +389,16 @@ function renderSingleLayer(
         </AnimatedWrapper>
       );
 
+      // Apply LayerStyle
+      const styleCSS = layerStyleToCSS(layer.style as Record<string, unknown> | undefined);
+      if (Object.keys(styleCSS).length > 0) {
+        element = (
+          <div style={{ position: 'absolute', left: 0, top: 0, ...styleCSS }}>
+            {element}
+          </div>
+        );
+      }
+
       // Envolver con filter si está definido
       element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
@@ -292,6 +444,16 @@ function renderSingleLayer(
         </AnimatedWrapper>
       );
 
+      // Apply LayerStyle
+      const circleStyleCSS = layerStyleToCSS(layer.style as Record<string, unknown> | undefined);
+      if (Object.keys(circleStyleCSS).length > 0) {
+        element = (
+          <div style={{ position: 'absolute', left: 0, top: 0, ...circleStyleCSS }}>
+            {element}
+          </div>
+        );
+      }
+
       element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
@@ -335,6 +497,16 @@ function renderSingleLayer(
         </AnimatedWrapper>
       );
 
+      // Apply LayerStyle
+      const pathStyleCSS = layerStyleToCSS(layer.style as Record<string, unknown> | undefined);
+      if (Object.keys(pathStyleCSS).length > 0) {
+        element = (
+          <div style={{ position: 'absolute', left: 0, top: 0, ...pathStyleCSS }}>
+            {element}
+          </div>
+        );
+      }
+
       element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
@@ -372,6 +544,16 @@ function renderSingleLayer(
           {element}
         </AnimatedWrapper>
       );
+
+      // Apply LayerStyle
+      const textStyleCSS = layerStyleToCSS(layer.style as Record<string, unknown> | undefined);
+      if (Object.keys(textStyleCSS).length > 0) {
+        element = (
+          <div style={{ position: 'absolute', left: 0, top: 0, ...textStyleCSS }}>
+            {element}
+          </div>
+        );
+      }
 
       element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
@@ -417,6 +599,16 @@ function renderSingleLayer(
         </AnimatedWrapper>
       );
 
+      // Apply LayerStyle
+      const imageStyleCSS = layerStyleToCSS(layer.style as Record<string, unknown> | undefined);
+      if (Object.keys(imageStyleCSS).length > 0) {
+        element = (
+          <div style={{ position: 'absolute', left: 0, top: 0, ...imageStyleCSS }}>
+            {element}
+          </div>
+        );
+      }
+
       element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
@@ -428,8 +620,29 @@ function renderSingleLayer(
     case 'group': {
       const children = (layer.children ?? []) as SolvedLayer[];
 
-      // If this is a flex group, render children with absolute positions
-      if ((layer.layout as string | undefined) === 'flex') {
+      // If this is a grid group, render children with CSS grid
+      if ((layer.layout as string | undefined) === 'grid') {
+        const numCols = (layer.gridCols as number) ?? 2;
+        const gap = (layer.gap as number) ?? 0;
+        element = (
+          <div
+            style={{
+              position: 'absolute',
+              left: layer.x as number | undefined,
+              top: layer.y as number | undefined,
+              width: layer.width as number | undefined,
+              height: layer.height as number | undefined,
+              display: 'grid',
+              gridTemplateColumns: `repeat(${numCols}, 1fr)`,
+              gap: `${gap}px`,
+              zIndex: (layer.zIndex as number | undefined) || 0,
+              ...layerStyleToCSS(layer.style as Record<string, unknown> | undefined),
+            }}
+          >
+            {renderLayerList(children, ctx)}
+          </div>
+        );
+      } else if ((layer.layout as string | undefined) === 'flex') {
         element = (
           <div
             style={{
@@ -444,6 +657,7 @@ function renderSingleLayer(
               alignItems: (layer.alignItems as React.CSSProperties['alignItems']) || 'flex-start',
               gap: (layer.gap as number | undefined) || 0,
               zIndex: (layer.zIndex as number | undefined) || 0,
+              ...layerStyleToCSS(layer.style as Record<string, unknown> | undefined),
             }}
           >
             {renderLayerList(children, ctx)}
@@ -476,6 +690,18 @@ function renderSingleLayer(
           {element}
         </AnimatedWrapper>
       );
+
+      // Apply LayerStyle for non-flex/grid groups (flex/grid already applied above)
+      if ((layer.layout as string | undefined) !== 'flex' && (layer.layout as string | undefined) !== 'grid') {
+        const groupStyleCSS = layerStyleToCSS(layer.style as Record<string, unknown> | undefined);
+        if (Object.keys(groupStyleCSS).length > 0) {
+          element = (
+            <div style={{ position: 'absolute', left: 0, top: 0, ...groupStyleCSS }}>
+              {element}
+            </div>
+          );
+        }
+      }
 
       element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
@@ -513,6 +739,16 @@ function renderSingleLayer(
         </AnimatedWrapper>
       );
 
+      // Apply LayerStyle
+      const particlesStyleCSS = layerStyleToCSS(layer.style as Record<string, unknown> | undefined);
+      if (Object.keys(particlesStyleCSS).length > 0) {
+        element = (
+          <div style={{ position: 'absolute', left: 0, top: 0, ...particlesStyleCSS }}>
+            {element}
+          </div>
+        );
+      }
+
       element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
       return <React.Fragment key={key}>{element}</React.Fragment>;
@@ -528,9 +764,10 @@ function renderSingleLayer(
         return null;
       }
       
-      const ComponentToRender = COMPONENT_REGISTRY[componentName];
+      const resolvedName = resolveComponentAlias(componentName);
+      const ComponentToRender = COMPONENT_REGISTRY[resolvedName];
       if (!ComponentToRender) {
-        console.warn(`[AnimaComposer] Component "${componentName}" not found in registry.`);
+        console.warn(`[AnimaComposer] Component "${componentName}" (resolved: "${resolvedName}") not found in registry.`);
         return null;
       }
 
@@ -562,6 +799,16 @@ function renderSingleLayer(
           {element}
         </AnimatedWrapper>
       );
+
+      // Apply LayerStyle
+      const componentStyleCSS = layerStyleToCSS(layer.style as Record<string, unknown> | undefined);
+      if (Object.keys(componentStyleCSS).length > 0) {
+        element = (
+          <div style={{ position: 'absolute', left: 0, top: 0, ...componentStyleCSS }}>
+            {element}
+          </div>
+        );
+      }
 
       element = <FilterWrapper filter={layer.filter as string | null | undefined}>{element}</FilterWrapper>;
 
