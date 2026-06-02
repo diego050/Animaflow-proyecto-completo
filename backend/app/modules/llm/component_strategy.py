@@ -267,7 +267,9 @@ REGLA CRÍTICA DE ÍCONOS:
 - SOLO selecciona íconos que representen LITERALMENTE el sujeto del texto de la escena.
 - Si el texto habla de "gatos", usa un ícono de gato. Si habla de "dinero", usa un ícono de dinero.
 - NO uses íconos abstractos, de "ambiente" o "atmósfera".
-- Máximo 1 ícono por escena. Si ningún ícono es relevante para el sujeto del texto, NO incluyas ningún ícono.
+- Usa tantos íconos como la escena necesite. Si el texto menciona múltiples conceptos, usa un ícono para cada uno.
+- Si ningún ícono es relevante para el sujeto del texto, NO incluyas ningún ícono.
+- Los íconos pueden ser decorativos, funcionales (dentro de botones/badges), o representativos del contenido.
 - Usa type: "component", componentName: "IconifyIcon", icon: "nombre_exacto"
 
 Ejemplo correcto (texto sobre gatos): {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:cat", "size": 120, "color": "#ffffff", "x": 0, "y": -200}}
@@ -426,7 +428,112 @@ DESCRIPCION VISUAL: "{media_query}"
 {timing_context}
 PASO 1 - IDENTIFICA EL SUJETO: Lee el texto y la descripción visual. ¿Cuál es el objeto/sujeto/tema principal de esta escena? (ej: un perro, una manzana, el dinero, un corazón, un planeta, etc.)
 
-PASO 2 - SELECCIONA COMPONENTES: Elige 2-4 componentes de la lista disponible que mejor representen visualmente el sujeto y el mensaje de la escena. Combina componentes de diferentes roles (background + text + decorative/ui) para crear una composición rica y profesional.
+PASO 2 - COMPOSICIÓN LIBRE: Selecciona TODOS los componentes necesarios para representar visualmente el sujeto y el mensaje de la escena. NO hay límite de componentes. Puedes usar 1 componente o 15 — lo que la escena necesite.
+
+Ejemplos de composiciones válidas:
+- Simple: 1 background + 1 texto (escena minimalista)
+- Media: 1 background + 2 botones + 1 texto arriba + 1 badge (CTA con contexto)
+- Compleja: 1 background + 3 cards en grid + 2 badges + 1 texto título + 1 ícono decorativo (comparativa)
+- Rica: 1 background + 1 gráfico + 2 textos + 1 progress bar + 2 íconos + 1 watermark (data-driven)
+
+REGLA: Usa grupos flex/grid para organizar múltiples elementos. Cada componente debe tener un propósito claro en la escena.
+
+EJEMPLOS DE COMPOSICIONES COMPLEJAS:
+
+Ejemplo A - Escena con múltiples botones y texto:
+{
+  "background": {"type": "gradient", "colors": ["#0f172a", "#1e293b"]},
+  "layers": [
+    {
+      "type": "group",
+      "layout": "flex",
+      "direction": "column",
+      "alignItems": "center",
+      "gap": 30,
+      "children": [
+        {"type": "text", "text": "Elige tu plan", "fontSize": 48, "fontWeight": 900},
+        {
+          "type": "group",
+          "layout": "flex",
+          "direction": "row",
+          "gap": 20,
+          "children": [
+            {"type": "component", "componentName": "StyleButton", "text": "Básico", "variant": "outline"},
+            {"type": "component", "componentName": "StyleButton", "text": "Pro", "variant": "primary"},
+            {"type": "component", "componentName": "StyleButton", "text": "Enterprise", "variant": "outline"}
+          ]
+        },
+        {"type": "component", "componentName": "StyleBadge", "text": "Ahorra 50%", "variant": "success"}
+      ]
+    }
+  ]
+}
+
+Ejemplo B - Escena con cards, badges e íconos:
+{
+  "background": {"type": "gradient", "colors": ["#0f172a", "#1e293b"]},
+  "layers": [
+    {
+      "type": "group",
+      "layout": "grid",
+      "gridCols": 2,
+      "gap": 24,
+      "children": [
+        {
+          "type": "group",
+          "layout": "flex",
+          "direction": "column",
+          "gap": 12,
+          "children": [
+            {"type": "component", "componentName": "IconifyIcon", "icon": "mdi:rocket-launch", "size": 48},
+            {"type": "component", "componentName": "StyleCard", "title": "Rápido", "subtitle": "Deploy en segundos"},
+            {"type": "component", "componentName": "StyleBadge", "text": "NEW", "variant": "info"}
+          ]
+        },
+        {
+          "type": "group",
+          "layout": "flex",
+          "direction": "column",
+          "gap": 12,
+          "children": [
+            {"type": "component", "componentName": "IconifyIcon", "icon": "mdi:shield-check", "size": 48},
+            {"type": "component", "componentName": "StyleCard", "title": "Seguro", "subtitle": "SSL incluido"},
+            {"type": "component", "componentName": "StyleBadge", "text": "POPULAR", "variant": "warning"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+Ejemplo C - Escena data-driven con múltiples elementos:
+{
+  "background": {"type": "gradient", "colors": ["#0f172a", "#1e293b"]},
+  "layers": [
+    {
+      "type": "group",
+      "layout": "flex",
+      "direction": "column",
+      "alignItems": "center",
+      "gap": 20,
+      "children": [
+        {"type": "text", "text": "Resultados del trimestre", "fontSize": 42, "fontWeight": 900},
+        {"type": "component", "componentName": "StyleBarChart", "data": [{"label": "Q1", "value": 65}, {"label": "Q2", "value": 80}, {"label": "Q3", "value": 95}]},
+        {
+          "type": "group",
+          "layout": "flex",
+          "direction": "row",
+          "gap": 16,
+          "children": [
+            {"type": "component", "componentName": "StyleAnimateNumber", "value": 95, "suffix": "%", "prefix": "+"},
+            {"type": "component", "componentName": "StyleAnimateNumber", "value": 2400, "prefix": "$", "format": "compact"},
+            {"type": "component", "componentName": "StyleProgressBar", "value": 73, "showLabel": true}
+          ]
+        }
+      ]
+    }
+  ]
+}
 
 REGLA CRÍTICA: SOLO usa type: "component" para elementos visuales y type: "text" para el texto hablado. NO uses type: "path", "rect", "circle". Esos tipos están PROHIBIDOS.
 
@@ -885,12 +992,16 @@ These are the primary components the LLM should use for most scenes. They suppor
 - SocialSharePopup: `platform`, `count` — Social share popup
 
 ## Component Selection Rules
-1. **Prefer Style* components** for generic UI (buttons, cards, badges, charts) — they support full LayerStyle overrides
-2. **Use specialized components** when the scene matches their specific use case (e.g., TikTokOverlay for TikTok videos, StockCandlestick for finance)
-3. **Use Text Effects** for animated text (Typewriter, GlitchTitle, TextReveal)
-4. **Use Transitions** for scene-to-scene transitions (GlitchTransition, WipeTransition)
-5. **Use Backgrounds & VFX** for visual atmosphere (KineticBackground, FloatingBlobs, ParticleField)
-6. **Combine components** using layout groups (flex/grid) for complex scenes
+1. **NO HAY LÍMITE DE COMPONENTES** — Usa tantos como la escena necesite. Una escena puede tener 1 elemento o 20+.
+2. **Prefer Style* components** for generic UI (buttons, cards, badges, charts) — they support full LayerStyle overrides
+3. **Use specialized components** when the scene matches their specific use case (e.g., TikTokOverlay for TikTok videos, StockCandlestick for finance)
+4. **Use Text Effects** for animated text (Typewriter, GlitchTitle, TextReveal)
+5. **Use Transitions** for scene-to-scene transitions (GlitchTransition, WipeTransition)
+6. **Use Backgrounds & VFX** for visual atmosphere (KineticBackground, FloatingBlobs, ParticleField)
+7. **Combine components** using layout groups (flex/grid) for complex scenes
+8. **Íconos libres** — Usa IconifyIcon para representar conceptos visuales. Múltiples íconos por escena están permitidos.
+9. **Jerarquía visual** — Usa zIndex, tamaños y posición para crear jerarquía. El elemento más importante debe ser el más prominente.
+10. **No sobre-cargar** — Aunque no hay límite, cada componente debe tener un propósito. Evita elementos decorativos sin función.
 
 ## Improved Spring Physics
 
