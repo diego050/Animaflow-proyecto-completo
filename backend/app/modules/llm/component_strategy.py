@@ -734,7 +734,7 @@ Simulates scrolling through a list of items.
 ### StyleCursor
 Animated cursor that moves between points and simulates clicks.
 - `componentName`: "StyleCursor"
-- `points`: [{ {{ x, y, click: boolean, holdFrames: number }} }]
+- `points`: [{ x, y, click (boolean), holdFrames (number) }]
 - `speed`: Movement speed
 - `showRipple`: boolean — Show click ripple effect
 - Use for: Tutorials, demos, showing user interactions
