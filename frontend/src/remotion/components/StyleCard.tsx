@@ -59,7 +59,7 @@ export const StyleCard: React.FC<StyleCardProps> = ({
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
   const customWidth = style?.width ? `${style.width}px` : `${width}px`;
   const customHeight = height ? `${height}px` : (style?.height ? `${style.height}px` : 'auto');
-  const customBackdropBlur = style?.backdropBlur ? `blur(${style.backdropBlur}px)` : (v as Record<string, unknown>).backdropBlur;
+  const customBackdropBlur = style?.backdropBlur ? `blur(${style.backdropBlur}px)` : ((v as Record<string, unknown>).backdropBlur as string | undefined);
 
   return (
     <div
