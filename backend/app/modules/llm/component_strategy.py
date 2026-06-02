@@ -655,7 +655,7 @@ A video embed for picture-in-picture and media.
 ### StyleBarChart
 An animated bar chart for data visualization.
 - `componentName`: "StyleBarChart"
-- `data`: [{ label, value, color }]
+- `data`: [{ {{ label, value, color }} }]
 - `variant`: "vertical" | "horizontal"
 - `showLabels`: boolean
 - `showValues`: boolean
@@ -664,7 +664,7 @@ An animated bar chart for data visualization.
 ### StyleLineChart
 An animated line chart with dots and grid.
 - `componentName`: "StyleLineChart"
-- `data`: [{ x, y }]
+- `data`: [{ {{ x, y }} }]
 - `showDots`: boolean
 - `showGrid`: boolean
 - `showLabels`: boolean
@@ -675,7 +675,7 @@ An animated line chart with dots and grid.
 ### StylePieChart
 An animated pie/donut chart.
 - `componentName`: "StylePieChart"
-- `data`: [{ label, value, color }]
+- `data`: [{ {{ label, value, color }} }]
 - `variant`: "pie" | "donut"
 - `showLabels`: boolean
 - `showValues`: boolean
@@ -724,7 +724,7 @@ Simulates a hover state at a specific frame.
 ### StyleFakeScroll
 Simulates scrolling through a list of items.
 - `componentName`: "StyleFakeScroll"
-- `items`: [{ content, subtitle, icon }]
+- `items`: [{ {{ content, subtitle, icon }} }]
 - `speed`: Pixels per frame
 - `itemHeight`: Height of each item
 - `visibleItems`: Number of visible items
@@ -734,7 +734,7 @@ Simulates scrolling through a list of items.
 ### StyleCursor
 Animated cursor that moves between points and simulates clicks.
 - `componentName`: "StyleCursor"
-- `points`: [{ x, y, click: boolean, holdFrames: number }]
+- `points`: [{ {{ x, y, click: boolean, holdFrames: number }} }]
 - `speed`: Movement speed
 - `showRipple`: boolean — Show click ripple effect
 - Use for: Tutorials, demos, showing user interactions
@@ -742,7 +742,7 @@ Animated cursor that moves between points and simulates clicks.
 ### StyleBarRace
 Horizontal bar race chart where items compete and reorder.
 - `componentName`: "StyleBarRace"
-- `data`: [{ label, value, color }]
+- `data`: [{ {{ label, value, color }} }]
 - `barHeight`: Height of each bar
 - `gap`: Gap between bars
 - `showLabels`: boolean
@@ -753,7 +753,7 @@ Horizontal bar race chart where items compete and reorder.
 ### StyleFunnelChart
 A conversion funnel chart with animated stages.
 - `componentName`: "StyleFunnelChart"
-- `data`: [{ label, value, color }]
+- `data`: [{ {{ label, value, color }} }]
 - `showLabels`: boolean
 - `showValues`: boolean
 - `showPercentages`: boolean — Shows conversion rate between stages
@@ -762,7 +762,7 @@ A conversion funnel chart with animated stages.
 ### StyleRadarChart
 A radar/spider chart for multi-dimensional data visualization.
 - `componentName`: "StyleRadarChart"
-- `data`: [{ label, value }]
+- `data`: [{ {{ label, value }} }]
 - `maxValue`: Maximum value (default 100)
 - `showLabels`: boolean
 - `showGrid`: boolean — Show concentric grid circles
