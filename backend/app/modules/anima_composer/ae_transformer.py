@@ -307,7 +307,7 @@ def _component_to_ae(component_name: str, layer: dict) -> str | None:
         jsx_lines.append(f'radarLayer.name = "RadarChart";')
         jsx_lines.append(f'radarLayer.property("ADBE Vector Stroke Color").setValue({hex_to_ae_array(line_color)});')
         jsx_lines.append(f'radarLayer.property("ADBE Vector Fill Color").setValue([0, 1, 0.67, 0.15]);')
-        jsx_lines.append(f'// {len(data)} axes with values: {", ".join(f"{d["label"]}:{d["value"]}" for d in data)}')
+        jsx_lines.append(f'// {len(data)} axes with values: {", ".join(d["label"] + ":" + str(d["value"]) for d in data)}')
         return "\n".join(jsx_lines)
     
     return None
