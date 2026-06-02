@@ -62,7 +62,7 @@ export const StyleWatermark: React.FC<StyleWatermarkProps> = ({
       {src ? (
         <img src={src} alt="Watermark" style={{ width: customSize, height: 'auto', filter: 'grayscale(1) brightness(2)' }} />
       ) : (
-        <IconifyIcon name={icon} size={size} color="#FFFFFF" />
+        <IconifyIcon icon={icon} size={size} color="#FFFFFF" />
       )}
     </div>
   );

@@ -55,14 +55,14 @@ export const StyleBadge: React.FC<StyleBadgeProps> = ({
 
   // Style overrides
   const customPadding = style?.padding ? `${style.padding}px` : s.padding;
-  const customBorderRadius = style?.borderRadius ?? 999;
-  const customBg = style?.backgroundColor ?? v.bg;
-  const customColor = style?.color ?? v.color;
+  const customBorderRadius = (style?.borderRadius as number) ?? 999;
+  const customBg = (style?.backgroundColor as string) ?? v.bg;
+  const customColor = (style?.color as string) ?? v.color;
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : '0px';
-  const customBorderColor = style?.borderColor ?? 'transparent';
-  const customBorderStyle = style?.borderStyle ?? 'solid';
-  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as any).x || 0}px ${(style.boxShadow as any).y || 2}px ${(style.boxShadow as any).blur || 8}px ${(style.boxShadow as any).spread || 0}px ${(style.boxShadow as any).color || 'rgba(0,0,0,0.2)'}` : '0 2px 8px rgba(0,0,0,0.2)';
+  const customBorderColor = (style?.borderColor as string) ?? 'transparent';
+  const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
+  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 2}px ${(style.boxShadow as Record<string, unknown>).blur || 8}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.2)'}` : '0 2px 8px rgba(0,0,0,0.2)';
 
   return (
     <div
@@ -92,7 +92,7 @@ export const StyleBadge: React.FC<StyleBadgeProps> = ({
         textTransform: 'uppercase',
       }}
     >
-      {icon && <IconifyIcon name={icon} size={s.fontSize} color={customColor} />}
+      {icon && <IconifyIcon icon={icon} size={s.fontSize} color={customColor} />}
       {text}
     </div>
   );

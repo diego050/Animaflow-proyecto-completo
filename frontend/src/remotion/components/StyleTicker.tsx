@@ -35,13 +35,13 @@ export const StyleTicker: React.FC<StyleTickerProps> = ({
 
   const repeatedText = `${text}${separator}${text}${separator}${text}`;
 
-  const customFontSize = style?.fontSize ?? 16;
-  const customFontWeight = style?.fontWeight ?? 600;
-  const customColor = style?.color ?? '#E2E8F0';
+  const customFontSize = (style?.fontSize as number) ?? 16;
+  const customFontWeight = (style?.fontWeight as number) ?? 600;
+  const customColor = (style?.color as string) ?? '#E2E8F0';
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
-  const customBg = style?.backgroundColor ?? 'rgba(15, 23, 42, 0.8)';
+  const customBg = (style?.backgroundColor as string) ?? 'rgba(15, 23, 42, 0.8)';
   const customPadding = style?.padding ? `${style.padding}px` : '12px 24px';
-  const customBorderRadius = style?.borderRadius ?? 8;
+  const customBorderRadius = (style?.borderRadius as number) ?? 8;
 
   return (
     <div

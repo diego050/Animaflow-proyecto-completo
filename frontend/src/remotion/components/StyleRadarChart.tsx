@@ -78,8 +78,8 @@ export const StyleRadarChart: React.FC<StyleRadarChartProps> = ({
   const polygonPoints = points.map(p => `${p.px},${p.py}`).join(' ');
 
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * chartOpacity : chartOpacity;
-  const customLineColor = style?.color ?? lineColor;
-  const customFillColor = style?.backgroundColor ?? fillColor;
+  const customLineColor = (style?.color as string) ?? lineColor;
+  const customFillColor = (style?.backgroundColor as string) ?? fillColor;
 
   return (
     <div

@@ -176,7 +176,7 @@ export const StyleAvatar: React.FC<StyleAvatarProps> = ({
             overflow: 'hidden',
           }}
         >
-          <IconifyIcon name={icon} size={s.iconSize} color="#E2E8F0" />
+          <IconifyIcon icon={icon} size={s.iconSize} color="#E2E8F0" />
         </div>
 
         {/* Badge */}

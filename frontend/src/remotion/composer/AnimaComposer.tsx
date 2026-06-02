@@ -267,7 +267,7 @@ function layerStyleToCSS(style: Record<string, unknown> | undefined): React.CSSP
     if (style.rotate !== undefined) transforms.push(`rotate(${style.rotate}deg)`);
     if (style.scale !== undefined) {
       const sc = style.scale;
-      transforms.push(typeof sc === 'number' ? `scale(${sc})` : `scale(${sc[0]}, ${sc[1]})`);
+      transforms.push(typeof sc === 'number' ? `scale(${sc})` : `scale(${(sc as [number, number])[0]}, ${(sc as [number, number])[1]})`);
     }
     css.transform = transforms.join(' ');
   }
@@ -298,7 +298,7 @@ function layerStyleToCSS(style: Record<string, unknown> | undefined): React.CSSP
     css.backgroundPosition = style.backgroundPosition as string;
   }
   if (style.backgroundOpacity !== undefined) {
-    css.backgroundOpacity = style.backgroundOpacity as number;
+    (css as Record<string, unknown>).backgroundOpacity = style.backgroundOpacity as number;
   }
 
   // Layout

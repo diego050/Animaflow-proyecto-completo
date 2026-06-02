@@ -48,16 +48,16 @@ export const StyleTextBlock: React.FC<StyleTextBlockProps> = ({
 
   // Style overrides
   const customFontSize = style?.fontSize ? `${style.fontSize}px` : `${v.fontSize}px`;
-  const customFontWeight = style?.fontWeight ?? v.fontWeight;
-  const customLineHeight = style?.lineHeight ?? v.lineHeight;
-  const customColor = style?.color ?? v.color;
+  const customFontWeight = (style?.fontWeight as number) ?? v.fontWeight;
+  const customLineHeight = (style?.lineHeight as number) ?? v.lineHeight;
+  const customColor = (style?.color as string) ?? v.color;
   const customLetterSpacing = style?.letterSpacing ? `${style.letterSpacing}px` : `${v.letterSpacing}px`;
-  const customTextAlign = style?.textAlign ?? align;
+  const customTextAlign = (style?.textAlign as React.CSSProperties['textAlign']) ?? align;
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
   const customWidth = style?.width ? `${style.width}px` : `${width}px`;
-  const customTextShadow = style?.textShadow ? `${(style.textShadow as any).x || 0}px ${(style.textShadow as any).y || 0}px ${(style.textShadow as any).blur || 4}px ${(style.textShadow as any).color || 'rgba(0,0,0,0.5)'}` : 'none';
-  const customTextDecoration = style?.textDecoration ?? 'none';
-  const customFontStyle = variant === 'quote' ? 'italic' : (style?.fontStyle ?? 'normal');
+  const customTextShadow = style?.textShadow ? `${(style.textShadow as Record<string, unknown>).x || 0}px ${(style.textShadow as Record<string, unknown>).y || 0}px ${(style.textShadow as Record<string, unknown>).blur || 4}px ${(style.textShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.5)'}` : 'none';
+  const customTextDecoration = (style?.textDecoration as React.CSSProperties['textDecoration']) ?? 'none';
+  const customFontStyle = variant === 'quote' ? 'italic' : ((style?.fontStyle as string) ?? 'normal');
 
   const webkitLineClamp = maxLines ? {
     WebkitLineClamp: maxLines,

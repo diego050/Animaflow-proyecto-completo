@@ -50,16 +50,16 @@ export const StyleCard: React.FC<StyleCardProps> = ({
 
   // Style overrides
   const customPadding = style?.padding ? `${style.padding}px` : '24px';
-  const customBorderRadius = style?.borderRadius ?? 12;
-  const customBg = style?.backgroundColor ?? v.bg;
+  const customBorderRadius = (style?.borderRadius as number) ?? 12;
+  const customBg = (style?.backgroundColor as string) ?? v.bg;
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : (v.border === 'none' ? '0px' : v.border.split(' ')[0]);
-  const customBorderColor = style?.borderColor ?? (v.border === 'none' ? 'transparent' : v.border.split(' ')[2]);
-  const customBorderStyle = style?.borderStyle ?? 'solid';
-  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as any).x || 0}px ${(style.boxShadow as any).y || 8}px ${(style.boxShadow as any).blur || 32}px ${(style.boxShadow as any).spread || 0}px ${(style.boxShadow as any).color || 'rgba(0,0,0,0.4)'}` : v.shadow;
+  const customBorderColor = (style?.borderColor as string) ?? (v.border === 'none' ? 'transparent' : v.border.split(' ')[2]);
+  const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
+  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 8}px ${(style.boxShadow as Record<string, unknown>).blur || 32}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.4)'}` : v.shadow;
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
   const customWidth = style?.width ? `${style.width}px` : `${width}px`;
   const customHeight = height ? `${height}px` : (style?.height ? `${style.height}px` : 'auto');
-  const customBackdropBlur = style?.backdropBlur ? `blur(${style.backdropBlur}px)` : (v as any).backdropBlur;
+  const customBackdropBlur = style?.backdropBlur ? `blur(${style.backdropBlur}px)` : (v as Record<string, unknown>).backdropBlur;
 
   return (
     <div

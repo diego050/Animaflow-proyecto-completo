@@ -53,12 +53,12 @@ export const StyleFakeScroll: React.FC<StyleFakeScrollProps> = ({
     extrapolateRight: 'clamp',
   });
 
-  const customBg = style?.backgroundColor ?? 'rgba(30, 41, 59, 0.6)';
-  const customBorderRadius = style?.borderRadius ?? 12;
+  const customBg = (style?.backgroundColor as string) ?? 'rgba(30, 41, 59, 0.6)';
+  const customBorderRadius = (style?.borderRadius as number) ?? 12;
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : '1px';
-  const customBorderColor = style?.borderColor ?? '#334155';
-  const customBorderStyle = style?.borderStyle ?? 'solid';
-  const customWidth = style?.width ?? 360;
+  const customBorderColor = (style?.borderColor as string) ?? '#334155';
+  const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
+  const customWidth = (style?.width as number) ?? 360;
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
 
   return (
@@ -97,7 +97,7 @@ export const StyleFakeScroll: React.FC<StyleFakeScrollProps> = ({
           >
             {item.icon && (
               <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <IconifyIcon name={item.icon} size={20} color="#94A3B8" />
+                <IconifyIcon icon={item.icon} size={20} color="#94A3B8" />
               </div>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>

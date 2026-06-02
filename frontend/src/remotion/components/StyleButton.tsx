@@ -56,13 +56,13 @@ export const StyleButton: React.FC<StyleButtonProps> = ({
 
   // Apply style overrides from LayerStyle
   const customPadding = style?.padding ? `${style.padding}px` : s.padding;
-  const customBorderRadius = style?.borderRadius ?? s.borderRadius;
-  const customBg = style?.backgroundColor ?? v.bg;
-  const customColor = style?.color ?? v.color;
+  const customBorderRadius = (style?.borderRadius as number) ?? s.borderRadius;
+  const customBg = (style?.backgroundColor as string) ?? v.bg;
+  const customColor = (style?.color as string) ?? v.color;
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : (v.border === 'none' ? '0px' : v.border.split(' ')[0]);
-  const customBorderColor = style?.borderColor ?? (v.border === 'none' ? 'transparent' : v.border.split(' ')[2]);
-  const customBorderStyle = style?.borderStyle ?? 'solid';
-  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as any).x || 0}px ${(style.boxShadow as any).y || 4}px ${(style.boxShadow as any).blur || 12}px ${(style.boxShadow as any).spread || 0}px ${(style.boxShadow as any).color || 'rgba(0,0,0,0.3)'}` : '0 10px 30px rgba(0,0,0,0.3)';
+  const customBorderColor = (style?.borderColor as string) ?? (v.border === 'none' ? 'transparent' : v.border.split(' ')[2]);
+  const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
+  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 4}px ${(style.boxShadow as Record<string, unknown>).blur || 12}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.3)'}` : '0 10px 30px rgba(0,0,0,0.3)';
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
 
   return (
@@ -92,9 +92,9 @@ export const StyleButton: React.FC<StyleButtonProps> = ({
         cursor: 'default',
       }}
     >
-      {icon && iconPosition === 'left' && <IconifyIcon name={icon} size={s.fontSize} color={customColor} />}
+      {icon && iconPosition === 'left' && <IconifyIcon icon={icon} size={s.fontSize} color={customColor} />}
       {text}
-      {icon && iconPosition === 'right' && <IconifyIcon name={icon} size={s.fontSize} color={customColor} />}
+      {icon && iconPosition === 'right' && <IconifyIcon icon={icon} size={s.fontSize} color={customColor} />}
     </div>
   );
 };

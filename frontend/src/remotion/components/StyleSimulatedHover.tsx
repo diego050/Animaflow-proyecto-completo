@@ -49,14 +49,14 @@ export const StyleSimulatedHover: React.FC<StyleSimulatedHoverProps> = ({
     extrapolateRight: 'clamp',
   });
 
-  const customBg = style?.backgroundColor ?? '#2C3E50';
-  const customColor = style?.color ?? '#FFFFFF';
+  const customBg = (style?.backgroundColor as string) ?? '#2C3E50';
+  const customColor = (style?.color as string) ?? '#FFFFFF';
   const customPadding = style?.padding ? `${style.padding}px` : (variant === 'button' ? '12px 24px' : '16px');
-  const customBorderRadius = style?.borderRadius ?? (variant === 'button' ? 8 : 12);
-  const customFontSize = style?.fontSize ?? (variant === 'button' ? 16 : variant === 'card' ? 14 : 14);
+  const customBorderRadius = (style?.borderRadius as number) ?? (variant === 'button' ? 8 : 12);
+  const customFontSize = (style?.fontSize as number) ?? (variant === 'button' ? 16 : variant === 'card' ? 14 : 14);
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : '0px';
-  const customBorderColor = style?.borderColor ?? 'transparent';
-  const customBorderStyle = style?.borderStyle ?? 'solid';
+  const customBorderColor = (style?.borderColor as string) ?? 'transparent';
+  const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
 
   return (
     <div
@@ -86,7 +86,7 @@ export const StyleSimulatedHover: React.FC<StyleSimulatedHoverProps> = ({
         cursor: 'default',
       }}
     >
-      {icon && <IconifyIcon name={icon} size={customFontSize} color={customColor} />}
+      {icon && <IconifyIcon icon={icon} size={customFontSize} color={customColor} />}
       {text}
     </div>
   );

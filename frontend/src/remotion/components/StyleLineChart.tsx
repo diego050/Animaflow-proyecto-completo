@@ -71,7 +71,7 @@ export const StyleLineChart: React.FC<StyleLineChartProps> = ({
   });
 
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * chartOpacity : chartOpacity;
-  const customLineColor = style?.color ?? lineColor;
+  const customLineColor = (style?.color as string) ?? lineColor;
 
   return (
     <div style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: 'translate(-50%, -50%)', opacity: customOpacity, zIndex: 50, width: chartWidth, height: chartHeight }}>

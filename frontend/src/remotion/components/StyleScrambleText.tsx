@@ -42,11 +42,11 @@ export const StyleScrambleText: React.FC<StyleScrambleTextProps> = ({
     }).join('');
   }, [revealedChars, text, characters]);
 
-  const customFontSize = style?.fontSize ?? 32;
-  const customFontWeight = style?.fontWeight ?? 700;
-  const customColor = style?.color ?? '#00FFAB';
+  const customFontSize = (style?.fontSize as number) ?? 32;
+  const customFontWeight = (style?.fontWeight as number) ?? 700;
+  const customColor = (style?.color as string) ?? '#00FFAB';
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
-  const customFontFamily = style?.fontFamily ?? 'JetBrains Mono, monospace';
+  const customFontFamily = (style?.fontFamily as string) ?? 'JetBrains Mono, monospace';
   const customLetterSpacing = style?.letterSpacing ? `${style.letterSpacing}px` : '2px';
 
   return (

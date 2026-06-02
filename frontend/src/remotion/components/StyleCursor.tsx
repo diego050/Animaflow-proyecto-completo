@@ -92,9 +92,9 @@ export const StyleCursor: React.FC<StyleCursorProps> = ({
     extrapolateRight: 'clamp',
   }) : 0;
 
-  const customColor = style?.color ?? '#FFFFFF';
-  const customSize = style?.width ?? 24;
-  const customOpacity = style?.opacity ?? 0.9;
+  const customColor = (style?.color as string) ?? '#FFFFFF';
+  const customSize = (style?.width as number) ?? 24;
+  const customOpacity = (style?.opacity as number) ?? 0.9;
 
   return (
     <div

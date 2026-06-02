@@ -62,12 +62,12 @@ export const StyleAnimateNumber: React.FC<StyleAnimateNumberProps> = ({
 
   const displayText = useMemo(() => formatNumber(animatedValue, format, decimals, prefix, suffix), [animatedValue, format, decimals, prefix, suffix]);
 
-  const customFontSize = style?.fontSize ?? 48;
-  const customFontWeight = style?.fontWeight ?? 700;
-  const customColor = style?.color ?? '#FFFFFF';
+  const customFontSize = (style?.fontSize as number) ?? 48;
+  const customFontWeight = (style?.fontWeight as number) ?? 700;
+  const customColor = (style?.color as string) ?? '#FFFFFF';
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
   const customLetterSpacing = style?.letterSpacing ? `${style.letterSpacing}px` : '-1px';
-  const customFontFamily = style?.fontFamily ?? 'Inter Tight, sans-serif';
+  const customFontFamily = (style?.fontFamily as string) ?? 'Inter Tight, sans-serif';
 
   return (
     <div

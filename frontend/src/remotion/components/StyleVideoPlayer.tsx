@@ -47,11 +47,11 @@ export const StyleVideoPlayer: React.FC<StyleVideoPlayerProps> = ({
   const s = sizeMap[size];
   const customWidth = style?.width ? `${style.width}px` : `${s.width}px`;
   const customHeight = style?.height ? `${style.height}px` : `${s.height}px`;
-  const customBorderRadius = style?.borderRadius ?? 12;
+  const customBorderRadius = (style?.borderRadius as number) ?? 12;
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : '2px';
-  const customBorderColor = style?.borderColor ?? '#334155';
-  const customBorderStyle = style?.borderStyle ?? 'solid';
-  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, number | string>).x || 0}px ${(style.boxShadow as Record<string, number | string>).y || 4}px ${(style.boxShadow as Record<string, number | string>).blur || 16}px ${(style.boxShadow as Record<string, number | string>).spread || 0}px ${(style.boxShadow as Record<string, number | string>).color || 'rgba(0,0,0,0.4)'}` : '0 8px 32px rgba(0,0,0,0.4)';
+  const customBorderColor = (style?.borderColor as string) ?? '#334155';
+  const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
+  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 4}px ${(style.boxShadow as Record<string, unknown>).blur || 16}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.4)'}` : '0 8px 32px rgba(0,0,0,0.4)';
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
 
   if (!src) {

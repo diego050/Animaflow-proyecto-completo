@@ -84,6 +84,9 @@ export interface LayerStyle {
   // SVG extras
   strokeLinecap?: 'round' | 'butt' | 'square';
   strokeDasharray?: string;
+
+  // Index signature for Record<string, unknown> compatibility
+  [key: string]: unknown;
 }
 
 export interface AnimaLayer {

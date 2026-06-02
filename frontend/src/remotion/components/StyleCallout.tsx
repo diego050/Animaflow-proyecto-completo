@@ -38,8 +38,8 @@ export const StyleCallout: React.FC<StyleCalloutProps> = ({
     extrapolateRight: 'clamp',
   });
 
-  const customColor = style?.color ?? '#00FFAB';
-  const customFontSize = style?.fontSize ?? 16;
+  const customColor = (style?.color as string) ?? '#00FFAB';
+  const customFontSize = (style?.fontSize as number) ?? 16;
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
 
   if (variant === 'circle') {
