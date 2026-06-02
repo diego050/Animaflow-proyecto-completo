@@ -247,6 +247,22 @@ def _build_strategy_prompt(
 
     components_list = "\n".join(components_list_parts)
 
+    # Build compact reference for ONLY the components selected by vector search
+    # This replaces the hardcoded 108-component library to save ~2,500 tokens per call
+    selected_component_ref = "\n".join(
+        f"- **{c['name']}** ({c.get('role', 'general')}): {c.get('description', '')}\n  Props: {c.get('props', 'none required')}"
+        for c in available_components
+    )
+
+    # Also check which Style* components are in the selected list
+    style_components_in_list = [c for c in available_components if c['name'].startswith('Style')]
+    style_component_ref = ""
+    if style_components_in_list:
+        style_component_ref = "\n\n## Style* Components Available (support LayerStyle overrides):\n" + "\n".join(
+            f"- **{c['name']}**: {c.get('description', '')}\n  Props: {c.get('props', 'none required')}"
+            for c in style_components_in_list
+        )
+
     # Build icon suggestions section if candidates are available
     icon_section = ""
     if icon_candidates:
@@ -438,103 +454,6 @@ Ejemplos de composiciones válidas:
 
 REGLA: Usa grupos flex/grid para organizar múltiples elementos. Cada componente debe tener un propósito claro en la escena.
 
-EJEMPLOS DE COMPOSICIONES COMPLEJAS:
-
-Ejemplo A - Escena con múltiples botones y texto:
-{
-  "background": {"type": "gradient", "colors": ["#0f172a", "#1e293b"]},
-  "layers": [
-    {
-      "type": "group",
-      "layout": "flex",
-      "direction": "column",
-      "alignItems": "center",
-      "gap": 30,
-      "children": [
-        {"type": "text", "text": "Elige tu plan", "fontSize": 48, "fontWeight": 900},
-        {
-          "type": "group",
-          "layout": "flex",
-          "direction": "row",
-          "gap": 20,
-          "children": [
-            {"type": "component", "componentName": "StyleButton", "text": "Básico", "variant": "outline"},
-            {"type": "component", "componentName": "StyleButton", "text": "Pro", "variant": "primary"},
-            {"type": "component", "componentName": "StyleButton", "text": "Enterprise", "variant": "outline"}
-          ]
-        },
-        {"type": "component", "componentName": "StyleBadge", "text": "Ahorra 50%", "variant": "success"}
-      ]
-    }
-  ]
-}
-
-Ejemplo B - Escena con cards, badges e íconos:
-{
-  "background": {"type": "gradient", "colors": ["#0f172a", "#1e293b"]},
-  "layers": [
-    {
-      "type": "group",
-      "layout": "grid",
-      "gridCols": 2,
-      "gap": 24,
-      "children": [
-        {
-          "type": "group",
-          "layout": "flex",
-          "direction": "column",
-          "gap": 12,
-          "children": [
-            {"type": "component", "componentName": "IconifyIcon", "icon": "mdi:rocket-launch", "size": 48},
-            {"type": "component", "componentName": "StyleCard", "title": "Rápido", "subtitle": "Deploy en segundos"},
-            {"type": "component", "componentName": "StyleBadge", "text": "NEW", "variant": "info"}
-          ]
-        },
-        {
-          "type": "group",
-          "layout": "flex",
-          "direction": "column",
-          "gap": 12,
-          "children": [
-            {"type": "component", "componentName": "IconifyIcon", "icon": "mdi:shield-check", "size": 48},
-            {"type": "component", "componentName": "StyleCard", "title": "Seguro", "subtitle": "SSL incluido"},
-            {"type": "component", "componentName": "StyleBadge", "text": "POPULAR", "variant": "warning"}
-          ]
-        }
-      ]
-    }
-  ]
-}
-
-Ejemplo C - Escena data-driven con múltiples elementos:
-{
-  "background": {"type": "gradient", "colors": ["#0f172a", "#1e293b"]},
-  "layers": [
-    {
-      "type": "group",
-      "layout": "flex",
-      "direction": "column",
-      "alignItems": "center",
-      "gap": 20,
-      "children": [
-        {"type": "text", "text": "Resultados del trimestre", "fontSize": 42, "fontWeight": 900},
-        {"type": "component", "componentName": "StyleBarChart", "data": [{"label": "Q1", "value": 65}, {"label": "Q2", "value": 80}, {"label": "Q3", "value": 95}]},
-        {
-          "type": "group",
-          "layout": "flex",
-          "direction": "row",
-          "gap": 16,
-          "children": [
-            {"type": "component", "componentName": "StyleAnimateNumber", "value": 95, "suffix": "%", "prefix": "+"},
-            {"type": "component", "componentName": "StyleAnimateNumber", "value": 2400, "prefix": "$", "format": "compact"},
-            {"type": "component", "componentName": "StyleProgressBar", "value": 73, "showLabel": true}
-          ]
-        }
-      ]
-    }
-  ]
-}
-
 REGLA CRÍTICA: SOLO usa type: "component" para elementos visuales y type: "text" para el texto hablado. NO uses type: "path", "rect", "circle". Esos tipos están PROHIBIDOS.
 
 Tienes acceso a componentes de nuestra Standard Library.
@@ -614,6 +533,9 @@ Every layer supports a `style` object with these properties:
 - `flexGrow`: number — Flex grow factor
 - `flexShrink`: number — Flex shrink factor
 - `order`: number — Visual order
+
+## Video Style System (Style* Components)
+Estos componentes soportan overrides completos de LayerStyle. Solo se incluyen los relevantes para esta escena.
 
 ## New Components
 
@@ -860,148 +782,117 @@ Use `layout: "grid"` for 2D layouts instead of flex.
 - `alignItems`: "flex-start" | "center" | "stretch" — vertical alignment within cells
 - Use for: Feature grids, team layouts, comparison tables, card grids
 
-## Complete Component Library (108 Components)
+## Componentes Seleccionados para Esta Escena (vector search)
+Estos son los componentes más relevantes para el texto y contexto de esta escena:
+{selected_component_ref}
+{style_component_ref}
 
-### Generic UI Components (22 Style* components)
-These are the primary components the LLM should use for most scenes. They support full LayerStyle overrides.
-- StyleButton: `text`, `variant`, `size`, `icon`, `iconPosition` — Premium CTA button
-- StyleCard: `title`, `subtitle`, `variant`, `width` — Content container card
-- StyleBadge: `text`, `variant`, `size`, `icon` — Pill-shaped label
-- StyleAvatar: `icon`, `name`, `subtitle`, `size`, `variant`, `showBadge`, `badgeText` — Icon-based avatar with ring
-- StyleProgressBar: `value`, `max`, `variant`, `color`, `showLabel`, `labelPosition`, `size`, `strokeWidth` — Progress indicator
-- StyleDivider: `orientation`, `style`, `color`, `thickness`, `width`, `height` — Visual separator
-- StyleChip: `text`, `icon`, `deletable`, `variant`, `size` — Tag/chip for filters
-- StyleTextBlock: `text`, `variant`, `align`, `maxLines`, `width` — Text block with variants
-- StyleCallout: `text`, `direction`, `variant` — Annotation with arrow
-- StyleWatermark: `src`, `icon`, `position`, `opacity`, `size` — Brand logo overlay
-- StyleVideoPlayer: `src`, `variant`, `size`, `autoplay`, `loop`, `muted` — Video embed
-- StyleBarChart: `data`, `variant`, `showLabels`, `showValues` — Animated bar chart
-- StyleLineChart: `data`, `showDots`, `showGrid`, `showLabels`, `lineColor`, `fillArea` — Animated line chart
-- StylePieChart: `data`, `variant`, `showLabels`, `showValues`, `explodeSlice` — Pie/donut chart
-- StyleBarRace: `data`, `barHeight`, `gap`, `showLabels`, `showValues`, `duration` — Horizontal bar race
-- StyleFunnelChart: `data`, `showLabels`, `showValues`, `showPercentages` — Conversion funnel
-- StyleRadarChart: `data`, `maxValue`, `showLabels`, `showGrid`, `showValues`, `fillColor`, `lineColor`, `size` — Radar/spider chart
-- StyleAnimateNumber: `value`, `from`, `prefix`, `suffix`, `format`, `decimals`, `duration` — Animated counter
-- StyleScrambleText: `text`, `speed`, `characters`, `loop` — Decoding text effect
-- StyleTicker: `text`, `speed`, `separator` — Scrolling ticker
-- StyleSimulatedHover: `text`, `icon`, `hoverFrame`, `hoverDuration`, `variant` — Simulated hover state
-- StyleFakeScroll: `items`, `speed`, `itemHeight`, `visibleItems`, `showScrollbar` — Simulated scroll
-- StyleCursor: `points`, `speed`, `showRipple` — Animated cursor with clicks
-
-### Counters & Timers (8)
-- CounterNumber: `value`, `duration`, `prefix`, `suffix` — Animated number counter
-- CountdownTimer: `targetDate`, `format` — Countdown to a date
-- FlashSaleTimer: `endTime`, `text` — Flash sale countdown
-- FollowerCounter: `count`, `platform` — Social media follower count
-- PercentageRing: `value`, `size` — Circular percentage ring
-- ScoreboardCounter: `score`, `team` — Sports scoreboard
-- ProgressPill: `value`, `label` — Progress pill indicator
-- LoadingSpinner: `size`, `color` — Loading spinner animation
-
-### Social Media Overlays (7)
-- TikTokOverlay: `username`, `likes`, `comments` — TikTok-style overlay
-- InstagramPost: `username`, `likes`, `caption` — Instagram post mockup
-- TweetCard: `username`, `text`, `likes` — Tweet card
-- YouTubeEndScreen: `channel`, `subscribe` — YouTube end screen
-- TinderSwipeCard: `name`, `age`, `bio` — Tinder swipe card
-- MusicPlayerUI: `title`, `artist`, `progress` — Music player UI
-- TerminalHacker: `lines`, `speed` — Hacker terminal effect
-
-### Text Effects (13)
-- Typewriter: `text`, `speed` — Typewriter effect
-- TextReveal: `text`, `direction` — Text reveal animation
-- TextSwap: `texts`, `interval` — Text swapping animation
-- SplitText: `text`, `split` — Split text animation
-- GlitchTitle: `text`, `intensity` — Glitch text effect
-- StrikethroughText: `text` — Animated strikethrough
-- UnderlineReveal: `text` — Underline reveal
-- HighlightText: `text`, `highlight` — Text highlighting
-- SearchEngineTyping: `query`, `results` — Search engine typing effect
-- EmojiFloat: `emoji`, `count` — Floating emojis
-- CursorClick: `x`, `y`, `clicks` — Cursor click animation
-- AnimatedArrow: `direction`, `color` — Animated arrow
-- AnimatedLine: `points`, `color` — Animated line drawing
-
-### Charts & Data Viz (12)
-- BarChartReveal: `data`, `colors` — Bar chart with reveal
-- PieChartReveal: `data`, `colors` — Pie chart with reveal
-- FunnelChart: `stages`, `values` — Conversion funnel
-- HorizontalBarRace: `data`, `duration` — Bar race chart
-- RadarSpiderChart: `axes`, `values` — Radar/spider chart
-- StockCandlestick: `data`, `period` — Stock candlestick chart
-- GitCommitGraph: `commits`, `branch` — Git commit graph
-- TrendLine: `data`, `direction` — Trend line
-- AudioSpectrumBars: `data`, `bars` — Audio spectrum bars
-- SoundWaveCircle: `data`, `radius` — Sound wave circle
-- WaveformVisualizer: `data`, `bars` — Waveform visualizer
-- NetworkNodes: `nodes`, `edges` — Network nodes graph
-
-### Transitions (5)
-- GlitchTransition: `duration`, `intensity` — Glitch scene transition
-- ZoomBlurTransition: `duration`, `zoom` — Zoom blur transition
-- WipeTransition: `direction`, `duration` — Wipe transition
-- LightLeakTransition: `color`, `duration` — Light leak transition
-- GradientOverlay: `colors`, `duration` — Gradient overlay transition
-
-### Backgrounds & VFX (11)
-- KineticBackground: `type`, `colors` — Kinetic animated background
-- FloatingBlobs: `count`, `colors` — Floating blob animation
-- ParticleField: `count`, `spread` — Particle field
-- RaysOfLight: `count`, `angle` — Light rays
-- RippleEffect: `x`, `y`, `count` — Ripple effect
-- GradientOverlay: `colors`, `angle` — Gradient overlay
-- GlobalVFX: `type`, `intensity` — Global VFX effect
-- AbstractWave: `waves`, `colors` — Abstract wave animation
-- GridPerspective: `rows`, `cols` — Perspective grid
-- MaskedReveal: `mask`, `direction` — Masked reveal
-- SplitScreenGrid: `cols`, `rows` — Split screen grid
-
-### Cards & Mockups (10)
-- PodcastGuestCard: `name`, `role`, `avatar` — Podcast guest card
-- TestimonialReview: `text`, `author`, `rating` — Testimonial with rating
-- MediaFrame: `src`, `caption` — Media frame
-- BrowserWindow: `url`, `content` — Browser window mockup
-- PhoneMockup: `screen`, `notch` — Phone mockup
-- CalendarDatePop: `date`, `event` — Calendar date popup
-- SizeSelector: `sizes`, `selected` — Size selector
-- ShoppingCartBadge: `count`, `icon` — Shopping cart badge
-- PricingTableReveal: `plans`, `features` — Pricing table
-- ProductCardReveal: `name`, `price`, `image` — Product card
-
-### Notifications & Alerts (6)
-- BreakingNewsAlert: `text`, `variant` — Breaking news alert
-- BreakingNewsTicker: `text`, `speed` — News ticker
-- NotificationToast: `text`, `type`, `icon` — Toast notification
-- MessageBubble: `text`, `sender`, `avatar` — Message bubble
-- TextBubble: `text`, `variant` — Text bubble
-- FloatingBadge: `text`, `icon`, `variant` — Floating badge
-
-### Buttons & CTAs (3)
-- SubscribeButton: `text`, `clickedText`, `clickFrame` — Subscribe button
-- AppStoreButtons: `platform`, `text` — App Store/Google Play buttons
-- PromoCodeBanner: `code`, `text`, `discount` — Promo code banner
-
-### Misc (8)
-- AnimatedShape: `shape`, `color` — Animated shape
-- AnimatedIcon: `icon`, `size` — Animated icon
-- IconifyIcon: `name`, `size`, `color` — Iconify icon
-- CodeBlockHighlight: `code`, `language` — Code block
-- VersusScreen: `left`, `right` — Versus screen
-- APIRequestFlow: `method`, `url`, `response` — API request flow
-- SocialProgressBar: `platform`, `count`, `target` — Social progress bar
-- SocialSharePopup: `platform`, `count` — Social share popup
-
-## Component Selection Rules
+## Reglas de Selección de Componentes
 1. **NO HAY LÍMITE DE COMPONENTES** — Usa tantos como la escena necesite. Una escena puede tener 1 elemento o 20+.
-2. **Prefer Style* components** for generic UI (buttons, cards, badges, charts) — they support full LayerStyle overrides
-3. **Use specialized components** when the scene matches their specific use case (e.g., TikTokOverlay for TikTok videos, StockCandlestick for finance)
-4. **Use Text Effects** for animated text (Typewriter, GlitchTitle, TextReveal)
-5. **Use Transitions** for scene-to-scene transitions (GlitchTransition, WipeTransition)
-6. **Use Backgrounds & VFX** for visual atmosphere (KineticBackground, FloatingBlobs, ParticleField)
-7. **Combine components** using layout groups (flex/grid) for complex scenes
-8. **Íconos libres** — Usa IconifyIcon para representar conceptos visuales. Múltiples íconos por escena están permitidos.
-9. **Jerarquía visual** — Usa zIndex, tamaños y posición para crear jerarquía. El elemento más importante debe ser el más prominente.
-10. **No sobre-cargar** — Aunque no hay límite, cada componente debe tener un propósito. Evita elementos decorativos sin función.
+2. **Los componentes listados arriba** son los más relevantes para esta escena. Úsalos como base.
+3. **Si necesitas un componente que no está en la lista**, puedes usar cualquier componente de la Standard Library, pero prioriza los seleccionados.
+4. **Íconos libres** — Usa IconifyIcon para representar conceptos visuales. Múltiples íconos por escena están permitidos.
+5. **Jerarquía visual** — Usa zIndex, tamaños y posición para crear jerarquía. El elemento más importante debe ser el más prominente.
+6. **No sobre-cargar** — Aunque no hay límite, cada componente debe tener un propósito. Evita elementos decorativos sin función.
+7. **Combina componentes** usando layout groups (flex/grid) para escenas complejas.
+
+## Ejemplos de Referencia: Composiciones Complejas
+Estos ejemplos muestran cómo combinar múltiples componentes usando layout groups:
+
+Ejemplo A - Escena con múltiples botones y texto:
+{{
+  "background": {{"type": "gradient", "colors": ["#0f172a", "#1e293b"]}},
+  "layers": [
+    {{
+      "type": "group",
+      "layout": "flex",
+      "direction": "column",
+      "alignItems": "center",
+      "gap": 30,
+      "children": [
+        {{"type": "text", "text": "Elige tu plan", "fontSize": 48, "fontWeight": 900}},
+        {{
+          "type": "group",
+          "layout": "flex",
+          "direction": "row",
+          "gap": 20,
+          "children": [
+            {{"type": "component", "componentName": "StyleButton", "text": "Básico", "variant": "outline"}},
+            {{"type": "component", "componentName": "StyleButton", "text": "Pro", "variant": "primary"}},
+            {{"type": "component", "componentName": "StyleButton", "text": "Enterprise", "variant": "outline"}}
+          ]
+        }},
+        {{"type": "component", "componentName": "StyleBadge", "text": "Ahorra 50%", "variant": "success"}}
+      ]
+    }}
+  ]
+}}
+
+Ejemplo B - Escena con cards, badges e íconos:
+{{
+  "background": {{"type": "gradient", "colors": ["#0f172a", "#1e293b"]}},
+  "layers": [
+    {{
+      "type": "group",
+      "layout": "grid",
+      "gridCols": 2,
+      "gap": 24,
+      "children": [
+        {{
+          "type": "group",
+          "layout": "flex",
+          "direction": "column",
+          "gap": 12,
+          "children": [
+            {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:rocket-launch", "size": 48}},
+            {{"type": "component", "componentName": "StyleCard", "title": "Rápido", "subtitle": "Deploy en segundos"}},
+            {{"type": "component", "componentName": "StyleBadge", "text": "NEW", "variant": "info"}}
+          ]
+        }},
+        {{
+          "type": "group",
+          "layout": "flex",
+          "direction": "column",
+          "gap": 12,
+          "children": [
+            {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:shield-check", "size": 48}},
+            {{"type": "component", "componentName": "StyleCard", "title": "Seguro", "subtitle": "SSL incluido"}},
+            {{"type": "component", "componentName": "StyleBadge", "text": "POPULAR", "variant": "warning"}}
+          ]
+        }}
+      ]
+    }}
+  ]
+}}
+
+Ejemplo C - Escena data-driven con múltiples elementos:
+{{
+  "background": {{"type": "gradient", "colors": ["#0f172a", "#1e293b"]}},
+  "layers": [
+    {{
+      "type": "group",
+      "layout": "flex",
+      "direction": "column",
+      "alignItems": "center",
+      "gap": 20,
+      "children": [
+        {{"type": "text", "text": "Resultados del trimestre", "fontSize": 42, "fontWeight": 900}},
+        {{"type": "component", "componentName": "StyleBarChart", "data": [{{"label": "Q1", "value": 65}}, {{"label": "Q2", "value": 80}}, {{"label": "Q3", "value": 95}}]}},
+        {{
+          "type": "group",
+          "layout": "flex",
+          "direction": "row",
+          "gap": 16,
+          "children": [
+            {{"type": "component", "componentName": "StyleAnimateNumber", "value": 95, "suffix": "%", "prefix": "+"}},
+            {{"type": "component", "componentName": "StyleAnimateNumber", "value": 2400, "prefix": "$", "format": "compact"}},
+            {{"type": "component", "componentName": "StyleProgressBar", "value": 73, "showLabel": true}}
+          ]
+        }}
+      ]
+    }}
+  ]
+}}
 
 ## Improved Spring Physics
 
