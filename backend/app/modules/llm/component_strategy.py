@@ -1017,7 +1017,7 @@ def generate_scene_composer(
     if db is not None:
         # Use intelligent vector search with diversity quotas
         from app.services.embedding import get_relevant_components
-        relevant = get_relevant_components(db, text, media_query, top_k=10)
+        relevant = get_relevant_components(db, text, media_query, top_k=15)
         components = relevant  # Already list[dict] from _format_component
         component_names = [c["name"] for c in relevant]
         logger.info("Vector search returned %d relevant components: %s", len(component_names), component_names[:5])

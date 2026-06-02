@@ -116,13 +116,15 @@ def get_relevant_components(
     # Define diversity quotas
     quotas = {
         "background": 2,
-        "text": 2,
-        "decorative": 2,
-        "dataviz": 1,
+        "text": 3,
+        "ui": 4,
+        "decorative": 3,
+        "dataviz": 2,
         "social": 1,
-        "ui": 1,
-        "transition": 1,
     }
+    # transition removed — transitions are decided by scene continuity, not semantic search
+    # ui increased from 1 to 4 — buttons/cards/badges are the most versatile components
+    # text increased from 2 to 3 — allows title + subtitle + body/caption hierarchy
 
     selected = []
     seen_ids = set()
@@ -165,35 +167,67 @@ def get_relevant_components(
             selected.append(_format_component(comp))
             seen_ids.add(comp.id)
 
-    # 2. Fill remaining slots with general best matches
+    # 2. Fill remaining slots — prioritize UI (most versatile components)
     if len(selected) < top_k:
         remaining = top_k - len(selected)
 
-        general_query = db.query(ComponentModel).filter(
+        # Phase 1: Try UI components first (buttons, cards, badges are highly reusable)
+        ui_query = db.query(ComponentModel).filter(
             ComponentModel.is_active.is_(True),
+            ComponentModel.role == "ui",
             ComponentModel.embedding.isnot(None),
         )
         if seen_ids:
-            general_query = general_query.filter(~ComponentModel.id.in_(seen_ids))
+            ui_query = ui_query.filter(~ComponentModel.id.in_(seen_ids))
         if category_filter:
-            general_query = general_query.filter(ComponentModel.category == category_filter)
+            ui_query = ui_query.filter(ComponentModel.category == category_filter)
 
         try:
-            all_components = general_query.all()
+            ui_components = ui_query.all()
         except exc.InternalError:
-            logger.warning("Transaction aborted during general component query, rolling back.")
+            logger.warning("Transaction aborted during UI component query, rolling back.")
             db.rollback()
-            return selected
+            ui_components = []
 
-        scored = []
-        for comp in all_components:
+        ui_scored = []
+        for comp in ui_components:
             sim = cosine_similarity(query_embedding, comp.embedding)
-            scored.append((sim, comp))
+            ui_scored.append((sim, comp))
 
-        scored.sort(key=lambda x: x[0], reverse=True)
+        ui_scored.sort(key=lambda x: x[0], reverse=True)
 
-        for sim, comp in scored[:remaining]:
+        for sim, comp in ui_scored[:remaining]:
             selected.append(_format_component(comp))
             seen_ids.add(comp.id)
+
+        # Phase 2: If still slots remaining, fill with any best matches
+        still_remaining = top_k - len(selected)
+        if still_remaining > 0:
+            general_query = db.query(ComponentModel).filter(
+                ComponentModel.is_active.is_(True),
+                ComponentModel.embedding.isnot(None),
+            )
+            if seen_ids:
+                general_query = general_query.filter(~ComponentModel.id.in_(seen_ids))
+            if category_filter:
+                general_query = general_query.filter(ComponentModel.category == category_filter)
+
+            try:
+                all_components = general_query.all()
+            except exc.InternalError:
+                logger.warning("Transaction aborted during general component query, rolling back.")
+                db.rollback()
+                return selected
+
+            scored = []
+            for comp in all_components:
+                sim = cosine_similarity(query_embedding, comp.embedding)
+                scored.append((sim, comp))
+
+            scored.sort(key=lambda x: x[0], reverse=True)
+
+            for sim, comp in scored[:still_remaining]:
+                selected.append(_format_component(comp))
+                seen_ids.add(comp.id)
 
     return selected
