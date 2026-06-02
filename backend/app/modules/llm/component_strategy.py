@@ -924,7 +924,7 @@ Transitions are detected automatically when:
 
 ### Example
 ```json
-{
+{{
   "type": "component",
   "componentName": "StyleBadge",
   "id": "badge-1",
@@ -934,7 +934,7 @@ Transitions are detected automatically when:
   "transitionDuration": 20,
   "transitionEasing": "spring",
   "transitionSpring": "bouncy"
-}
+}}
 ```
 
 {positioning_rules}
