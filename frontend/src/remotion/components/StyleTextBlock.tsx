@@ -1,6 +1,12 @@
 import React from 'react';
-import { interpolate, useCurrentFrame, Easing } from 'remotion';
+import { interpolate, useCurrentFrame, useVideoConfig, Easing } from 'remotion';
 import type { UniversalProps } from "./types";
+
+export interface WordTiming {
+  word: string;
+  start: number; // segundos, relativo al inicio de la escena
+  end: number;
+}
 
 interface StyleTextBlockProps extends UniversalProps {
   text?: string;
@@ -12,6 +18,7 @@ interface StyleTextBlockProps extends UniversalProps {
   fontWeight?: number;
   color?: string;
   style?: Record<string, unknown>;
+  wordTimestamps?: WordTiming[];
 }
 
 // v7: defaults grandes para VIDEO VERTICAL móvil (1080px). Los valores previos
@@ -36,9 +43,12 @@ export const StyleTextBlock: React.FC<StyleTextBlockProps> = ({
   color,
   style,
   delay = 0,
+  wordTimestamps,
 }) => {
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
   const adjustedFrame = Math.max(0, frame - delay);
+  const hasKaraoke = !!(wordTimestamps && wordTimestamps.length > 0);
 
   // Entrance: fade + slide up
   const translateY = interpolate(adjustedFrame, [0, 15], [20, 0], {
@@ -96,11 +106,28 @@ export const StyleTextBlock: React.FC<StyleTextBlockProps> = ({
         textDecoration: customTextDecoration,
         textShadow: customTextShadow,
         zIndex: 50,
-        opacity: customOpacity,
+        // En modo karaoke cada palabra controla su opacidad; el bloque no se
+        // desvanece (solo conserva su deslizamiento de entrada).
+        opacity: hasKaraoke ? (style?.opacity as number | undefined ?? 1) : customOpacity,
         ...webkitLineClamp,
       }}
     >
-      {text}
+      {hasKaraoke
+        ? text.split(' ').map((word, index) => {
+            // KARAOKE: cada palabra aparece cuando se pronuncia (v7.3).
+            const ts = wordTimestamps![Math.min(index, wordTimestamps!.length - 1)];
+            const startF = Math.round((ts?.start ?? 0) * fps);
+            const wOpacity = interpolate(frame, [startF, startF + 6], [0, 1], {
+              extrapolateLeft: 'clamp',
+              extrapolateRight: 'clamp',
+            });
+            return (
+              <span key={index} style={{ opacity: wOpacity }}>
+                {word}{index < text.split(' ').length - 1 ? ' ' : ''}
+              </span>
+            );
+          })
+        : text}
     </div>
   );
 };

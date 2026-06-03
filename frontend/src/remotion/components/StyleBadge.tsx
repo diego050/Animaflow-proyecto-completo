@@ -19,10 +19,12 @@ const variantMap = {
   neutral: { bg: '#334155', color: '#E2E8F0' },
 };
 
+// v7.2: tamaños a escala de VIDEO vertical (1080px). Los previos (12/14/16)
+// eran de UI web y se veían minúsculos en pantalla.
 const sizeMap = {
-  sm: { padding: '4px 10px', fontSize: 12 },
-  md: { padding: '6px 14px', fontSize: 14 },
-  lg: { padding: '8px 18px', fontSize: 16 },
+  sm: { padding: '10px 22px', fontSize: 28 },
+  md: { padding: '14px 30px', fontSize: 38 },
+  lg: { padding: '18px 40px', fontSize: 48 },
 };
 
 export const StyleBadge: React.FC<StyleBadgeProps> = ({

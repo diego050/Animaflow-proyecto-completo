@@ -37,6 +37,7 @@ interface DynamicSceneProps {
   fallbackColor: string;
   animaComposer?: Spec['anima_composer'];
   nextSceneBackgroundColors?: string[];
+  wordTimestamps?: { word: string; start: number; end: number }[];
 }
 
 interface SceneProps {
@@ -46,7 +47,7 @@ interface SceneProps {
 }
 type SceneComponent = React.ComponentType<SceneProps>;
 
-const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, animaComposer, nextSceneBackgroundColors }: DynamicSceneProps) => {
+const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, animaComposer, nextSceneBackgroundColors, wordTimestamps }: DynamicSceneProps) => {
   if (type === 'custom' && animaComposer) {
     return (
       <AnimaComposer
@@ -54,6 +55,7 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor,
         text={text}
         durationInFrames={durationInFrames}
         nextSceneBackgroundColors={nextSceneBackgroundColors}
+        wordTimestamps={wordTimestamps}
       />
     );
   }
@@ -115,6 +117,14 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
           ? `${scene.audio_url}?token=${token}`
           : scene.audio_url;
 
+        // v7.3: timestamps por palabra relativos al inicio de la escena
+        // (los del backend son globales, offset por start_time_seconds).
+        const relativeWordTimestamps = (scene.word_timestamps ?? []).map((w) => ({
+          word: w.word,
+          start: Math.max(0, w.start - scene.start_time_seconds),
+          end: Math.max(0, w.end - scene.start_time_seconds),
+        }));
+
         return (
           <Sequence key={index} from={fromFrame} durationInFrames={durationInFrames}>
             <DynamicScene
@@ -125,6 +135,7 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
                 fallbackColor={String(scene.remotion_props?.textColor || "#fff")}
                 animaComposer={scene.anima_composer}
                 nextSceneBackgroundColors={nextSceneColors[index]}
+                wordTimestamps={relativeWordTimestamps}
             />
             {audioUrlWithToken && <Audio src={audioUrlWithToken} />}
           </Sequence>

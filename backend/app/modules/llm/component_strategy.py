@@ -1366,6 +1366,30 @@ def generate_scene_composer(
                                     del layer["size"]
                                     logger.info("Removed invalid size value: '%s'", size_val)
 
+                    # v7.2: componentes de ÉNFASIS (resaltan 1-4 palabras) usados
+                    # con texto largo → convertir a StyleTextBlock. Evita la "caja
+                    # amarilla" rota de HighlightText sobre un párrafo. Tras el
+                    # swap, el auto-fit (que sí cubre StyleTextBlock) ajusta el tamaño.
+                    _SHORT_EMPHASIS = {"HighlightText", "StrikethroughText", "UnderlineReveal"}
+                    _EMPHASIS_MAX_CHARS = 40
+
+                    def _swap_long_emphasis(layers_list: list) -> None:
+                        for lyr in layers_list:
+                            comp_n = lyr.get("componentName", "")
+                            txt = lyr.get("text", "")
+                            if comp_n in _SHORT_EMPHASIS and isinstance(txt, str) and len(txt) > _EMPHASIS_MAX_CHARS:
+                                lyr["componentName"] = "StyleTextBlock"
+                                lyr.setdefault("variant", "heading")
+                                logger.info(
+                                    "Swapped %s -> StyleTextBlock (text %d chars > %d)",
+                                    comp_n, len(txt), _EMPHASIS_MAX_CHARS,
+                                )
+                            kids = lyr.get("children")
+                            if isinstance(kids, list):
+                                _swap_long_emphasis(kids)
+
+                    _swap_long_emphasis(result.get("layers", []))
+
                     # ── Fase 1.1: Fix 'items' → 'children' in groups ──
                     LAYOUT_HINT_VALUES = {"center", "left", "right", "top", "bottom", "start", "end", "stretch", "flex-start", "flex-end", "space-between", "space-around"}
                     scene_text = text  # Available from function parameter scope
@@ -1575,7 +1599,9 @@ def generate_scene_composer(
                         best_font_size = min_font_size
                         char_width_ratio = 0.6  # Bold font
                         line_height = 1.3
-                        max_text_height = canvas_height * 0.6  # Text can use 60% of canvas height
+                        # v7.2: bajado de 0.6 a 0.5 — el texto hablado no debe
+                        # llenar toda la pantalla; deja aire para respiración visual.
+                        max_text_height = canvas_height * 0.5
 
                         low = min_font_size
                         high = max_font_size

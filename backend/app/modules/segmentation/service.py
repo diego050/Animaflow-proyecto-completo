@@ -1,14 +1,20 @@
 import re
 
 
-def split_text_into_chunks(text: str, target_duration_seconds: float = 7.0) -> list[str]:
+def split_text_into_chunks(text: str, target_duration_seconds: float = 5.0) -> list[str]:
     """Divide el texto en segmentos de aproximadamente target_duration_seconds.
 
     Asume velocidad de habla de ~130 palabras/minuto (~2.17 palabras/segundo).
     Cada palabra ≈ 0.46 segundos.
+
+    v7.3 (A3.7): target bajado de 7s a 5s (~11 palabras/escena en vez de ~15-20)
+    para reducir la densidad de texto por escena — menos "muro de texto", más
+    respiro visual en formato vertical. La tolerancia de agrupado se reduce de
+    1.3 a 1.15 para que los chunks no se inflen.
     """
     words_per_second = 2.17
     target_words = int(target_duration_seconds * words_per_second)
+    group_tolerance = 1.15
 
     # Primero dividir en oraciones
     sentences = re.split(r"(?<=[.!?])\s+", text)
@@ -47,7 +53,7 @@ def split_text_into_chunks(text: str, target_duration_seconds: float = 7.0) -> l
                 chunks.append(" ".join(sub_chunk))
         else:
             # Intentar agregar al chunk actual
-            if current_word_count + sentence_word_count <= target_words * 1.3:  # 30% de tolerancia
+            if current_word_count + sentence_word_count <= target_words * group_tolerance:
                 current_chunk.append(sentence)
                 current_word_count += sentence_word_count
             else:
