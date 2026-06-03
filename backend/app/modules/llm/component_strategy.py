@@ -1295,16 +1295,31 @@ def generate_scene_composer(
                 "required": ["background", "layers"]
             }
 
+            # B5 (v7.4): desactivar el "thinking" del modelo en la llamada de
+            # composición. Con thinking activo, los tokens de pensamiento compiten
+            # con max_output_tokens y truncan/corrompen el JSON (causa de los
+            # warnings 'thought_signature' y de valores partidos como size:"color1").
+            # La composición no necesita razonamiento extenso → thinking_budget=0.
+            _config_kwargs = dict(
+                response_mime_type="application/json",
+                response_schema=gemini_schema,
+                temperature=0.3,
+                max_output_tokens=6000,
+            )
+            try:
+                gen_config = types.GenerateContentConfig(
+                    **_config_kwargs,
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                )
+            except (AttributeError, TypeError, ValueError):
+                # SDK sin soporte de thinking_config → comportamiento original.
+                gen_config = types.GenerateContentConfig(**_config_kwargs)
+
             response = _call_llm_sync(
                 client=client,
                 model=model,
                 contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=gemini_schema,
-                    temperature=0.3,
-                    max_output_tokens=6000,  # Increased from 4000 to accommodate new props
-                ),
+                config=gen_config,
                 label="LLM Component Strategy"
             )
 
