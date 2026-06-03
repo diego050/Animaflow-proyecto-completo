@@ -124,9 +124,9 @@ class TestValidateComposerSpec:
             "layers": [
                 {
                     "type": "component",
-                    "componentName": "IconifyIcon",
-                    "icon": "lucide:dog",
-                    "size": "120",
+                    "componentName": "Typewriter",
+                    "text": "Hello world",
+                    "fontSize": "48",
                     "x": 540,
                     "y": 960,
                 }
@@ -141,6 +141,44 @@ class TestValidateComposerSpec:
             "layers": [
                 {
                     "type": "component",
+                    "componentName": "Typewriter",
+                    "text": "Hello world",
+                    "fontSize": "48",
+                    "x": 540,
+                    "y": 960,
+                }
+            ]
+        }
+        validate_composer_spec(spec, "9:16", auto_fix=True)
+        assert spec["layers"][0]["fontSize"] == 48
+        assert isinstance(spec["layers"][0]["fontSize"], int)
+
+    def test_size_field_semantic_not_coerced(self):
+        """Size field with semantic values (lg, md) should NOT be coerced to number."""
+        spec = {
+            "layers": [
+                {
+                    "type": "component",
+                    "componentName": "StyleButton",
+                    "text": "Click me",
+                    "size": "lg",
+                    "x": 540,
+                    "y": 960,
+                }
+            ]
+        }
+        warnings = validate_composer_spec(spec, "9:16", auto_fix=True)
+        # size "lg" is semantic, should not trigger numeric warning
+        assert not any("size" in w and "string" in w for w in warnings)
+        # size should remain as string
+        assert spec["layers"][0]["size"] == "lg"
+
+    def test_size_field_numeric_string_normalized(self):
+        """Size field with numeric string should be normalized but not coerced to int."""
+        spec = {
+            "layers": [
+                {
+                    "type": "component",
                     "componentName": "IconifyIcon",
                     "icon": "lucide:dog",
                     "size": "120",
@@ -150,8 +188,9 @@ class TestValidateComposerSpec:
             ]
         }
         validate_composer_spec(spec, "9:16", auto_fix=True)
-        assert spec["layers"][0]["size"] == 120
-        assert isinstance(spec["layers"][0]["size"], int)
+        # size remains as string (normalized by Pydantic, not by validator)
+        assert spec["layers"][0]["size"] == "120"
+        assert isinstance(spec["layers"][0]["size"], str)
 
     def test_duplicate_text_warns(self):
         """Duplicate text across layers should warn."""
