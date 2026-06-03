@@ -105,8 +105,9 @@ export const AnimaCircle: React.FC<AnimaCircleProps> = ({
   // Construir estilos inline — sin Tailwind, sin Framer Motion
   const style: React.CSSProperties = {
     position: 'absolute',
-    left: `calc(50% + ${resolvedCx}px)`,
-    top: `calc(50% + ${resolvedCy}px)`,
+    // v7: cx/cy = CENTRO absoluto resuelto por layoutSolver; translate(-50%) centra.
+    left: `${resolvedCx}px`,
+    top: `${resolvedCy}px`,
     width: diameter,
     height: diameter,
     backgroundColor: fill,

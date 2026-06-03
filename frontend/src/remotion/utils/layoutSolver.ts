@@ -187,13 +187,15 @@ function resolveLayer(
   }
 
   // --- Already positioned by a flex parent --------------------------------
-  // Flex distribution sets x, y, width, height relative to the container
-  // and marks the layer with _flex_positioned. If present, offset the
-  // relative coordinates by the parent's absolute position and recurse
-  // into grandchildren without re-applying positioning.
+  // Flex/grid distribution sets x, y (top-left) RELATIVE to the container,
+  // plus width/height. Children render NESTED inside the container's
+  // position:absolute div, so their coordinates must stay relative to the
+  // container (CSS provides the parent offset) — we must NOT add parentX/Y.
+  // We convert top-left → CENTER to match the universal contract: every leaf
+  // receives its CENTER and applies translate(-50%,-50%) itself. (v7)
   if (layer._flex_positioned === true) {
-    layer.x = parentX + (layer.x as number);
-    layer.y = parentY + (layer.y as number);
+    layer.x = (layer.x as number) + (layer.width as number) / 2;
+    layer.y = (layer.y as number) + (layer.height as number) / 2;
     delete layer._flex_positioned;
     recurseChildren(layer, canvasWidth, canvasHeight);
     return;
@@ -275,12 +277,18 @@ function applyAbsolute(
 }
 
 /**
- * Convert center-based coordinates to absolute top-left.
+ * Convert center-offset coordinates to the element's ABSOLUTE CENTER.
  *
  * spec.json stores x/y as offsets from the parent center:
- *   abs_x = center_x + x
- *   abs_y = center_y + y
- * We then convert to top-left corner by subtracting half the dimension.
+ *   center_x = parentCenterX + x
+ *   center_y = parentCenterY + y
+ *
+ * CONTRATO ÚNICO (v7): emitimos el CENTRO absoluto del elemento, NO la esquina
+ * superior-izquierda. Cada componente/primitiva aplica `translate(-50%,-50%)`,
+ * así que centrarse es su responsabilidad y NO necesitamos restar width/2 aquí
+ * (lo cual además era erróneo porque width suele ser un default inventado para
+ * elementos cuyo tamaño depende del contenido — botones, texto, íconos).
+ * Ver docs/analisis-causa-raiz-produccion-v3.md (Causa #2).
  */
 function applyDefault(
   layer: Record<string, unknown>,
@@ -297,8 +305,8 @@ function applyDefault(
   const width = getDimension(layer, "width", DEFAULT_LAYER_WIDTH);
   const height = getDimension(layer, "height", DEFAULT_LAYER_HEIGHT);
 
-  layer.x = Math.floor(centerX + offsetX - width / 2);
-  layer.y = Math.floor(centerY + offsetY - height / 2);
+  layer.x = Math.floor(centerX + offsetX);
+  layer.y = Math.floor(centerY + offsetY);
   layer.width = width;
   layer.height = height;
 }

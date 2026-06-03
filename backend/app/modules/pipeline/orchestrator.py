@@ -141,16 +141,17 @@ async def _process_chunks_async(
 
                 current_offset += duration + (GAP_MS / 1000)
 
-                # Ensure scene is long enough for the text to be readable
-                word_count = len(scene_text.split())
-                min_duration_for_text = max(MIN_SCENE_DURATION, word_count / WORDS_PER_SECOND)
-                if scene["duration_seconds"] < min_duration_for_text:
-                    logger.info(
-                        "Scene %d duration %.2fs too short for %d words — extending to %.2fs",
-                        i + 1, scene["duration_seconds"], word_count, min_duration_for_text + AUDIO_PADDING,
-                    )
-                    scene["duration_seconds"] = round(min_duration_for_text + AUDIO_PADDING, 2)
-                    # Recalculate offset with the extended duration
+                # v7: NO extender la duración por conteo de palabras.
+                # La duración real del TTS (duration + AUDIO_PADDING, ya asignada
+                # arriba) ES la duración correcta de la escena. Extender por una
+                # estimación de palabras (WORDS_PER_SECOND=2.17) ignoraba el audio
+                # real (~3.7 wps en Piper) y dejaba segundos de silencio al final
+                # (p.ej. audio 4.30s → escena 7.67s → 3.37s de silencio).
+                # Si un texto es demasiado largo para una escena, la solución es
+                # segmentarlo en más escenas, no estirar la duración.
+                # Solo se garantiza un mínimo de seguridad si el TTS devuelve casi 0.
+                if scene["duration_seconds"] < 1.5:
+                    scene["duration_seconds"] = round(1.5 + AUDIO_PADDING, 2)
                     current_offset = scene["start_time_seconds"] + scene["duration_seconds"] + (GAP_MS / 1000)
 
             except Exception as e:

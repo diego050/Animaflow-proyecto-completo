@@ -486,6 +486,10 @@ class AnimaComposerSpec(BaseModel):
     version: str = Field(default="1.0")
     background: AnimaBackground
     layers: List[AnimaLayer]
+    # DEPRECATED (v7): el frontend nunca renderiza out_transition. Ya no se
+    # genera (eliminado del prompt y del schema de Gemini). Se mantiene el campo
+    # opcional solo para no romper la validación de specs antiguos almacenados
+    # (model_config extra="forbid"). No usar en specs nuevos.
     out_transition: Optional[OutTransition] = Field(default=None)
 
 

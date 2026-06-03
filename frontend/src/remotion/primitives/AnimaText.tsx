@@ -248,8 +248,10 @@ export const AnimaText: React.FC<AnimaTextProps> = ({
   // -----------------------------------------------------------------------
   const style: React.CSSProperties = {
     position: 'absolute',
-    left: `calc(50% + ${resolvedX}px)`,
-    top: `calc(50% + ${resolvedY}px)`,
+    // v7: x/y son el CENTRO absoluto (el layoutSolver ya lo resolvió). El
+    // translate(-50%,-50%) de abajo centra el elemento sobre ese punto.
+    left: `${resolvedX}px`,
+    top: `${resolvedY}px`,
     fontSize,
     fontWeight,
     color,

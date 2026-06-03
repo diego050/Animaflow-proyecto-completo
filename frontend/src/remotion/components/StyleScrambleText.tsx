@@ -7,6 +7,9 @@ interface StyleScrambleTextProps extends UniversalProps {
   speed?: number;
   characters?: string;
   loop?: boolean;
+  fontSize?: number;
+  fontWeight?: number;
+  color?: string;
   style?: Record<string, unknown>;
 }
 
@@ -19,6 +22,9 @@ export const StyleScrambleText: React.FC<StyleScrambleTextProps> = ({
   speed = 2,
   characters = DEFAULT_CHARS,
   loop = false,
+  fontSize,
+  fontWeight,
+  color,
   style,
   delay = 0,
 }) => {
@@ -42,9 +48,11 @@ export const StyleScrambleText: React.FC<StyleScrambleTextProps> = ({
     }).join('');
   }, [revealedChars, text, characters]);
 
-  const customFontSize = (style?.fontSize as number) ?? 32;
-  const customFontWeight = (style?.fontWeight as number) ?? 700;
-  const customColor = (style?.color as string) ?? '#00FFAB';
+  // v7: prioriza props top-level (el backend los escribe ahí); default grande
+  // para video móvil (antes 32px era ilegible).
+  const customFontSize = fontSize ?? (style?.fontSize as number) ?? 80;
+  const customFontWeight = fontWeight ?? (style?.fontWeight as number) ?? 700;
+  const customColor = color ?? (style?.color as string) ?? '#00FFAB';
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
   const customFontFamily = (style?.fontFamily as string) ?? 'JetBrains Mono, monospace';
   const customLetterSpacing = style?.letterSpacing ? `${style.letterSpacing}px` : '2px';
