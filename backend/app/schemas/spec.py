@@ -208,7 +208,7 @@ class BaseAnimaLayer(BaseModel):
         field_limits = {
             "lineWidth": (0, 20, 2),
             "strokeWidth": (0, 20, 2),
-            "fontSize": (12, 120, 48),
+            "fontSize": (16, 250, 72),
             "fontWeight": (100, 900, 400),
             "width": (10, 1920, 400),
             "height": (10, 1920, 200),
@@ -277,6 +277,12 @@ class BaseAnimaLayer(BaseModel):
         "scale-in", "spring-in", "zoom-in", "zoom-out", "rotate-in", "bounce-in"
     ]] = None
     entryDelay: float = Field(default=0)
+    exit: Optional[Literal[
+        "fade-out", "slide-up-out", "slide-down-out", "slide-left-out", "slide-right-out",
+        "scale-out", "spring-out", "bounce-out"
+    ]] = None
+    exitDelay: float = Field(default=0)
+    exitDuration: float = Field(default=0.5)
     filter: Optional[str] = None
     componentName: Optional[Literal[
         "APIRequestFlow", "AbstractWave", "AnimatedArrow", "AnimatedIcon", "AnimatedLine", "AnimatedShape",
