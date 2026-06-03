@@ -11,7 +11,7 @@
 | C2 transiciones | ✅ | overlay `GradientOverlay` centrado en cada corte (sin tocar audio) |
 | C4 prompt anti-texto | ✅ | regla 4.1 "jerarquía visual" en el prompt |
 | C5 auditoría componentes | 🔄 | StyleButton/StyleChip/StyleBadge a escala video; resto en `component-audit-c5.md` |
-| C3 flex/grid CSS real | 🔴 pendiente | el de mayor riesgo; detalle abajo |
+| C3 flex/grid CSS real | 🔄 paso 1 hecho | fix de grupos ANIDADOS (ya no se apilan en el origen); detalle abajo |
 | C6 keyframes | opcional | no iniciado |
 
 > **Aclaración clave:** el posicionamiento individual (x/y) NO está roto. Cualquier
@@ -125,6 +125,19 @@ que calcule cada `y`.
 **Riesgo:** medio-alto — toca el corazón del render y el contrato de coordenadas.
 Las capas planas (la mayoría de escenas hoy) deben seguir intactas. Requiere
 validación visual cuidadosa, idealmente comparando antes/después.
+
+**Progreso v7.6 — Paso 1 (hecho): fix de grupos ANIDADOS.**
+- `applyFlex`/`applyGrid` ya NO sobrescriben la posición de un contenedor que el
+  grupo PADRE ya distribuyó (se respeta vía `_flex_positioned`). Antes los grupos
+  anidados se apilaban en el origen. Ahora un "componente grande con chicos dentro"
+  o un grupo dentro de otro se posiciona donde el padre lo colocó.
+- **Blast radius:** solo afecta grupos anidados (que ya estaban rotos). Capas planas
+  y grupos de un solo nivel quedan idénticos (cero regresión esperada).
+- **Pendiente (paso 2, opcional/mayor):** "CSS flex real" puro requiere que los 109
+  componentes soporten render EN-FLUJO (hoy todos son `position:absolute`). Es un
+  cambio grande; se evalúa solo si el layout por solver no alcanza. Por ahora el
+  layout lo sigue calculando el solver (que ya distribuye bien single-level y, con
+  este fix, anidados).
 
 ### C4 — Guía de prompt: menos muro de texto 🟢 (HECHO)
 - **Soluciona:** parte de #4. Regla en el prompt (`component_strategy.py`): toda

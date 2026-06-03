@@ -332,8 +332,18 @@ function applyFlex(
   const width = getDimension(layer, "width", parentWidth);
   const height = getDimension(layer, "height", parentHeight);
 
-  layer.x = parentX;
-  layer.y = parentY;
+  // C3 (v7.6): si este contenedor flex/grid YA fue distribuido por un grupo
+  // PADRE (caso anidado, marcado con _flex_positioned), conservar la posición
+  // relativa que el padre le asignó. Solo los contenedores de NIVEL SUPERIOR se
+  // anclan en parentX/parentY. Antes se sobrescribía siempre → los grupos
+  // anidados se apilaban en el origen (el "flexbox roto"). Capas planas y grupos
+  // de un solo nivel NO cambian.
+  if (layer._flex_positioned === true) {
+    delete layer._flex_positioned;
+  } else {
+    layer.x = parentX;
+    layer.y = parentY;
+  }
   layer.width = width;
   layer.height = height;
 
@@ -377,8 +387,18 @@ function applyGrid(
   const width = getDimension(layer, "width", parentWidth);
   const height = getDimension(layer, "height", parentHeight);
 
-  layer.x = parentX;
-  layer.y = parentY;
+  // C3 (v7.6): si este contenedor flex/grid YA fue distribuido por un grupo
+  // PADRE (caso anidado, marcado con _flex_positioned), conservar la posición
+  // relativa que el padre le asignó. Solo los contenedores de NIVEL SUPERIOR se
+  // anclan en parentX/parentY. Antes se sobrescribía siempre → los grupos
+  // anidados se apilaban en el origen (el "flexbox roto"). Capas planas y grupos
+  // de un solo nivel NO cambian.
+  if (layer._flex_positioned === true) {
+    delete layer._flex_positioned;
+  } else {
+    layer.x = parentX;
+    layer.y = parentY;
+  }
   layer.width = width;
   layer.height = height;
 
