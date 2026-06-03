@@ -195,7 +195,7 @@ class AnimaBackground(BaseModel):
 
 
 class BaseAnimaLayer(BaseModel):
-    model_config = {"extra": "ignore"}
+    model_config = {"extra": "allow"}
 
     @model_validator(mode="before")
     @classmethod
@@ -319,10 +319,84 @@ class BaseAnimaLayer(BaseModel):
     url: Optional[str] = None
     query: Optional[str] = None
     animation: Optional[str] = None
+
+    @field_validator("animation", mode="before")
+    @classmethod
+    def _sanitize_animation(cls, v: Any) -> Any:
+        if not v or not isinstance(v, str):
+            return None
+        valid = {
+            "fade-in", "slide-up", "slide-down", "slide-left", "slide-right",
+            "scale-in", "spring-in", "bounce-in", "rotate-in", "blur-in",
+            "typewriter", "none"
+        }
+        v_lower = v.lower().strip()
+        if v_lower in valid:
+            return v_lower
+        # Map common LLM mistakes
+        mapping = {
+            "bouncy": "bounce-in",
+            "spring": "spring-in",
+            "slide": "slide-up",
+            "fade": "fade-in",
+            "scale": "scale-in",
+            "rotate": "rotate-in",
+        }
+        return mapping.get(v_lower, "fade-in")
+
     icon: Optional[str] = None  # Iconify icon ID (e.g. "mdi:heart")
     lineWidth: Optional[float] = None
     props: Optional[Dict[str, Any]] = None
     style: Optional[LayerStyle] = None
+
+    # ── Style* component props ─────────────────────────────────────────────
+    variant: Optional[str] = None
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    data: Optional[List[Dict[str, Any]]] = None
+    value: Optional[float] = None
+    max: Optional[float] = None
+    size: Optional[str] = None
+    prefix: Optional[str] = None
+    suffix: Optional[str] = None
+    format: Optional[str] = None
+    items: Optional[List[Dict[str, Any]]] = None
+    points: Optional[List[Dict[str, Any]]] = None
+    maxLines: Optional[int] = None
+    showLabel: Optional[bool] = None
+    showLabels: Optional[bool] = None
+    showValues: Optional[bool] = None
+    showGrid: Optional[bool] = None
+    showDots: Optional[bool] = None
+    lineColor: Optional[str] = None
+    fillArea: Optional[bool] = None
+    decimals: Optional[int] = None
+    characters: Optional[str] = None
+    loop: Optional[bool] = None
+    separator: Optional[str] = None
+    hoverFrame: Optional[int] = None
+    hoverDuration: Optional[int] = None
+    barHeight: Optional[float] = None
+    gap: Optional[float] = None
+    itemHeight: Optional[float] = None
+    visibleItems: Optional[int] = None
+    showScrollbar: Optional[bool] = None
+    showRipple: Optional[bool] = None
+    showPercentages: Optional[bool] = None
+    maxValue: Optional[float] = None
+    explodeSlice: Optional[int] = None
+    autoplay: Optional[bool] = None
+    muted: Optional[bool] = None
+    name: Optional[str] = None  # For StyleAvatar
+    from_: Optional[float] = Field(default=None, alias="from")  # For StyleAnimateNumber
+    duration: Optional[float] = None  # For StyleAnimateNumber
+    orientation: Optional[str] = None  # For StyleDivider
+    thickness: Optional[float] = None  # For StyleDivider
+    deletable: Optional[bool] = None  # For StyleChip
+    labelPosition: Optional[str] = None  # For StyleProgressBar
+    iconPosition: Optional[str] = None  # For StyleButton
+    showBadge: Optional[bool] = None  # For StyleAvatar
+    badgeText: Optional[str] = None  # For StyleAvatar
 
 class AnimaChildLayer(BaseAnimaLayer):
     @model_validator(mode="before")

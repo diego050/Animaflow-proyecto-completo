@@ -333,10 +333,12 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
 };
 
 // ---------------------------------------------------------------------------
-// Component Aliases (Deprecated → Style* equivalents)
-// These are kept for backward compatibility. New scenes should use Style* components.
+// Component Aliases (DEPRECATED — no longer used)
+// Kept for reference only. resolveComponentAlias() now returns names unchanged.
+// New scenes must use Style* component names directly.
 // ---------------------------------------------------------------------------
 
+/** @deprecated Aliases are disabled. Use Style* component names directly. */
 export const COMPONENT_ALIASES: Record<string, string> = {
   // Charts
   'BarChartReveal': 'StyleBarChart',
@@ -411,9 +413,10 @@ export const COMPONENT_ALIASES: Record<string, string> = {
 };
 
 /**
- * Resolve a component name, following aliases to their Style* equivalent.
- * Returns the resolved component name.
+ * Resolve a component name.
+ * Aliases are DISABLED — components render with their exact names.
+ * New scenes should use Style* component names directly.
  */
 export function resolveComponentAlias(name: string): string {
-  return COMPONENT_ALIASES[name] ?? name;
+  return name;  // No longer redirects
 }

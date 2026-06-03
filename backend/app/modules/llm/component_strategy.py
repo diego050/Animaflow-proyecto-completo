@@ -212,6 +212,8 @@ def _build_strategy_prompt(
     aspect_ratio: str = "9:16",
     icon_candidates: list[dict] | None = None,
     duration_seconds: float = 0.0,
+    suggested_bg_color: Optional[str] = None,
+    suggested_text_color: Optional[str] = None,
 ) -> str:
     # Group components by role
     by_role = {}
@@ -433,10 +435,29 @@ El background NO necesita exit.
 Las animaciones de salida deben empezar en el frame {exit_start_frame} (último 25% de la escena).
 """
 
+    # Color coherence section
+    color_section = ""
+    if suggested_bg_color or suggested_text_color:
+        color_section = f"""
+COLORES SUGERIDOS (del análisis visual de la escena):
+- Color de fondo sugerido: {suggested_bg_color or 'No especificado'}
+- Color de texto sugerido: {suggested_text_color or 'No especificado'}
+Usa estos colores como BASE para mantener coherencia visual con la dirección artística.
+Puedes variarlos ligeramente (±10% luminosidad) pero NO los ignores.
+"""
+
     return f"""Eres el director de escena de AnimaFlow. Tu trabajo es diseñar la composición de UNA escena de video devolviendo un JSON AnimaComposerSpec.
 
 TEXTO DE LA ESCENA: "{text}"
 DESCRIPCION VISUAL: "{media_query}"
+{color_section}
+DIRECCIÓN ARTÍSTICA DEL USUARIO (ALTA PRIORIDAD):
+"{media_query}"
+Todos los componentes, colores y estilos deben ser coherentes con esta dirección.
+Si la dirección sugiere un tono (cálido, tech, minimalista, etc.), refléjalo en:
+- Paleta de colores del background
+- Variantes de componentes
+- Tipografía y tamaños
 {timing_context}
 PASO 1 - IDENTIFICA EL SUJETO: Lee el texto y la descripción visual. ¿Cuál es el objeto/sujeto/tema principal de esta escena? (ej: un perro, una manzana, el dinero, un corazón, un planeta, etc.)
 
@@ -481,6 +502,22 @@ REGLAS DE ORO PARA EL DISEÑO:
    - Máximo 5-6 iconos decorativos por escena para no saturar.
 
 {layout_section}
+
+GUÍA DE TAMAÑOS DE TEXTO PARA VIDEO VERTICAL (1080x1920):
+┌─────────────────────────────────────────────────────┐
+│ Rol del texto              │ fontSize recomendado   │
+├─────────────────────────────────────────────────────┤
+│ Texto hablado / principal  │ 80-120 (GRANDE)        │
+│ Título de sección          │ 72-96                  │
+│ Subtítulo                  │ 48-64                  │
+│ Caption / etiqueta         │ 28-36                  │
+│ Texto pequeño / crédito    │ 20-24                  │
+└─────────────────────────────────────────────────────┘
+REGLA: El texto hablado SIEMPRE debe ser fontSize >= 80.
+Es video para móvil, no un documento. Si dudas, usa 96.
+
+NOTA sobre lineWidth: SOLO úsalo para componentes de tipo shape/path (líneas, bordes).
+NUNCA lo uses en componentes de texto, charts, cards o contadores.
 
 ## Video Style System
 
@@ -811,7 +848,7 @@ Ejemplo A - Escena con múltiples botones y texto:
         "alignItems": "center",
         "gap": 30,
         "children": [
-          {{"type": "text", "text": "Elige tu plan", "fontSize": 48, "fontWeight": 900}},
+          {{"type": "text", "text": "Elige tu plan", "fontSize": 96, "fontWeight": 900}},
           {{
             "type": "group",
             "layout": "flex",
@@ -877,7 +914,7 @@ Ejemplo C - Escena data-driven con múltiples elementos:
       "alignItems": "center",
       "gap": 20,
       "children": [
-        {{"type": "text", "text": "Resultados del trimestre", "fontSize": 42, "fontWeight": 900}},
+        {{"type": "text", "text": "Resultados del trimestre", "fontSize": 84, "fontWeight": 900}},
         {{"type": "component", "componentName": "StyleBarChart", "data": [{{"label": "Q1", "value": 65}}, {{"label": "Q2", "value": 80}}, {{"label": "Q3", "value": 95}}]}},
         {{
           "type": "group",
@@ -901,7 +938,7 @@ Si NO usas grupos flex/grid, CADA layer debe tener x/y diferentes para evitar su
   "layers": [
     {{"type": "component", "componentName": "KineticBackground", "x": 0, "y": 0}},
     {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:heart", "x": 0, "y": -200}},
-    {{"type": "text", "text": "Tu mensaje aquí", "x": 0, "y": 100, "fontSize": 72}},
+    {{"type": "text", "text": "Tu mensaje aquí", "x": 0, "y": 100, "fontSize": 96}},
     {{"type": "component", "componentName": "StyleBadge", "text": "CTA", "x": 0, "y": 300}}
   ]
 }}
@@ -1016,10 +1053,12 @@ def generate_scene_composer(
     available_components: list[dict] | None = None,
     api_key: str = "",
     model: str = "gemini-2.0-flash",
-    db: Optional[Session] = None,  # NEW: SQLAlchemy session for vector search
+    db: Optional[Session] = None,
     aspect_ratio: str = "9:16",
     composition_version: str = "v2",
     duration_seconds: float = 0.0,
+    suggested_bg_color: Optional[str] = None,
+    suggested_text_color: Optional[str] = None,
 ) -> AnimaComposerSpec:
     """
     Pregunta al LLM por la composición AnimaComposer (JSON) de la escena.
@@ -1047,7 +1086,10 @@ def generate_scene_composer(
     except Exception as e:
         logger.warning("Icon search failed, continuing without icons: %s", e)
 
-    prompt = _build_strategy_prompt(text, media_query, components, aspect_ratio, icon_candidates, duration_seconds)
+    prompt = _build_strategy_prompt(text, media_query, components, aspect_ratio, icon_candidates, duration_seconds,
+        suggested_bg_color=suggested_bg_color,
+        suggested_text_color=suggested_text_color,
+    )
 
     # Fallback default si hay error
     default_fallback = AnimaComposerSpec(
@@ -1124,7 +1166,7 @@ def generate_scene_composer(
                                 "r": {"type": "NUMBER", "minimum": 5, "maximum": 500},
                                 "pathData": {"type": "STRING"},
                                 "text": {"type": "STRING"},
-                                "fontSize": {"type": "NUMBER", "minimum": 12, "maximum": 120},
+                                "fontSize": {"type": "NUMBER", "minimum": 12, "maximum": 250},
                                 "fontWeight": {"type": "NUMBER", "minimum": 100, "maximum": 900},
                                 "letterSpacing": {"type": "NUMBER", "minimum": -10, "maximum": 20},
                                 "textAlign": {"type": "STRING"},
@@ -1150,7 +1192,80 @@ def generate_scene_composer(
                                 "query": {"type": "STRING"},
                                 "animation": {"type": "STRING"},
                                 "lineWidth": {"type": "INTEGER", "minimum": 0, "maximum": 20},
-                                "icon": {"type": "STRING"}
+                                "icon": {"type": "STRING"},
+                                "variant": {"type": "STRING"},
+                                "title": {"type": "STRING"},
+                                "subtitle": {"type": "STRING"},
+                                "data": {
+                                    "type": "ARRAY",
+                                    "items": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "label": {"type": "STRING"},
+                                            "value": {"type": "NUMBER"},
+                                            "color": {"type": "STRING"}
+                                        }
+                                    }
+                                },
+                                "value": {"type": "NUMBER"},
+                                "max": {"type": "NUMBER"},
+                                "size": {"type": "STRING"},
+                                "prefix": {"type": "STRING"},
+                                "suffix": {"type": "STRING"},
+                                "format": {"type": "STRING"},
+                                "items": {
+                                    "type": "ARRAY",
+                                    "items": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "label": {"type": "STRING"},
+                                            "value": {"type": "STRING"},
+                                            "icon": {"type": "STRING"}
+                                        }
+                                    }
+                                },
+                                "points": {
+                                    "type": "ARRAY",
+                                    "items": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "label": {"type": "STRING"},
+                                            "value": {"type": "NUMBER"}
+                                        }
+                                    }
+                                },
+                                "maxLines": {"type": "INTEGER", "minimum": 1, "maximum": 10},
+                                "showLabel": {"type": "BOOLEAN"},
+                                "showLabels": {"type": "BOOLEAN"},
+                                "showValues": {"type": "BOOLEAN"},
+                                "showGrid": {"type": "BOOLEAN"},
+                                "showDots": {"type": "BOOLEAN"},
+                                "lineColor": {"type": "STRING"},
+                                "fillArea": {"type": "BOOLEAN"},
+                                "decimals": {"type": "INTEGER", "minimum": 0, "maximum": 4},
+                                "characters": {"type": "STRING"},
+                                "loop": {"type": "BOOLEAN"},
+                                "separator": {"type": "STRING"},
+                                "barHeight": {"type": "NUMBER"},
+                                "gap": {"type": "NUMBER"},
+                                "visibleItems": {"type": "INTEGER", "minimum": 1, "maximum": 20},
+                                "showScrollbar": {"type": "BOOLEAN"},
+                                "showRipple": {"type": "BOOLEAN"},
+                                "showPercentages": {"type": "BOOLEAN"},
+                                "maxValue": {"type": "NUMBER"},
+                                "explodeSlice": {"type": "INTEGER"},
+                                "autoplay": {"type": "BOOLEAN"},
+                                "muted": {"type": "BOOLEAN"},
+                                "name": {"type": "STRING"},
+                                "orientation": {"type": "STRING"},
+                                "thickness": {"type": "NUMBER"},
+                                "deletable": {"type": "BOOLEAN"},
+                                "labelPosition": {"type": "STRING"},
+                                "iconPosition": {"type": "STRING"},
+                                "showBadge": {"type": "BOOLEAN"},
+                                "badgeText": {"type": "STRING"},
+                                "from": {"type": "NUMBER"},
+                                "duration": {"type": "NUMBER"},
                             },
                             "required": ["type", "x", "y"]
                         }
@@ -1180,7 +1295,7 @@ def generate_scene_composer(
                     response_mime_type="application/json",
                     response_schema=gemini_schema,
                     temperature=0.3,
-                    max_output_tokens=4000,
+                    max_output_tokens=6000,  # Increased from 4000 to accommodate new props
                 ),
                 label="LLM Component Strategy"
             )
@@ -1222,6 +1337,19 @@ def generate_scene_composer(
                     result = _sanitize_llm_json(result)
                     result = json.loads(result)
                 if isinstance(result, dict):
+                    # Post-processing: Sanitize invalid icon values
+                    for layer in result.get("layers", []):
+                        icon = layer.get("icon")
+                        if icon and isinstance(icon, str) and icon.lower().strip() in ("none", "null", "undefined", "", "n/a"):
+                            del layer["icon"]
+                            logger.info("Removed invalid icon value: '%s'", icon)
+
+                    # Post-processing: Remove groups with no children
+                    result["layers"] = [
+                        layer for layer in result.get("layers", [])
+                        if not (layer.get("type") == "group" and not layer.get("children"))
+                    ]
+
                     for layer in result.get("layers", []):
                         if "lineWidth" in layer and isinstance(layer["lineWidth"], (int, float)):
                             layer["lineWidth"] = round(float(layer["lineWidth"]), 2)

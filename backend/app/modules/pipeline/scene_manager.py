@@ -87,6 +87,8 @@ async def _regenerate_scene_async(
         api_key=api_key,
         model="gemini-2.0-flash",
         db=db,
+        suggested_bg_color=visual_spec.backgroundColor,
+        suggested_text_color=visual_spec.textColor,
     )
 
     scene["type"] = "custom"
