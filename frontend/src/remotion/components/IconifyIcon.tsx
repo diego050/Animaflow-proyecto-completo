@@ -39,14 +39,19 @@ export const IconifyIcon: React.FC<IconifyIconProps> = ({
   const encodedColor = encodeURIComponent(color);
   const url = `https://api.iconify.design/${prefix}/${name}.svg?color=${encodedColor}`;
 
+  // v7: size puede llegar como string ("120") desde el LLM → coercer a número
+  // para que size * scale no produzca NaN/concatenación.
+  const numericSize = Number(size) || 120;
+
   const element = (
     <div
       style={{
         position: 'absolute',
+        // x/y = CENTRO absoluto (layoutSolver); translate(-50%) centra.
         left: `${x}px`,
         top: `${y}px`,
-        width: `${size * scale}px`,
-        height: `${size * scale}px`,
+        width: `${numericSize * scale}px`,
+        height: `${numericSize * scale}px`,
         transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
         opacity,
         zIndex: 10,
@@ -54,6 +59,11 @@ export const IconifyIcon: React.FC<IconifyIconProps> = ({
     >
       <Img
         src={url}
+        // v7: onError evita que un ícono inaccesible (API pública caída o
+        // nombre inexistente) tumbe el render COMPLETO del video. Sin handler,
+        // el <Img> de Remotion lanza y aborta el render. TODO (Fase B):
+        // self-hostear los SVG desde el VPS para no depender de api.iconify.design.
+        onError={() => {}}
         style={{
           width: '100%',
           height: '100%',

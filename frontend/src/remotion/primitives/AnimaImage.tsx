@@ -103,8 +103,9 @@ export const AnimaImage: React.FC<AnimaImageProps> = ({
   // Construir estilos inline — sin Tailwind, sin Framer Motion
   const style: React.CSSProperties = {
     position: 'absolute',
-    left: `calc(50% + ${resolvedX}px)`,
-    top: `calc(50% + ${resolvedY}px)`,
+    // v7: x/y = CENTRO absoluto resuelto por layoutSolver; translate(-50%) centra.
+    left: `${resolvedX}px`,
+    top: `${resolvedY}px`,
     width,
     height,
     objectFit: fit,

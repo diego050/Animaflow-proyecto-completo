@@ -198,24 +198,36 @@ def _clamp_coordinates(spec: dict, width: int, height: int) -> dict:
 
 
 # ── Catálogo de componentes disponibles ──────────────────────────────────────
-# Mantener sincronizado con frontend/src/remotion/registry.ts
+# FUENTE DE VERDAD: frontend/src/remotion/registry.ts (COMPONENT_NAMES).
+# Esta lista DEBE contener exactamente los mismos nombres que el registry del
+# frontend. Si divergen, los componentes que falten aquí se BORRAN del spec en
+# la Fase 4.1 (validación de componentes) aunque existan en el frontend.
+# v7: añadidos IconifyIcon + los 24 Style* que faltaban y hacían desaparecer
+# texto e íconos en producción.
+# TODO (Fase B): generar esta lista automáticamente desde registry.ts en CI.
 AVAILABLE_COMPONENTS: list[str] = [
     "APIRequestFlow", "AbstractWave", "AnimatedArrow", "AnimatedIcon", "AnimatedLine", "AnimatedShape",
     "AppStoreButtons", "AudioSpectrumBars", "BarChartReveal", "BreakingNewsAlert", "BreakingNewsTicker",
     "BrowserWindow", "CalendarDatePop", "CodeBlockHighlight", "CountdownTimer", "CounterNumber",
     "CursorClick", "EmojiFloat", "FeatureChecklist", "FeatureUnlock", "FlashSaleTimer", "FloatingBadge",
     "FloatingBlobs", "FollowerCounter", "FunnelChart", "GitCommitGraph", "GlitchTitle", "GlitchTransition",
-    "GlobalVFX", "GradientOverlay", "GridPerspective", "HighlightText", "HorizontalBarRace", "InstagramPost",
-    "KineticBackground", "LightLeakTransition", "LoadingSpinner", "LowerThird",
+    "GlobalVFX", "GradientOverlay", "GridPerspective", "HighlightText", "HorizontalBarRace", "IconifyIcon",
+    "InstagramPost", "KineticBackground", "LightLeakTransition", "LoadingSpinner", "LowerThird",
     "MaskedReveal", "MediaFrame", "MessageBubble", "MusicPlayerUI", "NetworkNodes", "NotificationToast",
     "ParticleField", "PercentageRing", "PhoneMockup", "PieChartReveal", "PodcastGuestCard", "PricingTableReveal",
     "ProductCardReveal", "ProgressPill", "PromoCodeBanner", "QuoteBlock", "RadarSpiderChart", "RaysOfLight",
     "RippleEffect", "ScoreboardCounter", "SearchEngineTyping", "ShoppingCartBadge", "SizeSelector",
     "SocialProgressBar", "SocialSharePopup", "SoundWaveCircle", "SplitScreenGrid", "SplitText",
-    "StockCandlestick", "StrikethroughText", "SubscribeButton", "TerminalHacker", "TestimonialReview",
-    "TextBubble", "TextReveal", "TextSwap", "TikTokOverlay", "TinderSwipeCard", "TrendLine", "TweetCard",
+    "StockCandlestick", "StrikethroughText", "SubscribeButton",
+    "StyleAnimateNumber", "StyleAvatar", "StyleBarChart", "StyleBarRace", "StyleBadge",
+    "StyleButton", "StyleCallout", "StyleCard", "StyleChip", "StyleCursor", "StyleDivider",
+    "StyleFakeScroll", "StyleFunnelChart", "StyleLineChart", "StylePieChart", "StyleProgressBar",
+    "StyleRadarChart", "StyleScrambleText", "StyleSimulatedHover", "StyleTextBlock", "StyleTicker",
+    "StyleVideoPlayer", "StyleWatermark",
+    "TerminalHacker", "TestimonialReview", "TextBubble", "TextReveal", "TextSwap",
+    "TikTokOverlay", "TinderSwipeCard", "TrendLine", "TweetCard",
     "Typewriter", "UnderlineReveal", "VersusScreen", "WaveformVisualizer", "WipeTransition",
-    "YouTubeEndScreen", "ZoomBlurTransition"
+    "YouTubeEndScreen", "ZoomBlurTransition",
 ]
 
 
@@ -1005,16 +1017,6 @@ Transitions are detected automatically when:
 
 {positioning_rules}
 
-TRANSICIONES DE SALIDA (out_transition):
-Analiza la continuidad entre esta escena y la siguiente (si la hay).
-- Si hay un cambio drástico de tema o emoción: usa "ZoomBlurTransition" o "GlitchTransition".
-- IMPORTANTE: Usa duration_frames entre 10 y 15 (0.3-0.5 segundos). Transiciones largas (>20 frames) cortan el audio.
-- Si hay continuidad visual pero cambio de contenido: usa "WipeTransition" o "LightLeakTransition".
-- Si las escenas fluyen naturalmente sin corte brusco: usa "NONE" o "GradientOverlay".
-
-Incluye "out_transition" en tu JSON solo si quieres una transición al final de esta escena.
-Ejemplo: "out_transition": {{"type": "ZoomBlurTransition", "duration_frames": 15}}
-
 Ejemplo de estructura JSON esperada:
 {{
   "background": {{
@@ -1286,19 +1288,9 @@ def generate_scene_composer(
                             "required": ["type", "x", "y"]
                         }
                     },
-                    "out_transition": {
-                        "type": "OBJECT",
-                        "nullable": True,
-                        "properties": {
-                            "type": {
-                                "type": "STRING",
-                                "enum": ["ZoomBlurTransition", "WipeTransition", "LightLeakTransition", "GlitchTransition", "GradientOverlay", "NONE"]
-                            },
-                            "duration_frames": {"type": "INTEGER"},
-                            "target_scene": {"type": "STRING", "nullable": True}
-                        },
-                        "required": ["type"]
-                    }
+                    # v7: out_transition eliminado — el frontend nunca lo renderiza
+                    # (MainComposition no lo lee). La única transición es el
+                    # crossfade de fondo de 15 frames en AnimaComposer.
                 },
                 "required": ["background", "layers"]
             }
@@ -1564,7 +1556,7 @@ def generate_scene_composer(
                             return
 
                         # Multi-line estimation (matching frontend fitText.ts)
-                        min_font_size = 48  # Minimum readable size for mobile video
+                        min_font_size = 64  # v7: mínimo legible para texto hablado en video vertical
                         max_font_size = font_size
                         best_font_size = min_font_size
                         char_width_ratio = 0.6  # Bold font

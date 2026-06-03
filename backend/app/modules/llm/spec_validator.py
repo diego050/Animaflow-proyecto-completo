@@ -156,24 +156,10 @@ def validate_composer_spec(
         warnings.append(msg)
 
     # ── Check 9: Component name must be in registry ──
-    VALID_COMPONENTS = {
-        "APIRequestFlow", "AbstractWave", "AnimatedArrow", "AnimatedIcon", "AnimatedLine",
-        "AnimatedShape", "AppStoreButtons", "AudioSpectrumBars", "BarChartReveal",
-        "BreakingNewsAlert", "BreakingNewsTicker", "BrowserWindow", "CalendarDatePop",
-        "CodeBlockHighlight", "CountdownTimer", "CounterNumber", "CursorClick",
-        "EmojiFloat", "EmojiReaction", "FeatureChecklist", "FloatingBlobs",
-        "GlitchTitle", "GlitchTransition", "GlobalVFX", "GridPerspective",
-        "HighlightText", "KineticBackground", "LightLeakTransition", "LowerThird",
-        "MusicPlayerUI", "NetworkNodes", "NotificationToast", "ParticleField",
-        "PercentageRing", "PhoneMockup", "ProductCardReveal", "QuoteBlock",
-        "RaysOfLight", "SearchEngineTyping", "ShoppingCartBadge", "SocialProgressBar",
-        "SplitScreenGrid", "StatCard", "StepByStepGuide", "StyleAnimateNumber",
-        "StyleAvatar", "StyleBadge", "StyleButton", "StyleCard", "StyleChip",
-        "StyleDivider", "StyleProgressBar", "StyleScrambleText", "StyleTextBlock",
-        "SubscribeButton", "TerminalHacker", "TestimonialReview", "TextBubble",
-        "TextReveal", "TinderSwipeCard", "TrendLine", "Typewriter", "WipeTransition",
-        "ZoomBlurTransition", "IconifyIcon",
-    }
+    # Reutiliza la ÚNICA fuente de verdad para evitar que esta lista derive de
+    # la del strategy (que es la que de verdad borra componentes). v7.
+    from app.modules.llm.component_strategy import AVAILABLE_COMPONENTS
+    VALID_COMPONENTS = set(AVAILABLE_COMPONENTS)
 
     for i, layer in enumerate(layers):
         comp_name = layer.get("componentName", "")
