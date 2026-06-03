@@ -4,6 +4,14 @@ import type { TimelineSpec, Spec } from "../types/spec";
 import { useAuthStore } from "../store/useAuthStore";
 import { AnimaComposer } from './composer/AnimaComposer';
 import { COMPONENT_REGISTRY } from './registry';
+import { TransitionWrapper } from './transitions/TransitionWrapper';
+
+// C2 (v7.5): transición de escena por defecto. GradientOverlay es SIMÉTRICO
+// (opacidad sin(progress·π): claro→pico→claro), así que como overlay centrado en
+// el corte hace un "barrido" de color limpio sin dejar la pantalla en negro.
+// Es puramente visual y aditivo: no altera el audio ni el secuenciado de escenas.
+const SCENE_TRANSITION_TYPE = 'GradientOverlay';
+const SCENE_TRANSITION_FRAMES = 16; // ~0.5s a 30fps
 
 interface FallbackSceneProps {
   text: string;
@@ -37,6 +45,7 @@ interface DynamicSceneProps {
   fallbackColor: string;
   animaComposer?: Spec['anima_composer'];
   nextSceneBackgroundColors?: string[];
+  wordTimestamps?: { word: string; start: number; end: number }[];
 }
 
 interface SceneProps {
@@ -46,7 +55,7 @@ interface SceneProps {
 }
 type SceneComponent = React.ComponentType<SceneProps>;
 
-const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, animaComposer, nextSceneBackgroundColors }: DynamicSceneProps) => {
+const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, animaComposer, nextSceneBackgroundColors, wordTimestamps }: DynamicSceneProps) => {
   if (type === 'custom' && animaComposer) {
     return (
       <AnimaComposer
@@ -54,6 +63,7 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor,
         text={text}
         durationInFrames={durationInFrames}
         nextSceneBackgroundColors={nextSceneBackgroundColors}
+        wordTimestamps={wordTimestamps}
       />
     );
   }
@@ -115,6 +125,14 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
           ? `${scene.audio_url}?token=${token}`
           : scene.audio_url;
 
+        // v7.3: timestamps por palabra relativos al inicio de la escena
+        // (los del backend son globales, offset por start_time_seconds).
+        const relativeWordTimestamps = (scene.word_timestamps ?? []).map((w) => ({
+          word: w.word,
+          start: Math.max(0, w.start - scene.start_time_seconds),
+          end: Math.max(0, w.end - scene.start_time_seconds),
+        }));
+
         return (
           <Sequence key={index} from={fromFrame} durationInFrames={durationInFrames}>
             <DynamicScene
@@ -125,8 +143,29 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
                 fallbackColor={String(scene.remotion_props?.textColor || "#fff")}
                 animaComposer={scene.anima_composer}
                 nextSceneBackgroundColors={nextSceneColors[index]}
+                wordTimestamps={relativeWordTimestamps}
             />
             {audioUrlWithToken && <Audio src={audioUrlWithToken} />}
+          </Sequence>
+        );
+      })}
+
+      {/* C2: overlays de transición, CENTRADOS en cada corte entre escenas.
+          Van después de las escenas en el DOM → se pintan ENCIMA. No tienen
+          audio ni alteran el timing; solo es un efecto visual sobre el corte. */}
+      {spec.scenes.slice(1).map((_, i) => {
+        const boundaryFrame = sceneOffsets[i + 1];
+        const from = Math.max(0, boundaryFrame - Math.floor(SCENE_TRANSITION_FRAMES / 2));
+        return (
+          <Sequence
+            key={`transition-${i}`}
+            from={from}
+            durationInFrames={SCENE_TRANSITION_FRAMES}
+          >
+            <TransitionWrapper
+              type={SCENE_TRANSITION_TYPE}
+              durationFrames={SCENE_TRANSITION_FRAMES}
+            />
           </Sequence>
         );
       })}

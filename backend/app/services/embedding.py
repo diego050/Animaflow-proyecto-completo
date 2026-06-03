@@ -1,6 +1,7 @@
 """Component embedding service for semantic search using Gemini Embeddings."""
 import math
 import os
+import time
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import exc
@@ -26,21 +27,37 @@ def generate_embedding(text: str, api_key: Optional[str] = None) -> Optional[lis
     try:
         from google import genai
         from google.genai import types
-        
+
         client = genai.Client(api_key=api_key)
-        response = client.models.embed_content(
-            model=GEMINI_EMBEDDING_MODEL,
-            contents=text,
-            config=types.EmbedContentConfig(
-                task_type="RETRIEVAL_DOCUMENT",
-                output_dimensionality=768,
-            ),
-        )
-        
-        if response.embeddings:
-            return response.embeddings[0].values
+
+        # v7.2: reintento con backoff ante 429 (rate limit por ráfaga).
+        last_err: Optional[Exception] = None
+        for attempt in range(3):
+            try:
+                response = client.models.embed_content(
+                    model=GEMINI_EMBEDDING_MODEL,
+                    contents=text,
+                    config=types.EmbedContentConfig(
+                        # Compartida por queries y por scripts que pueblan docs;
+                        # se mantiene RETRIEVAL_DOCUMENT para no desincronizar.
+                        task_type="RETRIEVAL_DOCUMENT",
+                        output_dimensionality=768,
+                    ),
+                )
+                if response.embeddings:
+                    return response.embeddings[0].values
+                return None
+            except Exception as e:  # noqa: BLE001
+                last_err = e
+                msg = str(e)
+                if ("429" in msg or "RESOURCE_EXHAUSTED" in msg) and attempt < 2:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                break
+
+        logger.error("Failed to generate Gemini embedding: %s", last_err)
         return None
-        
+
     except Exception as e:
         logger.error("Failed to generate Gemini embedding: %s", e)
         return None
@@ -105,12 +122,28 @@ def get_relevant_components(
     query_embedding = generate_embedding(query_text)
 
     if query_embedding is None:
-        # Fallback: return random active components
-        logger.warning("No embedding available. Falling back to random selection.")
-        query = db.query(ComponentModel).filter(ComponentModel.is_active.is_(True))
-        if category_filter:
-            query = query.filter(ComponentModel.category == category_filter)
-        components = query.limit(top_k).all()
+        # v7.2: fallback CURADO (no aleatorio). Si el embedding falla (cuota 429,
+        # sin API key, etc.) devolvemos una paleta coherente y usable en vez de
+        # componentes al azar que producen composiciones absurdas
+        # (p.ej. HighlightText en un párrafo). Se loguea fuerte para detectarlo.
+        logger.warning(
+            "No embedding available (quota/error). Using CURATED fallback set "
+            "instead of random selection — check GEMINI quota / API key."
+        )
+        CURATED = [
+            "StyleTextBlock", "IconifyIcon", "KineticBackground", "ParticleField",
+            "StyleBadge", "StyleButton", "StyleCard", "StyleDivider",
+        ]
+        query = db.query(ComponentModel).filter(
+            ComponentModel.is_active.is_(True),
+            ComponentModel.name.in_(CURATED),
+        )
+        components = query.all()
+        if not components:
+            # Último recurso: lo que haya, para no romper el pipeline.
+            components = db.query(ComponentModel).filter(
+                ComponentModel.is_active.is_(True)
+            ).limit(top_k).all()
         return [_format_component(c) for c in components]
 
     # Define diversity quotas

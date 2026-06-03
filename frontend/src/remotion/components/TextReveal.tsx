@@ -3,11 +3,18 @@ import { useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';
 import { fitText } from '../utils/fitText';
 import type { UniversalProps } from "./types";
 
+export interface WordTiming {
+  word: string;
+  start: number; // segundos, relativo al inicio de la escena
+  end: number;
+}
+
 export interface TextRevealProps extends UniversalProps {
   text: string;
   animation?: 'fade' | 'blur' | 'slide_up';
   glowIntensity?: number;
   width?: number;
+  wordTimestamps?: WordTiming[];
 }
 
 export const TextReveal: React.FC<TextRevealProps> = ({
@@ -20,10 +27,13 @@ export const TextReveal: React.FC<TextRevealProps> = ({
   fontSize = 60,
   width,  // Remove hardcoded default
   delay = 0,
+  wordTimestamps,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
   const { fps, width: canvasWidth, height: canvasHeight } = useVideoConfig();
+
+  const hasKaraoke = !!(wordTimestamps && wordTimestamps.length > 0);
 
   // Calculate effective container width
   const effectiveWidth = width || Math.min(900, Math.floor(canvasWidth * 0.85));
@@ -59,9 +69,19 @@ export const TextReveal: React.FC<TextRevealProps> = ({
       }}
     >
       {words.map((word, index) => {
-        // Stagger: delay each word by 3 frames
-        const wordDelay = index * 3;
-        const wordFrame = Math.max(0, adjustedFrame - wordDelay);
+        // v7.3: KARAOKE — si hay timestamps, cada palabra entra cuando se
+        // pronuncia (mapeo por índice, clamp al último). Si no, stagger fijo.
+        let wordStartFrame: number;
+        let baseFrame: number;
+        if (hasKaraoke) {
+          const ts = wordTimestamps![Math.min(index, wordTimestamps!.length - 1)];
+          wordStartFrame = Math.round((ts?.start ?? 0) * fps);
+          baseFrame = frame; // timestamps son relativos al inicio de la escena (= audio)
+        } else {
+          wordStartFrame = index * 3;
+          baseFrame = adjustedFrame;
+        }
+        const wordFrame = Math.max(0, baseFrame - wordStartFrame);
 
         // Spring animation from 0 to 1
         const progress = spring({

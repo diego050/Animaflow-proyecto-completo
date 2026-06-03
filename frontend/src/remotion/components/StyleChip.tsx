@@ -12,10 +12,11 @@ interface StyleChipProps extends UniversalProps {
   style?: Record<string, unknown>;
 }
 
+// v7.4 (C5): tamaños a escala de VIDEO vertical (antes 12/14/16 = UI web).
 const sizeMap = {
-  sm: { padding: '4px 10px', fontSize: 12, iconSize: 14 },
-  md: { padding: '6px 14px', fontSize: 14, iconSize: 16 },
-  lg: { padding: '8px 18px', fontSize: 16, iconSize: 18 },
+  sm: { padding: '8px 18px', fontSize: 24, iconSize: 24 },
+  md: { padding: '10px 24px', fontSize: 30, iconSize: 30 },
+  lg: { padding: '14px 30px', fontSize: 36, iconSize: 36 },
 };
 
 const variantMap = {

@@ -34,6 +34,14 @@ const ALLOWED_PROPS: Record<string, Set<string>> = {
     'width', 'delay', 'speed',
     'entry', 'entryDelay', 'exit', 'exitDelay', 'exitDuration',
   ]),
+  'WordHighlight': new Set([
+    'text', 'x', 'y', 'fontSize', 'fontWeight', 'color', 'highlightColor',
+    'width', 'activeScale', 'dimUpcoming', 'delay', 'wordTimestamps',
+    'entry', 'entryDelay', 'exit', 'exitDelay', 'exitDuration',
+  ]),
+  'KeywordPop': new Set([
+    'icon', 'triggerWord', 'x', 'y', 'size', 'color', 'wordTimestamps',
+  ]),
   'IconifyIcon': new Set([
     'icon', 'x', 'y', 'size', 'color',
     'entry', 'entryDelay', 'exit', 'exitDelay', 'exitDuration',

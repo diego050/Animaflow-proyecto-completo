@@ -27,7 +27,7 @@ def sample_script():
 
 
 @pytest.fixture
-def mock_external_services(tmp_path):
+def mock_external_services(tmp_path, sample_script):
     """
     Patches all external API calls and file I/O used by the pipeline.
     Yields a dict with the mock objects for inspection if needed.
@@ -36,20 +36,19 @@ def mock_external_services(tmp_path):
     audio_storage = str(tmp_path / "audio")
     os.makedirs(audio_storage, exist_ok=True)
 
-    # Build deterministic BatchVisualSpec with enough scenes for the sample script
-    # (sample_script has 3 sentences → 2 chunks (grouped by ~7s duration))
+    # Build a BatchVisualSpec con UNA visual por chunk real. Derivamos el número
+    # de chunks de la MISMA función de segmentación, así el test no se rompe si
+    # se ajusta el target de segmentación (p.ej. 7s→5s en A3.7). v7.4.
+    from app.modules.segmentation.service import split_text_into_chunks
+    num_chunks = len(split_text_into_chunks(sample_script))
     batch_visuals = BatchVisualSpec(
         scenes=[
             VisualSpecResult(
-                media_query="A cinematic wide shot of a futuristic landscape",
-                backgroundColor="#0f172a",
-                textColor="#38bdf8",
-            ),
-            VisualSpecResult(
-                media_query="A heart shape forming from connected dots with warm golden light",
-                backgroundColor="#1e293b",
-                textColor="#fbbf24",
-            ),
+                media_query=f"Deterministic media query for scene {i}",
+                backgroundColor="#0f172a" if i % 2 == 0 else "#1e293b",
+                textColor="#38bdf8" if i % 2 == 0 else "#fbbf24",
+            )
+            for i in range(num_chunks)
         ]
     )
 

@@ -142,6 +142,13 @@ export interface LayerSpec {
   style?: Record<string, unknown>;
 }
 
+/** Tiempo de una palabra hablada, RELATIVO al inicio de la escena (segundos). */
+export interface WordTiming {
+  word: string;
+  start: number;
+  end: number;
+}
+
 export interface AnimaComposerProps {
   /** JSON de escena completo. */
   spec: {
@@ -158,6 +165,13 @@ export interface AnimaComposerProps {
 
   /** Background colors of the NEXT scene (for crossfade transition). */
   nextSceneBackgroundColors?: string[];
+
+  /**
+   * Timestamps por palabra, relativos al inicio de la escena (segundos).
+   * Habilita reveal sincronizado al audio (karaoke) y, a futuro, disparar
+   * animaciones/componentes en una palabra concreta.
+   */
+  wordTimestamps?: WordTiming[];
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +186,7 @@ interface RenderContext {
   fps: number;
   text: string;
   durationInFrames: number;
+  wordTimestamps?: WordTiming[];
 }
 
 // ---------------------------------------------------------------------------
@@ -782,8 +797,15 @@ function renderSingleLayer(
         ...cleanProps,
         x: absoluteX,
         y: absoluteY,
-        text: typeof cleanProps.text === 'string' 
-          ? (cleanProps.text as string).replace('{{text}}', ctx.text) 
+        // v7.2: pasar la duración de la ESCENA para que componentes de texto
+        // (Typewriter, etc.) acompasen su animación al audio en vez de usar una
+        // velocidad fija que deja la última palabra fuera de tiempo.
+        durationInFrames: ctx.durationInFrames,
+        // v7.3: timestamps por palabra (relativos a la escena) para reveal
+        // sincronizado al audio (karaoke) y disparos por palabra a futuro.
+        wordTimestamps: ctx.wordTimestamps,
+        text: typeof cleanProps.text === 'string'
+          ? (cleanProps.text as string).replace('{{text}}', ctx.text)
           : ctx.text,
       };
 
@@ -872,6 +894,7 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
   text = '',
   durationInFrames: _durationInFrames,
   nextSceneBackgroundColors,
+  wordTimestamps,
 }) => {
   const frame = useCurrentFrame();
   const { width, height, fps } = useVideoConfig();
@@ -914,7 +937,7 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
   // -----------------------------------------------------------------------
   // Layers (z-index: 1+)
   // -----------------------------------------------------------------------
-  const ctx: RenderContext = { frame, width, height, fps, text, durationInFrames: actualDurationInFrames };
+  const ctx: RenderContext = { frame, width, height, fps, text, durationInFrames: actualDurationInFrames, wordTimestamps };
 
   return (
     <div

@@ -33,6 +33,7 @@ import { HighlightText } from './components/HighlightText';
 import { HorizontalBarRace } from './components/HorizontalBarRace';
 import { IconifyIcon } from './components/IconifyIcon';
 import { InstagramPost } from './components/InstagramPost';
+import { KeywordPop } from './components/KeywordPop';
 import { KineticBackground } from './components/KineticBackground';
 import { LightLeakTransition } from './components/LightLeakTransition';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -105,6 +106,7 @@ import { UnderlineReveal } from './components/UnderlineReveal';
 import { VersusScreen } from './components/VersusScreen';
 import { WaveformVisualizer } from './components/WaveformVisualizer';
 import { WipeTransition } from './components/WipeTransition';
+import { WordHighlight } from './components/WordHighlight';
 import { YouTubeEndScreen } from './components/YouTubeEndScreen';
 import { ZoomBlurTransition } from './components/ZoomBlurTransition';
 
@@ -144,6 +146,7 @@ export const COMPONENT_NAMES = [
   'HorizontalBarRace',
   'IconifyIcon',
   'InstagramPost',
+  'KeywordPop',
   'KineticBackground',
   'LightLeakTransition',
   'LoadingSpinner',
@@ -216,6 +219,7 @@ export const COMPONENT_NAMES = [
   'VersusScreen',
   'WaveformVisualizer',
   'WipeTransition',
+  'WordHighlight',
   'YouTubeEndScreen',
   'ZoomBlurTransition',
 ];
@@ -256,6 +260,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   HorizontalBarRace,
   IconifyIcon,
   InstagramPost,
+  KeywordPop,
   KineticBackground,
   LightLeakTransition,
   LoadingSpinner,
@@ -328,6 +333,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   VersusScreen,
   WaveformVisualizer,
   WipeTransition,
+  WordHighlight,
   YouTubeEndScreen,
   ZoomBlurTransition,
 };
