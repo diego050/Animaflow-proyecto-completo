@@ -65,27 +65,13 @@ def validate_composer_spec(
                 msg = f"Layer {i}: group has no children (will render empty)"
                 warnings.append(msg)
 
-        # ── Check 2: Text must fit in viewport ──
-        text = layer.get("text", "")
-        font_size = layer.get("fontSize")
-        if text and isinstance(font_size, (int, float)):
-            char_width = font_size * 0.6
-            estimated_width = len(text) * char_width
-            if estimated_width > max_text_width:
-                msg = (
-                    f"Layer {i}: text overflows "
-                    f"({len(text)} chars × {char_width:.0f}px = {estimated_width:.0f}px "
-                    f"> {max_text_width:.0f}px max)"
-                )
-                warnings.append(msg)
-                if auto_fix:
-                    scale = max_text_width / estimated_width
-                    new_size = max(28, int(font_size * scale))
-                    layer["fontSize"] = new_size
-                    logger.warning(
-                        "Auto-fixed fontSize %d → %d: %s",
-                        font_size, new_size, msg,
-                    )
+        # ── Check 2: ELIMINADO (v7.1) ──
+        # Estimaba el ancho del texto como UNA sola línea
+        # (len(text) × fontSize×0.6) y encogía cualquier texto largo de forma
+        # brutal (p.ej. 95→28), peleándose con el auto-fit MULTILÍNEA de
+        # component_strategy (_auto_fit_layer_text), que es el sistema correcto.
+        # El ajuste de tamaño ahora lo hace exclusivamente ese auto-fit; aquí
+        # solo queda el piso de fontSize (Check 10).
 
         # ── Check 3: No type/componentName conflicts ──
         if layer_type == "text" and comp_name:
