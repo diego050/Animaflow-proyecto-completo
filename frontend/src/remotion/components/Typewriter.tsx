@@ -6,7 +6,7 @@ import type { UniversalProps } from "./types";
 export interface TypewriterProps extends UniversalProps {
   text: string;
   width?: number;
-  speed?: number; // frames per character
+  speed?: number;
   durationInFrames?: number;
 }
 
@@ -16,7 +16,7 @@ export const Typewriter: React.FC<TypewriterProps> = ({
   x = 540,
   y = 960,
   fontSize = 60,
-  width,  // Remove hardcoded default — calculate from canvas
+  width,
   speed: speedProp,
   delay = 0,
   durationInFrames,
@@ -24,12 +24,10 @@ export const Typewriter: React.FC<TypewriterProps> = ({
   const frame = useCurrentFrame();
   const { width: canvasWidth, height: canvasHeight } = useVideoConfig();
 
-  // Calculate effective container width from canvas if not explicitly provided
   const effectiveWidth = width || Math.min(900, Math.floor(canvasWidth * 0.85));
 
-  // Auto-scale fontSize to fit text within container
   const fitted = fitText(text, effectiveWidth, Math.floor(canvasHeight * 0.6), {
-    minFontSize: 28,
+    minFontSize: 48,
     maxFontSize: fontSize || 60,
     fontWeight: 900,
     lineHeight: 1.3,
@@ -39,21 +37,16 @@ export const Typewriter: React.FC<TypewriterProps> = ({
 
   const adjustedFrame = Math.max(0, frame - delay);
 
-  // Calculate dynamic speed if durationInFrames is available
   const totalChars = text.length;
-  const reservedFrames = 30; // reserve 1s for cursor blink at end
+  const reservedFrames = 30;
   const availableFrames = (durationInFrames || 0) - reservedFrames - Math.round(delay * 30);
-  const dynamicSpeed = availableFrames > 0 && totalChars > 0 
+  const dynamicSpeed = availableFrames > 0 && totalChars > 0
     ? Math.max(1, Math.floor(availableFrames / totalChars))
     : (speedProp ?? 2);
-  
-  const speed = speedProp ?? dynamicSpeed;
 
-  // Number of characters to show based on current frame
+  const speed = speedProp ?? dynamicSpeed;
   const charsToShow = Math.floor(adjustedFrame / speed);
   const displayedText = text.substring(0, charsToShow);
-  
-  // Blinking cursor
   const cursorBlink = Math.floor(adjustedFrame / 15) % 2 === 0;
 
   return (
@@ -64,23 +57,23 @@ export const Typewriter: React.FC<TypewriterProps> = ({
         left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: `${effectiveWidth}px`,
-        textAlign: 'center',
+        textAlign: 'left',
         zIndex: 10,
       }}
     >
-      <div 
-        style={{ 
+      <div
+        style={{
           color,
           fontSize: actualFontSize,
           fontWeight: 900,
-          fontFamily: 'monospace, system-ui, sans-serif',
-          display: 'inline-block',
-          textAlign: 'left',
-          textShadow: '0 4px 20px rgba(0,0,0,0.8)'
+          fontFamily: 'Inter, system-ui, sans-serif',
+          lineHeight: 1.3,
+          wordBreak: 'break-word',
+          textShadow: '0 4px 20px rgba(0,0,0,0.8)',
         }}
       >
         {displayedText}
-        <span style={{ opacity: cursorBlink ? 1 : 0 }}>|</span>
+        <span style={{ opacity: cursorBlink ? 1 : 0, marginLeft: 2 }}>|</span>
       </div>
     </div>
   );

@@ -356,7 +356,18 @@ class BaseAnimaLayer(BaseModel):
     data: Optional[List[Dict[str, Any]]] = None
     value: Optional[float] = None
     max: Optional[float] = None
-    size: Optional[str] = None
+    size: Optional[Union[str, int, float]] = None
+
+    @field_validator("size", mode="before")
+    @classmethod
+    def normalize_size(cls, v: Any) -> Optional[str]:
+        """Accept both string and numeric sizes. Convert numbers to string for consistency."""
+        if v is None:
+            return None
+        if isinstance(v, (int, float)):
+            return str(int(v)) if v == int(v) else str(v)
+        return str(v)
+
     prefix: Optional[str] = None
     suffix: Optional[str] = None
     format: Optional[str] = None

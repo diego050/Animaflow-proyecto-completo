@@ -6,6 +6,7 @@ componentes de la Standard Library.
 Todo se retorna como un AnimaComposerSpec válido.
 """
 import json
+import math
 import re
 from typing import Any, Optional
 from sqlalchemy.orm import Session
@@ -1360,6 +1361,9 @@ def generate_scene_composer(
                             logger.info("Removed invalid icon value: '%s'", icon)
 
                     # ── Fase 1.1: Fix 'items' → 'children' in groups ──
+                    LAYOUT_HINT_VALUES = {"center", "left", "right", "top", "bottom", "start", "end", "stretch", "flex-start", "flex-end", "space-between", "space-around"}
+                    scene_text = text  # Available from function parameter scope
+
                     for layer in result.get("layers", []):
                         if layer.get("type") == "group" and "items" in layer and "children" not in layer:
                             items = layer.pop("items")
@@ -1367,34 +1371,49 @@ def generate_scene_composer(
                                 children = []
                                 for item in items:
                                     if isinstance(item, dict):
+                                        # Icon items
                                         if "icon" in item:
                                             children.append({
                                                 "type": "component",
                                                 "componentName": "IconifyIcon",
                                                 "icon": item["icon"],
-                                                "x": 0,
-                                                "y": 0,
+                                                "x": 0, "y": 0,
                                                 "size": item.get("size", 64),
                                             })
-                                        if "label" in item or "value" in item:
-                                            children.append({
-                                                "type": "text",
-                                                "text": item.get("value", item.get("label", "")),
-                                                "x": 0,
-                                                "y": 0,
-                                                "fontSize": 48,
-                                            })
-                                        if "text" in item:
-                                            children.append({
-                                                "type": "text",
-                                                "text": item["text"],
-                                                "x": 0,
-                                                "y": 0,
-                                                "fontSize": item.get("fontSize", 48),
-                                            })
+                                        # Text items — but filter out layout hints and duplicates
+                                        elif "text" in item:
+                                            text_val = item["text"]
+                                            if text_val and len(text_val) > 5:
+                                                children.append({
+                                                    "type": "text",
+                                                    "text": text_val,
+                                                    "x": 0, "y": 0,
+                                                    "fontSize": item.get("fontSize", 48),
+                                                })
+                                        elif "label" in item or "value" in item:
+                                            value = item.get("value", item.get("label", ""))
+                                            # Skip layout hints
+                                            if isinstance(value, str) and value.strip().lower() in LAYOUT_HINT_VALUES:
+                                                # Apply as alignment hint to the group
+                                                if "alignItems" not in layer:
+                                                    layer["alignItems"] = value.strip().lower()
+                                                continue
+                                            # Skip if value matches scene text (duplicate)
+                                            if value and scene_text and value.strip() == scene_text.strip():
+                                                continue
+                                            # Only add as text child if it's meaningful content
+                                            if value and len(value) > 5:
+                                                children.append({
+                                                    "type": "text",
+                                                    "text": value,
+                                                    "x": 0, "y": 0,
+                                                    "fontSize": 48,
+                                                })
                                 layer["children"] = children if children else []
-                                if "orientation" not in layer:
-                                    layer["orientation"] = "column"
+                                if "orientation" not in layer and "layout" not in layer:
+                                    layer["layout"] = "flex"
+                                    layer["direction"] = "column"
+                                    layer["alignItems"] = layer.get("alignItems", "center")
                                 if "gap" not in layer:
                                     layer["gap"] = 20
                             logger.info(
@@ -1452,8 +1471,9 @@ def generate_scene_composer(
                         result["layers"].pop(i)
 
                     # ── Fase 1.4: Normalize string numbers to actual numbers ──
-                    NUMERIC_KEYS = {"size", "width", "height", "fontSize", "strokeWidth", "gap",
+                    NUMERIC_KEYS = {"width", "height", "fontSize", "strokeWidth", "gap",
                                     "speed", "delay", "borderRadius", "letterSpacing", "glowIntensity"}
+                    # Note: "size" removed — it's handled by Pydantic validator
 
                     for layer in result.get("layers", []):
                         for key in NUMERIC_KEYS:
@@ -1494,6 +1514,41 @@ def generate_scene_composer(
                                     len(removed), comp, removed,
                                 )
 
+                    # ── Fase 4.1: Validate component names against registry ──
+                    VALID_COMPONENTS = set(AVAILABLE_COMPONENTS)
+                    FALLBACK_COMPONENTS = {
+                        "RippleEffect": "ParticleField",
+                        "GlowOrb": "FloatingBlobs",
+                        "NeonText": "TextReveal",
+                        "GradientMesh": "AbstractWave",
+                    }
+
+                    for layer in result.get("layers", []):
+                        comp = layer.get("componentName", "")
+                        if comp and comp not in VALID_COMPONENTS:
+                            fallback = FALLBACK_COMPONENTS.get(comp)
+                            if fallback:
+                                logger.info("Replaced unknown component '%s' → '%s'", comp, fallback)
+                                layer["componentName"] = fallback
+                            else:
+                                logger.warning("Unknown component '%s' — marking for removal", comp)
+                                layer["_remove"] = True
+
+                    result["layers"] = [l for l in result.get("layers", []) if not l.get("_remove")]
+
+                    # Also validate children in groups
+                    for layer in result.get("layers", []):
+                        for child in layer.get("children", []):
+                            comp = child.get("componentName", "")
+                            if comp and comp not in VALID_COMPONENTS:
+                                fallback = FALLBACK_COMPONENTS.get(comp)
+                                if fallback:
+                                    logger.info("Replaced unknown child component '%s' → '%s'", comp, fallback)
+                                    child["componentName"] = fallback
+                                else:
+                                    child["_remove"] = True
+                        layer["children"] = [c for c in layer.get("children", []) if not c.get("_remove")]
+
                     # ── Fase 2.4: Auto-fit text fontSize based on text length and canvas width ──
                     canvas_w, canvas_h = _get_canvas_dimensions(aspect_ratio)
                     max_text_width = canvas_w * 0.85
@@ -1501,41 +1556,59 @@ def generate_scene_composer(
                     TEXT_LAYER_TYPES = {"text", "component"}
                     TEXT_COMPONENT_NAMES = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText"}
 
-                    def _auto_fit_layer_text(layer: dict, max_width: float) -> None:
-                        """Scale down fontSize if text is estimated to overflow."""
+                    def _auto_fit_layer_text(layer: dict, max_width: float, canvas_height: float) -> None:
+                        """Scale down fontSize if text is estimated to overflow, accounting for line wrapping."""
                         text = layer.get("text", "")
                         font_size = layer.get("fontSize")
                         if not text or not font_size or not isinstance(font_size, (int, float)):
                             return
 
-                        char_width = font_size * 0.6
-                        estimated_width = len(text) * char_width
+                        # Multi-line estimation (matching frontend fitText.ts)
+                        min_font_size = 48  # Minimum readable size for mobile video
+                        max_font_size = font_size
+                        best_font_size = min_font_size
+                        char_width_ratio = 0.6  # Bold font
+                        line_height = 1.3
+                        max_text_height = canvas_height * 0.6  # Text can use 60% of canvas height
 
-                        if estimated_width > max_width:
-                            scale_factor = max_width / estimated_width
-                            new_font_size = max(28, int(font_size * scale_factor))
-                            if new_font_size < font_size:
-                                logger.info(
-                                    "Auto-fit fontSize: %d → %d for text length %d chars "
-                                    "(estimated %.0fpx > %.0fpx max)",
-                                    font_size, new_font_size, len(text),
-                                    estimated_width, max_width,
-                                )
-                                layer["fontSize"] = new_font_size
+                        low = min_font_size
+                        high = max_font_size
+                        while low <= high:
+                            mid = (low + high) // 2
+                            char_width = mid * char_width_ratio
+                            chars_per_line = max(1, int(max_width / char_width))
+                            line_count = math.ceil(len(text) / chars_per_line)
+                            total_height = line_count * mid * line_height
+
+                            if total_height <= max_text_height and chars_per_line >= 3:
+                                best_font_size = mid
+                                low = mid + 1
+                            else:
+                                high = mid - 1
+
+                        if best_font_size < font_size:
+                            logger.info(
+                                "Auto-fit fontSize: %d → %d for text length %d chars "
+                                "(multi-line fit: %d lines at %dpx width)",
+                                font_size, best_font_size, len(text),
+                                math.ceil(len(text) / max(1, int(max_width / (best_font_size * char_width_ratio)))),
+                                int(max_width),
+                            )
+                            layer["fontSize"] = best_font_size
 
                     for layer in result.get("layers", []):
                         layer_type = layer.get("type", "")
                         comp_name = layer.get("componentName", "")
 
                         if layer_type == "text" or (layer_type == "component" and comp_name in TEXT_COMPONENT_NAMES):
-                            _auto_fit_layer_text(layer, max_text_width)
+                            _auto_fit_layer_text(layer, max_text_width, canvas_h)
 
                         for child in layer.get("children", []):
                             child_type = child.get("type", "")
                             child_comp = child.get("componentName", "")
                             if child_type == "text" or (child_type == "component" and child_comp in TEXT_COMPONENT_NAMES):
                                 child_max_width = max_text_width * 0.8
-                                _auto_fit_layer_text(child, child_max_width)
+                                _auto_fit_layer_text(child, child_max_width, canvas_h)
 
                     # ── Fase 3.1: Assign default width for text components ──
                     COMPONENT_DEFAULT_WIDTHS = {
@@ -1613,28 +1686,67 @@ def generate_scene_composer(
                     for i in reversed(layers_to_remove):
                         result["layers"].pop(i)
 
-                    # Post-validation 3: Redistribute layers that are all at same position
+                    # Post-validation 3: Smart redistribution of overlapping layers
                     non_bg_layers = [
                         l for l in result.get("layers", [])
-                        if not (
-                            l.get("type") == "component"
-                            and l.get("componentName") == "KineticBackground"
-                        )
+                        if not (l.get("type") == "component" and l.get("componentName") == "KineticBackground")
                     ]
+
                     if len(non_bg_layers) > 1:
                         positions = set()
                         for l in non_bg_layers:
                             positions.add((l.get("x", 0), l.get("y", 0)))
-                        if len(positions) == 1:
-                            # All layers at same position — redistribute vertically
-                            y_offset = -200
+
+                        if len(positions) <= 1:
+                            # All layers at same position — distribute intelligently
+                            canvas_w, canvas_h = _get_canvas_dimensions(aspect_ratio)
+
+                            # Categorize layers by role
+                            decorative = []  # Background effects, particles
+                            text_layers = []  # Main text components
+                            ui_layers = []     # Buttons, badges, CTAs
+                            icon_layers = [] # Icons
+
                             for layer in non_bg_layers:
-                                layer["y"] = y_offset
+                                comp = layer.get("componentName", "")
+                                if comp in ("ParticleField", "FloatingBlobs", "RaysOfLight", "AbstractWave", "GlobalVFX"):
+                                    decorative.append(layer)
+                                elif comp in ("Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText") or layer.get("type") == "text":
+                                    text_layers.append(layer)
+                                elif comp in ("SubscribeButton", "StyleButton", "CTABanner", "SocialProgressBar"):
+                                    ui_layers.append(layer)
+                                elif comp in ("IconifyIcon", "AnimatedIcon"):
+                                    icon_layers.append(layer)
+                                else:
+                                    decorative.append(layer)
+
+                            # Position decorative layers at full canvas (they fill the background)
+                            for layer in decorative:
                                 layer["x"] = 0
-                                y_offset += 200
+                                layer["y"] = 0
+
+                            # Position text layers in the center zone
+                            text_zone_top = int(-canvas_h * 0.15)
+                            text_spacing = 250
+                            for i, layer in enumerate(text_layers):
+                                layer["x"] = 0
+                                layer["y"] = text_zone_top + (i * text_spacing)
+
+                            # Position icons above text
+                            icon_zone_top = int(-canvas_h * 0.3)
+                            for i, layer in enumerate(icon_layers):
+                                layer["x"] = (i - len(icon_layers) // 2) * 150
+                                layer["y"] = icon_zone_top
+
+                            # Position UI layers at bottom
+                            ui_zone_y = int(canvas_h * 0.35)
+                            for i, layer in enumerate(ui_layers):
+                                layer["x"] = 0
+                                layer["y"] = ui_zone_y + (i * 120)
+
                             logger.info(
-                                "Redistributed %d layers that were all at the same position",
-                                len(non_bg_layers),
+                                "Smart redistributed %d layers: %d decorative, %d text, %d icons, %d UI",
+                                len(non_bg_layers), len(decorative), len(text_layers), len(icon_layers), len(ui_layers),
                             )
 
                     # Final validation pass — catch anything missed by post-processing

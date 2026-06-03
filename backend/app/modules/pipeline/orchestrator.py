@@ -20,6 +20,11 @@ from app.core.async_utils import run_async
 
 logger = get_logger("pipeline")
 
+# Audio duration padding to prevent truncation at scene boundaries
+AUDIO_PADDING = 0.3  # seconds
+MIN_SCENE_DURATION = 3.0  # seconds
+WORDS_PER_SECOND = 2.17  # Average speech rate
+
 
 def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]:
     """Look up user's stored API key for a given provider."""
@@ -110,7 +115,8 @@ async def _process_chunks_async(
                 )
 
                 duration = tts_result.get("duration_seconds", 0)
-                scene["duration_seconds"] = round(duration, 2)
+                # Add padding to prevent audio truncation at scene boundary
+                scene["duration_seconds"] = round(duration + AUDIO_PADDING, 2)
                 scene["start_time_seconds"] = round(current_offset, 2)
 
                 # Save audio file and set URL
@@ -135,6 +141,18 @@ async def _process_chunks_async(
 
                 current_offset += duration + (GAP_MS / 1000)
 
+                # Ensure scene is long enough for the text to be readable
+                word_count = len(scene_text.split())
+                min_duration_for_text = max(MIN_SCENE_DURATION, word_count / WORDS_PER_SECOND)
+                if scene["duration_seconds"] < min_duration_for_text:
+                    logger.info(
+                        "Scene %d duration %.2fs too short for %d words — extending to %.2fs",
+                        i + 1, scene["duration_seconds"], word_count, min_duration_for_text + AUDIO_PADDING,
+                    )
+                    scene["duration_seconds"] = round(min_duration_for_text + AUDIO_PADDING, 2)
+                    # Recalculate offset with the extended duration
+                    current_offset = scene["start_time_seconds"] + scene["duration_seconds"] + (GAP_MS / 1000)
+
             except Exception as e:
                 error_msg = str(e)
                 if error_msg.startswith("[TTS_"):
@@ -145,11 +163,11 @@ async def _process_chunks_async(
                     logger.warning("TTS failed for scene %d: %s. Using estimated duration.", i + 1, e)
                 word_count = len(scene_text.split())
                 estimated_duration = max(3.0, word_count / 2.17)
-                scene["duration_seconds"] = round(estimated_duration, 2)
+                scene["duration_seconds"] = round(estimated_duration + AUDIO_PADDING, 2)
                 scene["start_time_seconds"] = round(current_offset, 2)
                 scene["audio_url"] = None
                 scene["word_timestamps"] = []
-                current_offset += estimated_duration + (GAP_MS / 1000)
+                current_offset += estimated_duration + AUDIO_PADDING + (GAP_MS / 1000)
         else:
             # Scene already has audio_url (e.g., from manual upload or previous run) — skip TTS
             logger.info("Scene %d already has audio, skipping TTS", i + 1)

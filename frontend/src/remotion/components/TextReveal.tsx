@@ -30,7 +30,7 @@ export const TextReveal: React.FC<TextRevealProps> = ({
 
   // Auto-scale fontSize to fit text
   const fitted = fitText(text, effectiveWidth, Math.floor(canvasHeight * 0.5), {
-    minFontSize: 28,
+    minFontSize: 48,
     maxFontSize: fontSize || 60,
     fontWeight: 900,
     lineHeight: 1.4,
@@ -50,12 +50,12 @@ export const TextReveal: React.FC<TextRevealProps> = ({
         width: `${effectiveWidth}px`,
         display: 'flex',
         flexWrap: 'wrap',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         alignItems: 'center',
         alignContent: 'center',
         gap: `${Math.max(10, actualFontSize * 0.3)}px`,
         zIndex: 10,
-        textAlign: 'center',
+        textAlign: 'left',
       }}
     >
       {words.map((word, index) => {
@@ -102,8 +102,8 @@ export const TextReveal: React.FC<TextRevealProps> = ({
               transform,
               filter,
               textShadow,
-              display: 'inline-block',
-              fontFamily: 'system-ui, -apple-system, sans-serif'
+              fontFamily: 'Inter, system-ui, sans-serif',
+              wordBreak: 'break-word',
             }}
           >
             {word}
