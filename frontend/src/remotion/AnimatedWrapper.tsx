@@ -106,11 +106,12 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
   let exitAnimations: any[] = [];
 
   if (exit) {
-    // Exit starts near the end of the scene
-    // We'll use a large start value that gets calculated at runtime
-    // Exit starts at 75% of the scene duration (last 25% for exit animation)
-    const exitStart = durationInFrames 
-      ? Math.max(0, Math.floor(durationInFrames * 0.75))
+    // v7.1: la salida debe TERMINAR justo en el corte de escena, ocupando solo
+    // los últimos `exitDuration` frames. Antes empezaba al 75% de la escena, lo
+    // que hacía desaparecer el contenido ~1.7s antes de que terminara la voz
+    // (la escena dura audio + 0.3s padding tras la Fase A).
+    const exitStart = durationInFrames
+      ? Math.max(0, durationInFrames - exitDuration)
       : 999999; // fallback if no duration provided
 
     switch (exit) {

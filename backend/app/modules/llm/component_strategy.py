@@ -1346,11 +1346,25 @@ def generate_scene_composer(
                     result = json.loads(result)
                 if isinstance(result, dict):
                     # Post-processing: Sanitize invalid icon values
+                    _SEMANTIC_SIZES = {"xs", "sm", "md", "lg", "xl", "2xl", "3xl"}
                     for layer in result.get("layers", []):
                         icon = layer.get("icon")
                         if icon and isinstance(icon, str) and icon.lower().strip() in ("none", "null", "undefined", "", "n/a"):
                             del layer["icon"]
                             logger.info("Removed invalid icon value: '%s'", icon)
+
+                        # v7.1: sanear 'size' malformado (p.ej. "color1" por JSON
+                        # partido de Gemini). Si no es número ni tamaño semántico,
+                        # eliminarlo para que el componente use su default.
+                        size_val = layer.get("size")
+                        if isinstance(size_val, str):
+                            s = size_val.strip()
+                            if s.lower() not in _SEMANTIC_SIZES:
+                                try:
+                                    layer["size"] = int(s) if "." not in s else float(s)
+                                except (ValueError, TypeError):
+                                    del layer["size"]
+                                    logger.info("Removed invalid size value: '%s'", size_val)
 
                     # ── Fase 1.1: Fix 'items' → 'children' in groups ──
                     LAYOUT_HINT_VALUES = {"center", "left", "right", "top", "bottom", "start", "end", "stretch", "flex-start", "flex-end", "space-between", "space-around"}
@@ -1637,19 +1651,62 @@ def generate_scene_composer(
                     result = _apply_smart_layout(result)
                     result = _clamp_coordinates(result, width, height)
 
-                    # Post-validation 1: Ensure exit animations on non-background layers
+                    # Post-validation 1: Ensure default ENTRY + EXIT animations (v7.1)
+                    # - entry: antes no se añadía ninguna → íconos/texto aparecían
+                    #   de golpe. Ahora cada capa no-fondo entra animada.
+                    # - exit/entryDuration van en FRAMES (AnimatedWrapper los usa
+                    #   como frames, no segundos). Antes exitDuration=0.5 → la
+                    #   salida duraba medio frame = corte seco.
+                    BACKGROUND_COMPONENTS = {
+                        "KineticBackground", "ParticleField", "FloatingBlobs", "RaysOfLight",
+                        "AbstractWave", "GlobalVFX", "NetworkNodes", "GradientOverlay",
+                        "GridPerspective",
+                    }
+                    TEXT_FOR_ENTRY = {
+                        "StyleTextBlock", "Typewriter", "TextReveal", "StyleScrambleText",
+                        "SplitText", "GlitchTitle", "TextSwap", "HighlightText", "QuoteBlock",
+                    }
+                    ICON_UI_FOR_ENTRY = {
+                        "IconifyIcon", "AnimatedIcon", "StyleBadge", "FloatingBadge",
+                        "SubscribeButton", "StyleButton", "StyleChip", "StyleCard",
+                        "StyleDivider", "StyleAvatar",
+                    }
+
+                    # Escenas cortas: animaciones más rápidas y sin escalonado.
+                    short_scene = bool(duration_seconds and duration_seconds < 2.5)
+                    anim_dur_frames = 8 if short_scene else 15
+                    stagger_step = 0.0 if short_scene else 0.12
+
+                    entry_index = 0
                     for layer in result.get("layers", []):
-                        is_bg = (
-                            layer.get("type") == "component"
-                            and layer.get("componentName") == "KineticBackground"
-                        )
+                        comp = layer.get("componentName", "")
+                        is_bg = comp in BACKGROUND_COMPONENTS
+
+                        # ── Exit por defecto (todas las capas no-fondo) ──
                         if not is_bg and "exit" not in layer:
                             layer["exit"] = "fade-out"
-                            layer["exitDelay"] = 0.3
-                            layer["exitDuration"] = 0.5
+                            layer["exitDuration"] = anim_dur_frames  # frames
                             logger.info(
                                 "Added default exit animation to layer: %s",
-                                layer.get("componentName", layer.get("type")),
+                                comp or layer.get("type"),
+                            )
+
+                        # ── Entry por defecto (todas las capas no-fondo) ──
+                        if not is_bg and "entry" not in layer:
+                            if layer.get("type") == "text" or comp in TEXT_FOR_ENTRY:
+                                layer["entry"] = "slide-up"
+                            elif comp in ICON_UI_FOR_ENTRY:
+                                layer["entry"] = "scale-in"
+                            else:
+                                layer["entry"] = "fade-in"
+                            layer["entryDuration"] = anim_dur_frames  # frames
+                            # Escalonado: cada capa entra un poco después que la anterior
+                            if "entryDelay" not in layer:
+                                layer["entryDelay"] = round(entry_index * stagger_step, 2)
+                            entry_index += 1
+                            logger.info(
+                                "Added default entry '%s' to layer: %s",
+                                layer["entry"], comp or layer.get("type"),
                             )
 
                     # Post-validation 2: Remove duplicate icons ONLY if they're at the same position (overlap)

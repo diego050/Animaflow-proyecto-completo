@@ -55,24 +55,13 @@ class TestValidateComposerSpec:
         assert "children" in spec["layers"][0]
         assert "items" not in spec["layers"][0]
 
-    def test_text_overflow_warns(self):
-        """Text that overflows the viewport should warn."""
-        spec = {
-            "layers": [
-                {
-                    "type": "text",
-                    "text": "A" * 100,  # 100 chars at fontSize 96
-                    "fontSize": 96,
-                    "x": 540,
-                    "y": 960,
-                }
-            ]
-        }
-        warnings = validate_composer_spec(spec, "9:16", auto_fix=False)
-        assert any("overflows" in w for w in warnings)
+    def test_text_overflow_no_longer_shrinks(self):
+        """v7.1: el validador YA NO encoge texto largo (Check 2 eliminado).
 
-    def test_text_overflow_auto_fixed(self):
-        """Auto-fix should scale down fontSize for overflowing text."""
+        El ajuste de tamaño lo hace exclusivamente el auto-fit multilínea de
+        component_strategy. El validador solo conserva el piso de fontSize
+        (Check 10), así que un texto grande debe quedar intacto (no bajar a 28).
+        """
         spec = {
             "layers": [
                 {
@@ -84,9 +73,11 @@ class TestValidateComposerSpec:
                 }
             ]
         }
-        validate_composer_spec(spec, "9:16", auto_fix=True)
-        assert spec["layers"][0]["fontSize"] < 96
-        assert spec["layers"][0]["fontSize"] >= 28  # Never below minimum
+        warnings = validate_composer_spec(spec, "9:16", auto_fix=True)
+        # Ya no debe existir el warning de "overflows"
+        assert not any("overflows" in w for w in warnings)
+        # El tamaño grande se conserva (no se aplasta a 28)
+        assert spec["layers"][0]["fontSize"] == 96
 
     def test_type_text_with_component_name_warns(self):
         """type='text' with componentName should warn."""

@@ -65,8 +65,11 @@ def find_best_icons(
         ]
 
     try:
-        # pgvector cosine distance: lower is better
-        # We use the <-> operator via SQLAlchemy
+        # v7.1: usar distancia COSENO (<=>), que es la métrica del índice HNSW
+        # (vector_cosine_ops). Antes se usaba <-> (L2/euclidiana), que ni usa el
+        # índice ni da el ranking correcto → scores negativos y resultados
+        # irrelevantes (p.ej. "batería sin energía" → "wifi-cog").
+        # Con coseno, score = 1 - distancia ∈ [~0, 1] (mayor = más relevante).
         from sqlalchemy import text
 
         # Convert embedding list to string for SQL
@@ -74,9 +77,9 @@ def find_best_icons(
 
         sql = text("""
             SELECT full_id, prefix, name,
-                   1 - (embedding <-> CAST(:embedding AS vector)) as score
+                   1 - (embedding <=> CAST(:embedding AS vector)) as score
             FROM iconify_icons
-            ORDER BY embedding <-> CAST(:embedding AS vector)
+            ORDER BY embedding <=> CAST(:embedding AS vector)
             LIMIT :limit
         """)
 
