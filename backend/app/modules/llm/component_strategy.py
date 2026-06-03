@@ -299,7 +299,7 @@ Ejemplo incorrecto (texto sobre gatos): {{"type": "component", "componentName": 
     # Calculate safe zones dynamically
     safe_margin_x = int(width * 0.1)  # 10% margin from edges
     safe_margin_y = int(height * 0.1)
-    max_font_size = int(min(width, height) * 0.06)  # 6% of smallest dimension
+    max_font_size = int(min(width, height) * 0.12)  # 12% of smallest dimension (~130px for 1080p)
     
     text_safe_zone = f"""- **TEXTO:** El texto debe estar dentro del "Safe Zone" para no cortarse en los bordes.
   - Rango seguro X: entre -{half_w - safe_margin_x} y {half_w - safe_margin_x}.
@@ -420,21 +420,17 @@ TIMING RECOMENDADO:
         exit_start_frame = str(int(duration_seconds * 30 * 0.75))
 
     exit_instructions = f"""
-ANIMACIONES DE SALIDA (exit):
-CADA capa debe tener una animación de salida para transiciones suaves entre escenas.
-Usa la propiedad `exit` para animaciones de salida. Valores válidos:
-- "fade-out": desaparece gradualmente
-- "slide-up": sale hacia arriba
-- "slide-down": sale hacia abajo
-- "slide-left": sale hacia la izquierda
-- "slide-right": sale hacia la derecha
-- "scale-out": desaparece con efecto de escala
-- "bounce-out": sale con efecto de rebote
+ANIMACIONES DE SALIDA (exit) — OBLIGATORIO:
+CADA layer (excepto background) DEBE tener una animación de salida. Sin excepción.
+Valores válidos: "fade-out", "slide-up-out", "slide-down-out", "slide-left-out", "slide-right-out", "scale-out", "spring-out", "bounce-out"
+Agrega `exitDelay` (segundos antes de que empiece la salida) y `exitDuration` (duración en segundos).
 
+Ejemplo de layer CON exit:
+  {{"type": "text", "text": "Hola", "x": 0, "y": -100, "exit": "slide-up-out", "exitDelay": 0.3, "exitDuration": 0.5}}
+  {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:heart", "x": 0, "y": -200, "exit": "fade-out", "exitDelay": 0.2, "exitDuration": 0.4}}
+
+El background NO necesita exit.
 Las animaciones de salida deben empezar en el frame {exit_start_frame} (último 25% de la escena).
-El background debe mantener su color durante toda la escena (no necesita exit).
-
-Ejemplo: "exit": "fade-out"
 """
 
     return f"""Eres el director de escena de AnimaFlow. Tu trabajo es diseñar la composición de UNA escena de video devolviendo un JSON AnimaComposerSpec.
@@ -478,6 +474,11 @@ REGLAS DE ORO PARA EL DISEÑO:
     - EJEMPLO CORRECTO: {{"type": "text", "text": "Hola", "x": 0, "y": 0}}
     - EJEMPLO INCORRECTO: {{"type": "text", "text": "Hola"}} ← FALTA x/y, INVÁLIDO
 6. **FORMATO NUMÉRICO ESTRICTO:** Para `lineWidth`, usa SOLO números ENTEROS (0, 1, 2, 3... 20). NUNCA uses decimales. Ejemplos válidos: `0`, `4`, `10`. Ejemplos INVÁLIDOS: `0.5`, `4.5`, `10.25`.
+7. **MÚLTIPLES ICONOS PERMITIDOS CON POSICIONAMIENTO:** Puedes usar varios iconos en la escena si tienen sentido visual (ej: iconos de fuego alrededor de un texto central, iconos de fiesta decorando una palabra). REGLAS:
+   - Cada icono DEBE tener x/y diferentes — NUNCA superpongas iconos en la misma posición.
+   - Distribúyelos alrededor del elemento central (ej: en círculo, en fila, en esquinas).
+   - Si usas el mismo icon múltiples veces, varía el `scale` (ej: 0.8, 1.0, 1.2) para crear profundidad.
+   - Máximo 5-6 iconos decorativos por escena para no saturar.
 
 {layout_section}
 
@@ -801,36 +802,36 @@ Estos ejemplos muestran cómo combinar múltiples componentes usando layout grou
 
 Ejemplo A - Escena con múltiples botones y texto:
 {{
-  "background": {{"type": "gradient", "colors": ["#0f172a", "#1e293b"]}},
-  "layers": [
-    {{
-      "type": "group",
-      "layout": "flex",
-      "direction": "column",
-      "alignItems": "center",
-      "gap": 30,
-      "children": [
-        {{"type": "text", "text": "Elige tu plan", "fontSize": 48, "fontWeight": 900}},
-        {{
-          "type": "group",
-          "layout": "flex",
-          "direction": "row",
-          "gap": 20,
-          "children": [
-            {{"type": "component", "componentName": "StyleButton", "text": "Básico", "variant": "outline"}},
-            {{"type": "component", "componentName": "StyleButton", "text": "Pro", "variant": "primary"}},
-            {{"type": "component", "componentName": "StyleButton", "text": "Enterprise", "variant": "outline"}}
-          ]
-        }},
-        {{"type": "component", "componentName": "StyleBadge", "text": "Ahorra 50%", "variant": "success"}}
-      ]
-    }}
-  ]
+    "background": {{"type": "linear-gradient", "colors": ["#0f172a", "#1e293b"]}},
+    "layers": [
+      {{
+        "type": "group",
+        "layout": "flex",
+        "direction": "column",
+        "alignItems": "center",
+        "gap": 30,
+        "children": [
+          {{"type": "text", "text": "Elige tu plan", "fontSize": 48, "fontWeight": 900}},
+          {{
+            "type": "group",
+            "layout": "flex",
+            "direction": "row",
+            "gap": 20,
+            "children": [
+              {{"type": "component", "componentName": "StyleButton", "text": "Básico", "variant": "outline"}},
+              {{"type": "component", "componentName": "StyleButton", "text": "Pro", "variant": "primary"}},
+              {{"type": "component", "componentName": "StyleButton", "text": "Enterprise", "variant": "outline"}}
+            ]
+          }},
+          {{"type": "component", "componentName": "StyleBadge", "text": "Ahorra 50%", "variant": "success"}}
+        ]
+      }}
+    ]
 }}
 
 Ejemplo B - Escena con cards, badges e íconos:
 {{
-  "background": {{"type": "gradient", "colors": ["#0f172a", "#1e293b"]}},
+  "background": {{"type": "linear-gradient", "colors": ["#0f172a", "#1e293b"]}},
   "layers": [
     {{
       "type": "group",
@@ -867,7 +868,7 @@ Ejemplo B - Escena con cards, badges e íconos:
 
 Ejemplo C - Escena data-driven con múltiples elementos:
 {{
-  "background": {{"type": "gradient", "colors": ["#0f172a", "#1e293b"]}},
+  "background": {{"type": "linear-gradient", "colors": ["#0f172a", "#1e293b"]}},
   "layers": [
     {{
       "type": "group",
@@ -893,6 +894,18 @@ Ejemplo C - Escena data-driven con múltiples elementos:
     }}
   ]
 }}
+
+EJEMPLO DE POSICIONAMIENTO SIN GRUPOS (coordenadas absolutas):
+Si NO usas grupos flex/grid, CADA layer debe tener x/y diferentes para evitar superposición:
+{{
+  "layers": [
+    {{"type": "component", "componentName": "KineticBackground", "x": 0, "y": 0}},
+    {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:heart", "x": 0, "y": -200}},
+    {{"type": "text", "text": "Tu mensaje aquí", "x": 0, "y": 100, "fontSize": 72}},
+    {{"type": "component", "componentName": "StyleBadge", "text": "CTA", "x": 0, "y": 300}}
+  ]
+}}
+REGLA: NUNCA pongas todos los layers en x:0, y:0. Distribúyelos verticalmente usando y negativo (arriba), y=0 (centro), y positivo (abajo).
 
 ## Improved Spring Physics
 
@@ -952,7 +965,7 @@ Ejemplo: "out_transition": {{"type": "ZoomBlurTransition", "duration_frames": 15
 Ejemplo de estructura JSON esperada:
 {{
   "background": {{
-    "type": "gradient",
+    "type": "linear-gradient",
     "colors": ["#0f172a", "#1e293b"]
   }},
   "layers": [
@@ -1218,6 +1231,71 @@ def generate_scene_composer(
                     result = _normalize_paths(result, width, height)
                     result = _apply_smart_layout(result)
                     result = _clamp_coordinates(result, width, height)
+
+                    # Post-validation 1: Ensure exit animations on non-background layers
+                    for layer in result.get("layers", []):
+                        is_bg = (
+                            layer.get("type") == "component"
+                            and layer.get("componentName") == "KineticBackground"
+                        )
+                        if not is_bg and "exit" not in layer:
+                            layer["exit"] = "fade-out"
+                            layer["exitDelay"] = 0.3
+                            layer["exitDuration"] = 0.5
+                            logger.info(
+                                "Added default exit animation to layer: %s",
+                                layer.get("componentName", layer.get("type")),
+                            )
+
+                    # Post-validation 2: Remove duplicate icons ONLY if they're at the same position (overlap)
+                    icon_positions: dict[str, list[tuple]] = {}
+                    layers_to_remove: list[int] = []
+                    for i, layer in enumerate(result.get("layers", [])):
+                        icon = layer.get("icon")
+                        if icon:
+                            pos = (layer.get("x", 0), layer.get("y", 0))
+                            icon_positions.setdefault(icon, []).append((i, pos))
+
+                    for icon, occurrences in icon_positions.items():
+                        if len(occurrences) > 1:
+                            # Check if any are at the same position (overlap)
+                            seen_positions = {}
+                            for idx, pos in occurrences:
+                                if pos in seen_positions:
+                                    layers_to_remove.append(idx)
+                                    logger.info(
+                                        "Removing overlapping icon '%s' at position %s (duplicate)",
+                                        icon, pos,
+                                    )
+                                else:
+                                    seen_positions[pos] = idx
+
+                    for i in reversed(layers_to_remove):
+                        result["layers"].pop(i)
+
+                    # Post-validation 3: Redistribute layers that are all at same position
+                    non_bg_layers = [
+                        l for l in result.get("layers", [])
+                        if not (
+                            l.get("type") == "component"
+                            and l.get("componentName") == "KineticBackground"
+                        )
+                    ]
+                    if len(non_bg_layers) > 1:
+                        positions = set()
+                        for l in non_bg_layers:
+                            positions.add((l.get("x", 0), l.get("y", 0)))
+                        if len(positions) == 1:
+                            # All layers at same position — redistribute vertically
+                            y_offset = -200
+                            for layer in non_bg_layers:
+                                layer["y"] = y_offset
+                                layer["x"] = 0
+                                y_offset += 200
+                            logger.info(
+                                "Redistributed %d layers that were all at the same position",
+                                len(non_bg_layers),
+                            )
 
                     return AnimaComposerSpec(**result)
                 else:
