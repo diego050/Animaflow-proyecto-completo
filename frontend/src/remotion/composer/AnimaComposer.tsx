@@ -26,6 +26,7 @@ import { AnimatedWrapper } from '../AnimatedWrapper';
 import type { EntryType, ExitType } from '../AnimatedWrapper';
 import { solveLayout } from '../utils/layoutSolver';
 import type { SolvedLayer } from '../utils/layoutSolver';
+import { sanitizeComponentProps } from '../utils/sanitizeProps';
 
 import type { AnimValue } from '../primitives/types';
 
@@ -776,12 +777,13 @@ function renderSingleLayer(
       const absoluteY = layer.y as number;
 
       // Merge props and resolve {{text}} placeholder if present
+      const cleanProps = sanitizeComponentProps(resolvedName, layer as unknown as Record<string, unknown>);
       const mergedProps: Record<string, any> = {
-        ...(layer as unknown as Record<string, any>),
+        ...cleanProps,
         x: absoluteX,
         y: absoluteY,
-        text: typeof layer.text === 'string' 
-          ? (layer.text as string).replace('{{text}}', ctx.text) 
+        text: typeof cleanProps.text === 'string' 
+          ? (cleanProps.text as string).replace('{{text}}', ctx.text) 
           : ctx.text,
       };
 

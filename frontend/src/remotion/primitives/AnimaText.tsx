@@ -101,6 +101,13 @@ export interface AnimaTextProps {
    * @default 0
    */
   entryDelay?: number;
+
+  /**
+   * Ancho máximo del contenedor de texto en píxeles.
+   * Si se proporciona, el texto no excederá este ancho.
+   * @default undefined (uses 90% of canvas)
+   */
+  width?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +171,7 @@ export const AnimaText: React.FC<AnimaTextProps> = ({
   opacity = 1,
   entry = null,
   entryDelay = 0,
+  width,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -266,7 +274,9 @@ export const AnimaText: React.FC<AnimaTextProps> = ({
     pointerEvents: 'none',
     boxSizing: 'border-box',
     width: textAlign === 'center' ? '100%' : undefined,
-    maxWidth: '100%',
+    maxWidth: width ? `${width}px` : '90%',
+    wordWrap: 'break-word',
+    overflowWrap: 'break-word',
   };
 
   return <div style={style}>{renderedText}</div>;

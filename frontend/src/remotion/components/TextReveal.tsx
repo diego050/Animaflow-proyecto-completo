@@ -1,5 +1,6 @@
 import React from 'react';
 import { useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';
+import { fitText } from '../utils/fitText';
 import type { UniversalProps } from "./types";
 
 export interface TextRevealProps extends UniversalProps {
@@ -17,12 +18,25 @@ export const TextReveal: React.FC<TextRevealProps> = ({
   x = 540,
   y = 960,
   fontSize = 60,
-  width = 900,
+  width,  // Remove hardcoded default
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
-  const { fps } = useVideoConfig();
+  const { fps, width: canvasWidth, height: canvasHeight } = useVideoConfig();
+
+  // Calculate effective container width
+  const effectiveWidth = width || Math.min(900, Math.floor(canvasWidth * 0.85));
+
+  // Auto-scale fontSize to fit text
+  const fitted = fitText(text, effectiveWidth, Math.floor(canvasHeight * 0.5), {
+    minFontSize: 28,
+    maxFontSize: fontSize || 60,
+    fontWeight: 900,
+    lineHeight: 1.4,
+    padding: 20,
+  });
+  const actualFontSize = fitted.fontSize;
 
   const words = text.split(' ');
 
@@ -33,13 +47,13 @@ export const TextReveal: React.FC<TextRevealProps> = ({
         top: `${y}px`,
         left: `${x}px`,
         transform: 'translate(-50%, -50%)',
-        width: `${width}px`,
+        width: `${effectiveWidth}px`,
         display: 'flex',
         flexWrap: 'wrap',
         justifyContent: 'center',
         alignItems: 'center',
         alignContent: 'center',
-        gap: `${Math.max(10, fontSize * 0.3)}px`,
+        gap: `${Math.max(10, actualFontSize * 0.3)}px`,
         zIndex: 10,
         textAlign: 'center',
       }}
@@ -82,7 +96,7 @@ export const TextReveal: React.FC<TextRevealProps> = ({
             key={index}
             style={{
               color,
-              fontSize,
+              fontSize: actualFontSize,
               fontWeight: 900,
               opacity,
               transform,

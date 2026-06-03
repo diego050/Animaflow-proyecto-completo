@@ -14,6 +14,7 @@ from google.genai import types
 from app.core.logging import get_logger
 from app.schemas.spec import AnimaComposerSpec, AnimaBackground, AnimaLayer
 from app.services.iconify_search import find_best_icons
+from app.modules.llm.spec_validator import validate_and_fix
 
 logger = get_logger("llm.strategy")
 
@@ -21,6 +22,20 @@ logger = get_logger("llm.strategy")
 def _sanitize_llm_json(raw: str) -> str:
     """Truncate numbers with excessive decimal places from LLM output."""
     return re.sub(r'(\d+\.\d{6})\d+', r'\1', raw)
+
+
+# ── Numeric coercion helper ──────────────────────────────────────────────────
+
+def _coerce_number(value: Any) -> Any:
+    """Convert string numbers to int/float, return unchanged if not convertible."""
+    if isinstance(value, str):
+        try:
+            if "." in value:
+                return float(value)
+            return int(value)
+        except (ValueError, TypeError):
+            return value
+    return value
 
 
 # ── Canvas dimensions helper ─────────────────────────────────────────────────
@@ -1344,6 +1359,203 @@ def generate_scene_composer(
                             del layer["icon"]
                             logger.info("Removed invalid icon value: '%s'", icon)
 
+                    # ── Fase 1.1: Fix 'items' → 'children' in groups ──
+                    for layer in result.get("layers", []):
+                        if layer.get("type") == "group" and "items" in layer and "children" not in layer:
+                            items = layer.pop("items")
+                            if isinstance(items, list):
+                                children = []
+                                for item in items:
+                                    if isinstance(item, dict):
+                                        if "icon" in item:
+                                            children.append({
+                                                "type": "component",
+                                                "componentName": "IconifyIcon",
+                                                "icon": item["icon"],
+                                                "x": 0,
+                                                "y": 0,
+                                                "size": item.get("size", 64),
+                                            })
+                                        if "label" in item or "value" in item:
+                                            children.append({
+                                                "type": "text",
+                                                "text": item.get("value", item.get("label", "")),
+                                                "x": 0,
+                                                "y": 0,
+                                                "fontSize": 48,
+                                            })
+                                        if "text" in item:
+                                            children.append({
+                                                "type": "text",
+                                                "text": item["text"],
+                                                "x": 0,
+                                                "y": 0,
+                                                "fontSize": item.get("fontSize", 48),
+                                            })
+                                layer["children"] = children if children else []
+                                if "orientation" not in layer:
+                                    layer["orientation"] = "column"
+                                if "gap" not in layer:
+                                    layer["gap"] = 20
+                            logger.info(
+                                "Sanitized group: converted 'items' (%d) to 'children' (%d)",
+                                len(items) if isinstance(items, list) else 0,
+                                len(layer.get("children", [])),
+                            )
+
+                    # ── Fase 1.2: Fix type: "text" with componentName → type: "component" ──
+                    for layer in result.get("layers", []):
+                        if layer.get("type") == "text" and layer.get("componentName"):
+                            original_type = layer["type"]
+                            layer["type"] = "component"
+                            logger.info(
+                                "Fixed type conflict: '%s' → 'component' for componentName: %s",
+                                original_type,
+                                layer.get("componentName"),
+                            )
+
+                    # ── Fase 1.3: Deduplicate text across layers ──
+                    seen_texts: set[str] = set()
+                    layers_to_remove: list[int] = []
+                    for i, layer in enumerate(result.get("layers", [])):
+                        text = layer.get("text", "")
+                        if text and len(text) > 10:
+                            text_normalized = text.strip().lower()
+                            if text_normalized in seen_texts:
+                                layers_to_remove.append(i)
+                                logger.info(
+                                    "Removing duplicate text layer [%d]: '%s...'",
+                                    i,
+                                    text[:50],
+                                )
+                            else:
+                                seen_texts.add(text_normalized)
+
+                    for layer in result.get("layers", []):
+                        if layer.get("type") == "group" and layer.get("children"):
+                            group_seen: set[str] = set()
+                            group_children = layer["children"]
+                            children_to_remove: list[int] = []
+                            for j, child in enumerate(group_children):
+                                child_text = child.get("text", "")
+                                if child_text and len(child_text) > 10:
+                                    child_norm = child_text.strip().lower()
+                                    if child_norm in seen_texts or child_norm in group_seen:
+                                        children_to_remove.append(j)
+                                    else:
+                                        group_seen.add(child_norm)
+                                        seen_texts.add(child_norm)
+                            for j in reversed(children_to_remove):
+                                group_children.pop(j)
+
+                    for i in reversed(layers_to_remove):
+                        result["layers"].pop(i)
+
+                    # ── Fase 1.4: Normalize string numbers to actual numbers ──
+                    NUMERIC_KEYS = {"size", "width", "height", "fontSize", "strokeWidth", "gap",
+                                    "speed", "delay", "borderRadius", "letterSpacing", "glowIntensity"}
+
+                    for layer in result.get("layers", []):
+                        for key in NUMERIC_KEYS:
+                            if key in layer:
+                                original = layer[key]
+                                layer[key] = _coerce_number(original)
+                                if original != layer[key]:
+                                    logger.info(
+                                        "Normalized %s: '%s' (str) → %s (%s)",
+                                        key, original, layer[key], type(layer[key]).__name__,
+                                    )
+                        for child in layer.get("children", []):
+                            for key in NUMERIC_KEYS:
+                                if key in child:
+                                    child[key] = _coerce_number(child[key])
+
+                    # ── Fase 1.5: Remove garbage props from text components ──
+                    TEXT_COMPONENTS_GARBAGE = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText"}
+                    GARBAGE_PROPS = {
+                        "showScrollbar", "showRipple", "showPercentages", "autoplay", "muted",
+                        "deletable", "showBadge", "from", "duration", "fillArea", "orientation",
+                        "thickness", "labelPosition", "iconPosition", "badgeText", "showLabel",
+                        "showLabels", "showValues", "showGrid", "showDots", "decimals",
+                        "separator", "barHeight", "visibleItems", "loop", "characters",
+                    }
+
+                    for layer in result.get("layers", []):
+                        comp = layer.get("componentName", "")
+                        if comp in TEXT_COMPONENTS_GARBAGE:
+                            removed = []
+                            for prop in GARBAGE_PROPS:
+                                if prop in layer:
+                                    del layer[prop]
+                                    removed.append(prop)
+                            if removed:
+                                logger.info(
+                                    "Removed %d garbage props from %s: %s",
+                                    len(removed), comp, removed,
+                                )
+
+                    # ── Fase 2.4: Auto-fit text fontSize based on text length and canvas width ──
+                    canvas_w, canvas_h = _get_canvas_dimensions(aspect_ratio)
+                    max_text_width = canvas_w * 0.85
+
+                    TEXT_LAYER_TYPES = {"text", "component"}
+                    TEXT_COMPONENT_NAMES = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText"}
+
+                    def _auto_fit_layer_text(layer: dict, max_width: float) -> None:
+                        """Scale down fontSize if text is estimated to overflow."""
+                        text = layer.get("text", "")
+                        font_size = layer.get("fontSize")
+                        if not text or not font_size or not isinstance(font_size, (int, float)):
+                            return
+
+                        char_width = font_size * 0.6
+                        estimated_width = len(text) * char_width
+
+                        if estimated_width > max_width:
+                            scale_factor = max_width / estimated_width
+                            new_font_size = max(28, int(font_size * scale_factor))
+                            if new_font_size < font_size:
+                                logger.info(
+                                    "Auto-fit fontSize: %d → %d for text length %d chars "
+                                    "(estimated %.0fpx > %.0fpx max)",
+                                    font_size, new_font_size, len(text),
+                                    estimated_width, max_width,
+                                )
+                                layer["fontSize"] = new_font_size
+
+                    for layer in result.get("layers", []):
+                        layer_type = layer.get("type", "")
+                        comp_name = layer.get("componentName", "")
+
+                        if layer_type == "text" or (layer_type == "component" and comp_name in TEXT_COMPONENT_NAMES):
+                            _auto_fit_layer_text(layer, max_text_width)
+
+                        for child in layer.get("children", []):
+                            child_type = child.get("type", "")
+                            child_comp = child.get("componentName", "")
+                            if child_type == "text" or (child_type == "component" and child_comp in TEXT_COMPONENT_NAMES):
+                                child_max_width = max_text_width * 0.8
+                                _auto_fit_layer_text(child, child_max_width)
+
+                    # ── Fase 3.1: Assign default width for text components ──
+                    COMPONENT_DEFAULT_WIDTHS = {
+                        "Typewriter": lambda cw: int(cw * 0.85),
+                        "TextReveal": lambda cw: int(cw * 0.85),
+                        "StyleTextBlock": lambda cw: int(cw * 0.85),
+                        "StyleScrambleText": lambda cw: int(cw * 0.85),
+                        "SubscribeButton": lambda cw: int(cw * 0.6),
+                        "IconifyIcon": lambda cw: 120,
+                    }
+
+                    for layer in result.get("layers", []):
+                        comp = layer.get("componentName", "")
+                        if comp in COMPONENT_DEFAULT_WIDTHS and "width" not in layer:
+                            layer["width"] = COMPONENT_DEFAULT_WIDTHS[comp](canvas_w)
+                            logger.info(
+                                "Assigned default width %d for %s (canvas: %dpx)",
+                                layer["width"], comp, canvas_w,
+                            )
+
                     # Post-processing: Remove groups with no children
                     result["layers"] = [
                         layer for layer in result.get("layers", [])
@@ -1424,6 +1636,9 @@ def generate_scene_composer(
                                 "Redistributed %d layers that were all at the same position",
                                 len(non_bg_layers),
                             )
+
+                    # Final validation pass — catch anything missed by post-processing
+                    result = validate_and_fix(result, aspect_ratio)
 
                     return AnimaComposerSpec(**result)
                 else:
