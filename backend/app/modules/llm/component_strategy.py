@@ -212,7 +212,7 @@ AVAILABLE_COMPONENTS: list[str] = [
     "CursorClick", "EmojiFloat", "FeatureChecklist", "FeatureUnlock", "FlashSaleTimer", "FloatingBadge",
     "FloatingBlobs", "FollowerCounter", "FunnelChart", "GitCommitGraph", "GlitchTitle", "GlitchTransition",
     "GlobalVFX", "GradientOverlay", "GridPerspective", "HighlightText", "HorizontalBarRace", "IconifyIcon",
-    "InstagramPost", "KineticBackground", "LightLeakTransition", "LoadingSpinner", "LowerThird",
+    "InstagramPost", "KeywordPop", "KineticBackground", "LightLeakTransition", "LoadingSpinner", "LowerThird",
     "MaskedReveal", "MediaFrame", "MessageBubble", "MusicPlayerUI", "NetworkNodes", "NotificationToast",
     "ParticleField", "PercentageRing", "PhoneMockup", "PieChartReveal", "PodcastGuestCard", "PricingTableReveal",
     "ProductCardReveal", "ProgressPill", "PromoCodeBanner", "QuoteBlock", "RadarSpiderChart", "RaysOfLight",
@@ -227,6 +227,7 @@ AVAILABLE_COMPONENTS: list[str] = [
     "TerminalHacker", "TestimonialReview", "TextBubble", "TextReveal", "TextSwap",
     "TikTokOverlay", "TinderSwipeCard", "TrendLine", "TweetCard",
     "Typewriter", "UnderlineReveal", "VersusScreen", "WaveformVisualizer", "WipeTransition",
+    "WordHighlight",
     "YouTubeEndScreen", "ZoomBlurTransition",
 ]
 
@@ -514,6 +515,12 @@ REGLAS DE ORO PARA EL DISEÑO:
 2. **COHERENCIA TEMÁTICA ESTRICTA:** Solo elige componentes de la Standard Library si tienen una relación DIRECTA y LÓGICA con el guion. Si el video es un documental sobre peces, NO uses un "SubscribeButton" o "TinderSwipeCard". Usa tu juicio semántico: si no encaja perfecto con la vibra de la escena, no lo uses.
 3. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
 4. El texto hablado principal DEBE aparecer en pantalla de manera legible. Pásalo a tu componente de texto usando `"text": "{{text}}"`.
+4.1. **JERARQUÍA VISUAL — EVITA EL MURO DE TEXTO (MUY IMPORTANTE):** Una escena NO debe ser solo un bloque de texto. SIEMPRE acompaña el texto con AL MENOS un elemento visual relevante:
+   - Un **ícono** que represente literalmente el concepto/sujeto de la escena (usa los íconos sugeridos abajo).
+   - Y/o un **fondo con movimiento** (ej: KineticBackground, ParticleField, RaysOfLight, FloatingBlobs) acorde a la dirección artística.
+   - Composición ideal de una escena hablada: 1 fondo + el texto (tamaño moderado, NO gigante que llene la pantalla) + 1 ícono o acento visual relacionado con una palabra clave del texto.
+   - NO uses fontSize enorme para "rellenar"; deja aire. El texto debe convivir con el visual, no taparlo.
+   - Si la escena es un CTA ("sígueme", "comenta"), añade el botón/badge correspondiente además del texto.
 5. **POSICIONAMIENTO OBLIGATORIO:** ABSOLUTAMENTE TODOS los layers DEBEN tener `x` e `y`. Si los omites, el JSON será inválido.
     - `"x": 0, "y": 0` = centro del canvas
     - `"x": 0, "y": -200` = arriba del centro
@@ -837,6 +844,29 @@ A radar/spider chart for multi-dimensional data visualization.
 - `lineColor`: Line color (default "#00FFAB")
 - `size`: Chart size in pixels (default 240)
 - Use for: Skill comparisons, performance metrics, multi-axis analysis
+
+### WordHighlight (subtítulo "karaoke" sincronizado al audio)
+Muestra el texto hablado y resalta la palabra que se pronuncia en cada momento
+(estilo subtítulos de TikTok/Reels). Se sincroniza solo con el audio.
+- `componentName`: "WordHighlight"
+- `text`: el texto hablado (usa "{{text}}")
+- `color`: color base de las palabras (default blanco)
+- `highlightColor`: color de la palabra activa (default dorado)
+- Úsalo para: el texto hablado principal cuando quieras un look dinámico de
+  subtítulos. Es una excelente alternativa a StyleTextBlock/Typewriter para el
+  texto narrado. NO necesitas pasarle timestamps; se inyectan automáticamente.
+
+### KeywordPop (ícono que aparece en una palabra clave)
+Un ícono que permanece OCULTO y aparece con un "pop" justo cuando se pronuncia
+una palabra concreta del guion.
+- `componentName`: "KeywordPop"
+- `icon`: ícono Iconify (ej: "mdi:fire")
+- `triggerWord`: la palabra EXACTA del texto en la que debe aparecer (ej: "energía")
+- `size`: tamaño en píxeles (default 160)
+- `color`: color del ícono
+- Úsalo para: enfatizar visualmente un concepto justo cuando se nombra (ej: aparece
+  una batería cuando se dice "energía"). Colócalo en una zona libre (x/y) que no
+  tape el texto.
 
 ### Grid Layout
 Use `layout: "grid"` for 2D layouts instead of flex.
@@ -1211,6 +1241,8 @@ def generate_scene_composer(
                                 "animation": {"type": "STRING"},
                                 "lineWidth": {"type": "INTEGER", "minimum": 0, "maximum": 20},
                                 "icon": {"type": "STRING"},
+                                "triggerWord": {"type": "STRING"},
+                                "highlightColor": {"type": "STRING"},
                                 "variant": {"type": "STRING"},
                                 "title": {"type": "STRING"},
                                 "subtitle": {"type": "STRING"},
@@ -1536,7 +1568,7 @@ def generate_scene_composer(
                                     child[key] = _coerce_number(child[key])
 
                     # ── Fase 1.5: Remove garbage props from text components ──
-                    TEXT_COMPONENTS_GARBAGE = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText"}
+                    TEXT_COMPONENTS_GARBAGE = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText", "WordHighlight"}
                     GARBAGE_PROPS = {
                         "showScrollbar", "showRipple", "showPercentages", "autoplay", "muted",
                         "deletable", "showBadge", "from", "duration", "fillArea", "orientation",
@@ -1599,7 +1631,7 @@ def generate_scene_composer(
                     max_text_width = canvas_w * 0.85
 
                     TEXT_LAYER_TYPES = {"text", "component"}
-                    TEXT_COMPONENT_NAMES = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText"}
+                    TEXT_COMPONENT_NAMES = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText", "WordHighlight"}
 
                     def _auto_fit_layer_text(layer: dict, max_width: float, canvas_height: float) -> None:
                         """Scale down fontSize if text is estimated to overflow, accounting for line wrapping."""
@@ -1663,6 +1695,7 @@ def generate_scene_composer(
                         "TextReveal": lambda cw: int(cw * 0.85),
                         "StyleTextBlock": lambda cw: int(cw * 0.85),
                         "StyleScrambleText": lambda cw: int(cw * 0.85),
+                        "WordHighlight": lambda cw: int(cw * 0.85),
                         "SubscribeButton": lambda cw: int(cw * 0.6),
                         "IconifyIcon": lambda cw: 120,
                     }
@@ -1706,12 +1739,16 @@ def generate_scene_composer(
                     TEXT_FOR_ENTRY = {
                         "StyleTextBlock", "Typewriter", "TextReveal", "StyleScrambleText",
                         "SplitText", "GlitchTitle", "TextSwap", "HighlightText", "QuoteBlock",
+                        "WordHighlight",
                     }
                     ICON_UI_FOR_ENTRY = {
                         "IconifyIcon", "AnimatedIcon", "StyleBadge", "FloatingBadge",
                         "SubscribeButton", "StyleButton", "StyleChip", "StyleCard",
                         "StyleDivider", "StyleAvatar",
                     }
+                    # Componentes que controlan su PROPIA aparición (no se les debe
+                    # inyectar entry/exit por defecto, o entrarían en conflicto).
+                    SELF_ANIMATED = {"KeywordPop"}
 
                     # Escenas cortas: animaciones más rápidas y sin escalonado.
                     short_scene = bool(duration_seconds and duration_seconds < 2.5)
@@ -1722,6 +1759,8 @@ def generate_scene_composer(
                     for layer in result.get("layers", []):
                         comp = layer.get("componentName", "")
                         is_bg = comp in BACKGROUND_COMPONENTS
+                        if comp in SELF_ANIMATED:
+                            continue  # se anima solo; no tocar entry/exit
 
                         # ── Exit por defecto (todas las capas no-fondo) ──
                         if not is_bg and "exit" not in layer:

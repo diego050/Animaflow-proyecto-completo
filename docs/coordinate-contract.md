@@ -2,6 +2,14 @@
 
 **Estado:** vigente desde v7 (ver ADR-010)
 
+## Principio rector: la IA es orquestadora, no dibujante
+La IA **nunca** genera geometría (paths/formas). Solo orquesta **piezas pre-hechas**:
+componentes del registry + íconos vectoriales de Iconify. El tipo `path` (y `rect`/
+`circle` libres) está **PROHIBIDO** para el LLM — los modelos producen geometría basura
+(un corazón sale como el borde de un boomerang). Para una forma, se usa un ícono
+pre-hecho (`mdi:heart`), no dibujo. Crear un visual nuevo = crear un componente o usar
+un ícono, jamás pedirle a la IA que lo dibuje. (Ver `fase-c-plan.md`.)
+
 Este documento define **cómo se posicionan los elementos** en el render de video
 (Remotion). Si creas o modificas un componente del registry o una primitiva,
 **debes** seguir este contrato o el elemento saldrá descolocado/recortado.

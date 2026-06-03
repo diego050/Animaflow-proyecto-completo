@@ -4,6 +4,14 @@ import type { TimelineSpec, Spec } from "../types/spec";
 import { useAuthStore } from "../store/useAuthStore";
 import { AnimaComposer } from './composer/AnimaComposer';
 import { COMPONENT_REGISTRY } from './registry';
+import { TransitionWrapper } from './transitions/TransitionWrapper';
+
+// C2 (v7.5): transición de escena por defecto. GradientOverlay es SIMÉTRICO
+// (opacidad sin(progress·π): claro→pico→claro), así que como overlay centrado en
+// el corte hace un "barrido" de color limpio sin dejar la pantalla en negro.
+// Es puramente visual y aditivo: no altera el audio ni el secuenciado de escenas.
+const SCENE_TRANSITION_TYPE = 'GradientOverlay';
+const SCENE_TRANSITION_FRAMES = 16; // ~0.5s a 30fps
 
 interface FallbackSceneProps {
   text: string;
@@ -138,6 +146,26 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
                 wordTimestamps={relativeWordTimestamps}
             />
             {audioUrlWithToken && <Audio src={audioUrlWithToken} />}
+          </Sequence>
+        );
+      })}
+
+      {/* C2: overlays de transición, CENTRADOS en cada corte entre escenas.
+          Van después de las escenas en el DOM → se pintan ENCIMA. No tienen
+          audio ni alteran el timing; solo es un efecto visual sobre el corte. */}
+      {spec.scenes.slice(1).map((_, i) => {
+        const boundaryFrame = sceneOffsets[i + 1];
+        const from = Math.max(0, boundaryFrame - Math.floor(SCENE_TRANSITION_FRAMES / 2));
+        return (
+          <Sequence
+            key={`transition-${i}`}
+            from={from}
+            durationInFrames={SCENE_TRANSITION_FRAMES}
+          >
+            <TransitionWrapper
+              type={SCENE_TRANSITION_TYPE}
+              durationFrames={SCENE_TRANSITION_FRAMES}
+            />
           </Sequence>
         );
       })}

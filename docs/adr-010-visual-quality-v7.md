@@ -109,10 +109,22 @@ frente aparte para cuando se retome AE; esta fase ni lo mejoró ni lo empeoró.
   (causa de `size:"color1"` y capas duplicadas). Leer todas las `parts` o desactivar
   "thinking" en la llamada de composición.
 
-### Fase C — Motion graphics dinámicos
-- Transición de escena dedicada (cablear `TransitionWrapper` en `MainComposition`).
-- Flex/grid por CSS real (eliminar el cálculo de posiciones de hijos en el solver).
-- Animaciones por keyframes en el spec.
+### Decisión: la IA es orquestadora, no dibujante 🔴
+Confirmado empíricamente (la IA dibujaba un corazón como el borde de un boomerang):
+los LLM no generan geometría vectorial usable. **Decisión canónica:** el tipo `path`
+(y `rect`/`circle` libres) queda **PROHIBIDO** para el LLM; el vocabulario de formas
+son íconos pre-hechos (Iconify) + componentes. Esto **rechaza** la recomendación del
+`analisis_raiz_arquitectura.md` de "abolir la restricción de primitivas". Ver
+`coordinate-contract.md` y `fase-c-plan.md`.
+
+### Fase C — Motion graphics dinámicos (detalle en `fase-c-plan.md`)
+- **C1** Componentes reactivos a la palabra (usan `wordTimestamps`).
+- **C2** Transición de escena dedicada (cablear `TransitionWrapper` en `MainComposition`).
+- **C3** Flex/grid por CSS real (eliminar el cálculo de posiciones de hijos en el solver).
+- **C4** ✅ Guía de prompt anti-muro-de-texto (regla 4.1).
+- **C5** Ampliar biblioteca **+ auditar y refactorizar los 109 componentes** (bugs,
+  determinismo, tamaños de video, editabilidad por la IA).
+- **C6** (opcional) keyframes para control fino de animación (NO para dibujar).
 - AE: manejar `type: "component"` (cerrar el gap preexistente) o pase de
   `getBoundingClientRect()` post-render.
 

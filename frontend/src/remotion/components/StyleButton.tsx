@@ -12,10 +12,11 @@ interface StyleButtonProps extends UniversalProps {
   style?: Record<string, unknown>;
 }
 
+// v7.4 (C5): tamaños a escala de VIDEO vertical (antes 14/16/18 = UI web).
 const sizeMap = {
-  sm: { padding: '8px 16px', fontSize: 14, borderRadius: 6 },
-  md: { padding: '12px 24px', fontSize: 16, borderRadius: 8 },
-  lg: { padding: '16px 32px', fontSize: 18, borderRadius: 10 },
+  sm: { padding: '12px 28px', fontSize: 32, borderRadius: 10 },
+  md: { padding: '16px 36px', fontSize: 40, borderRadius: 14 },
+  lg: { padding: '22px 48px', fontSize: 52, borderRadius: 18 },
 };
 
 const variantMap = {

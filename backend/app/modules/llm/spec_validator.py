@@ -22,7 +22,7 @@ CANVAS_DIMENSIONS = {
 }
 
 # Components that render text
-TEXT_COMPONENTS = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText"}
+TEXT_COMPONENTS = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText", "WordHighlight"}
 
 
 def validate_composer_spec(
