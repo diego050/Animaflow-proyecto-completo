@@ -1,5 +1,6 @@
 import React from 'react';
-import { useCurrentFrame } from 'remotion';
+import { useCurrentFrame, useVideoConfig } from 'remotion';
+import { fitText } from '../utils/fitText';
 import type { UniversalProps } from "./types";
 
 export interface TypewriterProps extends UniversalProps {
@@ -15,12 +16,27 @@ export const Typewriter: React.FC<TypewriterProps> = ({
   x = 540,
   y = 960,
   fontSize = 60,
-  width = 900,
+  width,  // Remove hardcoded default — calculate from canvas
   speed: speedProp,
   delay = 0,
   durationInFrames,
 }) => {
   const frame = useCurrentFrame();
+  const { width: canvasWidth, height: canvasHeight } = useVideoConfig();
+
+  // Calculate effective container width from canvas if not explicitly provided
+  const effectiveWidth = width || Math.min(900, Math.floor(canvasWidth * 0.85));
+
+  // Auto-scale fontSize to fit text within container
+  const fitted = fitText(text, effectiveWidth, Math.floor(canvasHeight * 0.6), {
+    minFontSize: 28,
+    maxFontSize: fontSize || 60,
+    fontWeight: 900,
+    lineHeight: 1.3,
+    padding: 20,
+  });
+  const actualFontSize = fitted.fontSize;
+
   const adjustedFrame = Math.max(0, frame - delay);
 
   // Calculate dynamic speed if durationInFrames is available
@@ -47,7 +63,7 @@ export const Typewriter: React.FC<TypewriterProps> = ({
         top: `${y}px`,
         left: `${x}px`,
         transform: 'translate(-50%, -50%)',
-        width: `${width}px`,
+        width: `${effectiveWidth}px`,
         textAlign: 'center',
         zIndex: 10,
       }}
@@ -55,7 +71,7 @@ export const Typewriter: React.FC<TypewriterProps> = ({
       <div 
         style={{ 
           color,
-          fontSize,
+          fontSize: actualFontSize,
           fontWeight: 900,
           fontFamily: 'monospace, system-ui, sans-serif',
           display: 'inline-block',
