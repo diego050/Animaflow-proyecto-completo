@@ -98,8 +98,9 @@ def validate_composer_spec(
                 layer["type"] = "component"
                 logger.warning("Auto-fixed type → 'component': %s", msg)
 
-        # ── Check 4: No string numbers ──
-        for key in ("size", "width", "height", "fontSize", "strokeWidth"):
+        # ── Check 4: No string numbers (except semantic sizes) ──
+        SEMANTIC_SIZE_VALUES = {"xs", "sm", "md", "lg", "xl", "2xl", "3xl"}
+        for key in ("width", "height", "fontSize", "strokeWidth"):
             val = layer.get(key)
             if isinstance(val, str):
                 msg = f"Layer {i}: {key} is string '{val}' (should be number)"
@@ -109,6 +110,15 @@ def validate_composer_spec(
                         layer[key] = float(val) if "." in val else int(val)
                     except (ValueError, TypeError):
                         pass
+
+        # Separate check for size field — handle semantic sizes
+        size_val = layer.get("size")
+        if isinstance(size_val, str) and size_val not in SEMANTIC_SIZE_VALUES:
+            try:
+                numeric = float(size_val) if "." in size_val else int(size_val)
+                layer["size"] = str(numeric)
+            except (ValueError, TypeError):
+                pass  # Keep as string if not parseable
 
         # ── Check 5: Component width must be explicit ──
         if comp_name in TEXT_COMPONENTS and "width" not in layer:
@@ -144,6 +154,48 @@ def validate_composer_spec(
     if len(layers) > 15:
         msg = f"Spec has {len(layers)} layers (may be too complex for 7s scene)"
         warnings.append(msg)
+
+    # ── Check 9: Component name must be in registry ──
+    VALID_COMPONENTS = {
+        "APIRequestFlow", "AbstractWave", "AnimatedArrow", "AnimatedIcon", "AnimatedLine",
+        "AnimatedShape", "AppStoreButtons", "AudioSpectrumBars", "BarChartReveal",
+        "BreakingNewsAlert", "BreakingNewsTicker", "BrowserWindow", "CalendarDatePop",
+        "CodeBlockHighlight", "CountdownTimer", "CounterNumber", "CursorClick",
+        "EmojiFloat", "EmojiReaction", "FeatureChecklist", "FloatingBlobs",
+        "GlitchTitle", "GlitchTransition", "GlobalVFX", "GridPerspective",
+        "HighlightText", "KineticBackground", "LightLeakTransition", "LowerThird",
+        "MusicPlayerUI", "NetworkNodes", "NotificationToast", "ParticleField",
+        "PercentageRing", "PhoneMockup", "ProductCardReveal", "QuoteBlock",
+        "RaysOfLight", "SearchEngineTyping", "ShoppingCartBadge", "SocialProgressBar",
+        "SplitScreenGrid", "StatCard", "StepByStepGuide", "StyleAnimateNumber",
+        "StyleAvatar", "StyleBadge", "StyleButton", "StyleCard", "StyleChip",
+        "StyleDivider", "StyleProgressBar", "StyleScrambleText", "StyleTextBlock",
+        "SubscribeButton", "TerminalHacker", "TestimonialReview", "TextBubble",
+        "TextReveal", "TinderSwipeCard", "TrendLine", "Typewriter", "WipeTransition",
+        "ZoomBlurTransition", "IconifyIcon",
+    }
+
+    for i, layer in enumerate(layers):
+        comp_name = layer.get("componentName", "")
+        if comp_name and comp_name not in VALID_COMPONENTS:
+            msg = f"Layer {i}: unknown component '{comp_name}'"
+            warnings.append(msg)
+            if auto_fix:
+                layer["_unknown_component"] = True
+                logger.warning("Flagged unknown component: %s", msg)
+
+    # ── Check 10: fontSize must be >= 48 for text components ──
+    for i, layer in enumerate(layers):
+        comp_name = layer.get("componentName", "")
+        layer_type = layer.get("type", "")
+        font_size = layer.get("fontSize")
+        if comp_name in TEXT_COMPONENTS or layer_type == "text":
+            if isinstance(font_size, (int, float)) and font_size < 48:
+                msg = f"Layer {i}: fontSize {font_size} too small for mobile video (min 48)"
+                warnings.append(msg)
+                if auto_fix:
+                    layer["fontSize"] = 48
+                    logger.warning("Auto-fixed fontSize to 48: %s", msg)
 
     return warnings
 
