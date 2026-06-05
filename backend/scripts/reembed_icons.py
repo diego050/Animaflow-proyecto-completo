@@ -2,27 +2,28 @@
 
 Por qué: las 43k filas de `iconify_icons` se generaron con `all-mpnet-base-v2`,
 pero las búsquedas usan `gemini-embedding-2`. Son espacios vectoriales distintos
-→ la similitud coseno es ruido (scores ~0.1, resultados irrelevantes). Este
-script regenera los embeddings de íconos con el MISMO modelo que las queries.
+→ la similitud coseno es ruido. Este script regenera los embeddings con el MISMO
+modelo que las queries.
 
-Características pensadas para free tier:
-  - LOTES: manda BATCH_SIZE íconos por petición (no 1 a 1). 43k / 100 ≈ 430
-    peticiones → entra en el límite diario en vez de tardar semanas.
-  - REANUDABLE: guarda un checkpoint con el último id procesado. Si lo cortas
-    (o agotas la cuota del día), vuelves a correrlo y continúa donde quedó.
-  - RATE-LIMIT: pausa configurable entre peticiones; ante 429 espera y reintenta.
+Estrategia (MVP) para free tier (100 RPM, 1k req/día por key):
+  - LOTES: BATCH_SIZE íconos por petición (no 1 a 1).
+  - THROTTLE: hace REQUESTS_PER_CYCLE peticiones y PAUSA CYCLE_PAUSE segundos
+    (por defecto 100 requests → pausa 60s → respeta ~100 RPM).
+  - REINTENTOS: ante error reintenta con backoff hasta MAX_RETRIES (def 4).
+  - ROTACIÓN DE KEYS: si una key agota su cuota (falla MAX_RETRIES veces seguidas
+    por 429), cambia a la siguiente key y reintenta el MISMO lote. Sigue rotando
+    hasta terminar.
+  - REANUDABLE: checkpoint con el último id procesado.
 
-Requisitos:
-  - GEMINI_API_KEY en el entorno (tu key, en el .env del VPS).
+Keys (en orden de preferencia):
+  - `GEMINI_API_KEYS` = "key1,key2,...,key20"  (varias, separadas por coma)
+  - o `GEMINI_API_KEY` = "key"                  (una sola)
+  - o `--api-keys "k1,k2,..."`
 
-Uso (dentro del contenedor api):
-    python scripts/reembed_icons.py                  # corre/continúa
-    python scripts/reembed_icons.py --batch-size 100 --sleep 0.5
+Uso:
+    python scripts/reembed_icons.py
+    python scripts/reembed_icons.py --requests-per-cycle 100 --cycle-pause 60 --max-retries 4
     python scripts/reembed_icons.py --reset          # empieza desde cero
-    python scripts/reembed_icons.py --limit 200       # prueba con pocos
-
-El task_type es RETRIEVAL_DOCUMENT (documentos); las queries usan RETRIEVAL_QUERY
-en iconify_search.py — es el emparejamiento asimétrico correcto de Gemini.
 """
 import argparse
 import json
@@ -51,7 +52,6 @@ CHECKPOINT = os.environ.get(
 def _icon_text(name: str, tags) -> str:
     """Texto semántico a embeddear para cada ícono."""
     human = (name or "").replace("-", " ").replace("_", " ").strip()
-    # tags puede venir como list (psycopg lo decodifica) o como str JSON.
     if isinstance(tags, str):
         try:
             tags = json.loads(tags)
@@ -75,8 +75,27 @@ def _write_checkpoint(last_id: str) -> None:
         f.write(last_id)
 
 
+def _get_keys(args) -> list[str]:
+    """Resuelve la lista de API keys (varias → rotación)."""
+    if args.api_keys:
+        keys = [k.strip() for k in args.api_keys.split(",") if k.strip()]
+        if keys:
+            return keys
+    multi = os.environ.get("GEMINI_API_KEYS")
+    if multi:
+        keys = [k.strip() for k in multi.split(",") if k.strip()]
+        if keys:
+            return keys
+    single = os.environ.get("GEMINI_API_KEY")
+    return [single] if single else []
+
+
+def _is_rate_limit(err: Exception) -> bool:
+    msg = str(err)
+    return "429" in msg or "RESOURCE_EXHAUSTED" in msg or "quota" in msg.lower()
+
+
 def _embed_batch(client, types, texts: list[str]) -> list[list[float]]:
-    """Embeddea un lote; devuelve lista de vectores alineada con texts."""
     resp = client.models.embed_content(
         model=MODEL,
         contents=texts,
@@ -90,21 +109,25 @@ def _embed_batch(client, types, texts: list[str]) -> list[list[float]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch-size", type=int, default=100, help="Íconos por petición a la API")
-    parser.add_argument("--sleep", type=float, default=0.5, help="Pausa (s) entre peticiones")
+    parser.add_argument("--batch-size", type=int, default=100, help="Íconos por petición")
+    parser.add_argument("--requests-per-cycle", type=int, default=100, help="Peticiones antes de pausar")
+    parser.add_argument("--cycle-pause", type=float, default=60.0, help="Pausa (s) tras cada ciclo")
+    parser.add_argument("--max-retries", type=int, default=4, help="Reintentos por lote antes de rotar key")
+    parser.add_argument("--api-keys", type=str, default="", help="Keys separadas por coma (override de env)")
     parser.add_argument("--limit", type=int, default=0, help="Máximo de íconos a procesar (0 = todos)")
     parser.add_argument("--reset", action="store_true", help="Ignora el checkpoint y empieza desde cero")
     args = parser.parse_args()
 
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        print("❌ GEMINI_API_KEY no está en el entorno. Ponla en el .env del VPS.")
+    keys = _get_keys(args)
+    if not keys:
+        print("❌ No hay API keys. Define GEMINI_API_KEYS='k1,k2,...' o GEMINI_API_KEY, o usa --api-keys.")
         sys.exit(1)
 
     from google import genai
     from google.genai import types
 
-    client = genai.Client(api_key=api_key)
+    key_idx = 0
+    client = genai.Client(api_key=keys[key_idx])
     db = SessionLocal()
 
     if args.reset and os.path.exists(CHECKPOINT):
@@ -117,12 +140,12 @@ def main() -> None:
         {"last": last_id},
     ).scalar()
     print(f"🔄 Re-embeddeando íconos con {MODEL} ({DIMS} dims)")
-    print(f"   Pendientes: {total_remaining} (desde id > '{last_id[:8]}...')")
-    print(f"   batch_size={args.batch_size}  sleep={args.sleep}s")
+    print(f"   Pendientes: {total_remaining}  |  Keys disponibles: {len(keys)}")
+    print(f"   batch={args.batch_size}  ciclo={args.requests_per_cycle} req → pausa {args.cycle_pause}s  reintentos={args.max_retries}")
     print()
 
     processed = 0
-    failed_batches = 0
+    requests_in_cycle = 0
 
     while True:
         if args.limit and processed >= args.limit:
@@ -143,32 +166,36 @@ def main() -> None:
 
         texts = [_icon_text(r.name, r.tags) for r in rows]
 
-        # Embeddear con reintento ante 429
+        # Intentar embeddear este lote; reintenta y, si la key se agota, rota.
         vectors = None
-        for attempt in range(5):
+        rate_limited = False
+        for attempt in range(args.max_retries):
             try:
                 vectors = _embed_batch(client, types, texts)
                 break
             except Exception as e:  # noqa: BLE001
-                msg = str(e)
-                if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
-                    wait = min(60, 5 * (attempt + 1))
-                    print(f"   ⏳ 429 rate limit. Esperando {wait}s (intento {attempt+1}/5)...")
+                if _is_rate_limit(e):
+                    rate_limited = True
+                    wait = min(30, 4 * (attempt + 1))
+                    print(f"   ⏳ 429 en key #{key_idx + 1}. Espera {wait}s (intento {attempt + 1}/{args.max_retries})...")
                     time.sleep(wait)
                     continue
-                print(f"   ⚠️  Error en lote: {msg[:160]}")
+                # Error no relacionado con cuota → no rotar; reportar y parar.
+                print(f"   ⚠️  Error no-cuota en el lote: {str(e)[:160]}")
                 break
 
-        if vectors is None or len(vectors) != len(rows):
-            failed_batches += 1
-            if failed_batches >= 3:
-                print("❌ Demasiados lotes fallidos seguidos. Guardando checkpoint y saliendo.")
-                print(f"   Reanuda más tarde con: python scripts/reembed_icons.py")
-                break
-            time.sleep(10)
-            continue
-
-        failed_batches = 0
+        if vectors is None:
+            if rate_limited and key_idx + 1 < len(keys):
+                key_idx += 1
+                client = genai.Client(api_key=keys[key_idx])
+                requests_in_cycle = 0
+                print(f"   🔁 Key agotada. Cambiando a API key #{key_idx + 1}/{len(keys)} y reintentando el lote...")
+                continue  # reintenta el MISMO lote (no avanza checkpoint)
+            if rate_limited:
+                print("❌ Todas las keys agotadas. Checkpoint guardado. Reanuda mañana con el mismo comando.")
+            else:
+                print("❌ Lote falló por error no-cuota. Checkpoint guardado; revisa el error de arriba.")
+            break
 
         # Guardar vectores
         for r, vec in zip(rows, vectors):
@@ -182,16 +209,19 @@ def main() -> None:
         last_id = rows[-1].id
         _write_checkpoint(last_id)
         processed += len(rows)
-        print(f"   ✅ {processed} procesados (último id {last_id[:8]}...)")
+        requests_in_cycle += 1
+        print(f"   ✅ {processed} procesados (key #{key_idx + 1}, último id {last_id[:8]}...)")
 
-        if args.sleep:
-            time.sleep(args.sleep)
+        # Throttle: tras REQUESTS_PER_CYCLE peticiones, pausa para respetar el RPM.
+        if requests_in_cycle >= args.requests_per_cycle:
+            print(f"   ⏸  {args.requests_per_cycle} peticiones hechas → pausando {args.cycle_pause}s (rate limit)...")
+            time.sleep(args.cycle_pause)
+            requests_in_cycle = 0
 
     db.close()
     print()
     print(f"📊 Listo. {processed} íconos re-embeddeados en esta corrida.")
-    print("   Verifica con: find_best_icons(db, 'batería sin energía', limit=3)")
-    print("   (los scores deberían subir a ~0.4–0.8 y ser relevantes)")
+    print("   Verifica: find_best_icons(db, 'batería sin energía', limit=3)  → scores ~0.4–0.8 y relevantes")
 
 
 if __name__ == "__main__":
