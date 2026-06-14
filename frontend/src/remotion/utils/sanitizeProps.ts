@@ -12,6 +12,9 @@
  * @returns Sanitized props with only valid keys
  */
 
+// Set to true to log every stripped prop (very noisy — per component, per frame).
+const DEBUG_SANITIZE = false;
+
 // Allowed props per component (whitelist approach)
 const ALLOWED_PROPS: Record<string, Set<string>> = {
   'Typewriter': new Set([
@@ -84,7 +87,10 @@ export function sanitizeComponentProps(
     }
   }
 
-  if (removed.length > 0 && typeof console !== 'undefined') {
+  // Debug-only: this runs per component, per frame, so leaving it on floods
+  // the render logs with thousands of lines. Flip DEBUG_SANITIZE to true when
+  // you actually need to inspect which props get stripped.
+  if (DEBUG_SANITIZE && removed.length > 0 && typeof console !== 'undefined') {
     console.debug(
       `[sanitizeProps] ${componentName}: removed ${removed.length} props:`,
       removed,

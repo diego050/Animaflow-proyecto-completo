@@ -51,10 +51,10 @@ export function DownloadsPage() {
     fetchJobs();
   }, [fetchJobs]);
 
-  // Filter to completed jobs that have been downloaded at least once
-  const downloadedJobs = jobs.filter(
-    (j) => isCompletedStatus(j.status) && downloadedIds.includes(j.job_id),
-  );
+  // Show every completed job so finished videos appear here automatically.
+  // (Previously this was gated on `downloadedIds`, which only listed files the
+  // user had already downloaded once — so freshly rendered videos never showed.)
+  const downloadedJobs = jobs.filter((j) => isCompletedStatus(j.status));
 
   // Filter by search
   const filteredJobs = downloadedJobs.filter(
@@ -140,8 +140,10 @@ export function DownloadsPage() {
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = `animaflow_${job.job_id}.mp4`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(blobUrl);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
       setDownloadedIds(markAsDownloaded(job.job_id));
     } catch {
       addToast('error', 'Error descargando el video MP4.');
