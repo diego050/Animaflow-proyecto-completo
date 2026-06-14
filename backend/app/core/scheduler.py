@@ -1,3 +1,6 @@
+import os
+import json
+import hashlib
 import asyncio
 import asyncpg
 from datetime import datetime, timezone, timedelta
@@ -9,12 +12,28 @@ from app.core.logging import get_logger
 from app.core.config import settings
 from app.core.render_adapter import RenderAdapter
 from app.core.security import create_access_token
+from app.core.storage_paths import get_storage_dir
 from app.modules.pipeline.orchestrator import (
     run_pipeline,
     run_pipeline_enrichment,
 )
 
 logger = get_logger("scheduler")
+
+
+def compute_spec_hash(scenes, aspect_ratio: str) -> str:
+    """Stable hash of the render-relevant inputs (scenes + aspect ratio).
+
+    Used to detect whether a job's spec changed since its last successful
+    render, so identical re-renders can be skipped.
+    """
+    payload = json.dumps(
+        {"scenes": scenes, "aspect_ratio": aspect_ratio},
+        sort_keys=True,
+        ensure_ascii=False,
+        default=str,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 class Scheduler:
     def __init__(self):
@@ -284,6 +303,24 @@ class Scheduler:
             scenes = job.result_spec.get('scenes', []) if job.result_spec else []
             aspect_ratio = job.aspect_ratio
 
+            # Skip re-rendering when the spec hasn't changed and the MP4 still
+            # exists on disk: the previously rendered video serves as-is.
+            spec_hash = compute_spec_hash(scenes, aspect_ratio)
+            if job.video_url and job.rendered_spec_hash == spec_hash:
+                existing = os.path.join(get_storage_dir("videos"), f"{job_id}.mp4")
+                if os.path.exists(existing):
+                    logger.info(
+                        f"Job {job_id}: spec unchanged and MP4 present, skipping render."
+                    )
+                    with SessionLocal() as session:
+                        job_in_session = session.query(JobModel).filter_by(id=job_id).first()
+                        if job_in_session:
+                            job_in_session.status = 'completed'
+                            if not job_in_session.completed_at:
+                                job_in_session.completed_at = datetime.now(timezone.utc)
+                            session.commit()
+                    return
+
             # Short-lived service token so the render server can authenticate
             # against the protected /api/audio endpoint when downloading TTS.
             render_token = create_access_token(
@@ -308,7 +345,15 @@ class Scheduler:
                 if result.get("success"):
                     job_in_session.status = 'completed'
                     job_in_session.completed_at = datetime.now(timezone.utc)
-                    job_in_session.video_url = result.get("video_url")
+                    # The render server returns a container filesystem path
+                    # (e.g. /app/storage/videos/<job_id>.mp4). Store the web-servable
+                    # URL instead, matching the StaticFiles mount at /videos.
+                    raw_path = result.get("video_url") or ""
+                    filename = os.path.basename(raw_path) if raw_path else f"{job_id}.mp4"
+                    job_in_session.video_url = f"/videos/{filename}"
+                    # Record the spec that produced this MP4 so identical
+                    # re-renders can be skipped later.
+                    job_in_session.rendered_spec_hash = spec_hash
                     logger.info(f"Job {job_id} successfully rendered.")
                 else:
                     job_in_session.status = 'failed'
