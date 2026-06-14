@@ -8,6 +8,7 @@ from app.db.models import JobModel, TokenBlacklist
 from app.core.logging import get_logger
 from app.core.config import settings
 from app.core.render_adapter import RenderAdapter
+from app.core.security import create_access_token
 from app.modules.pipeline.orchestrator import (
     run_pipeline,
     run_pipeline_enrichment,
@@ -282,14 +283,22 @@ class Scheduler:
             if not job: return
             scenes = job.result_spec.get('scenes', []) if job.result_spec else []
             aspect_ratio = job.aspect_ratio
-                
+
+            # Short-lived service token so the render server can authenticate
+            # against the protected /api/audio endpoint when downloading TTS.
+            render_token = create_access_token(
+                {"sub": str(job.user_id)},
+                expires_delta=timedelta(minutes=30),
+            )
+
             async with self.render_semaphore:
                 # Usar RenderAdapter de forma nativa asíncrona en vez del orchestrator síncrono
                 result = await self._get_render_adapter().render(
                     job_id=job_id,
                     scenes=scenes,
                     aspect_ratio=aspect_ratio,
-                    mode=settings.RENDER_MODE
+                    mode=settings.RENDER_MODE,
+                    auth_token=render_token,
                 )
                 
             with SessionLocal() as session:
