@@ -86,6 +86,9 @@ class JobModel(Base):
     aspect_ratio = Column(String, default="9:16")
     result_spec = Column(MutableDict.as_mutable(JSON), nullable=True)
     video_url = Column(String, nullable=True)
+    # Hash of the spec (scenes + aspect_ratio) that produced the current video_url.
+    # Used to skip re-rendering when nothing render-relevant has changed.
+    rendered_spec_hash = Column(String(64), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,
