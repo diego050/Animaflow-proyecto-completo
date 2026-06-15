@@ -12,66 +12,17 @@
  * @returns Sanitized props with only valid keys
  */
 
+import { getAllowedProps, UNIVERSAL_PROPS } from '../manifest';
+
 // Set to true to log every stripped prop (very noisy — per component, per frame).
 const DEBUG_SANITIZE = false;
-
-// Allowed props per component (whitelist approach)
-const ALLOWED_PROPS: Record<string, Set<string>> = {
-  'Typewriter': new Set([
-    'text', 'color', 'x', 'y', 'fontSize', 'fontWeight',
-    'width', 'speed', 'delay', 'durationInFrames',
-    'entry', 'entryDelay', 'exit', 'exitDelay', 'exitDuration',
-  ]),
-  'TextReveal': new Set([
-    'text', 'color', 'x', 'y', 'fontSize', 'fontWeight',
-    'width', 'delay', 'animation', 'glowIntensity',
-    'entry', 'entryDelay', 'exit', 'exitDelay', 'exitDuration',
-  ]),
-  'StyleTextBlock': new Set([
-    'text', 'x', 'y', 'variant', 'align', 'maxLines',
-    'width', 'style', 'delay', 'fontSize', 'color', 'fontWeight',
-    'entry', 'entryDelay', 'exit', 'exitDelay', 'exitDuration',
-  ]),
-  'StyleScrambleText': new Set([
-    'text', 'x', 'y', 'fontSize', 'color', 'fontWeight',
-    'width', 'delay', 'speed',
-    'entry', 'entryDelay', 'exit', 'exitDelay', 'exitDuration',
-  ]),
-  'WordHighlight': new Set([
-    'text', 'x', 'y', 'fontSize', 'fontWeight', 'color', 'highlightColor',
-    'width', 'activeScale', 'dimUpcoming', 'delay', 'wordTimestamps',
-    'entry', 'entryDelay', 'exit', 'exitDelay', 'exitDuration',
-  ]),
-  'KeywordPop': new Set([
-    'icon', 'triggerWord', 'x', 'y', 'size', 'color', 'wordTimestamps',
-  ]),
-  'IconifyIcon': new Set([
-    'icon', 'x', 'y', 'size', 'color',
-    'entry', 'entryDelay', 'exit', 'exitDelay', 'exitDuration',
-    'scale', 'rotation', 'opacity',
-  ]),
-  'SubscribeButton': new Set([
-    'text', 'x', 'y', 'color', 'width', 'fontSize',
-    'entry', 'entryDelay', 'exit', 'exitDelay', 'exitDuration',
-  ]),
-  'KineticBackground': new Set([
-    'variant', 'color', 'speed', 'intensity', 'x', 'y',
-    'width', 'height',
-  ]),
-};
-
-// Common props that are always allowed on any component
-const UNIVERSAL_PROPS = new Set([
-  'type', 'componentName', 'zIndex', 'filter', 'style',
-  'scale', 'rotation', 'opacity',
-]);
 
 export function sanitizeComponentProps(
   componentName: string,
   props: Record<string, unknown>,
 ): Record<string, unknown> {
-  const allowed = ALLOWED_PROPS[componentName];
-  if (!allowed) {
+  const allowed = getAllowedProps(componentName);
+  if (allowed.size === 0) {
     // Unknown component — pass all props through (don't break anything)
     return props;
   }

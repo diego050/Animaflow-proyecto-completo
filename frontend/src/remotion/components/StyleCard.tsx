@@ -1,6 +1,7 @@
 import React from 'react';
 import { interpolate, useCurrentFrame, Easing } from 'remotion';
 import type { UniversalProps } from "./types";
+import { useCanvas } from '../utils/canvas';
 
 interface StyleCardProps extends UniversalProps {
   title?: string;
@@ -25,14 +26,19 @@ export const StyleCard: React.FC<StyleCardProps> = ({
   title,
   subtitle,
   variant = 'elevated',
-  width = 400,
+  width,
   height,
   style,
   delay = 0,
   children,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
+  // Ancho por defecto RELATIVO al lienzo (Fase 2): antes 400px fijo se veía
+  // diminuto en 16:9 (1920) y grande en formatos chicos. Si el spec pasa width
+  // (px) se respeta.
+  const defaultWidth = c.isLandscape ? c.vw(42) : c.vw(80);
 
   // Entrance: slide up + fade
   const translateY = interpolate(adjustedFrame, [0, 20], [30, 0], {
@@ -49,15 +55,15 @@ export const StyleCard: React.FC<StyleCardProps> = ({
   const v = variantMap[variant];
 
   // Style overrides
-  const customPadding = style?.padding ? `${style.padding}px` : '24px';
-  const customBorderRadius = (style?.borderRadius as number) ?? 12;
+  const customPadding = style?.padding ? `${style.padding}px` : `${c.vmin(2.2)}px`;
+  const customBorderRadius = (style?.borderRadius as number) ?? c.vmin(1.1);
   const customBg = (style?.backgroundColor as string) ?? v.bg;
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : (v.border === 'none' ? '0px' : v.border.split(' ')[0]);
   const customBorderColor = (style?.borderColor as string) ?? (v.border === 'none' ? 'transparent' : v.border.split(' ')[2]);
   const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
   const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 8}px ${(style.boxShadow as Record<string, unknown>).blur || 32}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.4)'}` : v.shadow;
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
-  const customWidth = style?.width ? `${style.width}px` : `${width}px`;
+  const customWidth = style?.width ? `${style.width}px` : (width ? `${width}px` : `${defaultWidth}px`);
   const customHeight = height ? `${height}px` : (style?.height ? `${style.height}px` : 'auto');
   const customBackdropBlur = style?.backdropBlur ? `blur(${style.backdropBlur}px)` : ((v as Record<string, unknown>).backdropBlur as string | undefined);
 
@@ -84,17 +90,17 @@ export const StyleCard: React.FC<StyleCardProps> = ({
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
+        gap: `${c.vmin(0.8)}px`,
         overflow: style?.overflow === 'hidden' ? 'hidden' : 'visible',
       }}
     >
       {title && (
-        <div style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 700, fontSize: 24, color: '#FFFFFF', letterSpacing: '-0.5px' }}>
+        <div style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 700, fontSize: c.vmin(4), color: '#FFFFFF', letterSpacing: '-0.5px' }}>
           {title}
         </div>
       )}
       {subtitle && (
-        <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: 14, color: '#94A3B8', lineHeight: 1.5 }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: c.vmin(2.4), color: '#94A3B8', lineHeight: 1.5 }}>
           {subtitle}
         </div>
       )}

@@ -2,6 +2,7 @@ import React from 'react';
 import { interpolate, useCurrentFrame, Easing } from 'remotion';
 import type { UniversalProps } from "./types";
 import { IconifyIcon } from './IconifyIcon';
+import { useCanvas } from '../utils/canvas';
 
 interface StyleBadgeProps extends UniversalProps {
   text?: string;
@@ -19,14 +20,6 @@ const variantMap = {
   neutral: { bg: '#334155', color: '#E2E8F0' },
 };
 
-// v7.2: tamaños a escala de VIDEO vertical (1080px). Los previos (12/14/16)
-// eran de UI web y se veían minúsculos en pantalla.
-const sizeMap = {
-  sm: { padding: '10px 22px', fontSize: 28 },
-  md: { padding: '14px 30px', fontSize: 38 },
-  lg: { padding: '18px 40px', fontSize: 48 },
-};
-
 export const StyleBadge: React.FC<StyleBadgeProps> = ({
   x = 540,
   y = 200,
@@ -38,7 +31,16 @@ export const StyleBadge: React.FC<StyleBadgeProps> = ({
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
+
+  // Tamaños derivados del lienzo (Fase 2): mismo tamaño físico en 9:16/1:1/16:9
+  // y escalado por resolución (720p/4K). vmin equivale a los px previos en 1080.
+  const sizeMap = {
+    sm: { padding: `${c.vmin(0.9)}px ${c.vmin(2)}px`, fontSize: c.vmin(2.6) },
+    md: { padding: `${c.vmin(1.3)}px ${c.vmin(2.8)}px`, fontSize: c.vmin(3.5) },
+    lg: { padding: `${c.vmin(1.7)}px ${c.vmin(3.7)}px`, fontSize: c.vmin(4.4) },
+  };
 
   // Entrance: scale bounce
   const scale = interpolate(adjustedFrame, [0, 8, 12, 16], [0, 1.15, 0.95, 1], {
@@ -64,7 +66,7 @@ export const StyleBadge: React.FC<StyleBadgeProps> = ({
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : '0px';
   const customBorderColor = (style?.borderColor as string) ?? 'transparent';
   const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
-  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 2}px ${(style.boxShadow as Record<string, unknown>).blur || 8}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.2)'}` : '0 2px 8px rgba(0,0,0,0.2)';
+  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 2}px ${(style.boxShadow as Record<string, unknown>).blur || 8}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.2)'}` : `0 ${c.vmin(0.2)}px ${c.vmin(0.8)}px rgba(0,0,0,0.2)`;
 
   return (
     <div
@@ -87,7 +89,7 @@ export const StyleBadge: React.FC<StyleBadgeProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '6px',
+        gap: `${c.vmin(0.6)}px`,
         zIndex: 50,
         opacity: customOpacity,
         letterSpacing: '0.5px',

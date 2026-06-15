@@ -912,6 +912,41 @@ cualquier post-proceso o componente futuro:
   *frames*. Conviene unificar (decidir una unidad canónica y alinear prompt +
   post-proceso + renderer) como parte de la Fase 4.
 
+### 10.10 Hallazgos del render de prueba (post-Fase 0a/0b) — bugs visuales pendientes
+Render real de validación tras 0a+0b (video de perros, 3 escenas). **Las Fases 0a
+y 0b se confirmaron funcionando** en el log: RAG devuelve 15 componentes variados
+por escena (no 8 fijos), 5 iconos relevantes, `WordHighlight` ya no se rechaza,
+garbage props solo se limpian en componentes de texto, validación de contraste
+limpia. La escena 1 quedó decente (texto legible, icono, centrado). Pero las
+escenas 2 y 3 mostraron defectos **visuales** que pertenecen a fases posteriores.
+Se registran aquí para no perderlos (NO se arreglan en 0a/0b; van en su fase):
+
+- **[Fase 4 — bug de componente] `WordHighlight` se renderiza roto:** la palabra
+  resaltada sale más grande y **encima** del texto atenuado (superposición
+  ilegible). El componente estaba "dormido" (lo bloqueaba el enum) y al usarse
+  por fin afloran sus bugs. Auditar/arreglar en la auditoría de componentes.
+- **[Fase 4 — bug de componente] Alineación de texto:** `Typewriter` (y a vigilar
+  `StyleTextBlock`) alinea el texto a la **izquierda** dentro de su caja centrada
+  → el texto se ve corrido a la izquierda en vez de centrado. Revisar `textAlign`/
+  `width` del componente.
+- **[Fase 3 — posicionamiento] Colisiones de capas:** fondos/adornos quedan
+  **encima o detrás chocando** con el texto (ej. `SoundWaveCircle` y `NetworkNodes`
+  superpuestos al texto; adorno sobre una palabra). Falta z-order coherente +
+  detección de colisiones (bounding boxes).
+- **[Fase 3 / prompt] CTA duplicado:** "¡Sígueme!" apareció a la vez en el texto
+  hablado y en un `StyleBadge` aparte → redundante. Deduplicar CTA / guía de prompt.
+- **[Fase 4 — contraste] Contraste del texto secundario:** la guardia de contraste
+  revisa el color principal, pero las **palabras atenuadas** de `WordHighlight`
+  (amarillo oscuro sobre verde oscuro) quedan poco legibles. Extender el check al
+  color atenuado/secundario.
+- **[Fase 5 / prompt] Elección de iconos floja:** `tabler:heart-cog` (corazón con
+  engranaje) para un mensaje emocional. Mejor curaduría semántica de iconos.
+
+Conclusión: el estado es **el esperado** tras 0a/0b (correctitud + wins rápidos).
+El salto de calidad visual viene en Fases 2 (responsividad), 3 (posicionamiento)
+y 4 (calidad de animación + auditoría de componentes), que es donde estos ítems
+se resuelven.
+
 ---
 
 ## 11. Estrategia de selección de componentes y economía de tokens

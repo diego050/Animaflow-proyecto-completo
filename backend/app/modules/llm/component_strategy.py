@@ -210,39 +210,117 @@ def _clamp_coordinates(spec: dict, width: int, height: int) -> dict:
     return spec
 
 
+# ── Fase 3: detección y resolución de colisiones por bounding box ─────────────
+# El solver es ciego al TAMAÑO real de los elementos (un texto de 3 líneas en y=0
+# pisa un icono en y=-250). Aquí estimamos la caja de cada capa de CONTENIDO y
+# las separamos verticalmente. Los fondos/decorativos que llenan o centran el
+# lienzo NO se reposicionan (son backdrop).
+
+# Componentes que llenan/centran el lienzo como fondo → no se reposicionan.
+_FILL_COMPONENTS = {
+    "KineticBackground", "ParticleField", "FloatingBlobs", "RaysOfLight",
+    "AbstractWave", "GlobalVFX", "NetworkNodes", "GradientOverlay",
+    "GridPerspective", "SoundWaveCircle",
+}
+_TEXT_COMPONENTS_BB = {
+    "Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText",
+    "WordHighlight", "SplitText", "TextSwap", "HighlightText",
+    "StrikethroughText", "UnderlineReveal", "GlitchTitle", "QuoteBlock",
+}
+
+
+def _estimate_layer_height(layer: dict, canvas_w: int, canvas_h: int) -> float:
+    """Estimación (px) del alto de una capa para detectar solapamientos."""
+    comp = layer.get("componentName", "")
+    ltype = layer.get("type", "")
+
+    def _num(v, default):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return float(default)
+
+    if ltype == "text" or comp in _TEXT_COMPONENTS_BB:
+        fs = _num(layer.get("fontSize"), 72)
+        width = _num(layer.get("width"), canvas_w * 0.85)
+        text = str(layer.get("text", "") or "")
+        chars_per_line = max(1, int(width / (fs * 0.55)))
+        lines = max(1, math.ceil(len(text) / chars_per_line))
+        max_lines = layer.get("maxLines")
+        if isinstance(max_lines, int) and max_lines > 0:
+            lines = min(lines, max_lines)
+        return lines * fs * 1.35
+    if comp in ("IconifyIcon", "AnimatedIcon"):
+        return _num(layer.get("size"), 120)
+    if comp == "StyleCard":
+        h = layer.get("height")
+        return _num(h, canvas_h * 0.25) if h else canvas_h * 0.25
+    if comp in ("StyleBadge", "StyleButton", "StyleChip", "SubscribeButton", "FloatingBadge", "StyleCallout"):
+        return _num(layer.get("fontSize"), 40) * 2.4
+    return 150.0
+
+
+def _resolve_vertical_overlaps(spec: dict, canvas_w: int, canvas_h: int) -> dict:
+    """Separa verticalmente las capas de contenido que se solapan (Fase 3)."""
+    layers = spec.get("layers", [])
+    content = [
+        l for l in layers
+        if l.get("type") != "background"
+        and not (l.get("type") == "component" and l.get("componentName") in _FILL_COMPONENTS)
+    ]
+    if len(content) < 2:
+        return spec
+
+    items = []  # [layer, y_center, height]
+    for l in content:
+        y = l.get("y", 0)
+        try:
+            y = float(y)
+        except (TypeError, ValueError):
+            y = 0.0
+        items.append([l, y, _estimate_layer_height(l, canvas_w, canvas_h)])
+
+    items.sort(key=lambda it: it[1])
+    min_gap = max(24.0, canvas_h * 0.02)
+
+    # Empujar hacia abajo cada capa que invada la anterior.
+    for i in range(1, len(items)):
+        prev_bottom = items[i - 1][1] + items[i - 1][2] / 2
+        cur_top = items[i][1] - items[i][2] / 2
+        if cur_top < prev_bottom + min_gap:
+            items[i][1] += (prev_bottom + min_gap) - cur_top
+
+    # Mantener la pila dentro de la zona segura sin perder el orden/intención.
+    safe_top = -canvas_h * 0.43
+    safe_bottom = canvas_h * 0.43
+    top = items[0][1] - items[0][2] / 2
+    bottom = items[-1][1] + items[-1][2] / 2
+    shift = 0.0
+    if bottom > safe_bottom:
+        shift = safe_bottom - bottom
+    if top + shift < safe_top:
+        shift = safe_top - top  # priorizar que el tope entre en pantalla
+
+    moved = 0
+    for layer, y, _h in items:
+        new_y = int(round(y + shift))
+        if new_y != layer.get("y"):
+            moved += 1
+        layer["y"] = new_y
+
+    if moved:
+        logger.info("Fase 3: de-solapadas %d capas de contenido (gap=%.0f)", moved, min_gap)
+    return spec
+
+
 # ── Catálogo de componentes disponibles ──────────────────────────────────────
-# FUENTE DE VERDAD: frontend/src/remotion/registry.ts (COMPONENT_NAMES).
-# Esta lista DEBE contener exactamente los mismos nombres que el registry del
-# frontend. Si divergen, los componentes que falten aquí se BORRAN del spec en
-# la Fase 4.1 (validación de componentes) aunque existan en el frontend.
-# v7: añadidos IconifyIcon + los 24 Style* que faltaban y hacían desaparecer
-# texto e íconos en producción.
-# TODO (Fase B): generar esta lista automáticamente desde registry.ts en CI.
-AVAILABLE_COMPONENTS: list[str] = [
-    "APIRequestFlow", "AbstractWave", "AnimatedArrow", "AnimatedIcon", "AnimatedLine", "AnimatedShape",
-    "AppStoreButtons", "AudioSpectrumBars", "BarChartReveal", "BreakingNewsAlert", "BreakingNewsTicker",
-    "BrowserWindow", "CalendarDatePop", "CodeBlockHighlight", "CountdownTimer", "CounterNumber",
-    "CursorClick", "EmojiFloat", "FeatureChecklist", "FeatureUnlock", "FlashSaleTimer", "FloatingBadge",
-    "FloatingBlobs", "FollowerCounter", "FunnelChart", "GitCommitGraph", "GlitchTitle", "GlitchTransition",
-    "GlobalVFX", "GradientOverlay", "GridPerspective", "HighlightText", "HorizontalBarRace", "IconifyIcon",
-    "InstagramPost", "KeywordPop", "KineticBackground", "LightLeakTransition", "LoadingSpinner", "LowerThird",
-    "MaskedReveal", "MediaFrame", "MessageBubble", "MusicPlayerUI", "NetworkNodes", "NotificationToast",
-    "ParticleField", "PercentageRing", "PhoneMockup", "PieChartReveal", "PodcastGuestCard", "PricingTableReveal",
-    "ProductCardReveal", "ProgressPill", "PromoCodeBanner", "QuoteBlock", "RadarSpiderChart", "RaysOfLight",
-    "RippleEffect", "ScoreboardCounter", "SearchEngineTyping", "ShoppingCartBadge", "SizeSelector",
-    "SocialProgressBar", "SocialSharePopup", "SoundWaveCircle", "SplitScreenGrid", "SplitText",
-    "StockCandlestick", "StrikethroughText", "SubscribeButton",
-    "StyleAnimateNumber", "StyleAvatar", "StyleBarChart", "StyleBarRace", "StyleBadge",
-    "StyleButton", "StyleCallout", "StyleCard", "StyleChip", "StyleCursor", "StyleDivider",
-    "StyleFakeScroll", "StyleFunnelChart", "StyleLineChart", "StylePieChart", "StyleProgressBar",
-    "StyleRadarChart", "StyleScrambleText", "StyleSimulatedHover", "StyleTextBlock", "StyleTicker",
-    "StyleVideoPlayer", "StyleWatermark",
-    "TerminalHacker", "TestimonialReview", "TextBubble", "TextReveal", "TextSwap",
-    "TikTokOverlay", "TinderSwipeCard", "TrendLine", "TweetCard",
-    "Typewriter", "UnderlineReveal", "VersusScreen", "WaveformVisualizer", "WipeTransition",
-    "WordHighlight",
-    "YouTubeEndScreen", "ZoomBlurTransition",
-]
+# FUENTE DE VERDAD: component_manifest.json (derivado del frontend manifest.ts).
+# Esta lista se genera automáticamente desde el manifest. Si divergen, el
+# manifest manda. Los componentes que falten aquí se BORRAN del spec en la
+# Fase 4.1 (validación de componentes) aunque existan en el frontend.
+from app.services.manifest import get_component_names
+
+AVAILABLE_COMPONENTS: list[str] = get_component_names()
 
 
 # ── Prompt base ──────────────────────────────────────────────────────────────
@@ -2084,6 +2162,13 @@ def generate_scene_composer(
                                 "Smart redistributed %d layers: %d decorative, %d text, %d icons, %d UI",
                                 len(non_bg_layers), len(decorative), len(text_layers), len(icon_layers), len(ui_layers),
                             )
+
+                    # Post-validation 3b (Fase 3): de-solapamiento por bounding box.
+                    # Cubre el caso general (capas en posiciones distintas que igual
+                    # se pisan por su tamaño real), que la redistribución de arriba
+                    # —solo para capas apiladas en el mismo punto— no detecta.
+                    _cw, _ch = _get_canvas_dimensions(aspect_ratio)
+                    result = _resolve_vertical_overlaps(result, _cw, _ch)
 
                     # Final validation pass — catch anything missed by post-processing
                     result = validate_and_fix(result, aspect_ratio)
