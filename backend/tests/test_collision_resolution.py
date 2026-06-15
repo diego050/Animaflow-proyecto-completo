@@ -64,6 +64,27 @@ def test_estimate_height_multiline_text_taller_than_single_line():
     assert long > short
 
 
+def test_wordhighlight_over_button_separated():
+    """Regresion (escena 3): texto largo sin fontSize explicito + boton lg.
+
+    El estimador subestimaba la altura del texto y el motor creia que no se
+    pisaban. Con estimacion conservadora deben quedar separados.
+    """
+    spec = {
+        "layers": [
+            {"type": "component", "componentName": "GlobalVFX", "x": 0, "y": 0},
+            {"type": "component", "componentName": "WordHighlight", "x": 0, "y": 0,
+             "text": "lo que destruye su energia diaria. Descubre el secreto ahora!",
+             "width": 918},
+            {"type": "component", "componentName": "StyleButton", "x": 0, "y": 300,
+             "text": "Descubre el secreto", "size": "lg"},
+        ]
+    }
+    _resolve_vertical_overlaps(spec, 1080, 1920)
+    assert _y(spec, "GlobalVFX") == 0  # VFX de fondo intacto
+    assert _y(spec, "StyleButton") > _y(spec, "WordHighlight") + 200
+
+
 def test_single_content_layer_noop():
     spec = {"layers": [
         {"type": "component", "componentName": "StyleTextBlock", "x": 0, "y": 0, "text": "Solo"},

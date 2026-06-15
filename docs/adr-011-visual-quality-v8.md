@@ -1,7 +1,7 @@
 # ADR-011 — Visual Quality v8: plan de calidad + Fases 0a/0b (infra del pipeline + wins visuales)
 
 **Fecha:** 2026-06-15
-**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial** (foundation + núcleo). Fase 3 **en curso** (de-solapamiento + bugs de texto hechos; z-order/X pendientes). Fases 4–5 pendientes.
+**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial** (foundation + núcleo). Fase 3 **núcleo resuelto** (de-solapamiento calibrado + z-order verificado + alineación + CTA en prompt; queda colisión-X de baja prioridad). Fases 4–5 pendientes.
 **Contexto previo:** [adr-010-visual-quality-v7.md](./adr-010-visual-quality-v7.md), [coordinate-contract.md](./coordinate-contract.md)
 **Plan canónico (vivo):** [`../PLAN-MEJORA-CALIDAD.md`](../PLAN-MEJORA-CALIDAD.md) — este ADR resume; el plan tiene el detalle por fase.
 
@@ -161,17 +161,30 @@ reales del usuario, §10.10).
 - **Tests:** `backend/tests/test_collision_resolution.py` (5 casos: fill intacto,
   orden preservado, separación, zona segura, estimación multilínea).
 
-**PENDIENTE (Fase 3):**
-- **Z-order por rol:** garantizar que decorativos/fondos (`SoundWaveCircle`,
-  `NetworkNodes`…) queden SIEMPRE detrás del contenido (en la escena 3 el
-  `SoundWaveCircle` competía con el texto). Hoy depende del zIndex interno de cada
-  componente + orden del array.
-- **Colisión horizontal (eje X)** y para hijos de grupos anidados.
-- **Consolidar los dos layout solvers** (`layoutSolver.ts` frontend vs
-  `layout_solver.py` AE) para que no diverjan (ADR-010 Fase C3).
-- **CTA duplicado** (texto + badge con el mismo "¡Sígueme!", §10.10).
-- **WordHighlight overlap del scale:** el `activeScale` puede pisar líneas
-  contiguas; revisar lineHeight/gap si se nota en render.
+**Validado con render (2 iteraciones):** escenas 1 y 2 correctas (centrado +
+de-solapamiento). La escena 3 (texto sobre botón) destapó que el estimador de
+altura subestimaba → **calibrado conservador** (default fontSize 84, ratio 0.6,
+lineHeight 1.4; `min_gap` 40; botones/badges por keyword `size`). Test de
+regresión añadido (`test_wordhighlight_over_button_separated`). 23/23 tests.
+
+**Z-order — VERIFICADO, no requiere acción:** los decorativos/fondos ya usan zIndex
+bajo (`ParticleField`/`KineticBackground`/`RaysOfLight` 0, `SoundWaveCircle` 1,
+`AbstractWave` 2, `NetworkNodes`/`GradientOverlay` 5) y el contenido 10-50, así que
+ya van detrás. `GlobalVFX` usa 9998 a propósito (overlay de grain/viñeta encima de
+todo — correcto). El "choque" de la escena 3 era contraste/grain, no z-order.
+
+**CTA duplicado (§10.10) — atacado en la raíz:** con la colisión arreglada, un
+botón debajo del texto narrado ya no se solapa; pero para evitar la redundancia se
+añadió una regla al prompt: no repetir literalmente en un botón la frase de CTA que
+ya está en el texto hablado (se evita borrar botones post-hoc, que sería riesgoso).
+
+**PENDIENTE (Fase 3, baja prioridad):**
+- Colisión horizontal (eje X) y para hijos de grupos anidados (raro en vertical centrado).
+- Consolidar los dos layout solvers (`layoutSolver.ts` vs `layout_solver.py` AE) — ADR-010 Fase C3.
+
+**Estado:** el núcleo de Fase 3 (de-solapamiento vertical + z-order verificado +
+alineación + contraste de texto atenuado) está resuelto para los casos comunes. Lo
+pendiente es de baja frecuencia. Siguiente salto de calidad: Fase 4 (animación).
 
 **Decisión:** se priorizó el de-solapamiento vertical (lo que más se nota) y los
 2 bugs de texto. El z-order y la colisión horizontal van en la próxima iteración
