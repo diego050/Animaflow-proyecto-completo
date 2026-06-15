@@ -28,12 +28,25 @@ def _sanitize_llm_json(raw: str) -> str:
 # ── Numeric coercion helper ──────────────────────────────────────────────────
 
 def _coerce_number(value: Any) -> Any:
-    """Convert string numbers to int/float, return unchanged if not convertible."""
+    """Convert string numbers to int/float, return unchanged if not convertible.
+
+    Handles edge cases:
+    - Leading non-numeric chars (commas, quotes): `",180"` → 180
+    - CSS units: `"160px"` → 160, `"2.5rem"` → 2.5
+    - Thousands separators: `"1,200"` → 1200
+    """
     if isinstance(value, str):
+        cleaned = value.strip()
+        # Strip leading non-numeric prefix (commas, quotes, spaces, etc.)
+        cleaned = re.sub(r'^[^0-9.\-]+', '', cleaned)
+        # Strip trailing CSS units (px, rem, em, %, vh, vw, etc.)
+        cleaned = re.sub(r'(px|rem|em|vh|vw|%|pt|cm|mm|in)$', '', cleaned, flags=re.IGNORECASE)
+        # Remove thousands separators (commas between digits)
+        cleaned = re.sub(r'(\d),(\d)', r'\1\2', cleaned)
         try:
-            if "." in value:
-                return float(value)
-            return int(value)
+            if "." in cleaned:
+                return float(cleaned)
+            return int(cleaned)
         except (ValueError, TypeError):
             return value
     return value
@@ -542,14 +555,18 @@ GUÍA DE TAMAÑOS DE TEXTO PARA VIDEO VERTICAL (1080x1920):
 ┌─────────────────────────────────────────────────────┐
 │ Rol del texto              │ fontSize recomendado   │
 ├─────────────────────────────────────────────────────┤
-│ Texto hablado / principal  │ 80-120 (GRANDE)        │
-│ Título de sección          │ 72-96                  │
-│ Subtítulo                  │ 48-64                  │
+│ Texto hablado / principal  │ 72-96                  │
+│ Título de sección          │ 64-88                  │
+│ Subtítulo / soporte        │ 40-56                  │
 │ Caption / etiqueta         │ 28-36                  │
 │ Texto pequeño / crédito    │ 20-24                  │
 └─────────────────────────────────────────────────────┘
-REGLA: El texto hablado SIEMPRE debe ser fontSize >= 80.
-Es video para móvil, no un documento. Si dudas, usa 96.
+
+IMPORTANTE — Jerarquía visual:
+- Si la escena tiene un elemento visual protagonista (gráfico, mockup, componente animado), el texto debe ser SUBTÍTULO (40-56px) para no competir.
+- Si la escena es SOLO texto sobre fondo limpio (frase de impacto), usa texto principal (72-96px).
+- El texto NUNCA debe ocupar más del 30% de la altura del canvas cuando hay un visual presente.
+- Deja siempre aire visual entre el texto y los demás elementos.
 
 NOTA sobre lineWidth: SOLO úsalo para componentes de tipo shape/path (líneas, bordes).
 NUNCA lo uses en componentes de texto, charts, cards o contadores.
@@ -775,6 +792,10 @@ Text that decodes from random characters to the final message.
 - `characters`: Random character set (default: "#$%&@!?*+=^~01")
 - `loop`: boolean — Re-scramble after reveal
 - Use for: Tech intros, cybersecurity, suspense reveals, hacker-style effects
+
+⚠️ RESTRICCIÓN: NO uses StyleScrambleText para contenido emocional, orgánico, tierno,
+natural o narrativo general. SOLO para moods tech, glitch, ciberseguridad, suspense,
+o estética hacker. Para texto hablado normal usa StyleTextBlock, Typewriter o TextReveal.
 
 ### StyleTicker
 Horizontally scrolling text (news/crypto style).
@@ -1117,7 +1138,7 @@ def generate_scene_composer(
     if db is not None:
         # Use intelligent vector search with diversity quotas
         from app.services.embedding import get_relevant_components
-        relevant = get_relevant_components(db, text, media_query, top_k=15)
+        relevant = get_relevant_components(db, text, media_query, top_k=15, api_key=api_key)
         components = relevant  # Already list[dict] from _format_component
         component_names = [c["name"] for c in relevant]
         logger.info("Vector search returned %d relevant components: %s", len(component_names), component_names[:5])
@@ -1129,7 +1150,7 @@ def generate_scene_composer(
     # Buscar iconos relevantes para la escena
     icon_candidates = []
     try:
-        icon_candidates = find_best_icons(db, text, limit=5)
+        icon_candidates = find_best_icons(db, text, limit=5, api_key=api_key)
         logger.info("Found %d relevant icons for scene", len(icon_candidates))
     except Exception as e:
         logger.warning("Icon search failed, continuing without icons: %s", e)
@@ -1356,13 +1377,22 @@ def generate_scene_composer(
             )
 
             raw_text = response.text if response.text else "(empty)"
+
+            # Strip thought_signature / thinking artifacts that some Gemini 3.x
+            # variants still emit even with thinking_budget=0.
+            if "thought_signature" in raw_text:
+                logger.warning("thought_signature detected in response text, stripping")
+                # Remove any <thought>...</thought> or similar thinking blocks
+                raw_text = re.sub(r'<thought>.*?</thought>', '', raw_text, flags=re.DOTALL)
+                raw_text = re.sub(r'thought_signature\s*[:=]\s*["\'].*?["\']', '', raw_text, flags=re.DOTALL)
+
             logger.info(
                 "RAW Gemini response for scene composer (%d chars): %s",
                 len(raw_text),
                 raw_text[:1500],
             )
 
-            # Reject corrupted responses
+            # Reject corrupted responses that are way too long
             if len(raw_text) > 10000:
                 logger.warning("Response too long (%d chars), likely corrupted. Attempt %d/%d.", len(raw_text), attempt + 1, max_retries + 1)
                 if attempt < max_retries:
@@ -1380,11 +1410,31 @@ def generate_scene_composer(
                     result_str[:1500],
                 )
             else:
-                logger.warning("response.parsed is None. Attempt %d/%d.", attempt + 1, max_retries + 1)
-                if attempt < max_retries:
-                    continue  # Retry
-                logger.warning("All retries failed. Defaulting to fallback.")
-                return default_fallback
+                # response.parsed is None — try to extract valid JSON from raw_text
+                # before giving up and retrying. Gemini sometimes returns text parts
+                # that concatenate thinking + JSON, breaking the auto-parser.
+                logger.warning("response.parsed is None. Attempting JSON extraction from raw_text. Attempt %d/%d.", attempt + 1, max_retries + 1)
+
+                # Find the first '{' and last '}' to extract the JSON portion
+                first_brace = raw_text.find('{')
+                last_brace = raw_text.rfind('}')
+                if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+                    json_candidate = raw_text[first_brace:last_brace + 1]
+                    logger.info("Extracted JSON candidate (%d chars) from raw_text", len(json_candidate))
+                    try:
+                        result = json.loads(_sanitize_llm_json(json_candidate))
+                        logger.info("Successfully parsed extracted JSON")
+                    except json.JSONDecodeError as e:
+                        logger.warning("Extracted JSON still invalid: %s", e)
+                        if attempt < max_retries:
+                            continue  # Retry
+                        logger.warning("All retries failed. Defaulting to fallback.")
+                        return default_fallback
+                else:
+                    if attempt < max_retries:
+                        continue  # Retry
+                    logger.warning("No JSON braces found in response. Defaulting to fallback.")
+                    return default_fallback
 
             logger.info("Generated AnimaComposerSpec for scene.")
             try:
@@ -1436,6 +1486,27 @@ def generate_scene_composer(
                                 _swap_long_emphasis(kids)
 
                     _swap_long_emphasis(result.get("layers", []))
+
+                    # ── Fase 1.2b: Replace StyleScrambleText when mood is non-tech ──
+                    _TECH_KEYWORDS = {"tech", "cyber", "hacker", "glitch", "digital", "code", "matrix",
+                                       "security", "computer", "robot", "ai", "data", "neon", "circuit"}
+
+                    def _fix_inappropriate_scramble(layers_list: list, mq: str) -> None:
+                        mq_lower = mq.lower()
+                        is_tech_mood = any(kw in mq_lower for kw in _TECH_KEYWORDS)
+                        for lyr in layers_list:
+                            if lyr.get("componentName") == "StyleScrambleText" and not is_tech_mood:
+                                lyr["componentName"] = "StyleTextBlock"
+                                lyr.setdefault("variant", "heading")
+                                logger.info(
+                                    "Replaced StyleScrambleText with StyleTextBlock (non-tech mood: %s)",
+                                    mq[:80],
+                                )
+                            kids = lyr.get("children")
+                            if isinstance(kids, list):
+                                _fix_inappropriate_scramble(kids, mq)
+
+                    _fix_inappropriate_scramble(result.get("layers", []), media_query)
 
                     # ── Fase 1.1: Fix 'items' → 'children' in groups ──
                     LAYOUT_HINT_VALUES = {"center", "left", "right", "top", "bottom", "start", "end", "stretch", "flex-start", "flex-end", "space-between", "space-around"}
@@ -1549,8 +1620,13 @@ def generate_scene_composer(
 
                     # ── Fase 1.4: Normalize string numbers to actual numbers ──
                     NUMERIC_KEYS = {"width", "height", "fontSize", "strokeWidth", "gap",
-                                    "speed", "delay", "borderRadius", "letterSpacing", "glowIntensity"}
-                    # Note: "size" removed — it's handled by Pydantic validator
+                                    "speed", "delay", "borderRadius", "letterSpacing",
+                                    "glowIntensity", "size", "count", "spread", "r",
+                                    "entryDelay", "entryDuration", "exitDelay", "exitDuration",
+                                    "rotation", "opacity", "value", "max", "maxValue",
+                                    "decimals", "barHeight", "itemHeight", "thickness",
+                                    "hoverFrame", "hoverDuration", "lineWidth", "stagger",
+                                    "gridCols", "gridRows", "transitionDuration"}
 
                     for layer in result.get("layers", []):
                         for key in NUMERIC_KEYS:
@@ -1566,30 +1642,66 @@ def generate_scene_composer(
                             for key in NUMERIC_KEYS:
                                 if key in child:
                                     child[key] = _coerce_number(child[key])
+                        # Coerce numbers inside data arrays (chart components)
+                        for data_key in ("data", "points", "items"):
+                            data_arr = layer.get(data_key)
+                            if isinstance(data_arr, list):
+                                for item in data_arr:
+                                    if isinstance(item, dict):
+                                        for k in ("value", "x", "y", "label"):
+                                            if k in item and k != "label":
+                                                item[k] = _coerce_number(item[k])
 
-                    # ── Fase 1.5: Remove garbage props from text components ──
-                    TEXT_COMPONENTS_GARBAGE = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText", "WordHighlight"}
-                    GARBAGE_PROPS = {
-                        "showScrollbar", "showRipple", "showPercentages", "autoplay", "muted",
-                        "deletable", "showBadge", "from", "duration", "fillArea", "orientation",
-                        "thickness", "labelPosition", "iconPosition", "badgeText", "showLabel",
-                        "showLabels", "showValues", "showGrid", "showDots", "decimals",
-                        "separator", "barHeight", "visibleItems", "loop", "characters",
+                    # ── Fase 1.5: Remove garbage props from TEXT components only ──
+                    # IMPORTANTE: NO usar un blacklist global. Props como `data`,
+                    # `value`, `maxValue`, `points`, `gap`, `decimals`, `prefix`,
+                    # `suffix`, `fillArea`, etc. SON legítimas en charts, contadores,
+                    # grupos flex y dividers — borrarlas de todos los componentes
+                    # rompía esos componentes. Solución correcta = whitelist por
+                    # componente (manifest, Fase 1). Interino seguro: limpiar solo
+                    # las props chart/media/ui que el LLM vuelca sobre componentes
+                    # de TEXTO (donde sí son basura). En componentes no-texto, una
+                    # prop desconocida es inofensiva (React la ignora) y el
+                    # `sanitizeProps.ts` del frontend ya filtra los que conoce.
+                    TEXT_COMPONENTS = {
+                        "Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText",
+                        "WordHighlight", "SplitText", "TextSwap", "HighlightText",
+                        "StrikethroughText", "UnderlineReveal", "GlitchTitle", "QuoteBlock",
+                    }
+                    # Props que son basura SOBRE UN COMPONENTE DE TEXTO. Se excluyen a
+                    # propósito las que sí son válidas en algún componente de texto:
+                    # maxLines (StyleTextBlock), loop/characters/speed (StyleScrambleText/
+                    # Typewriter), highlightColor/activeScale/dimUpcoming (WordHighlight),
+                    # animation/glowIntensity (TextReveal).
+                    TEXT_GARBAGE_PROPS = {
+                        "showScrollbar", "showRipple", "showPercentages", "showGrid",
+                        "showDots", "fillArea", "explodeSlice", "maxValue",
+                        "barHeight", "visibleItems", "showLabel", "showLabels",
+                        "showValues", "labelPosition", "autoplay", "muted",
+                        "deletable", "showBadge", "badgeText", "iconPosition",
+                        "from", "duration", "orientation", "thickness", "lineColor",
+                        "separator", "points", "data", "value", "max", "items",
+                        "name", "prefix", "suffix", "decimals", "gap", "format",
+                        "hoverFrame", "hoverDuration", "itemHeight",
                     }
 
+                    def _strip_text_garbage(node: dict) -> None:
+                        comp = node.get("componentName", "")
+                        if comp not in TEXT_COMPONENTS:
+                            return
+                        removed = [p for p in TEXT_GARBAGE_PROPS if p in node]
+                        for p in removed:
+                            del node[p]
+                        if removed:
+                            logger.info(
+                                "Removed %d garbage props from text component %s: %s",
+                                len(removed), comp, removed,
+                            )
+
                     for layer in result.get("layers", []):
-                        comp = layer.get("componentName", "")
-                        if comp in TEXT_COMPONENTS_GARBAGE:
-                            removed = []
-                            for prop in GARBAGE_PROPS:
-                                if prop in layer:
-                                    del layer[prop]
-                                    removed.append(prop)
-                            if removed:
-                                logger.info(
-                                    "Removed %d garbage props from %s: %s",
-                                    len(removed), comp, removed,
-                                )
+                        _strip_text_garbage(layer)
+                        for child in layer.get("children", []):
+                            _strip_text_garbage(child)
 
                     # ── Fase 4.1: Validate component names against registry ──
                     VALID_COMPONENTS = set(AVAILABLE_COMPONENTS)
@@ -1789,6 +1901,60 @@ def generate_scene_composer(
                                 layer["entry"], comp or layer.get("type"),
                             )
 
+                    # ── Post-validation 1b: Adaptive timing guard for short scenes ──
+                    # CONTRATO DE UNIDADES DEL RENDERER (AnimatedWrapper.tsx):
+                    #   • entryDelay → SEGUNDOS (AnimatedWrapper hace delay * fps).
+                    #   • entryDuration / exitDuration → FRAMES.
+                    #   • La SALIDA siempre termina en el corte de escena
+                    #     (exitStart = durationInFrames - exitDuration). El renderer
+                    #     NO usa exitDelay, así que aquí no se toca.
+                    # Objetivo: en escenas cortas, que entrada + salida no se coman la
+                    # escena y quede tiempo "asentado" (visible) antes de la salida.
+                    if duration_seconds and duration_seconds > 0:
+                        total_frames = max(1, int(duration_seconds * 30))
+                        fps = 30
+                        # Cada animación (en FRAMES) como máximo ~30% de la escena, de
+                        # modo que entrada + salida ≤ 60% y quede ≥40% para delay+settle.
+                        max_each = max(4, int(total_frames * 0.30))
+                        # La entrada debe TERMINAR como muy tarde al 60% de la escena.
+                        entry_finish_cap_frames = int(total_frames * 0.6)
+
+                        for layer in result.get("layers", []):
+                            comp = layer.get("componentName", "")
+                            if comp in BACKGROUND_COMPONENTS or comp in SELF_ANIMATED:
+                                continue
+
+                            # Duraciones en FRAMES: clamp por escena.
+                            entry_dur = layer.get("entryDuration")
+                            exit_dur = layer.get("exitDuration")
+                            if isinstance(entry_dur, (int, float)) and entry_dur > max_each:
+                                layer["entryDuration"] = max_each
+                                entry_dur = max_each
+                                logger.info(
+                                    "Clamped entryDuration for '%s' (%.1fs): → %d frames",
+                                    comp, duration_seconds, max_each,
+                                )
+                            if isinstance(exit_dur, (int, float)) and exit_dur > max_each:
+                                layer["exitDuration"] = max_each
+                                logger.info(
+                                    "Clamped exitDuration for '%s' (%.1fs): → %d frames",
+                                    comp, duration_seconds, max_each,
+                                )
+
+                            # entryDelay en SEGUNDOS: garantizar que la entrada termine
+                            # a tiempo (delay*fps + entryDuration ≤ 60% de la escena),
+                            # dejando espacio antes de la salida. NO convertir a frames.
+                            entry_delay = layer.get("entryDelay", 0)
+                            entry_dur_f = entry_dur if isinstance(entry_dur, (int, float)) else 0
+                            max_delay_frames = max(0, entry_finish_cap_frames - int(entry_dur_f))
+                            max_delay_seconds = round(max_delay_frames / fps, 2)
+                            if isinstance(entry_delay, (int, float)) and entry_delay > max_delay_seconds:
+                                layer["entryDelay"] = max_delay_seconds
+                                logger.info(
+                                    "Clamped entryDelay for '%s' (%.1fs): %.2fs → %.2fs",
+                                    comp, duration_seconds, entry_delay, max_delay_seconds,
+                                )
+
                     # Post-validation 2: Remove duplicate icons ONLY if they're at the same position (overlap)
                     icon_positions: dict[str, list[tuple]] = {}
                     layers_to_remove: list[int] = []
@@ -1814,6 +1980,47 @@ def generate_scene_composer(
 
                     for i in reversed(layers_to_remove):
                         result["layers"].pop(i)
+
+                    # Post-validation 2b: Deduplicate icons that appear both inside a group's children
+                    # AND as a standalone layer — keep the one inside the group, remove the standalone.
+                    def _collect_icon_refs(layers_list: list, path: str = "") -> list[tuple[str, str, dict]]:
+                        """Collect all icon references as (icon_id, path, layer_ref)."""
+                        refs: list[tuple[str, str, dict]] = []
+                        for idx, lyr in enumerate(layers_list):
+                            icon = lyr.get("icon")
+                            if icon and isinstance(icon, str):
+                                refs.append((icon, f"{path}[{idx}]", lyr))
+                            kids = lyr.get("children")
+                            if isinstance(kids, list):
+                                refs.extend(_collect_icon_refs(kids, f"{path}[{idx}].children"))
+                        return refs
+
+                    all_icon_refs = _collect_icon_refs(result.get("layers", []))
+                    # Find icons that appear both inside a group (path contains "children")
+                    # and as a standalone layer (path does NOT contain "children")
+                    icons_in_groups: set[str] = set()
+                    standalone_icons: list[tuple[str, str, dict]] = []
+                    for icon_id, path, layer_ref in all_icon_refs:
+                        if "children" in path:
+                            icons_in_groups.add(icon_id)
+                        else:
+                            standalone_icons.append((icon_id, path, layer_ref))
+
+                    dedup_removals: list[int] = []
+                    for icon_id, path, layer_ref in standalone_icons:
+                        if icon_id in icons_in_groups:
+                            # Find the index of this standalone layer in result["layers"]
+                            for idx, top_layer in enumerate(result.get("layers", [])):
+                                if top_layer is layer_ref:
+                                    dedup_removals.append(idx)
+                                    logger.info(
+                                        "Removed standalone IconifyIcon '%s' (duplicate of icon inside group)",
+                                        icon_id,
+                                    )
+                                    break
+
+                    for idx in reversed(dedup_removals):
+                        result["layers"].pop(idx)
 
                     # Post-validation 3: Smart redistribution of overlapping layers
                     non_bg_layers = [

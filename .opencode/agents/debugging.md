@@ -104,7 +104,10 @@ docker compose exec postgres psql -U postgres -d animaflow
 | `failed to solve: process ... exit code 1` | Dockerfile build error | Check Dockerfile syntax and layer order |
 | `connection refused` to postgres | Postgres not ready | Add wait loop with `pg_isready` |
 | `Invalid user 'appuser'` | User created after chown | Reorder Dockerfile instructions |
-| Scheduler not processing jobs | Scheduler loop stuck | Check scheduler.py logs, job status in DB, Redis connectivity |
+| Scheduler not processing jobs | Scheduler loop stuck | Check `app/core/scheduler.py` logs + job status in DB (DB-driven asyncio; no Redis) |
+| `API key not valid` only on embeddings/icons | Embeddings read `GEMINI_API_KEY` from `.env`, not the per-user DB key | Set a valid `.env` key or thread the resolved credential into `embedding.py`/`iconify_search.py`; then re-embed (see `PLAN-MEJORA-CALIDAD.md` 10.1) |
+| Every scene uses the same ~8 components | RAG fell back to the curated set (embedding query failed) | Fix the embeddings key above; verify `get_relevant_components` returns ~15 |
+| Component rejected by Pydantic enum but exists in registry | Desynced component lists | Sync enum with registry / manifest; check `tests/test_component_registry_sync.py` |
 
 ## WRITE OFF
 - NEVER apply fixes without understanding the root cause.
