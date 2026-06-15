@@ -107,7 +107,9 @@ export const WordHighlight: React.FC<WordHighlightProps> = ({
 
         const wordColor = isActive ? highlightColor : color;
         const scale = isActive ? activeScale : 1;
-        const opacity = isUpcoming && dimUpcoming ? 0.4 : 1;
+        // Fase 3 (§10.10): el dim a 0.4 dejaba las palabras casi ilegibles sobre
+        // fondos oscuros. 0.55 mantiene la jerarquía sin perder legibilidad.
+        const opacity = isUpcoming && dimUpcoming ? 0.55 : 1;
 
         return (
           <span

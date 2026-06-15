@@ -2,6 +2,7 @@ import React from 'react';
 import { interpolate, useCurrentFrame, Easing } from 'remotion';
 import type { UniversalProps } from "./types";
 import { IconifyIcon } from './IconifyIcon';
+import { useCanvas } from '../utils/canvas';
 
 interface StyleChipProps extends UniversalProps {
   text?: string;
@@ -11,13 +12,6 @@ interface StyleChipProps extends UniversalProps {
   size?: 'sm' | 'md' | 'lg';
   style?: Record<string, unknown>;
 }
-
-// v7.4 (C5): tamaños a escala de VIDEO vertical (antes 12/14/16 = UI web).
-const sizeMap = {
-  sm: { padding: '8px 18px', fontSize: 24, iconSize: 24 },
-  md: { padding: '10px 24px', fontSize: 30, iconSize: 30 },
-  lg: { padding: '14px 30px', fontSize: 36, iconSize: 36 },
-};
 
 const variantMap = {
   filled: { bg: '#334155', color: '#E2E8F0', border: 'none' },
@@ -37,7 +31,15 @@ export const StyleChip: React.FC<StyleChipProps> = ({
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
+
+  // Tamaños derivados del lienzo (Fase 2). vmin equivale a los px previos en 1080.
+  const sizeMap = {
+    sm: { padding: `${c.vmin(0.75)}px ${c.vmin(1.7)}px`, fontSize: c.vmin(2.2), iconSize: c.vmin(2.2) },
+    md: { padding: `${c.vmin(0.95)}px ${c.vmin(2.2)}px`, fontSize: c.vmin(2.8), iconSize: c.vmin(2.8) },
+    lg: { padding: `${c.vmin(1.3)}px ${c.vmin(2.8)}px`, fontSize: c.vmin(3.3), iconSize: c.vmin(3.3) },
+  };
 
   // Entrance: scale + fade
   const scale = interpolate(adjustedFrame, [0, 12], [0.7, 1], {
@@ -62,7 +64,7 @@ export const StyleChip: React.FC<StyleChipProps> = ({
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : (v.border === 'none' ? '0px' : v.border.split(' ')[0]);
   const customBorderColor = (style?.borderColor as string) ?? (v.border === 'none' ? 'transparent' : v.border.split(' ')[2]);
   const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
-  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 2}px ${(style.boxShadow as Record<string, unknown>).blur || 8}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.2)'}` : '0 2px 8px rgba(0,0,0,0.15)';
+  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 2}px ${(style.boxShadow as Record<string, unknown>).blur || 8}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.2)'}` : `0 ${c.vmin(0.2)}px ${c.vmin(0.8)}px rgba(0,0,0,0.15)`;
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
 
   return (
@@ -86,7 +88,7 @@ export const StyleChip: React.FC<StyleChipProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '6px',
+        gap: `${c.vmin(0.6)}px`,
         zIndex: 50,
         opacity: customOpacity,
       }}
@@ -94,7 +96,7 @@ export const StyleChip: React.FC<StyleChipProps> = ({
       {icon && <IconifyIcon icon={icon} size={s.iconSize} color={customColor} />}
       {text}
       {deletable && (
-        <span style={{ marginLeft: 2, opacity: 0.6, fontSize: s.fontSize }}>✕</span>
+        <span style={{ marginLeft: c.vmin(0.2), opacity: 0.6, fontSize: s.fontSize }}>✕</span>
       )}
     </div>
   );

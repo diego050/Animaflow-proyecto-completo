@@ -2,6 +2,7 @@ import React from 'react';
 import { interpolate, useCurrentFrame, Easing } from 'remotion';
 import type { UniversalProps } from "./types";
 import { IconifyIcon } from './IconifyIcon';
+import { useCanvas } from '../utils/canvas';
 
 interface StyleButtonProps extends UniversalProps {
   text?: string;
@@ -11,13 +12,6 @@ interface StyleButtonProps extends UniversalProps {
   iconPosition?: 'left' | 'right';
   style?: Record<string, unknown>;
 }
-
-// v7.4 (C5): tamaños a escala de VIDEO vertical (antes 14/16/18 = UI web).
-const sizeMap = {
-  sm: { padding: '12px 28px', fontSize: 32, borderRadius: 10 },
-  md: { padding: '16px 36px', fontSize: 40, borderRadius: 14 },
-  lg: { padding: '22px 48px', fontSize: 52, borderRadius: 18 },
-};
 
 const variantMap = {
   primary: { bg: '#2C3E50', color: '#FFFFFF', border: 'none' },
@@ -38,7 +32,15 @@ export const StyleButton: React.FC<StyleButtonProps> = ({
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
+
+  // Tamaños derivados del lienzo (Fase 2). vmin equivale a los px previos en 1080.
+  const sizeMap = {
+    sm: { padding: `${c.vmin(1.1)}px ${c.vmin(2.6)}px`, fontSize: c.vmin(2.96), borderRadius: c.vmin(0.93) },
+    md: { padding: `${c.vmin(1.5)}px ${c.vmin(3.3)}px`, fontSize: c.vmin(3.7), borderRadius: c.vmin(1.3) },
+    lg: { padding: `${c.vmin(2)}px ${c.vmin(4.4)}px`, fontSize: c.vmin(4.8), borderRadius: c.vmin(1.67) },
+  };
 
   // Entrance animation: scale from 0.8 to 1, opacity 0 to 1
   const scale = interpolate(adjustedFrame, [0, 15], [0.8, 1], {
@@ -63,7 +65,7 @@ export const StyleButton: React.FC<StyleButtonProps> = ({
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : (v.border === 'none' ? '0px' : v.border.split(' ')[0]);
   const customBorderColor = (style?.borderColor as string) ?? (v.border === 'none' ? 'transparent' : v.border.split(' ')[2]);
   const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
-  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 4}px ${(style.boxShadow as Record<string, unknown>).blur || 12}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.3)'}` : '0 10px 30px rgba(0,0,0,0.3)';
+  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 4}px ${(style.boxShadow as Record<string, unknown>).blur || 12}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.3)'}` : `0 ${c.vmin(0.9)}px ${c.vmin(2.8)}px rgba(0,0,0,0.3)`;
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
 
   return (
@@ -87,7 +89,7 @@ export const StyleButton: React.FC<StyleButtonProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '8px',
+        gap: `${c.vmin(0.8)}px`,
         zIndex: 50,
         opacity: customOpacity,
         cursor: 'default',

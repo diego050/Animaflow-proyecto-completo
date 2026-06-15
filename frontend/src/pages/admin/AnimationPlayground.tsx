@@ -1,8 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Palette } from 'lucide-react';
+import { ArrowLeft, Palette, ChevronDown, ChevronRight } from 'lucide-react';
 import { Player } from '@remotion/player';
 import { COMPONENT_REGISTRY } from '../../remotion/registry';
+import {
+  getComponentManifest,
+  getDefaultProps,
+  type PropDefinition,
+  type PropType,
+} from '../../remotion/manifest';
 
 const STYLE_SYSTEM_EXAMPLES = [
   {
@@ -1154,6 +1160,281 @@ const STYLE_SYSTEM_EXAMPLES = [
   }
 ];
 
+// Universal props that should be editable in the UI (subset of UNIVERSAL_PROPS)
+const EDITABLE_UNIVERSAL_PROPS: { name: string; type: PropType; label: string; defaultValue?: string | number; options?: string[]; min?: number; max?: number }[] = [
+  { name: 'x', type: 'number', label: 'Position X', defaultValue: 540 },
+  { name: 'y', type: 'number', label: 'Position Y', defaultValue: 960 },
+  { name: 'color', type: 'color', label: 'Color' },
+  { name: 'bgColor', type: 'color', label: 'Background Color', defaultValue: '#0f172a' },
+  { name: 'textColor', type: 'color', label: 'Text Color', defaultValue: '#f8fafc' },
+  { name: 'fontSize', type: 'number', label: 'Font Size', defaultValue: 40 },
+  { name: 'width', type: 'number', label: 'Width' },
+  { name: 'height', type: 'number', label: 'Height' },
+  { name: 'delay', type: 'number', label: 'Delay (s)', defaultValue: 0 },
+  { name: 'scale', type: 'number', label: 'Scale', defaultValue: 1 },
+  { name: 'rotation', type: 'number', label: 'Rotation (deg)', defaultValue: 0 },
+  { name: 'opacity', type: 'number', label: 'Opacity', defaultValue: 1, min: 0, max: 1 },
+  { name: 'entry', type: 'select', label: 'Entry Animation', options: ['fade-in', 'slide-up', 'slide-down', 'slide-left', 'slide-right', 'scale-in', 'spring-in', 'bounce-in'] },
+  { name: 'entryDelay', type: 'number', label: 'Entry Delay (s)', defaultValue: 0 },
+  { name: 'exit', type: 'select', label: 'Exit Animation', options: ['fade-out', 'slide-up-out', 'slide-down-out', 'slide-left-out', 'slide-right-out', 'scale-out', 'spring-out', 'bounce-out'] },
+  { name: 'exitDelay', type: 'number', label: 'Exit Delay (s)', defaultValue: 0 },
+  { name: 'exitDuration', type: 'number', label: 'Exit Duration (frames)', defaultValue: 30 },
+];
+
+/**
+ * Props editor for a single component.
+ * Keyed by componentName in the parent so React remounts it (resetting all state)
+ * when the user navigates to a different component.
+ */
+function ComponentPropsEditor({
+  componentName,
+  manifestEntry,
+  onPropsChange,
+}: {
+  componentName: string;
+  manifestEntry: ReturnType<typeof getComponentManifest>;
+  onPropsChange: (props: Record<string, unknown>) => void;
+}) {
+  const [showUniversalProps, setShowUniversalProps] = useState(false);
+
+  // Initialize props from manifest defaults + universal defaults (lazy init — runs once per mount)
+  const [props, setProps] = useState<Record<string, unknown>>(() => {
+    const componentDefaults = getDefaultProps(componentName);
+    const universalDefaults: Record<string, unknown> = {};
+    for (const up of EDITABLE_UNIVERSAL_PROPS) {
+      if (up.defaultValue !== undefined) {
+        universalDefaults[up.name] = up.defaultValue;
+      }
+    }
+    return { ...universalDefaults, ...componentDefaults };
+  });
+
+  const handlePropChange = useCallback((key: string, value: string | number | boolean) => {
+    setProps(prev => {
+      const next = { ...prev, [key]: value };
+      onPropsChange(next);
+      return next;
+    });
+  }, [onPropsChange]);
+
+  const baseInputClass = 'w-full bg-surface-lowest border border-border-tech rounded-lg p-2 text-sm text-text-primary';
+
+  const renderPropInput = useCallback((prop: PropDefinition) => {
+    const value = props[prop.name];
+
+    switch (prop.type) {
+      case 'text-long':
+        return (
+          <textarea
+            value={String(value ?? prop.defaultValue ?? '')}
+            onChange={(e) => handlePropChange(prop.name, e.target.value)}
+            className={`${baseInputClass} resize-y`}
+            rows={3}
+          />
+        );
+      case 'number':
+        return (
+          <input
+            type="number"
+            value={Number(value ?? prop.defaultValue ?? 0)}
+            onChange={(e) => handlePropChange(prop.name, Number(e.target.value))}
+            min={prop.min}
+            max={prop.max}
+            className={baseInputClass}
+          />
+        );
+      case 'color':
+        return (
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={String(value ?? prop.defaultValue ?? '#000000')}
+              onChange={(e) => handlePropChange(prop.name, e.target.value)}
+              className="w-10 h-8 rounded cursor-pointer border border-border-tech"
+            />
+            <input
+              type="text"
+              value={String(value ?? prop.defaultValue ?? '')}
+              onChange={(e) => handlePropChange(prop.name, e.target.value)}
+              className={`${baseInputClass} flex-1 font-mono text-xs`}
+            />
+          </div>
+        );
+      case 'boolean':
+        return (
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!(value ?? prop.defaultValue ?? false)}
+              onChange={(e) => handlePropChange(prop.name, e.target.checked)}
+              className="w-4 h-4 rounded border-border-tech text-mint-precision focus:ring-mint-precision/30"
+            />
+            <span className="text-xs text-text-secondary">
+              {value ?? prop.defaultValue ? 'Enabled' : 'Disabled'}
+            </span>
+          </label>
+        );
+      case 'select':
+        return (
+          <select
+            value={String(value ?? prop.defaultValue ?? '')}
+            onChange={(e) => handlePropChange(prop.name, e.target.value)}
+            className={baseInputClass}
+          >
+            {(prop.options ?? []).map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        );
+      case 'icon':
+        return (
+          <div>
+            <input
+              type="text"
+              value={String(value ?? prop.defaultValue ?? '')}
+              onChange={(e) => handlePropChange(prop.name, e.target.value)}
+              className={`${baseInputClass} font-mono text-xs`}
+              placeholder="mdi:heart"
+            />
+            <p className="mt-1 text-[10px] text-text-secondary/50">Format: prefix:name (e.g., mdi:heart)</p>
+          </div>
+        );
+      case 'list':
+        return (
+          <div>
+            <input
+              type="text"
+              value={Array.isArray(value) ? JSON.stringify(value) : String(value ?? prop.defaultValue ?? '')}
+              onChange={(e) => {
+                try {
+                  const parsed = JSON.parse(e.target.value);
+                  handlePropChange(prop.name, parsed);
+                } catch {
+                  handlePropChange(prop.name, e.target.value);
+                }
+              }}
+              className={`${baseInputClass} font-mono text-xs`}
+              placeholder="JSON array or comma-separated"
+            />
+            <p className="mt-1 text-[10px] text-text-secondary/50">JSON array or comma-separated values</p>
+          </div>
+        );
+      default: // 'string'
+        return (
+          <input
+            type="text"
+            value={String(value ?? prop.defaultValue ?? '')}
+            onChange={(e) => handlePropChange(prop.name, e.target.value)}
+            className={baseInputClass}
+          />
+        );
+    }
+  }, [props, handlePropChange]);
+
+  const renderUniversalInput = useCallback((prop: typeof EDITABLE_UNIVERSAL_PROPS[number]) => {
+    const value = props[prop.name];
+
+    switch (prop.type) {
+      case 'number':
+        return (
+          <input
+            type="number"
+            value={Number(value ?? prop.defaultValue ?? 0)}
+            onChange={(e) => handlePropChange(prop.name, Number(e.target.value))}
+            min={prop.min}
+            max={prop.max}
+            className={baseInputClass}
+          />
+        );
+      case 'color':
+        return (
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={String(value ?? prop.defaultValue ?? '#000000')}
+              onChange={(e) => handlePropChange(prop.name, e.target.value)}
+              className="w-10 h-8 rounded cursor-pointer border border-border-tech"
+            />
+            <input
+              type="text"
+              value={String(value ?? prop.defaultValue ?? '')}
+              onChange={(e) => handlePropChange(prop.name, e.target.value)}
+              className={`${baseInputClass} flex-1 font-mono text-xs`}
+            />
+          </div>
+        );
+      case 'select':
+        return (
+          <select
+            value={String(value ?? prop.defaultValue ?? '')}
+            onChange={(e) => handlePropChange(prop.name, e.target.value)}
+            className={baseInputClass}
+          >
+            <option value="">None</option>
+            {(prop.options ?? []).map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        );
+      default:
+        return (
+          <input
+            type="text"
+            value={String(value ?? prop.defaultValue ?? '')}
+            onChange={(e) => handlePropChange(prop.name, e.target.value)}
+            className={baseInputClass}
+          />
+        );
+    }
+  }, [props, handlePropChange]);
+
+  return (
+    <>
+      {/* Dynamic Component Props (from manifest) */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+          Component Props
+        </h3>
+        {manifestEntry!.props.map((prop) => (
+          <div key={prop.name}>
+            <label className="block text-xs font-medium text-text-secondary mb-1">
+              {prop.label}
+            </label>
+            {prop.description && (
+              <p className="text-[10px] text-text-secondary/50 mb-1">{prop.description}</p>
+            )}
+            {renderPropInput(prop)}
+          </div>
+        ))}
+      </div>
+
+      {/* Universal Props (collapsible) */}
+      <div className="border-t border-border-tech pt-4">
+        <button
+          onClick={() => setShowUniversalProps(!showUniversalProps)}
+          className="flex items-center gap-2 w-full text-left text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
+        >
+          {showUniversalProps ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          Universal Props
+        </button>
+
+        {showUniversalProps && (
+          <div className="mt-3 space-y-3">
+            {EDITABLE_UNIVERSAL_PROPS.map((prop) => (
+              <div key={prop.name}>
+                <label className="block text-xs font-medium text-text-secondary mb-1">
+                  {prop.label}
+                </label>
+                {renderUniversalInput(prop)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function AnimationPlayground() {
   const { componentName } = useParams();
   const navigate = useNavigate();
@@ -1169,25 +1450,32 @@ export function AnimationPlayground() {
   // Find the component dynamically
   const Component = componentName ? COMPONENT_REGISTRY[componentName] : null;
 
-  // Default editable props based on common universal props
-  const [props, setProps] = useState({
-    text: '¿Por qué los mejores empleos piden siempre este software?',
-    color: '#38bdf8',
-    bgColor: '#0f172a',
-    textColor: '#f8fafc',
-    fontSize: 40,
-    width: 900,
-    delay: 0,
-    theme: 'default'
-  });
+  // Get manifest entry for current component
+  const manifestEntry = useMemo(
+    () => (componentName ? getComponentManifest(componentName) : undefined),
+    [componentName]
+  );
 
-  const handlePropChange = (key: string, value: string | number) => {
-    setProps(p => ({ ...p, [key]: value }));
-  };
+  // Props state lifted here so Player can read it; child component manages its own defaults
+  const [props, setProps] = useState<Record<string, unknown>>({});
+
+  // Fase 2: selector de aspect ratio para validar responsividad en todos los formatos.
+  const [aspect, setAspect] = useState<'9:16' | '4:5' | '1:1' | '16:9'>('9:16');
 
   if (!Component) {
     return <div className="p-8 text-white">Componente no encontrado.</div>;
   }
+
+  const ASPECTS: Record<'9:16' | '4:5' | '1:1' | '16:9', { w: number; h: number }> = {
+    '9:16': { w: 1080, h: 1920 },
+    '4:5': { w: 1080, h: 1350 },
+    '1:1': { w: 1080, h: 1080 },
+    '16:9': { w: 1920, h: 1080 },
+  };
+  const dim = ASPECTS[aspect];
+  const previewScale = Math.min(440 / dim.w, 600 / dim.h);
+  const previewW = Math.round(dim.w * previewScale);
+  const previewH = Math.round(dim.h * previewScale);
 
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden">
@@ -1202,6 +1490,9 @@ export function AnimationPlayground() {
             Volver a la galería
           </button>
           <h2 className="text-xl font-display font-bold text-text-primary">{componentName}</h2>
+          {manifestEntry && (
+            <p className="mt-1 text-xs text-text-secondary/70">{manifestEntry.description}</p>
+          )}
         </div>
 
         {/* Style System Examples Toggle */}
@@ -1250,87 +1541,57 @@ export function AnimationPlayground() {
           </div>
         )}
 
-        {!showStyleExamples && !selectedExample && (
-          <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Texto de Prueba</label>
-            <textarea
-              value={props.text}
-              onChange={(e) => handlePropChange('text', e.target.value)}
-              className="w-full bg-surface-lowest border border-border-tech rounded-lg p-3 text-sm text-text-primary"
-              rows={3}
-            />
-          </div>
+        {/* Component Props Editor — keyed by componentName so React remounts on navigation */}
+        {!showStyleExamples && !selectedExample && manifestEntry && componentName && (
+          <ComponentPropsEditor
+            key={componentName}
+            componentName={componentName}
+            manifestEntry={manifestEntry}
+            onPropsChange={setProps}
+          />
+        )}
 
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Color Principal (Hex)</label>
-            <input
-              type="text"
-              value={props.color}
-              onChange={(e) => handlePropChange('color', e.target.value)}
-              className="w-full bg-surface-lowest border border-border-tech rounded-lg p-2 text-sm text-text-primary"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Color Fondo (Hex)</label>
-            <input
-              type="text"
-              value={props.bgColor}
-              onChange={(e) => handlePropChange('bgColor', e.target.value)}
-              className="w-full bg-surface-lowest border border-border-tech rounded-lg p-2 text-sm text-text-primary"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Color Texto (Hex)</label>
-            <input
-              type="text"
-              value={props.textColor}
-              onChange={(e) => handlePropChange('textColor', e.target.value)}
-              className="w-full bg-surface-lowest border border-border-tech rounded-lg p-2 text-sm text-text-primary"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Font Size (px)</label>
-            <input
-              type="number"
-              value={props.fontSize}
-              onChange={(e) => handlePropChange('fontSize', Number(e.target.value))}
-              className="w-full bg-surface-lowest border border-border-tech rounded-lg p-2 text-sm text-text-primary"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Width (px)</label>
-            <input
-              type="number"
-              value={props.width}
-              onChange={(e) => handlePropChange('width', Number(e.target.value))}
-              className="w-full bg-surface-lowest border border-border-tech rounded-lg p-2 text-sm text-text-primary"
-            />
-          </div>
+        {/* No manifest entry fallback */}
+        {!showStyleExamples && !selectedExample && !manifestEntry && componentName && (
+          <div className="text-sm text-text-secondary/70">
+            No manifest entry for <span className="font-mono text-text-primary">{componentName}</span>
           </div>
         )}
       </div>
 
       {/* Player Area */}
       <div className="flex-1 bg-surface-lowest p-8 flex flex-col items-center justify-center relative">
+        {/* Aspect ratio selector (Fase 2: validar responsividad) */}
+        <div className="mb-4 flex items-center gap-2">
+          {(Object.keys(ASPECTS) as Array<keyof typeof ASPECTS>).map((ar) => (
+            <button
+              key={ar}
+              onClick={() => setAspect(ar)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                aspect === ar
+                  ? 'bg-mint-precision/10 border border-mint-precision/30 text-mint-precision'
+                  : 'bg-surface-container border border-border-tech hover:border-mint-precision/30 text-text-secondary'
+              }`}
+            >
+              {ar}
+            </button>
+          ))}
+        </div>
         <div className="bg-surface-container p-4 rounded-xl shadow-2xl border border-border-tech">
           <Player
+            key={aspect}
             component={Component}
-            inputProps={{...props, x: 540, y: 960}}
+            inputProps={{ ...props, x: dim.w / 2, y: dim.h / 2 }}
             durationInFrames={150} // 5 segundos
-            compositionWidth={1080}
-            compositionHeight={1920}
+            compositionWidth={dim.w}
+            compositionHeight={dim.h}
             fps={30}
             style={{
-              width: '360px',
-              height: '640px',
+              width: `${previewW}px`,
+              height: `${previewH}px`,
               borderRadius: '8px',
               overflow: 'hidden',
-              backgroundColor: props.bgColor
+              backgroundColor: (props.bgColor as string | undefined) ?? '#0f172a'
             }}
             controls
             autoPlay
@@ -1338,7 +1599,7 @@ export function AnimationPlayground() {
           />
         </div>
         <p className="mt-4 text-xs text-text-secondary/60 text-center max-w-sm">
-          Vista previa del componente en un canvas de 1080x1920 escalado a 360x640 para previsualización.
+          Vista previa en canvas {dim.w}×{dim.h} ({aspect}), escalado a {previewW}×{previewH}. Cambia el formato para validar la responsividad.
         </p>
       </div>
     </div>

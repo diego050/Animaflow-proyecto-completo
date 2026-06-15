@@ -88,7 +88,7 @@ export const Typewriter: React.FC<TypewriterProps> = ({
         left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: `${effectiveWidth}px`,
-        textAlign: 'left',
+        textAlign: 'center',
         zIndex: 10,
       }}
     >

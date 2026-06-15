@@ -142,6 +142,19 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [ADR-010](adr/010-backend-modularization.md) | Backend Modularization — Monolith to Modular Monolith | ✅ Implementado |
 | [ADR-012](adr/012-critical-backend-fixes.md) | Critical Backend Security & Stability Fixes | ✅ Implementado |
 
+### Calidad Visual (linaje visual-quality)
+Plan vivo y ADRs sobre la calidad de los videos generados (composición, posicionamiento, selección de componentes, animación):
+
+| Documento | Estado | Descripción |
+|---|---|---|
+| [**PLAN-MEJORA-CALIDAD.md**](../PLAN-MEJORA-CALIDAD.md) | 🟡 En curso | **Plan canónico vivo** — roadmap por fases (0a→5) para llevar la calidad a nivel profesional |
+| [ADR-011 v8](adr-011-visual-quality-v8.md) | 🟡 0a/0b/1 + Fase 2 parcial + Fase 3 en curso | Infra + wins visuales + **manifest** + responsividad (parcial) + **de-solapamiento por bounding box** y bugs de texto (Fase 3) |
+| [ADR-010 v7](adr-010-visual-quality-v7.md) | ✅ Implementado | Posicionamiento (contrato de coordenadas), selección, animación sincronizada (karaoke) |
+| [ADR-009 v5](adr-009-visual-quality-v5.md) | ✅ Implementado | Calidad visual v5 |
+| [ADR-008 v4](adr-008-visual-quality-v4.md) | ✅ Implementado | Calidad visual v4 |
+| [coordinate-contract.md](coordinate-contract.md) | ✅ Vigente | Contrato de coordenadas (LEER antes de crear/editar un componente) |
+| [responsive-contract.md](responsive-contract.md) | ✅ Vigente (Fase 2) | Contrato de responsividad: dimensionar con `useCanvas()` (vmin/vw/vh) y layout por orientación |
+
 ---
 
 ## Session Reports
