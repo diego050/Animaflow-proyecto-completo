@@ -1,7 +1,7 @@
 # ADR-011 — Visual Quality v8: plan de calidad + Fases 0a/0b (infra del pipeline + wins visuales)
 
 **Fecha:** 2026-06-15
-**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial** (foundation + núcleo). Fase 3 **núcleo resuelto** (de-solapamiento calibrado + z-order verificado + alineación + CTA en prompt; queda colisión-X de baja prioridad). Fases 4–5 pendientes.
+**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial**. Fase 3 **núcleo resuelto**. Fase 4 **iniciada** (tokens + presets de spring + halo de texto + atenuado de decorativos; pendiente idle motion, exitDelay y auditoría de componentes). Fase 5 pendiente.
 **Contexto previo:** [adr-010-visual-quality-v7.md](./adr-010-visual-quality-v7.md), [coordinate-contract.md](./coordinate-contract.md)
 **Plan canónico (vivo):** [`../PLAN-MEJORA-CALIDAD.md`](../PLAN-MEJORA-CALIDAD.md) — este ADR resume; el plan tiene el detalle por fase.
 
@@ -189,6 +189,36 @@ pendiente es de baja frecuencia. Siguiente salto de calidad: Fase 4 (animación)
 **Decisión:** se priorizó el de-solapamiento vertical (lo que más se nota) y los
 2 bugs de texto. El z-order y la colisión horizontal van en la próxima iteración
 de Fase 3.
+
+### Fase 4 — Calidad de animación (iniciada)
+
+Objetivo: el salto de "se ve profesional" (movimiento pulido + lenguaje visual
+coherente + legibilidad sobre cualquier fondo).
+
+**Hecho (foundation + primeros wins):**
+- **Design/Motion tokens** (`frontend/src/remotion/utils/tokens.ts`): presets de
+  spring (`soft`/`pop`/`bouncy`/`gentle`), duraciones, elevación/sombras por nivel,
+  `TEXT_HALO`, radios, y helpers de **idle motion** determinista (`idleBreathe`,
+  `idleDriftY`) para futura "vida" sutil.
+- **AnimatedWrapper** consume los presets de spring: las entradas `scale-in`/
+  `spring-in`/`bounce-in` ahora tienen físicas tuneadas con leve overshoot (antes
+  `scale-in` era lineal/plano). Aplica a TODOS los componentes de golpe.
+- **Legibilidad sobre cualquier fondo:** `StyleTextBlock` tenía sombra `'none'` por
+  defecto → ahora halo oscuro (`TEXT_HALO`). Separa el texto de rejillas/blobs/
+  gradientes de color (arregla la escena 2: texto azul sobre rejilla azul).
+- **Atenuar decorativos ruidosos** (`_tame_decorative_backgrounds`): FloatingBlobs/
+  NetworkNodes/SoundWaveCircle/GridPerspective/AbstractWave/RaysOfLight se capan a
+  opacity ≤0.30 cuando hay contenido encima (arregla el clutter de la escena 3).
+- **Regla de prompt:** texto blanco/casi-blanco sobre componentes de fondo de color.
+- **Tests:** +2 (`test_busy_decorative_dimmed...`, `test_decorative_not_dimmed...`).
+  Total 25/25.
+
+**PENDIENTE (Fase 4):**
+- Cablear `idleBreathe`/`idleDriftY` en componentes hero (vida sutil tras la entrada).
+- Cablear `exitDelay` en `AnimatedWrapper` (item 19b) para control fino de salida.
+- **Auditoría componente por componente** (consumir tokens/elevation/radius;
+  reducir props booleanas; pulir timing) — el grueso de la Fase 4.
+- Adoptar dotLottie/skia para efectos premium (estratégico, §strategic-roadmap).
 
 ---
 

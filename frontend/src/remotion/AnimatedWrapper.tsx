@@ -1,6 +1,7 @@
 import React from 'react';
 import { Animated, Move, Scale, Fade } from 'remotion-animated';
 import { generateSpringKeyframes, SPRING_PRESETS } from './utils/springPhysics';
+import { SPRING } from './utils/tokens';
 
 export type EntryType =
   | 'fade-in'
@@ -82,19 +83,20 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
       case 'scale-in':
         entryAnimations = [
           Fade({ to: 1, initial: 0, start: delayFrames, duration: entryDuration }),
-          Scale({ by: 1, initial: 0, start: delayFrames, duration: entryDuration }),
+          // v8 (Fase 4): entrada con leve overshoot (antes lineal, se sentía plano).
+          Scale({ by: 1, initial: 0.85, start: delayFrames, duration: entryDuration, stiffness: SPRING.soft.stiffness, damping: SPRING.soft.damping }),
         ];
         break;
       case 'spring-in':
         entryAnimations = [
           Fade({ to: 1, initial: 0, start: delayFrames, duration: entryDuration }),
-          Scale({ by: 1, initial: 0, start: delayFrames, duration: entryDuration, stiffness: 80, damping: 12 }),
+          Scale({ by: 1, initial: 0, start: delayFrames, duration: entryDuration, stiffness: SPRING.pop.stiffness, damping: SPRING.pop.damping }),
         ];
         break;
       case 'bounce-in':
         entryAnimations = [
           Fade({ to: 1, initial: 0, start: delayFrames, duration: entryDuration }),
-          Scale({ by: 1, initial: 0, start: delayFrames, duration: entryDuration, stiffness: 120, damping: 8 }),
+          Scale({ by: 1, initial: 0, start: delayFrames, duration: entryDuration, stiffness: SPRING.bouncy.stiffness, damping: SPRING.bouncy.damping }),
         ];
         break;
       default:

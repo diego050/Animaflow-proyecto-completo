@@ -76,7 +76,10 @@ export const StyleTextBlock: React.FC<StyleTextBlockProps> = ({
   const customTextAlign = (style?.textAlign as React.CSSProperties['textAlign']) ?? align;
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
   const customWidth = style?.width ? `${style.width}px` : `${width}px`;
-  const customTextShadow = style?.textShadow ? `${(style.textShadow as Record<string, unknown>).x || 0}px ${(style.textShadow as Record<string, unknown>).y || 0}px ${(style.textShadow as Record<string, unknown>).blur || 4}px ${(style.textShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.5)'}` : 'none';
+  // Halo oscuro por defecto (Fase 3): separa el texto de CUALQUIER fondo
+  // (rejillas, blobs, gradientes de color). Antes era 'none' → el texto se
+  // fundía con fondos de color. El `style.textShadow` del spec lo sobreescribe.
+  const customTextShadow = style?.textShadow ? `${(style.textShadow as Record<string, unknown>).x || 0}px ${(style.textShadow as Record<string, unknown>).y || 0}px ${(style.textShadow as Record<string, unknown>).blur || 4}px ${(style.textShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.5)'}` : '0 0 6px rgba(0,0,0,0.9), 0 3px 14px rgba(0,0,0,0.7)';
   const customTextDecoration = (style?.textDecoration as React.CSSProperties['textDecoration']) ?? 'none';
   const customFontStyle = variant === 'quote' ? 'italic' : ((style?.fontStyle as string) ?? 'normal');
 
