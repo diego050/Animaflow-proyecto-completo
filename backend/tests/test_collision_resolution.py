@@ -1,7 +1,8 @@
-"""Tests para el de-solapamiento vertical de Fase 3 (component_strategy)."""
+"""Tests para de-solapamiento (Fase 3) y atenuado de decorativos (Fase 4)."""
 from app.modules.llm.component_strategy import (
     _estimate_layer_height,
     _resolve_vertical_overlaps,
+    _tame_decorative_backgrounds,
 )
 
 
@@ -91,3 +92,23 @@ def test_single_content_layer_noop():
     ]}
     _resolve_vertical_overlaps(spec, 1080, 1920)
     assert _y(spec, "StyleTextBlock") == 0
+
+
+def test_busy_decorative_dimmed_when_text_present():
+    """Fase 4: FloatingBlobs detras del texto se atenua (escena 3)."""
+    spec = {"layers": [
+        {"type": "component", "componentName": "FloatingBlobs", "x": 0, "y": 0},  # sin opacity
+        {"type": "component", "componentName": "StyleTextBlock", "x": 0, "y": 0, "text": "Deja de sufrir"},
+    ]}
+    _tame_decorative_backgrounds(spec)
+    blobs = next(l for l in spec["layers"] if l["componentName"] == "FloatingBlobs")
+    assert blobs["opacity"] <= 0.30
+
+
+def test_decorative_not_dimmed_without_content():
+    """Si la escena es solo el decorativo (sin texto), no se atenua."""
+    spec = {"layers": [
+        {"type": "component", "componentName": "FloatingBlobs", "x": 0, "y": 0, "opacity": 0.8},
+    ]}
+    _tame_decorative_backgrounds(spec)
+    assert spec["layers"][0]["opacity"] == 0.8

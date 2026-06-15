@@ -325,6 +325,40 @@ def _resolve_vertical_overlaps(spec: dict, canvas_w: int, canvas_h: int) -> dict
     return spec
 
 
+# ── Fase 4: atenuar decorativos ruidosos detrás del contenido ────────────────
+# Decorativos de formas/líneas sólidas que, a opacidad alta detrás del texto,
+# generan clutter (ej. FloatingBlobs rojos/cyan grandes en la escena 3).
+_BUSY_DECORATIVE = {
+    "FloatingBlobs", "NetworkNodes", "SoundWaveCircle", "GridPerspective",
+    "AbstractWave", "RaysOfLight",
+}
+_DECORATIVE_OPACITY_CAP = 0.30
+
+
+def _tame_decorative_backgrounds(spec: dict) -> dict:
+    """Baja la opacidad de decorativos ruidosos cuando hay contenido encima."""
+    layers = spec.get("layers", [])
+    has_content = any(
+        l.get("type") == "text"
+        or (l.get("type") == "component" and l.get("componentName") not in _FILL_COMPONENTS)
+        for l in layers
+    )
+    if not has_content:
+        return spec
+    for l in layers:
+        if l.get("type") == "component" and l.get("componentName") in _BUSY_DECORATIVE:
+            cur = l.get("opacity")
+            try:
+                cur = float(cur)
+            except (TypeError, ValueError):
+                cur = 1.0
+            new = round(min(cur, _DECORATIVE_OPACITY_CAP), 2)
+            if new != l.get("opacity"):
+                l["opacity"] = new
+                logger.info("Fase 4: atenuado decorativo %s a opacity=%.2f", l.get("componentName"), new)
+    return spec
+
+
 # ── Catálogo de componentes disponibles ──────────────────────────────────────
 # FUENTE DE VERDAD: component_manifest.json (derivado del frontend manifest.ts).
 # Esta lista se genera automáticamente desde el manifest. Si divergen, el
@@ -624,6 +658,12 @@ REGLAS DE ORO PARA EL DISEÑO:
    - Composición ideal de una escena hablada: 1 fondo + el texto (tamaño moderado, NO gigante que llene la pantalla) + 1 ícono o acento visual relacionado con una palabra clave del texto.
    - NO uses fontSize enorme para "rellenar"; deja aire. El texto debe convivir con el visual, no taparlo.
    - Si la escena es un CTA ("sígueme", "comenta"), añade el botón/badge correspondiente además del texto.
+   - **CONTRASTE SOBRE FONDOS DE COLOR:** si usas un componente de fondo con
+     color/movimiento (KineticBackground, GridPerspective, FloatingBlobs,
+     ParticleField, etc.), el color del texto debe ser **BLANCO o casi blanco**
+     (`#ffffff`/`#f8fafc`) para separarse del fondo. NUNCA uses un color saturado
+     del MISMO tono que el fondo (ej. texto azul `#38bdf8` sobre una rejilla azul
+     se vuelve ilegible).
    - **NO DUPLIQUES EL CTA:** si la frase del CTA YA está en el texto hablado
      (ej. el texto dice "¡Descubre el secreto ahora!"), NO añadas además un botón
      que repita esa misma frase. O lo dices en el texto, o lo pones en el botón —
@@ -2186,6 +2226,10 @@ def generate_scene_composer(
                     # —solo para capas apiladas en el mismo punto— no detecta.
                     _cw, _ch = _get_canvas_dimensions(aspect_ratio)
                     result = _resolve_vertical_overlaps(result, _cw, _ch)
+
+                    # Post-validation 3c (Fase 4): atenuar decorativos ruidosos
+                    # para que no compitan con el texto.
+                    result = _tame_decorative_backgrounds(result)
 
                     # Final validation pass — catch anything missed by post-processing
                     result = validate_and_fix(result, aspect_ratio)
