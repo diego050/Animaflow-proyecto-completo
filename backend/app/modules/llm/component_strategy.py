@@ -229,8 +229,16 @@ _TEXT_COMPONENTS_BB = {
 }
 
 
+# Tamaño de fuente aproximado por keyword `size` en badges/botones (escala video).
+_SIZE_FONT = {"sm": 32, "md": 42, "lg": 54}
+
+
 def _estimate_layer_height(layer: dict, canvas_w: int, canvas_h: int) -> float:
-    """Estimación (px) del alto de una capa para detectar solapamientos."""
+    """Estimación (px) CONSERVADORA del alto de una capa para detectar solapes.
+
+    Mejor sobreestimar que subestimar: si nos quedamos cortos, dos capas se
+    pisan (peor); si sobramos, quedan algo más separadas (aceptable).
+    """
     comp = layer.get("componentName", "")
     ltype = layer.get("type", "")
 
@@ -241,23 +249,27 @@ def _estimate_layer_height(layer: dict, canvas_w: int, canvas_h: int) -> float:
             return float(default)
 
     if ltype == "text" or comp in _TEXT_COMPONENTS_BB:
-        fs = _num(layer.get("fontSize"), 72)
+        # Default 84 (los componentes de texto rondan 84-88); ratio 0.6 y
+        # lineHeight 1.4 para no subestimar nº de líneas ni alto de línea.
+        fs = _num(layer.get("fontSize"), 84)
         width = _num(layer.get("width"), canvas_w * 0.85)
         text = str(layer.get("text", "") or "")
-        chars_per_line = max(1, int(width / (fs * 0.55)))
+        chars_per_line = max(1, int(width / (fs * 0.6)))
         lines = max(1, math.ceil(len(text) / chars_per_line))
         max_lines = layer.get("maxLines")
         if isinstance(max_lines, int) and max_lines > 0:
             lines = min(lines, max_lines)
-        return lines * fs * 1.35
+        return lines * fs * 1.4 + fs * 0.3
     if comp in ("IconifyIcon", "AnimatedIcon"):
-        return _num(layer.get("size"), 120)
+        return _num(layer.get("size"), 120) * 1.1
     if comp == "StyleCard":
         h = layer.get("height")
         return _num(h, canvas_h * 0.25) if h else canvas_h * 0.25
     if comp in ("StyleBadge", "StyleButton", "StyleChip", "SubscribeButton", "FloatingBadge", "StyleCallout"):
-        return _num(layer.get("fontSize"), 40) * 2.4
-    return 150.0
+        fs = layer.get("fontSize")
+        fs = _num(fs, 42) if fs is not None else _SIZE_FONT.get(str(layer.get("size", "md")), 42)
+        return fs * 2.8  # incluye padding vertical generoso
+    return 160.0
 
 
 def _resolve_vertical_overlaps(spec: dict, canvas_w: int, canvas_h: int) -> dict:
@@ -281,7 +293,7 @@ def _resolve_vertical_overlaps(spec: dict, canvas_w: int, canvas_h: int) -> dict
         items.append([l, y, _estimate_layer_height(l, canvas_w, canvas_h)])
 
     items.sort(key=lambda it: it[1])
-    min_gap = max(24.0, canvas_h * 0.02)
+    min_gap = max(40.0, canvas_h * 0.03)
 
     # Empujar hacia abajo cada capa que invada la anterior.
     for i in range(1, len(items)):
@@ -612,6 +624,11 @@ REGLAS DE ORO PARA EL DISEÑO:
    - Composición ideal de una escena hablada: 1 fondo + el texto (tamaño moderado, NO gigante que llene la pantalla) + 1 ícono o acento visual relacionado con una palabra clave del texto.
    - NO uses fontSize enorme para "rellenar"; deja aire. El texto debe convivir con el visual, no taparlo.
    - Si la escena es un CTA ("sígueme", "comenta"), añade el botón/badge correspondiente además del texto.
+   - **NO DUPLIQUES EL CTA:** si la frase del CTA YA está en el texto hablado
+     (ej. el texto dice "¡Descubre el secreto ahora!"), NO añadas además un botón
+     que repita esa misma frase. O lo dices en el texto, o lo pones en el botón —
+     no ambos. El botón/badge debe aportar algo distinto o más corto (ej.
+     "Sígueme", "Link en bio"), nunca repetir literalmente lo narrado.
 5. **POSICIONAMIENTO OBLIGATORIO:** ABSOLUTAMENTE TODOS los layers DEBEN tener `x` e `y`. Si los omites, el JSON será inválido.
     - `"x": 0, "y": 0` = centro del canvas
     - `"x": 0, "y": -200` = arriba del centro
