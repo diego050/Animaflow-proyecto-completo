@@ -116,10 +116,11 @@ def get_relevant_components(
     media_query: str,
     top_k: int = 10,
     category_filter: Optional[str] = None,
+    api_key: Optional[str] = None,
 ) -> list[dict]:
     """Find components with role diversity and return structured data."""
     query_text = f"{scene_text}. Visual context: {media_query}"
-    query_embedding = generate_embedding(query_text)
+    query_embedding = generate_embedding(query_text, api_key=api_key)
 
     if query_embedding is None:
         # v7.2: fallback CURADO (no aleatorio). Si el embedding falla (cuota 429,

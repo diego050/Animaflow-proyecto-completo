@@ -8,9 +8,9 @@ from app.core.logging import get_logger
 logger = get_logger("iconify_search")
 
 
-def generate_icon_embedding(text: str) -> Optional[list[float]]:
+def generate_icon_embedding(text: str, api_key: Optional[str] = None) -> Optional[list[float]]:
     """Generate Gemini embedding for search query."""
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
         logger.warning("GEMINI_API_KEY not set for icon search.")
         return None
@@ -42,6 +42,7 @@ def find_best_icons(
     db: Session,
     query_text: str,
     limit: int = 5,
+    api_key: Optional[str] = None,
 ) -> list[dict]:
     """
     Find the most semantically relevant icons for a query.
@@ -55,7 +56,7 @@ def find_best_icons(
     if db is None:
         return []
 
-    query_embedding = generate_icon_embedding(query_text)
+    query_embedding = generate_icon_embedding(query_text, api_key=api_key)
 
     if query_embedding is None:
         # Fallback: return some default icons

@@ -284,29 +284,27 @@ class BaseAnimaLayer(BaseModel):
     exitDelay: float = Field(default=0)
     exitDuration: float = Field(default=0.5)
     filter: Optional[str] = None
-    componentName: Optional[Literal[
-        "APIRequestFlow", "AbstractWave", "AnimatedArrow", "AnimatedIcon", "AnimatedLine", "AnimatedShape",
-        "AppStoreButtons", "AudioSpectrumBars", "BarChartReveal", "BreakingNewsAlert", "BreakingNewsTicker",
-        "BrowserWindow", "CalendarDatePop", "CodeBlockHighlight", "CountdownTimer", "CounterNumber",
-        "CursorClick", "EmojiFloat", "FeatureChecklist", "FeatureUnlock", "FlashSaleTimer", "FloatingBadge",
-        "FloatingBlobs", "FollowerCounter", "FunnelChart", "GitCommitGraph", "GlitchTitle", "GlitchTransition",
-        "GlobalVFX", "GradientOverlay", "GridPerspective", "HighlightText", "HorizontalBarRace",
-        "IconifyIcon", "InstagramPost",
-        "KineticBackground", "LightLeakTransition", "LoadingSpinner", "LowerThird",
-        "MaskedReveal", "MediaFrame", "MessageBubble", "MusicPlayerUI", "NetworkNodes", "NotificationToast",
-        "ParticleField", "PercentageRing", "PhoneMockup", "PieChartReveal", "PodcastGuestCard", "PricingTableReveal",
-        "ProductCardReveal", "ProgressPill", "PromoCodeBanner", "QuoteBlock", "RadarSpiderChart", "RaysOfLight",
-        "RippleEffect", "ScoreboardCounter", "SearchEngineTyping", "ShoppingCartBadge", "SizeSelector",
-        "SocialProgressBar", "SocialSharePopup", "SoundWaveCircle", "SplitScreenGrid", "SplitText",
-        "StockCandlestick", "StrikethroughText", "StyleAnimateNumber", "StyleAvatar", "StyleBadge", "StyleBarChart",
-        "StyleBarRace", "StyleButton", "StyleCallout", "StyleCard", "StyleChip", "StyleCursor", "StyleDivider",
-        "StyleFakeScroll", "StyleFunnelChart", "StyleLineChart", "StylePieChart", "StyleProgressBar", "StyleRadarChart", "StyleScrambleText",
-        "StyleSimulatedHover", "StyleTextBlock", "StyleTicker", "StyleVideoPlayer", "StyleWatermark",
-        "SubscribeButton", "TerminalHacker", "TestimonialReview",
-        "TextBubble", "TextReveal", "TextSwap", "TikTokOverlay", "TinderSwipeCard", "TrendLine", "TweetCard",
-        "Typewriter", "UnderlineReveal", "VersusScreen", "WaveformVisualizer", "WipeTransition",
-        "YouTubeEndScreen", "ZoomBlurTransition"
-    ]] = None
+    componentName: Optional[str] = None
+
+    @field_validator("componentName", mode="before")
+    @classmethod
+    def validate_component_name(cls, v: Any) -> Any:
+        """Validate componentName against the canonical AVAILABLE_COMPONENTS list.
+
+        Unknown components are passed through as-is (not rejected) so that
+        Pydantic validation never blocks a spec due to a desynced Literal.
+        The downstream post-processor handles unknown component cleanup.
+        """
+        if v is None:
+            return None
+        if not isinstance(v, str):
+            return None
+        from app.modules.llm.component_strategy import AVAILABLE_COMPONENTS
+        if v not in AVAILABLE_COMPONENTS:
+            logger = __import__("app.core.logging", fromlist=["get_logger"]).get_logger("spec.validator")
+            logger.warning("Unknown componentName '%s' — will be handled by post-processor", v)
+        return v
+
     color: Optional[str] = None
     color1: Optional[str] = None
     color2: Optional[str] = None

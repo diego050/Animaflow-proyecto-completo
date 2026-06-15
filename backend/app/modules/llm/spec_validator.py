@@ -11,6 +11,29 @@ from app.core.logging import get_logger
 
 logger = get_logger("llm.spec_validator")
 
+
+# ── Contrast helpers (WCAG 2.1) ──────────────────────────────────────────────
+
+def _relative_luminance(hex_color: str) -> float:
+    """Calculate relative luminance from a hex color (#RRGGBB)."""
+    hex_color = hex_color.lstrip('#')
+    if len(hex_color) != 6:
+        return 0.0
+    r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+    def linearize(c):
+        c = c / 255.0
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+
+
+def _contrast_ratio(color1: str, color2: str) -> float:
+    """Calculate WCAG contrast ratio between two hex colors."""
+    l1 = _relative_luminance(color1)
+    l2 = _relative_luminance(color2)
+    lighter = max(l1, l2)
+    darker = min(l1, l2)
+    return (lighter + 0.05) / (darker + 0.05)
+
 # Canvas dimensions by aspect ratio
 CANVAS_DIMENSIONS = {
     "9:16": (1080, 1920),
@@ -168,6 +191,66 @@ def validate_composer_spec(
                 if auto_fix:
                     layer["fontSize"] = 48
                     logger.warning("Auto-fixed fontSize to 48: %s", msg)
+
+    # ── Check 11: Contrast guard — ensure text is readable on background ──
+    bg_colors = spec.get("background", {}).get("colors", [])
+    if bg_colors and isinstance(bg_colors, list) and len(bg_colors) > 0:
+        bg_color = bg_colors[0]  # first/darkest color
+        bg_luminance = _relative_luminance(bg_color)
+
+        def _check_and_fix_text_color(layer: dict, layer_idx: int, parent_path: str = "") -> None:
+            comp_name = layer.get("componentName", "")
+            layer_type = layer.get("type", "")
+            if comp_name not in TEXT_COMPONENTS and layer_type != "text":
+                return
+            # Extract text color from layer
+            text_color = layer.get("color") or layer.get("textColor") or "#ffffff"
+            if not isinstance(text_color, str) or not text_color.startswith("#"):
+                return
+            ratio = _contrast_ratio(text_color, bg_color)
+            if ratio < 4.5:
+                label = f"{parent_path}layer {layer_idx}" if parent_path else f"Layer {layer_idx}"
+                msg = f"{label}: text color {text_color} on bg {bg_color} has contrast ratio {ratio:.2f} (< 4.5)"
+                warnings.append(msg)
+                if auto_fix:
+                    if bg_luminance < 0.2:
+                        layer["color"] = "#ffffff"
+                        if "textColor" in layer:
+                            layer["textColor"] = "#ffffff"
+                    elif bg_luminance > 0.8:
+                        layer["color"] = "#000000"
+                        if "textColor" in layer:
+                            layer["textColor"] = "#000000"
+                    else:
+                        # Mid-range background: pick whichever gives more contrast
+                        ratio_white = _contrast_ratio("#ffffff", bg_color)
+                        ratio_black = _contrast_ratio("#000000", bg_color)
+                        chosen = "#ffffff" if ratio_white > ratio_black else "#000000"
+                        layer["color"] = chosen
+                        if "textColor" in layer:
+                            layer["textColor"] = chosen
+                    logger.warning("Auto-fixed text color for readability: %s", msg)
+
+        for i, layer in enumerate(layers):
+            _check_and_fix_text_color(layer, i)
+            # Check children recursively
+            children = layer.get("children", [])
+            if isinstance(children, list):
+                for j, child in enumerate(children):
+                    _check_and_fix_text_color(child, j, parent_path=f"(child of layer {i}) ")
+
+    # Also validate spec-level textColor if present (from visual spec)
+    spec_text_color = spec.get("textColor")
+    if spec_text_color and isinstance(spec_text_color, str) and bg_colors:
+        bg_color = bg_colors[0]
+        ratio = _contrast_ratio(spec_text_color, bg_color)
+        if ratio < 4.5:
+            msg = f"Spec-level textColor {spec_text_color} on bg {bg_color} has contrast ratio {ratio:.2f} (< 4.5)"
+            warnings.append(msg)
+            if auto_fix:
+                bg_luminance = _relative_luminance(bg_color)
+                spec["textColor"] = "#ffffff" if bg_luminance < 0.5 else "#000000"
+                logger.warning("Auto-fixed spec-level textColor: %s", msg)
 
     return warnings
 
