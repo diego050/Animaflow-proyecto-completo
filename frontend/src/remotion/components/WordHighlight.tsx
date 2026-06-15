@@ -1,6 +1,7 @@
 import React from 'react';
 import { useVideoConfig, useCurrentFrame } from 'remotion';
 import { fitText } from '../utils/fitText';
+import { TEXT_HALO } from '../utils/tokens';
 import type { UniversalProps } from './types';
 
 export interface WordTiming {
@@ -123,7 +124,7 @@ export const WordHighlight: React.FC<WordHighlightProps> = ({
               transformOrigin: 'center center',
               display: 'inline-block',
               fontFamily: 'Inter, system-ui, sans-serif',
-              textShadow: '0 4px 18px rgba(0,0,0,0.85)',
+              textShadow: TEXT_HALO,
               wordBreak: 'break-word',
             }}
           >

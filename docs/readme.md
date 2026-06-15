@@ -154,6 +154,7 @@ Plan vivo y ADRs sobre la calidad de los videos generados (composición, posicio
 | [ADR-008 v4](adr-008-visual-quality-v4.md) | ✅ Implementado | Calidad visual v4 |
 | [coordinate-contract.md](coordinate-contract.md) | ✅ Vigente | Contrato de coordenadas (LEER antes de crear/editar un componente) |
 | [responsive-contract.md](responsive-contract.md) | ✅ Vigente (Fase 2) | Contrato de responsividad: dimensionar con `useCanvas()` (vmin/vw/vh) y layout por orientación |
+| [component-audit-v8.md](component-audit-v8.md) | 🟡 En curso (Fase 4) | Tracker de auditoría de componentes: tokens, responsividad, idle motion, props |
 
 ---
 
