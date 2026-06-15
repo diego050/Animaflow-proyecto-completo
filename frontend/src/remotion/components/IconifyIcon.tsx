@@ -1,8 +1,9 @@
 import React from 'react';
-import { Img } from 'remotion';
+import { Img, useCurrentFrame } from 'remotion';
 import type { UniversalProps } from './types';
 import { AnimatedWrapper } from '../AnimatedWrapper';
 import type { EntryType, ExitType } from '../AnimatedWrapper';
+import { idleBreathe } from '../utils/tokens';
 
 interface IconifyIconProps extends UniversalProps {
   icon: string;        // "mdi:heart" o "material-symbols:coffee"
@@ -43,6 +44,11 @@ export const IconifyIcon: React.FC<IconifyIconProps> = ({
   // para que size * scale no produzca NaN/concatenación.
   const numericSize = Number(size) || 120;
 
+  // v8 (Fase 4): "respiración" idle sutil para que el icono no quede muerto/
+  // estático tras la entrada. Determinista (función pura de frame).
+  const frame = useCurrentFrame();
+  const idle = idleBreathe(frame).scale;
+
   const element = (
     <div
       style={{
@@ -52,7 +58,7 @@ export const IconifyIcon: React.FC<IconifyIconProps> = ({
         top: `${y}px`,
         width: `${numericSize * scale}px`,
         height: `${numericSize * scale}px`,
-        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+        transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${idle})`,
         opacity,
         zIndex: 10,
       }}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useCurrentFrame, useVideoConfig } from 'remotion';
 import { fitText } from '../utils/fitText';
+import { TEXT_HALO } from '../utils/tokens';
 import type { UniversalProps } from "./types";
 
 export interface WordTiming {
@@ -100,7 +101,7 @@ export const Typewriter: React.FC<TypewriterProps> = ({
           fontFamily: 'Inter, system-ui, sans-serif',
           lineHeight: 1.3,
           wordBreak: 'break-word',
-          textShadow: '0 4px 20px rgba(0,0,0,0.8)',
+          textShadow: TEXT_HALO,
         }}
       >
         {displayedText}

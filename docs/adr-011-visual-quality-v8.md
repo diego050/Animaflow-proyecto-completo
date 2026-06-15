@@ -213,11 +213,16 @@ coherente + legibilidad sobre cualquier fondo).
 - **Tests:** +2 (`test_busy_decorative_dimmed...`, `test_decorative_not_dimmed...`).
   Total 25/25.
 
+**Auditoría de componentes (en curso, ver [`component-audit-v8.md`](./component-audit-v8.md)):**
+- **IconifyIcon:** idle breathe sutil determinista (`idleBreathe`) — el icono ya no
+  queda muerto/estático tras la entrada (aparece en casi toda escena).
+- **Halo de texto unificado** vía token `TEXT_HALO` en `StyleTextBlock`,
+  `Typewriter`, `WordHighlight` (mejor separación figura-fondo, una sola fuente).
+
 **PENDIENTE (Fase 4):**
-- Cablear `idleBreathe`/`idleDriftY` en componentes hero (vida sutil tras la entrada).
+- Continuar la auditoría componente por componente (tokens/elevation/radius,
+  reducir props booleanas, idle en otros hero, pulir timing) — ver tracker.
 - Cablear `exitDelay` en `AnimatedWrapper` (item 19b) para control fino de salida.
-- **Auditoría componente por componente** (consumir tokens/elevation/radius;
-  reducir props booleanas; pulir timing) — el grueso de la Fase 4.
 - Adoptar dotLottie/skia para efectos premium (estratégico, §strategic-roadmap).
 
 ---
@@ -301,10 +306,19 @@ Fixes de build (TS de Fase 1): `manifest.ts`, `sanitizeProps.ts`, `AnimationPlay
 `frontend/src/remotion/components/Typewriter.tsx` (align center),
 `frontend/src/remotion/components/WordHighlight.tsx` (dim 0.4→0.55).
 **Fase 3 (nuevos):** `backend/tests/test_collision_resolution.py`.
+**Fase 3 (refinamiento):** `component_strategy.py` (calibración de estimador +
+`_tame_decorative_backgrounds`), regla de prompt anti-CTA-duplicado.
+
+**Fase 4 (nuevos):** `frontend/src/remotion/utils/tokens.ts`, `docs/component-audit-v8.md`.
+**Fase 4 (modificados):** `frontend/src/remotion/AnimatedWrapper.tsx` (springs),
+`StyleTextBlock.tsx`/`Typewriter.tsx`/`WordHighlight.tsx` (TEXT_HALO),
+`IconifyIcon.tsx` (idle breathe),
+`backend/app/modules/llm/component_strategy.py` (`_tame_decorative_backgrounds`,
+regla de prompt de contraste sobre fondos de color).
 
 ## Tests
-- `tests/test_component_registry_sync.py` + `tests/test_spec_validator.py` → 17/17 pasan.
-- `tests/test_collision_resolution.py` → 5/5 pasan.
+- Suite relevante (registry_sync + spec_validator + collision_resolution) → **25/25 pasan**.
+- `test_collision_resolution.py` cubre de-solapamiento (Fase 3) + atenuado de decorativos (Fase 4).
 - `npx tsc -b` (frontend) → limpio (0 errores).
 
 ---
