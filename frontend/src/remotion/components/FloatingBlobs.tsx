@@ -1,93 +1,84 @@
 import React from 'react';
 import { useCurrentFrame } from 'remotion';
 import type { UniversalProps } from "./types";
+import { useCanvas } from '../utils/canvas';
 
+/**
+ * FloatingBlobs — fondo AMBIENTAL de glows de color suaves (v8 / Fase 4).
+ *
+ * Antes: dos elipses SÓLIDAS con un filtro "gooey" (feColorMatrix con alpha
+ * contrast alto) que endurecía los bordes → se veían como manchas sólidas
+ * centradas detrás del texto, compitiendo con él.
+ *
+ * Ahora: glows radiales que se desvanecen a transparente + blur, ubicados hacia
+ * los bordes (no en el centro), con deriva lenta. Es un acento de color, no una
+ * forma. Responsivo (useCanvas) y determinista (función pura de frame). Respeta
+ * `opacity` (el post-proceso lo capa a ≤0.30 cuando hay contenido encima).
+ */
 export const FloatingBlobs: React.FC<{
   color1?: string;
   color2?: string;
   width?: number;
   height?: number;
+  opacity?: number;
 } & UniversalProps> = ({
   color1 = '#f43f5e', // Rose
-  color2 = '#f59e0b', // Amber
-  x = 540,
-  y = 960,
+  color2 = '#38bdf8', // Sky
   delay = 0,
-  width = 800,
-  height = 800,
   color,
+  opacity = 1,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  // Rotate blobs
-  const rotation1 = adjustedFrame * 1.5;
-  const rotation2 = -adjustedFrame * 1.2;
+  // Deriva lenta determinista.
+  const drift = (period: number, phase: number) =>
+    Math.sin((adjustedFrame + phase) / period);
 
-  // Move them slightly to merge and unmerge
-  const offsetX = Math.sin(adjustedFrame / 20) * 100;
+  const toTransparent = (hex: string) =>
+    /^#[0-9a-fA-F]{6}$/.test(hex) ? `${hex}00` : 'transparent';
+
+  const glow = (
+    col: string,
+    cx: number, // offset horizontal desde el centro (px)
+    cy: number,
+    period: number,
+    phase: number,
+    sizePct: number,
+  ): React.CSSProperties => {
+    const d = c.vmin(sizePct);
+    return {
+      position: 'absolute',
+      left: `${c.width / 2 + cx + drift(period, phase) * c.vw(5)}px`,
+      top: `${c.height / 2 + cy + drift(period * 1.2, phase + 40) * c.vh(4)}px`,
+      width: `${d}px`,
+      height: `${d}px`,
+      transform: 'translate(-50%, -50%)',
+      background: `radial-gradient(circle, ${col} 0%, ${toTransparent(col)} 70%)`,
+      borderRadius: '50%',
+    };
+  };
 
   return (
     <div
       style={{
         position: 'absolute',
-        top: `${y}px`,
-        left: `${x}px`,
-        transform: 'translate(-50%, -50%)',
-        width: `${width}px`,
-        height: `${height}px`,
+        left: 0,
+        top: 0,
+        width: `${c.width}px`,
+        height: `${c.height}px`,
         zIndex: 1,
-        // The magic of Gooey effect in CSS:
-        // Use an SVG filter to blur and contrast to merge alpha channels
-        filter: 'url(#gooey-filter)',
+        opacity,
+        filter: `blur(${c.vmin(6)}px)`,
+        pointerEvents: 'none',
+        overflow: 'hidden',
       }}
     >
-      <svg width={0} height={0}>
-        <defs>
-          <filter id="gooey-filter">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="40" result="blur" />
-            <feColorMatrix
-              in="blur"
-              mode="matrix"
-              // Increase alpha contrast: 1 0 0 0 0 ... 0 0 0 30 -15
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 40 -20"
-              result="gooey"
-            />
-            <feComposite in="SourceGraphic" in2="gooey" operator="atop" />
-          </filter>
-        </defs>
-      </svg>
-
-      {/* Blob 1 */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: `calc(50% + ${offsetX}px)`,
-          width: '400px',
-          height: '400px',
-          backgroundColor: color1,
-          borderRadius: '50%', // Could use asymmetric radius too
-          transform: `translate(-50%, -50%) rotate(${rotation1}deg)`,
-          // Squish it a bit to make rotation obvious
-          scale: '1 0.8',
-        }}
-      />
-
-      {/* Blob 2 */}
-      <div
-        style={{
-          position: 'absolute',
-          top: `calc(50% + ${offsetX * 0.5}px)`,
-          left: `calc(50% - ${offsetX}px)`,
-          width: '350px',
-          height: '350px',
-          backgroundColor: color || color2,
-          borderRadius: '50%',
-          transform: `translate(-50%, -50%) rotate(${rotation2}deg)`,
-          scale: '0.8 1',
-        }}
-      />
+      {/* glow 1 — arriba a la izquierda */}
+      <div style={glow(color1, -c.vw(20), -c.vh(16), 90, 0, 70)} />
+      {/* glow 2 — abajo a la derecha */}
+      <div style={glow(color || color2, c.vw(20), c.vh(18), 110, 200, 62)} />
     </div>
   );
 };

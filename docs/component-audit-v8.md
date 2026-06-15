@@ -28,6 +28,12 @@ Estado: ✅ hecho · 🟡 parcial · ⬜ pendiente
 | `StyleButton` | 🟡 | ✅ | ⬜ | vmin (Fase 2) |
 | `StyleCard` | 🟡 | ✅ | ⬜ | width relativo + títulos vmin (Fase 2) |
 | `APIRequestFlow` | 🟡 | ✅ | ⬜ | referencia responsiva (Fase 2) |
+| `FloatingBlobs` | ✅ | ✅ | n/a | **reescrito ambiental**: glows radiales suaves (radial-gradient+blur) hacia los bordes, ya no elipses sólidas centradas; respeta opacity |
+
+## Decorativos de fondo (atenuados a ≤0.30 con contenido encima)
+`FloatingBlobs` ✅ reescrito. `NetworkNodes`/`SoundWaveCircle`/`AbstractWave`/
+`RaysOfLight`/`GridPerspective`: son líneas/partículas finas (ya sutiles con el cap),
+no requieren reescritura urgente.
 
 ## Pendientes destacados (resto del catálogo)
 - **Mockups/cards/charts** (no responsivos aún — ver lista por prioridad en

@@ -173,10 +173,12 @@ bajo (`ParticleField`/`KineticBackground`/`RaysOfLight` 0, `SoundWaveCircle` 1,
 ya van detrás. `GlobalVFX` usa 9998 a propósito (overlay de grain/viñeta encima de
 todo — correcto). El "choque" de la escena 3 era contraste/grain, no z-order.
 
-**CTA duplicado (§10.10) — atacado en la raíz:** con la colisión arreglada, un
-botón debajo del texto narrado ya no se solapa; pero para evitar la redundancia se
-añadió una regla al prompt: no repetir literalmente en un botón la frase de CTA que
-ya está en el texto hablado (se evita borrar botones post-hoc, que sería riesgoso).
+**CTA duplicado (§10.10) — regla de prompt + dedup en post-proceso:** primero se
+añadió una regla al prompt (blanda, el LLM la ignoró: en un render salió
+`HighlightText "¡Empieza hoy y sígueme!"` + botón `StyleButton "Sígueme"`,
+duplicado y solapado). Por eso se añadió `_dedup_cta_components`: si el texto de un
+CTA (botón/badge) está contenido en el texto narrado, se ELIMINA el CTA (la
+narración/karaoke ya lo transmite). Conservador (substring claro, ≥4 chars).
 
 **PENDIENTE (Fase 3, baja prioridad):**
 - Colisión horizontal (eje X) y para hijos de grupos anidados (raro en vertical centrado).
@@ -218,6 +220,25 @@ coherente + legibilidad sobre cualquier fondo).
   queda muerto/estático tras la entrada (aparece en casi toda escena).
 - **Halo de texto unificado** vía token `TEXT_HALO` en `StyleTextBlock`,
   `Typewriter`, `WordHighlight` (mejor separación figura-fondo, una sola fuente).
+- **WordHighlight — fix de apretado/solape** (visto en render: "deporte**transforma**tu"
+  sin espacio): `activeScale` 1.18→1.08 (la palabra resaltada ya no se ensancha y
+  pisa a las vecinas) + `gap` entre palabras 0.25→0.34.
+
+**Validación render (2ª iteración, 4 escenas):** confirmado en log que de-solapamiento,
+atenuado de decorativos (FloatingBlobs/AbstractWave→0.30), halo e idle están desplegados
+y funcionan. Bugs detectados y corregidos arriba (WordHighlight apretado; CTA duplicado
+de la escena 4 → ahora `_dedup_cta_components`). Pendiente observado: `FloatingBlobs`
+sigue prominente aun a 0.30 (formas sólidas/sharp centradas → mejorar el componente
+para que sea ambiental/blurred); `HighlightText` renderiza muy alto (palabra-por-línea),
+el estimador de colisión no lo predice bien.
+
+**Auditoría (cont.):**
+- **FloatingBlobs reescrito a AMBIENTAL** — antes eran 2 elipses sólidas con filtro
+  "gooey" (alpha-contrast endurecía los bordes) centradas detrás del texto; ahora
+  son glows radiales suaves (radial-gradient→transparente + blur) hacia los bordes,
+  responsivos (`useCanvas`) y respetando `opacity` (el cap 0.30 los deja muy
+  sutiles). Los demás decorativos (NetworkNodes/SoundWaveCircle/AbstractWave/
+  RaysOfLight/GridPerspective) son líneas/partículas finas → OK con el cap.
 
 **PENDIENTE (Fase 4):**
 - Continuar la auditoría componente por componente (tokens/elevation/radius,

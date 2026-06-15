@@ -46,7 +46,7 @@ export const WordHighlight: React.FC<WordHighlightProps> = ({
   fontSize = 84,
   fontWeight = 900,
   width,
-  activeScale = 1.18,
+  activeScale = 1.08,
   dimUpcoming = true,
   wordTimestamps,
   delay = 0,
@@ -97,7 +97,7 @@ export const WordHighlight: React.FC<WordHighlightProps> = ({
         justifyContent: 'center',
         alignItems: 'center',
         alignContent: 'center',
-        gap: `${Math.max(8, actualFontSize * 0.25)}px`,
+        gap: `${Math.max(12, actualFontSize * 0.34)}px`,
         zIndex: 10,
         textAlign: 'center',
       }}

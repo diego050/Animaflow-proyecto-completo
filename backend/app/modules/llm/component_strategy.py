@@ -359,6 +359,47 @@ def _tame_decorative_backgrounds(spec: dict) -> dict:
     return spec
 
 
+# ── Fase 3/4: dedup de CTA (botón/badge que repite lo ya narrado) ────────────
+_CTA_COMPONENTS = {"StyleButton", "StyleBadge", "SubscribeButton", "StyleChip", "FloatingBadge"}
+
+
+def _norm_text(s: object) -> str:
+    return re.sub(r"[^\w\s]", "", str(s or ""), flags=re.UNICODE).lower().strip()
+
+
+def _dedup_cta_components(spec: dict) -> dict:
+    """Elimina un CTA (botón/badge) cuyo texto YA está en el texto narrado.
+
+    La regla de prompt no basta (es blanda). Si el botón dice "Sígueme" y el texto
+    hablado dice "...y sígueme!", el botón es redundante Y suele solaparse → se quita
+    (la narración/karaoke ya transmite el CTA). Conservador: solo substring claro.
+    """
+    layers = spec.get("layers", [])
+    narrated = [
+        _norm_text(l.get("text"))
+        for l in layers
+        if l.get("type") == "text"
+        or (l.get("type") == "component" and l.get("componentName") in _TEXT_COMPONENTS_BB)
+    ]
+    narrated = [t for t in narrated if t]
+    if not narrated:
+        return spec
+
+    kept = []
+    for l in layers:
+        if l.get("type") == "component" and l.get("componentName") in _CTA_COMPONENTS:
+            ct = _norm_text(l.get("text"))
+            if len(ct) >= 4 and any(ct in tb for tb in narrated):
+                logger.info(
+                    "Fase 3: CTA duplicado eliminado (%s '%s' ya está en el texto narrado)",
+                    l.get("componentName"), l.get("text"),
+                )
+                continue
+        kept.append(l)
+    spec["layers"] = kept
+    return spec
+
+
 # ── Catálogo de componentes disponibles ──────────────────────────────────────
 # FUENTE DE VERDAD: component_manifest.json (derivado del frontend manifest.ts).
 # Esta lista se genera automáticamente desde el manifest. Si divergen, el
@@ -2224,6 +2265,10 @@ def generate_scene_composer(
                     # Cubre el caso general (capas en posiciones distintas que igual
                     # se pisan por su tamaño real), que la redistribución de arriba
                     # —solo para capas apiladas en el mismo punto— no detecta.
+                    # Post-validation 3a (Fase 3): quitar CTA duplicado ANTES de
+                    # de-solapar (así no se reacomoda algo que sobra).
+                    result = _dedup_cta_components(result)
+
                     _cw, _ch = _get_canvas_dimensions(aspect_ratio)
                     result = _resolve_vertical_overlaps(result, _cw, _ch)
 

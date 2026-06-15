@@ -3,6 +3,7 @@ from app.modules.llm.component_strategy import (
     _estimate_layer_height,
     _resolve_vertical_overlaps,
     _tame_decorative_backgrounds,
+    _dedup_cta_components,
 )
 
 
@@ -103,6 +104,32 @@ def test_busy_decorative_dimmed_when_text_present():
     _tame_decorative_backgrounds(spec)
     blobs = next(l for l in spec["layers"] if l["componentName"] == "FloatingBlobs")
     assert blobs["opacity"] <= 0.30
+
+
+def test_cta_button_removed_when_text_duplicates_narration():
+    """Escena 4: botón 'Sígueme' se quita si el texto narrado ya lo dice."""
+    spec = {"layers": [
+        {"type": "component", "componentName": "HighlightText", "x": 0, "y": 0,
+         "text": "¡Empieza hoy y sígueme!"},
+        {"type": "component", "componentName": "StyleButton", "x": 0, "y": 300,
+         "text": "Sígueme"},
+    ]}
+    _dedup_cta_components(spec)
+    names = [l.get("componentName") for l in spec["layers"]]
+    assert "StyleButton" not in names
+    assert "HighlightText" in names
+
+
+def test_cta_button_kept_when_distinct():
+    """Un CTA con texto distinto al narrado se conserva."""
+    spec = {"layers": [
+        {"type": "component", "componentName": "StyleTextBlock", "x": 0, "y": 0,
+         "text": "El deporte cambia tu cerebro"},
+        {"type": "component", "componentName": "StyleButton", "x": 0, "y": 300,
+         "text": "Link en bio"},
+    ]}
+    _dedup_cta_components(spec)
+    assert any(l.get("componentName") == "StyleButton" for l in spec["layers"])
 
 
 def test_decorative_not_dimmed_without_content():
