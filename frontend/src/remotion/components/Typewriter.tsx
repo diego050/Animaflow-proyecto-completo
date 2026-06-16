@@ -19,7 +19,7 @@ export interface TypewriterProps extends UniversalProps {
 }
 
 export const Typewriter: React.FC<TypewriterProps> = ({
-  text,
+  text = 'Texto de ejemplo',
   color = '#ffffff',
   x = 540,
   y = 960,
@@ -56,7 +56,7 @@ export const Typewriter: React.FC<TypewriterProps> = ({
   // hay duración usamos la velocidad fija heredada.
   const reservedFrames = 12; // ~0.4s de margen al final
   let charsToShow: number;
-  if (wordTimestamps && wordTimestamps.length > 0) {
+  if (Array.isArray(wordTimestamps) && wordTimestamps.length > 0) {
     // v7.3: KARAOKE — revela el texto al ritmo en que se PRONUNCIAN las
     // palabras. Usamos la fracción de palabras ya habladas para revelar esa
     // misma fracción del texto (robusto a diferencias de conteo entre el texto

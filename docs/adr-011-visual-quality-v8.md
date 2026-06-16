@@ -240,11 +240,39 @@ el estimador de colisión no lo predice bien.
   sutiles). Los demás decorativos (NetworkNodes/SoundWaveCircle/AbstractWave/
   RaysOfLight/GridPerspective) son líneas/partículas finas → OK con el cap.
 
+**Playground — bugs corregidos (feedback de prueba real):**
+- ⚠️ en `IconifyIcon`/`Typewriter`/`WordHighlight`: crasheaban por props requeridas
+  sin default (`icon`/`text` undefined) → defaults seguros + guardas `Array.isArray`
+  en `wordTimestamps`.
+- Icono **se escapaba del Badge/Button/Chip** (IconifyIcon es `position:absolute`)
+  → nuevo modo `inline` en IconifyIcon; Badge/Button/Chip lo usan inline.
+
+**Playground — Lote A (profundización del editor):**
+- **Universal props filtrados por rol:** "Posición y Animación" siempre; "Estilo"
+  (color/fontSize/width/height) solo en componentes texto/UI → ya no aparecen
+  inputs irrelevantes (p. ej. fontSize en FloatingBlobs).
+- **entry/exit ahora SÍ se ven** en el preview: el componente se envuelve en
+  `AnimatedWrapper` (las props de animación se quitan del interno para no animar
+  doble).
+- **Fondo del preview:** toggle **Transparente** (con tablero de ajedrez) + color
+  picker, independiente de las props del componente.
+
+**Playground — Lote B (props atómicos por componente, manifest+componente+regen):**
+- **StyleTextBlock:** `truncate` (recortar con "…" vs dejar fluir). `fontSize`/`color`
+  ya editables vía universales de Estilo (rol text) tras el Lote A.
+- **FloatingBlobs:** `count` (1-5 glows) + `blur`. `opacity` vía universal.
+- **StyleBadge / StyleButton:** `shadow` (toggle boxShadow) + `borderRadius` (override).
+- **APIRequestFlow:** `arrowSpeed` (velocidad de la flecha).
+- Regenerado `component_manifest.json` (en sync, 111). tsc OK, 13 tests backend.
+
 **PENDIENTE (Fase 4):**
-- Continuar la auditoría componente por componente (tokens/elevation/radius,
-  reducir props booleanas, idle en otros hero, pulir timing) — ver tracker.
-- Cablear `exitDelay` en `AnimatedWrapper` (item 19b) para control fino de salida.
-- Adoptar dotLottie/skia para efectos premium (estratégico, §strategic-roadmap).
+- **Diferido del Lote B (más complejo):** icono inline DENTRO del texto
+  ("te quiero ❤ mucho" → parsear tokens en el texto); posición por-blob editable;
+  cajas de tamaños distintos en APIRequestFlow.
+- Distinción visual Card vs Button/Badge (se ven parecidos).
+- Continuar auditoría (tokens/elevation/radius, props booleanas, idle en hero).
+- Cablear `exitDelay` en `AnimatedWrapper` (item 19b).
+- dotLottie/skia (estratégico).
 
 ---
 

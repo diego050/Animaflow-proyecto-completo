@@ -38,7 +38,7 @@ export interface WordHighlightProps extends UniversalProps {
  * degrada a un subtítulo estático (todo el texto a color base).
  */
 export const WordHighlight: React.FC<WordHighlightProps> = ({
-  text,
+  text = 'Texto de ejemplo resaltado',
   color = '#FFFFFF',
   highlightColor = '#fbbf24',
   x = 540,
@@ -66,7 +66,7 @@ export const WordHighlight: React.FC<WordHighlightProps> = ({
   const actualFontSize = fitted.fontSize;
 
   const words = text.split(' ');
-  const hasKaraoke = !!(wordTimestamps && wordTimestamps.length > 0);
+  const hasKaraoke = Array.isArray(wordTimestamps) && wordTimestamps.length > 0;
 
   // Índice de la palabra activa (la que suena ahora). Si estamos en un hueco
   // entre palabras, se mantiene activa la última que empezó.

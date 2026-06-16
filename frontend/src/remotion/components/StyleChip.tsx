@@ -93,7 +93,7 @@ export const StyleChip: React.FC<StyleChipProps> = ({
         opacity: customOpacity,
       }}
     >
-      {icon && <IconifyIcon icon={icon} size={s.iconSize} color={customColor} />}
+      {icon && <IconifyIcon icon={icon} size={s.iconSize} color={customColor} inline />}
       {text}
       {deletable && (
         <span style={{ marginLeft: c.vmin(0.2), opacity: 0.6, fontSize: s.fontSize }}>✕</span>

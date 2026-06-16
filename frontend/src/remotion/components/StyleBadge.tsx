@@ -9,6 +9,10 @@ interface StyleBadgeProps extends UniversalProps {
   variant?: 'success' | 'warning' | 'error' | 'info' | 'neutral';
   icon?: string;
   size?: 'sm' | 'md' | 'lg';
+  /** Mostrar sombra (boxShadow). Default true. */
+  shadow?: boolean;
+  /** Radio de borde en px (default 999 = píldora). */
+  borderRadius?: number;
   style?: Record<string, unknown>;
 }
 
@@ -27,6 +31,8 @@ export const StyleBadge: React.FC<StyleBadgeProps> = ({
   variant = 'neutral',
   icon,
   size = 'md',
+  shadow = true,
+  borderRadius,
   style,
   delay = 0,
 }) => {
@@ -59,14 +65,14 @@ export const StyleBadge: React.FC<StyleBadgeProps> = ({
 
   // Style overrides
   const customPadding = style?.padding ? `${style.padding}px` : s.padding;
-  const customBorderRadius = (style?.borderRadius as number) ?? 999;
+  const customBorderRadius = borderRadius ?? (style?.borderRadius as number) ?? 999;
   const customBg = (style?.backgroundColor as string) ?? v.bg;
   const customColor = (style?.color as string) ?? v.color;
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
   const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : '0px';
   const customBorderColor = (style?.borderColor as string) ?? 'transparent';
   const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
-  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 2}px ${(style.boxShadow as Record<string, unknown>).blur || 8}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.2)'}` : `0 ${c.vmin(0.2)}px ${c.vmin(0.8)}px rgba(0,0,0,0.2)`;
+  const customBoxShadow = shadow === false ? 'none' : (style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 2}px ${(style.boxShadow as Record<string, unknown>).blur || 8}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.2)'}` : `0 ${c.vmin(0.2)}px ${c.vmin(0.8)}px rgba(0,0,0,0.2)`);
 
   return (
     <div
@@ -96,7 +102,7 @@ export const StyleBadge: React.FC<StyleBadgeProps> = ({
         textTransform: 'uppercase',
       }}
     >
-      {icon && <IconifyIcon icon={icon} size={s.fontSize} color={customColor} />}
+      {icon && <IconifyIcon icon={icon} size={s.fontSize} color={customColor} inline />}
       {text}
     </div>
   );

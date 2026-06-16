@@ -9,6 +9,8 @@ interface APIRequestFlowProps extends UniversalProps {
   responseCode?: number;
   requestBody?: string;
   responseBody?: string;
+  /** Velocidad de la flecha (1 = normal, 2 = el doble de rápida). */
+  arrowSpeed?: number;
 }
 
 /**
@@ -30,6 +32,7 @@ export const APIRequestFlow: React.FC<APIRequestFlowProps> = ({
   x = 540,
   y = 540,
   delay = 0,
+  arrowSpeed = 1,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -38,7 +41,8 @@ export const APIRequestFlow: React.FC<APIRequestFlowProps> = ({
 
   // -- Animación (frame-based, determinista) --------------------------------
   const boxScale = spring({ frame: adjustedFrame, fps, config: { damping: 14 } });
-  const arrowProgress = interpolate(adjustedFrame, [15, 45], [0, 1], { extrapolateRight: 'clamp', extrapolateLeft: 'clamp' });
+  const arrowEnd = 15 + 30 / Math.max(0.25, Number(arrowSpeed) || 1);
+  const arrowProgress = interpolate(adjustedFrame, [15, arrowEnd], [0, 1], { extrapolateRight: 'clamp', extrapolateLeft: 'clamp' });
   const responseOpacity = interpolate(adjustedFrame, [50, 60], [0, 1], { extrapolateRight: 'clamp', extrapolateLeft: 'clamp' });
   const responseScale = spring({ frame: Math.max(0, adjustedFrame - 50), fps, config: { damping: 12 } });
 
