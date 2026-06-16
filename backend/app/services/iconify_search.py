@@ -1,11 +1,25 @@
 """Iconify semantic search service using pgvector embeddings."""
 import os
+import re
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.db.models import IconifyIcon
 from app.core.logging import get_logger
 
 logger = get_logger("iconify_search")
+
+# Patrones de íconos "basura" que la búsqueda semántica trae por coincidencia
+# literal de caracteres (no de concepto): megapíxeles de cámara (10mp, 12mp),
+# resoluciones (4k, 1080p, 16x9) y nombres puramente numéricos (counters). Son la
+# causa de match absurdos tipo "diez minutos" → "10mp-outline".
+_JUNK_ICON_NAME = re.compile(
+    r"(^|[-_])(\d+mp|\d+k|\d+p|\d+x\d+|\d+)([-_]|$)",
+    re.IGNORECASE,
+)
+
+
+def _is_junk_icon(name: str) -> bool:
+    return bool(_JUNK_ICON_NAME.search(name or ""))
 
 
 def generate_icon_embedding(text: str, api_key: Optional[str] = None) -> Optional[list[float]]:
@@ -76,6 +90,8 @@ def find_best_icons(
         # Convert embedding list to string for SQL
         embedding_str = f"[{','.join(str(v) for v in query_embedding)}]"
 
+        # Sobre-pedimos para poder descartar candidatos basura y aun así devolver
+        # `limit` íconos útiles.
         sql = text("""
             SELECT full_id, prefix, name,
                    1 - (embedding <=> CAST(:embedding AS vector)) as score
@@ -84,17 +100,21 @@ def find_best_icons(
             LIMIT :limit
         """)
 
-        results = db.execute(sql, {"embedding": embedding_str, "limit": limit}).fetchall()
+        results = db.execute(sql, {"embedding": embedding_str, "limit": limit * 4}).fetchall()
 
-        return [
-            {
+        out: list[dict] = []
+        for row in results:
+            if _is_junk_icon(row.name):
+                continue
+            out.append({
                 "full_id": row.full_id,
                 "prefix": row.prefix,
                 "name": row.name,
                 "score": round(row.score, 3),
-            }
-            for row in results
-        ]
+            })
+            if len(out) >= limit:
+                break
+        return out
     except Exception as e:
         error_msg = str(e)
         if "different vector dimensions" in error_msg:

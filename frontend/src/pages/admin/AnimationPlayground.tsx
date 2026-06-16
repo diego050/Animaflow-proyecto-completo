@@ -2,8 +2,10 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Palette, ChevronDown, ChevronRight } from 'lucide-react';
 import { Player } from '@remotion/player';
+import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
 import { COMPONENT_REGISTRY } from '../../remotion/registry';
 import { AnimatedWrapper } from '../../remotion/AnimatedWrapper';
+import { computeCameraShake } from '../../remotion/utils/cameraShake';
 import type { EntryType, ExitType } from '../../remotion/AnimatedWrapper';
 import {
   getComponentManifest,
@@ -1195,6 +1197,54 @@ const STYLE_RELEVANT_ROLES = new Set(['text', 'ui']);
 const STYLE_RELEVANT_CATEGORIES = new Set(['Text', 'UI']);
 
 /**
+ * Demo para EFECTOS DE ESCENA (CameraShake/Spotlight): renderiza un sujeto de
+ * muestra (fondo + ícono + texto) para que el efecto se vea. CameraShake aplica el
+ * temblor al sujeto; Spotlight se pinta encima como overlay.
+ */
+function SceneEffectDemo({
+  componentName,
+  Effect,
+  props,
+}: {
+  componentName: string;
+  Effect: React.ComponentType<Record<string, unknown>>;
+  props: Record<string, unknown>;
+}) {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const shake =
+    componentName === 'CameraShake'
+      ? computeCameraShake(frame, fps, {
+          intensity: props.intensity as number | undefined,
+          frequency: props.frequency as number | undefined,
+          rotation: props.rotation as number | undefined,
+          decay: props.decay as boolean | undefined,
+        })
+      : undefined;
+
+  return (
+    <AbsoluteFill style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
+      <AbsoluteFill
+        style={{
+          transform: shake,
+          transformOrigin: 'center center',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: 24,
+        }}
+      >
+        <div style={{ fontSize: 200, lineHeight: 1 }}>🧠</div>
+        <div style={{ color: '#f8fafc', fontSize: 64, fontWeight: 800, fontFamily: 'Inter, sans-serif' }}>
+          Sujeto
+        </div>
+      </AbsoluteFill>
+      {componentName === 'Spotlight' && <Effect {...props} />}
+    </AbsoluteFill>
+  );
+}
+
+/**
  * Props editor for a single component.
  * Keyed by componentName in the parent so React remounts it (resetting all state)
  * when the user navigates to a different component.
@@ -1495,6 +1545,16 @@ export function AnimationPlayground() {
   // props de animación se quitan del componente interno para no animar doble.
   const PreviewComponent = useMemo(() => {
     if (!Component) return null;
+
+    // Efectos de ESCENA (no son un visual por sí solos): se previsualizan con un
+    // sujeto de muestra detrás para que se vea qué hacen.
+    if (componentName === 'CameraShake' || componentName === 'Spotlight') {
+      const SceneEffectPreview: React.FC<Record<string, unknown>> = (p) => (
+        <SceneEffectDemo componentName={componentName} Effect={Component} props={p} />
+      );
+      return SceneEffectPreview;
+    }
+
     const Wrapped: React.FC<Record<string, unknown>> = (p) => {
       const { entry, exit, entryDelay, entryDuration, exitDuration, ...rest } = p;
       return (
@@ -1511,7 +1571,7 @@ export function AnimationPlayground() {
       );
     };
     return Wrapped;
-  }, [Component]);
+  }, [Component, componentName]);
 
   if (!Component || !PreviewComponent) {
     return <div className="p-8 text-white">Componente no encontrado.</div>;

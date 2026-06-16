@@ -216,16 +216,20 @@ def _clamp_coordinates(spec: dict, width: int, height: int) -> dict:
 # las separamos verticalmente. Los fondos/decorativos que llenan o centran el
 # lienzo NO se reposicionan (son backdrop).
 
-# Componentes que llenan/centran el lienzo como fondo → no se reposicionan.
+# Componentes que llenan/centran el lienzo como fondo/efecto → no se reposicionan
+# y NO cuentan como "visual real" (son backdrop/efecto, no el sujeto de la escena).
 _FILL_COMPONENTS = {
     "KineticBackground", "ParticleField", "FloatingBlobs", "RaysOfLight",
     "AbstractWave", "GlobalVFX", "NetworkNodes", "GradientOverlay",
     "GridPerspective", "SoundWaveCircle",
+    # v8 (Fase 5): efectos cinematográficos full-screen.
+    "CinematicBars", "Spotlight", "CameraShake",
 }
 _TEXT_COMPONENTS_BB = {
     "Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText",
     "WordHighlight", "SplitText", "TextSwap", "HighlightText",
     "StrikethroughText", "UnderlineReveal", "GlitchTitle", "QuoteBlock",
+    "GradientText",
 }
 
 
@@ -598,20 +602,24 @@ def _build_strategy_prompt(
         icon_list = "\n".join(icon_lines)
         icon_section = f"""
 
-ÍCONOS SUGERIDOS PARA ESTA ESCENA (basados en el TEXTO de la escena):
+ÍCONOS SUGERIDOS (PISTAS OPCIONALES, búsqueda automática — pueden estar equivocadas):
 {icon_list}
 
 REGLA CRÍTICA DE ÍCONOS:
-- SOLO selecciona íconos que representen LITERALMENTE el sujeto del texto de la escena.
-- Si el texto habla de "gatos", usa un ícono de gato. Si habla de "dinero", usa un ícono de dinero.
-- NO uses íconos abstractos, de "ambiente" o "atmósfera".
-- Usa tantos íconos como la escena necesite. Si el texto menciona múltiples conceptos, usa un ícono para cada uno.
-- Si ningún ícono es relevante para el sujeto del texto, NO incluyas ningún ícono.
-- Los íconos pueden ser decorativos, funcionales (dentro de botones/badges), o representativos del contenido.
-- Usa type: "component", componentName: "IconifyIcon", icon: "nombre_exacto"
+- Las sugerencias de arriba son SOLO PISTAS. Si NINGUNA representa bien el concepto,
+  IGNÓRALAS y elige TÚ un ícono conocido y correcto de un set popular
+  (mdi:, lucide:, tabler:, material-symbols:). Tu criterio manda sobre la lista.
+- El ícono debe representar el CONCEPTO del texto, NUNCA una coincidencia literal de
+  caracteres. Ej: "diez minutos" → un reloj (mdi:clock), NO "10mp" (cámara de 10
+  megapíxeles). "cinco estrellas" → mdi:star, NO un ícono que contenga "5".
+- Prefiere íconos simples y reconocibles (objetos/conceptos claros). NO uses íconos
+  oscuros, técnicos o de marcas raras.
+- Si ningún ícono aporta a la escena, NO incluyas ninguno.
+- `size` SIEMPRE es un NÚMERO en píxeles (ej: 120). NUNCA un nombre de color ni texto.
+- Usa type: "component", componentName: "IconifyIcon", icon: "set:nombre-exacto"
 
-Ejemplo correcto (texto sobre gatos): {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:cat", "size": 120, "color": "#ffffff", "x": 0, "y": -200}}
-Ejemplo incorrecto (texto sobre gatos): {{"type": "component", "componentName": "IconifyIcon", "icon": "material-symbols:computer-sound-sharp", ...}} ← NO representa un gato
+Ejemplo correcto (texto "diez minutos al día"): {{"type": "component", "componentName": "IconifyIcon", "icon": "mdi:clock-outline", "size": 120, "color": "#ffffff", "x": 0, "y": -200}}
+Ejemplo INCORRECTO: {{"icon": "material-symbols:10mp-outline"}} ← coincidencia literal "10", no representa el concepto
 """
 
     width, height = _get_canvas_dimensions(aspect_ratio)
@@ -2045,7 +2053,7 @@ def generate_scene_composer(
                     max_text_width = canvas_w * 0.85
 
                     TEXT_LAYER_TYPES = {"text", "component"}
-                    TEXT_COMPONENT_NAMES = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText", "WordHighlight"}
+                    TEXT_COMPONENT_NAMES = {"Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText", "WordHighlight", "GradientText"}
 
                     def _auto_fit_layer_text(layer: dict, max_width: float, canvas_height: float) -> None:
                         """Scale down fontSize if text is estimated to overflow, accounting for line wrapping."""
@@ -2116,6 +2124,7 @@ def generate_scene_composer(
                         # estimador de colisión asumía 918 → sub-estimaba la altura.
                         "GlitchTitle": lambda cw: int(cw * 0.85),
                         "HighlightText": lambda cw: int(cw * 0.85),
+                        "GradientText": lambda cw: int(cw * 0.85),
                         "SubscribeButton": lambda cw: int(cw * 0.6),
                         "IconifyIcon": lambda cw: 120,
                     }
@@ -2155,11 +2164,13 @@ def generate_scene_composer(
                         "KineticBackground", "ParticleField", "FloatingBlobs", "RaysOfLight",
                         "AbstractWave", "GlobalVFX", "NetworkNodes", "GradientOverlay",
                         "GridPerspective",
+                        # v8 (Fase 5): efectos full-screen, sin entry/exit propio.
+                        "CinematicBars", "Spotlight", "CameraShake", "KenBurns",
                     }
                     TEXT_FOR_ENTRY = {
                         "StyleTextBlock", "Typewriter", "TextReveal", "StyleScrambleText",
                         "SplitText", "GlitchTitle", "TextSwap", "HighlightText", "QuoteBlock",
-                        "WordHighlight",
+                        "WordHighlight", "GradientText",
                     }
                     ICON_UI_FOR_ENTRY = {
                         "IconifyIcon", "AnimatedIcon", "StyleBadge", "FloatingBadge",
