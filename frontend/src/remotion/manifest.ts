@@ -299,6 +299,31 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
     ],
   },
   {
+    name: 'KenBurns',
+    category: 'Background',
+    role: 'background',
+    description: 'Cinematic full-bleed Ken Burns effect (slow zoom/pan) over an image, with animated gradient fallback when no image. Ideal for visual-only scenes.',
+    props: [
+      { name: 'url', type: 'string', label: 'Image URL', description: 'Background image to pan/zoom. Leave empty for gradient.', defaultValue: '' },
+      { name: 'direction', type: 'select', label: 'Direction', description: 'Camera motion', defaultValue: 'zoom-in', options: ['zoom-in', 'zoom-out', 'pan-left', 'pan-right', 'pan-up', 'pan-down'] },
+      { name: 'intensity', type: 'number', label: 'Intensity', description: 'Zoom/pan range (subtle 0.05 to strong 0.4)', defaultValue: 0.15, min: 0.05, max: 0.4 },
+      { name: 'color1', type: 'color', label: 'Color 1', description: 'Gradient fallback start (no image)', defaultValue: '#0f172a' },
+      { name: 'color2', type: 'color', label: 'Color 2', description: 'Gradient fallback end (no image)', defaultValue: '#1e293b' },
+      { name: 'overlay', type: 'number', label: 'Overlay', description: 'Dark overlay opacity for text legibility (0-1)', defaultValue: 0, min: 0, max: 1 },
+    ],
+  },
+  {
+    name: 'CinematicBars',
+    category: 'Background',
+    role: 'background',
+    description: 'Letterbox / cinematic black bars (top + bottom) for a 2.39:1 film look. Overlay that pairs with KenBurns for visual scenes.',
+    props: [
+      { name: 'size', type: 'number', label: 'Bar Size', description: 'Bar height as % of canvas (per bar)', defaultValue: 11, min: 0, max: 25 },
+      { name: 'color', type: 'color', label: 'Color', description: 'Bar color', defaultValue: '#000000' },
+      { name: 'animate', type: 'boolean', label: 'Animate', description: 'Slide bars in', defaultValue: true },
+    ],
+  },
+  {
     name: 'GlobalVFX',
     category: 'Background',
     role: 'background',
