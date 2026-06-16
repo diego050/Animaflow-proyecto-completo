@@ -299,8 +299,23 @@ escena actual a los colores de la SIGUIENTE → salto turbio verde→marrón→a
   `MainComposition` (antes `GradientOverlay`), ventana ~0.6s.
 - tsc OK.
 
+**Variedad de transiciones (feedback: "todas son fade a negro"):** `MainComposition`
+ahora **rota** entre `FadeThroughBlack`, `ZoomBlurTransition` y `WipeTransition` por
+corte (todas neutrales negro/blanco, sin colores raros).
+
+**"Todo es texto" (feedback #3 — el problema de fondo de §2):** se reescribió la regla
+del prompt: **el texto en pantalla es OPCIONAL y se decide por escena**. El audio ya
+narra todo; mostrar texto solo en ganchos/cifras/CTA/frases de impacto, y al menos una
+escena del medio debe ser **visual pura** (ícono grande + fondo) sin texto. Antes la
+regla obligaba `"text":"{{text}}"` en CADA escena → muro de texto.
+
+**Componentes de datos sin datos (feedback #1):** nueva regla — no usar barras de
+progreso/charts/contadores como relleno (la "Progress 18%" sin sentido). Además
+`StyleProgressBar` se hizo responsivo (height/width/labels vía `useCanvas`, antes px
+de escala web diminutos).
+
 **PENDIENTE (Fase 5):**
-- Más transiciones seleccionables (wipe, zoom, iris) elegidas por continuidad de escena.
+- Elegir la transición por continuidad de escena (no solo rotación por índice).
 - Categorías nuevas tipo ReactVideoEditor: **Cinematic** (Ken Burns, vignette, film
   grain), **Logo & Branding**, **Image & Media**.
 - dotLottie / @remotion/skia para efectos premium.
