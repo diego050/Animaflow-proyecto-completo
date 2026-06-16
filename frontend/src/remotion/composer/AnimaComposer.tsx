@@ -22,6 +22,7 @@ import { AnimaGroup } from '../primitives/AnimaGroup';
 import { AnimaParticles } from '../primitives/AnimaParticles';
 import { AnimaGradient } from '../primitives/AnimaGradient';
 import { COMPONENT_REGISTRY, resolveComponentAlias } from '../registry';
+import { computeCameraShake } from '../utils/cameraShake';
 import { AnimatedWrapper } from '../AnimatedWrapper';
 import type { EntryType, ExitType } from '../AnimatedWrapper';
 import { solveLayout } from '../utils/layoutSolver';
@@ -904,6 +905,24 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
   // Solve layout to get absolute coordinates
   const solvedLayers = solveLayout(spec as unknown as Parameters<typeof solveLayout>[0], width, height);
 
+  // v8 (Fase 5): CameraShake es un EFECTO DE ESCENA, no un visual. Si hay una capa
+  // con ese componentName, se saca del render normal y su temblor se aplica a TODA
+  // la escena (fondo + capas) vía transform en el contenedor. Determinista (frame).
+  const shakeLayer = (solvedLayers.layers as SolvedLayer[]).find(
+    (l) => (l.type as string) === 'component'
+      && resolveComponentAlias((l.componentName as string) ?? '') === 'CameraShake',
+  );
+  const renderableLayers = (solvedLayers.layers as SolvedLayer[]).filter((l) => l !== shakeLayer);
+  const shakeProps = (shakeLayer?.props ?? shakeLayer ?? {}) as Record<string, unknown>;
+  const shakeTransform = shakeLayer
+    ? computeCameraShake(frame, fps, {
+        intensity: shakeProps.intensity as number | undefined,
+        frequency: shakeProps.frequency as number | undefined,
+        rotation: shakeProps.rotation as number | undefined,
+        decay: shakeProps.decay as boolean | undefined,
+      })
+    : undefined;
+
   // -----------------------------------------------------------------------
   // Background (z-index: 0)
   // -----------------------------------------------------------------------
@@ -941,8 +960,19 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
         backgroundColor: '#000',
       }}
     >
-      {background}
-      {renderLayerList(solvedLayers.layers as SolvedLayer[], ctx)}
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+          transform: shakeTransform,
+          transformOrigin: 'center center',
+          willChange: shakeTransform ? 'transform' : undefined,
+        }}
+      >
+        {background}
+        {renderLayerList(renderableLayers, ctx)}
+      </div>
     </div>
   );
 };

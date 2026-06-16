@@ -166,6 +166,19 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
     ],
   },
   {
+    name: 'GradientText',
+    category: 'Text',
+    role: 'text',
+    description: 'Text filled with an animated (shimmering) color gradient. Modern, eye-catching headline style.',
+    props: [
+      { name: 'text', type: 'string', label: 'Text', description: 'The text', defaultValue: 'Texto degradado' },
+      { name: 'colors', type: 'list', label: 'Colors', description: 'Gradient colors (2-4)', defaultValue: ['#00FFAB', '#38bdf8', '#a855f7'] },
+      { name: 'angle', type: 'number', label: 'Angle', description: 'Gradient angle (deg)', defaultValue: 100, min: 0, max: 360 },
+      { name: 'speed', type: 'number', label: 'Speed', description: 'Shimmer speed (0 = static)', defaultValue: 1, min: 0, max: 4 },
+      { name: 'fontWeight', type: 'number', label: 'Font Weight', description: 'Font weight', defaultValue: 900, min: 100, max: 900 },
+    ],
+  },
+  {
     name: 'StrikethroughText',
     category: 'Text',
     role: 'text',
@@ -321,6 +334,30 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
       { name: 'size', type: 'number', label: 'Bar Size', description: 'Bar height as % of canvas (per bar)', defaultValue: 11, min: 0, max: 25 },
       { name: 'color', type: 'color', label: 'Color', description: 'Bar color', defaultValue: '#000000' },
       { name: 'animate', type: 'boolean', label: 'Animate', description: 'Slide bars in', defaultValue: true },
+    ],
+  },
+  {
+    name: 'Spotlight',
+    category: 'Background',
+    role: 'background',
+    description: 'Theatrical spotlight overlay: lights the center and darkens the edges to focus attention on the subject. Full-screen, cinematic.',
+    props: [
+      { name: 'radius', type: 'number', label: 'Radius', description: 'Spotlight size (% of canvas)', defaultValue: 55, min: 10, max: 95 },
+      { name: 'intensity', type: 'number', label: 'Darkness', description: 'Edge darkness (0-1)', defaultValue: 0.7, min: 0, max: 1 },
+      { name: 'color', type: 'color', label: 'Color', description: 'Darkness color', defaultValue: '#000000' },
+      { name: 'animate', type: 'boolean', label: 'Animate', description: 'Subtle breathing of the spotlight', defaultValue: true },
+    ],
+  },
+  {
+    name: 'CameraShake',
+    category: 'Background',
+    role: 'background',
+    description: 'Scene-wide handheld camera shake (affects the WHOLE scene, not one layer). Use for impact/energy moments. It draws nothing by itself.',
+    props: [
+      { name: 'intensity', type: 'number', label: 'Intensity', description: 'Shake amplitude (px)', defaultValue: 12, min: 0, max: 60 },
+      { name: 'frequency', type: 'number', label: 'Frequency', description: 'Shakes per second (approx)', defaultValue: 8, min: 1, max: 20 },
+      { name: 'rotation', type: 'number', label: 'Rotation', description: 'Max rotation (degrees)', defaultValue: 0.6, min: 0, max: 5 },
+      { name: 'decay', type: 'boolean', label: 'Decay', description: 'Strong initial impact that settles', defaultValue: false },
     ],
   },
   {
@@ -922,6 +959,35 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
     description: 'Phone mockup with notch (Dynamic Island) and content area, slides up from bottom.',
     props: [
       { name: 'text', type: 'string', label: 'Text', description: 'Content text displayed on screen' },
+    ],
+  },
+  {
+    name: 'LogoReveal',
+    category: 'Branding',
+    role: 'ui',
+    description: 'Brand intro: animated reveal of a logo image (url) and/or brand name + tagline, with a shine sweep. Supports logo image, text, or both.',
+    props: [
+      { name: 'url', type: 'string', label: 'Logo URL', description: 'Logo image. Leave empty for text-only brand.', defaultValue: '' },
+      { name: 'brand', type: 'string', label: 'Brand', description: 'Brand name / handle', defaultValue: 'Tu Marca' },
+      { name: 'tagline', type: 'string', label: 'Tagline', description: 'Optional line below the brand', defaultValue: '' },
+      { name: 'brandColor', type: 'color', label: 'Brand Color', description: 'Brand text color', defaultValue: '#ffffff' },
+      { name: 'taglineColor', type: 'color', label: 'Tagline Color', description: 'Tagline color', defaultValue: '#94a3b8' },
+      { name: 'shine', type: 'boolean', label: 'Shine', description: 'Light sweep over the logo', defaultValue: true },
+    ],
+  },
+  {
+    name: 'BrandOutro',
+    category: 'Branding',
+    role: 'ui',
+    description: 'Closing brand card for the last scene: logo + brand + handle + CTA. Supports logo image, text, or both.',
+    props: [
+      { name: 'url', type: 'string', label: 'Logo URL', description: 'Logo image. Optional.', defaultValue: '' },
+      { name: 'brand', type: 'string', label: 'Brand', description: 'Brand name', defaultValue: 'Tu Marca' },
+      { name: 'handle', type: 'string', label: 'Handle', description: '@user or domain', defaultValue: '@tumarca' },
+      { name: 'cta', type: 'string', label: 'CTA', description: 'Call to action', defaultValue: 'Síguenos' },
+      { name: 'brandColor', type: 'color', label: 'Brand Color', description: 'Brand text color', defaultValue: '#0f172a' },
+      { name: 'accentColor', type: 'color', label: 'Accent Color', description: 'Handle + CTA color', defaultValue: '#00FFAB' },
+      { name: 'cardColor', type: 'color', label: 'Card Color', description: 'Card background', defaultValue: '#ffffff' },
     ],
   },
   {

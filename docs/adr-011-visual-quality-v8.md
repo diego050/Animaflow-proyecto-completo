@@ -1,7 +1,7 @@
 # ADR-011 — Visual Quality v8: plan de calidad + Fases 0a/0b (infra del pipeline + wins visuales)
 
 **Fecha:** 2026-06-15
-**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial**. Fase 3 **núcleo resuelto**. Fase 4 **avanzada** (tokens, springs, idle, halo, FloatingBlobs ambiental, Playground Lotes A+B, fix flash de entrada). Fase 5 **avanzada** (transiciones: FadeThroughBlack + variedad rotada + eliminado el crossfade de color turbio; texto opcional por escena AHORA determinista; catálogo Cinematic: KenBurns + CinematicBars; fix colisión GlitchTitle escena 1).
+**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial**. Fase 3 **núcleo resuelto**. Fase 4 **avanzada** (tokens, springs, idle, halo, FloatingBlobs ambiental, Playground Lotes A+B, fix flash de entrada). Fase 5 **avanzada** (transiciones: FadeThroughBlack + variedad rotada + eliminado el crossfade de color turbio; texto opcional por escena AHORA determinista; catálogo Cinematic COMPLETO: KenBurns + CinematicBars + Spotlight + CameraShake (vignette/grain ya en GlobalVFX); NetworkNodes rehecho full-screen; iconos mitigados; fix colisión GlitchTitle escena 1).
 **Contexto previo:** [adr-010-visual-quality-v7.md](./adr-010-visual-quality-v7.md), [coordinate-contract.md](./coordinate-contract.md)
 **Plan canónico (vivo):** [`../PLAN-MEJORA-CALIDAD.md`](../PLAN-MEJORA-CALIDAD.md) — este ADR resume; el plan tiene el detalle por fase.
 
@@ -349,8 +349,20 @@ Tests de colisión 10/10 verdes.
 - **`CinematicBars`** (`components/CinematicBars.tsx`, role `background`): barras
   letterbox (top+bottom) para el look 2.39:1, con slide-in determinista. Combina con
   KenBurns. Overlay zIndex 9990 (debajo de GlobalVFX/transiciones).
+- **`Spotlight`** (`components/Spotlight.tsx`, role `background`): foco teatral
+  full-screen (centro iluminado, bordes oscuros) que dirige la mirada al sujeto.
+  `radius`/`intensity`/`color`/`animate` (respiración determinista). Overlay zIndex 9985.
+- **`CameraShake`** (`components/CameraShake.tsx` + `utils/cameraShake.ts`, role
+  `background`): temblor de cámara en mano a NIVEL DE ESCENA (no una capa). Es un
+  marcador que renderiza null; `AnimaComposer` lo detecta, lo saca del render normal y
+  aplica el transform (suma de senos con fases deterministas vía `random`, + overscan
+  para no mostrar bordes) a TODO el contenido (fondo + capas). Props `intensity`,
+  `frequency`, `rotation`, `decay` (impacto que se calma). Cierra el ítem 21 (Cinematic).
 - **Vignette + film grain + aberración cromática ya existían** en `GlobalVFX`
   (zIndex 9998) → NO se duplicaron. El catálogo Cinematic se completó con lo que faltaba.
+- Backend: `Spotlight`/`CameraShake`/`CinematicBars` añadidos a `_FILL_COMPONENTS`
+  (no se reposicionan ni cuentan como "visual real" en el strip de texto) y a
+  `BACKGROUND_COMPONENTS` (sin entry/exit inyectado); `KenBurns` también en este último.
 - Registrados en `registry.ts` (import + lista + mapa) y `manifest.ts`; regenerado
   `component_manifest.json` (**113 componentes**, en sync), tsc OK, backend lee 113.
 - NOTA de deploy: para que el LLM pueda **seleccionarlos vía RAG** hay que re-seedear
@@ -366,14 +378,57 @@ que aparecen/desaparecen = red viva). Props nuevas en el manifest: `nodeCount` (
 `connectionDistance` (auto si vacío), `speed`; se quitaron `width/height`. Respeta
 `opacity` y el alias `color`. tsc OK, manifest en sync (113).
 
+**Selección de iconos (mitigado sin re-embed):** RAW cause = la query se embebe con
+`gemini-embedding-2` pero la tabla `iconify_icons` (43k) sigue en **all-mpnet** →
+espacios vectoriales distintos (misma dim 768) → matches por coincidencia literal
+("diez minutos" → `10mp`). Fix definitivo = re-embed (diferido). Mitigaciones hechas:
+- `iconify_search._is_junk_icon`: filtra candidatos basura (megapíxeles `\d+mp`,
+  resoluciones `4k/1080p/16x9`, nombres numéricos) sobre-pidiendo 4× y recortando.
+  Test `tests/test_icon_junk_filter.py` (3).
+- Prompt de iconos reescrito: las sugerencias RAG son **PISTAS OPCIONALES**; si no
+  encajan, el LLM elige un ícono conocido por su cuenta (mdi/lucide/tabler) — su
+  criterio manda. Regla explícita: representar el CONCEPTO, no coincidencia literal;
+  `size` SIEMPRE número. (El sanitizado de `size` ya coercionaba "120"→120 y borraba
+  basura como "color1"; eso ya funcionaba.)
+
+**Logo & Branding (ítem 22 — categoría nueva `Branding`):** soporta logo-imagen Y/O
+texto (el usuario eligió "Ambos").
+- **`LogoReveal`** (`components/LogoReveal.tsx`): intro de marca — logo (`url`) +
+  nombre + tagline con reveal (spring pop) y barrido de brillo. Si no hay `url`, es
+  solo texto. Responsive (useCanvas), tokens (SPRING/elevation/TEXT_HALO).
+- **`BrandOutro`** (`components/BrandOutro.tsx`): tarjeta de cierre para la última
+  escena — logo + marca + handle + CTA en pill. Responsive, tokens (radius/elevation).
+- Ambos role `ui` (son contenido/héroe, NO fondo): pueden sostener una escena. Registrados
+  + manifest (categoría `Branding`, añadida al orden de la galería). Total 117, tsc OK.
+
+**Image & Media (ítem 23) — POSPUESTO con motivo:** auditoría del backend → NO hay
+fuente de imágenes en el pipeline (sin Unsplash/Pexels/stock ni generación). Crear más
+componentes de imagen ahora es bajo ROI: el LLM no tendría URLs para usarlos (solo
+servirían en el Playground/props manuales). `KenBurns` + `MediaFrame` ya cubren el caso
+manual. Se retoma cuando exista un pipeline de imágenes.
+
+**Variantes de Text (ítem 24) — `GradientText`:** texto con relleno de gradiente
+animado (shimmer) vía `background-clip: text`. Hueco claro (no había equivalente),
+moderno, sin assets → el LLM lo usa de inmediato. Determinista (barrido por `frame`),
+responsive (useCanvas). Añadido a TODOS los sets de texto del backend
+(`_TEXT_COMPONENTS_BB`, `TEXT_COMPONENT_NAMES` auto-fit, `COMPONENT_DEFAULT_WIDTHS`,
+`TEXT_FOR_ENTRY`) para que herede width/auto-fit/colisión/entry como el resto. Total 118.
+
+**Playground agrupado por categoría (`AnimationsGallery.tsx`):** antes era una lista
+plana gigante de 115 componentes. Ahora se **agrupa por `category`** del manifest
+(orden: Cinematic, Background, Transition, Text, UI, Charts & Data, Social, General),
+con contador por grupo, descripción en cada card y **buscador** por nombre/descripción.
+Todo componente del manifest aparece automáticamente (los nuevos de Fase 5 incluidos).
+Los efectos de escena (`CameraShake`, `Spotlight`) se previsualizan con un **sujeto de
+muestra** detrás (`SceneEffectDemo` en `AnimationPlayground.tsx`) — antes CameraShake
+(que renderiza null) se veía vacío.
+
 **PENDIENTE (Fase 5):**
-- **Selección de iconos** (render 2026-06-16): match literal basura — "diez minutos"
-  → `material-symbols:10mp-outline` (ícono de cámara "10 MP"); e iconos que no
-  cargan → fallback a `mdi:star`. Revisar `iconify_search`/RAG de iconos.
+- **Re-embed de iconos (43k)** con el modelo actual — fix definitivo de la selección
+  (hoy mitigado). Ver §10.1.
 - Elegir la transición por continuidad de escena (no solo rotación por índice).
 - Categorías nuevas tipo ReactVideoEditor restantes: **Logo & Branding**, **Image & Media**.
 - dotLottie / @remotion/skia para efectos premium.
-- Re-embed final de iconos (43k) — ver §10.1.
 
 ---
 

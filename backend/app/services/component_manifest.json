@@ -305,6 +305,54 @@
       }
     },
     {
+      "name": "GradientText",
+      "category": "Text",
+      "role": "text",
+      "description": "Text filled with an animated (shimmering) color gradient. Modern, eye-catching headline style.",
+      "props": {
+        "text": {
+          "type": "string",
+          "label": "Text",
+          "description": "The text",
+          "default": "Texto degradado"
+        },
+        "colors": {
+          "type": "list",
+          "label": "Colors",
+          "description": "Gradient colors (2-4)",
+          "default": [
+            "#00FFAB",
+            "#38bdf8",
+            "#a855f7"
+          ]
+        },
+        "angle": {
+          "type": "number",
+          "label": "Angle",
+          "description": "Gradient angle (deg)",
+          "default": 100,
+          "min": 0,
+          "max": 360
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Shimmer speed (0 = static)",
+          "default": 1,
+          "min": 0,
+          "max": 4
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Font weight",
+          "default": 900,
+          "min": 100,
+          "max": 900
+        }
+      }
+    },
+    {
       "name": "StrikethroughText",
       "category": "Text",
       "role": "text",
@@ -750,6 +798,80 @@
           "label": "Animate",
           "description": "Slide bars in",
           "default": true
+        }
+      }
+    },
+    {
+      "name": "Spotlight",
+      "category": "Background",
+      "role": "background",
+      "description": "Theatrical spotlight overlay: lights the center and darkens the edges to focus attention on the subject. Full-screen, cinematic.",
+      "props": {
+        "radius": {
+          "type": "number",
+          "label": "Radius",
+          "description": "Spotlight size (% of canvas)",
+          "default": 55,
+          "min": 10,
+          "max": 95
+        },
+        "intensity": {
+          "type": "number",
+          "label": "Darkness",
+          "description": "Edge darkness (0-1)",
+          "default": 0.7,
+          "min": 0,
+          "max": 1
+        },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Darkness color",
+          "default": "#000000"
+        },
+        "animate": {
+          "type": "boolean",
+          "label": "Animate",
+          "description": "Subtle breathing of the spotlight",
+          "default": true
+        }
+      }
+    },
+    {
+      "name": "CameraShake",
+      "category": "Background",
+      "role": "background",
+      "description": "Scene-wide handheld camera shake (affects the WHOLE scene, not one layer). Use for impact/energy moments. It draws nothing by itself.",
+      "props": {
+        "intensity": {
+          "type": "number",
+          "label": "Intensity",
+          "description": "Shake amplitude (px)",
+          "default": 12,
+          "min": 0,
+          "max": 60
+        },
+        "frequency": {
+          "type": "number",
+          "label": "Frequency",
+          "description": "Shakes per second (approx)",
+          "default": 8,
+          "min": 1,
+          "max": 20
+        },
+        "rotation": {
+          "type": "number",
+          "label": "Rotation",
+          "description": "Max rotation (degrees)",
+          "default": 0.6,
+          "min": 0,
+          "max": 5
+        },
+        "decay": {
+          "type": "boolean",
+          "label": "Decay",
+          "description": "Strong initial impact that settles",
+          "default": false
         }
       }
     },
@@ -2491,6 +2613,100 @@
           "type": "string",
           "label": "Text",
           "description": "Content text displayed on screen"
+        }
+      }
+    },
+    {
+      "name": "LogoReveal",
+      "category": "Branding",
+      "role": "ui",
+      "description": "Brand intro: animated reveal of a logo image (url) and/or brand name + tagline, with a shine sweep. Supports logo image, text, or both.",
+      "props": {
+        "url": {
+          "type": "string",
+          "label": "Logo URL",
+          "description": "Logo image. Leave empty for text-only brand.",
+          "default": ""
+        },
+        "brand": {
+          "type": "string",
+          "label": "Brand",
+          "description": "Brand name / handle",
+          "default": "Tu Marca"
+        },
+        "tagline": {
+          "type": "string",
+          "label": "Tagline",
+          "description": "Optional line below the brand",
+          "default": ""
+        },
+        "brandColor": {
+          "type": "color",
+          "label": "Brand Color",
+          "description": "Brand text color",
+          "default": "#ffffff"
+        },
+        "taglineColor": {
+          "type": "color",
+          "label": "Tagline Color",
+          "description": "Tagline color",
+          "default": "#94a3b8"
+        },
+        "shine": {
+          "type": "boolean",
+          "label": "Shine",
+          "description": "Light sweep over the logo",
+          "default": true
+        }
+      }
+    },
+    {
+      "name": "BrandOutro",
+      "category": "Branding",
+      "role": "ui",
+      "description": "Closing brand card for the last scene: logo + brand + handle + CTA. Supports logo image, text, or both.",
+      "props": {
+        "url": {
+          "type": "string",
+          "label": "Logo URL",
+          "description": "Logo image. Optional.",
+          "default": ""
+        },
+        "brand": {
+          "type": "string",
+          "label": "Brand",
+          "description": "Brand name",
+          "default": "Tu Marca"
+        },
+        "handle": {
+          "type": "string",
+          "label": "Handle",
+          "description": "@user or domain",
+          "default": "@tumarca"
+        },
+        "cta": {
+          "type": "string",
+          "label": "CTA",
+          "description": "Call to action",
+          "default": "Síguenos"
+        },
+        "brandColor": {
+          "type": "color",
+          "label": "Brand Color",
+          "description": "Brand text color",
+          "default": "#0f172a"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Handle + CTA color",
+          "default": "#00FFAB"
+        },
+        "cardColor": {
+          "type": "color",
+          "label": "Card Color",
+          "description": "Card background",
+          "default": "#ffffff"
         }
       }
     },

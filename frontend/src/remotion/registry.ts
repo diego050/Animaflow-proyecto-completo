@@ -7,10 +7,12 @@ import { AnimatedShape } from './components/AnimatedShape';
 import { AppStoreButtons } from './components/AppStoreButtons';
 import { AudioSpectrumBars } from './components/AudioSpectrumBars';
 import { BarChartReveal } from './components/BarChartReveal';
+import { BrandOutro } from './components/BrandOutro';
 import { BreakingNewsAlert } from './components/BreakingNewsAlert';
 import { BreakingNewsTicker } from './components/BreakingNewsTicker';
 import { BrowserWindow } from './components/BrowserWindow';
 import { CalendarDatePop } from './components/CalendarDatePop';
+import { CameraShake } from './components/CameraShake';
 import { CinematicBars } from './components/CinematicBars';
 import { CodeBlockHighlight } from './components/CodeBlockHighlight';
 import { CountdownTimer } from './components/CountdownTimer';
@@ -29,6 +31,7 @@ import { GlitchTitle } from './components/GlitchTitle';
 import { GlitchTransition } from './components/GlitchTransition';
 import { GlobalVFX } from './components/GlobalVFX';
 import { GradientOverlay } from './components/GradientOverlay';
+import { GradientText } from './components/GradientText';
 import { GridPerspective } from './components/GridPerspective';
 import { HighlightText } from './components/HighlightText';
 import { HorizontalBarRace } from './components/HorizontalBarRace';
@@ -39,6 +42,7 @@ import { KeywordPop } from './components/KeywordPop';
 import { KineticBackground } from './components/KineticBackground';
 import { LightLeakTransition } from './components/LightLeakTransition';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { LogoReveal } from './components/LogoReveal';
 import { LowerThird } from './components/LowerThird';
 import { MaskedReveal } from './components/MaskedReveal';
 import { MediaFrame } from './components/MediaFrame';
@@ -66,6 +70,7 @@ import { SizeSelector } from './components/SizeSelector';
 import { SocialProgressBar } from './components/SocialProgressBar';
 import { SocialSharePopup } from './components/SocialSharePopup';
 import { SoundWaveCircle } from './components/SoundWaveCircle';
+import { Spotlight } from './components/Spotlight';
 import { SplitScreenGrid } from './components/SplitScreenGrid';
 import { SplitText } from './components/SplitText';
 import { StockCandlestick } from './components/StockCandlestick';
@@ -122,10 +127,12 @@ export const COMPONENT_NAMES = [
   'AppStoreButtons',
   'AudioSpectrumBars',
   'BarChartReveal',
+  'BrandOutro',
   'BreakingNewsAlert',
   'BreakingNewsTicker',
   'BrowserWindow',
   'CalendarDatePop',
+  'CameraShake',
   'CinematicBars',
   'CodeBlockHighlight',
   'CountdownTimer',
@@ -144,6 +151,7 @@ export const COMPONENT_NAMES = [
   'GlitchTransition',
   'GlobalVFX',
   'GradientOverlay',
+  'GradientText',
   'GridPerspective',
   'HighlightText',
   'HorizontalBarRace',
@@ -154,6 +162,7 @@ export const COMPONENT_NAMES = [
   'KineticBackground',
   'LightLeakTransition',
   'LoadingSpinner',
+  'LogoReveal',
   'LowerThird',
   'MaskedReveal',
   'MediaFrame',
@@ -181,6 +190,7 @@ export const COMPONENT_NAMES = [
   'SocialProgressBar',
   'SocialSharePopup',
   'SoundWaveCircle',
+  'Spotlight',
   'SplitScreenGrid',
   'SplitText',
   'StockCandlestick',
@@ -238,10 +248,12 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   AppStoreButtons,
   AudioSpectrumBars,
   BarChartReveal,
+  BrandOutro,
   BreakingNewsAlert,
   BreakingNewsTicker,
   BrowserWindow,
   CalendarDatePop,
+  CameraShake,
   CinematicBars,
   CodeBlockHighlight,
   CountdownTimer,
@@ -260,6 +272,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   GlitchTransition,
   GlobalVFX,
   GradientOverlay,
+  GradientText,
   GridPerspective,
   HighlightText,
   HorizontalBarRace,
@@ -270,6 +283,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   KineticBackground,
   LightLeakTransition,
   LoadingSpinner,
+  LogoReveal,
   LowerThird,
   MaskedReveal,
   MediaFrame,
@@ -297,6 +311,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   SocialProgressBar,
   SocialSharePopup,
   SoundWaveCircle,
+  Spotlight,
   SplitScreenGrid,
   SplitText,
   StockCandlestick,
