@@ -14,6 +14,8 @@ interface StyleTextBlockProps extends UniversalProps {
   variant?: 'heading' | 'body' | 'caption' | 'quote';
   align?: 'left' | 'center' | 'right';
   maxLines?: number;
+  /** Si hay maxLines: true recorta con "…"; false deja fluir/envolver. */
+  truncate?: boolean;
   width?: number;
   fontSize?: number;
   fontWeight?: number;
@@ -38,6 +40,7 @@ export const StyleTextBlock: React.FC<StyleTextBlockProps> = ({
   variant = 'heading',
   align = 'center',
   maxLines,
+  truncate = true,
   width = 400,
   fontSize,
   fontWeight,
@@ -84,7 +87,7 @@ export const StyleTextBlock: React.FC<StyleTextBlockProps> = ({
   const customTextDecoration = (style?.textDecoration as React.CSSProperties['textDecoration']) ?? 'none';
   const customFontStyle = variant === 'quote' ? 'italic' : ((style?.fontStyle as string) ?? 'normal');
 
-  const webkitLineClamp = maxLines ? {
+  const webkitLineClamp = (maxLines && truncate) ? {
     WebkitLineClamp: maxLines,
     WebkitBoxOrient: 'vertical' as const,
     overflow: 'hidden',

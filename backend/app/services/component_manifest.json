@@ -121,6 +121,12 @@
           "label": "Max Lines",
           "description": "Maximum number of lines before truncation"
         },
+        "truncate": {
+          "type": "boolean",
+          "label": "Truncate",
+          "description": "Con Max Lines: true recorta con \"…\"; false deja fluir/envolver",
+          "default": true
+        },
         "fontWeight": {
           "type": "number",
           "label": "Font Weight",
@@ -583,31 +589,35 @@
       "name": "FloatingBlobs",
       "category": "Background",
       "role": "background",
-      "description": "Gooey blob effect with two rotating, merging blobs using SVG filter.",
+      "description": "Fondo ambiental de glows de color suaves y difusos. Opacidad vía Universal Props.",
       "props": {
         "color1": {
           "type": "color",
-          "label": "Blob 1 Color",
-          "description": "Color of the first blob",
+          "label": "Color 1",
+          "description": "Color del primer glow",
           "default": "#f43f5e"
         },
         "color2": {
           "type": "color",
-          "label": "Blob 2 Color",
-          "description": "Color of the second blob",
-          "default": "#f59e0b"
+          "label": "Color 2",
+          "description": "Color del segundo glow",
+          "default": "#38bdf8"
         },
-        "width": {
+        "count": {
           "type": "number",
-          "label": "Width",
-          "description": "Container width",
-          "default": 800
+          "label": "Cantidad de glows",
+          "description": "Número de glows (1-5)",
+          "default": 2,
+          "min": 1,
+          "max": 5
         },
-        "height": {
+        "blur": {
           "type": "number",
-          "label": "Height",
-          "description": "Container height",
-          "default": 800
+          "label": "Desenfoque",
+          "description": "Desenfoque del conjunto (vmin)",
+          "default": 6,
+          "min": 0,
+          "max": 20
         }
       }
     },
@@ -817,6 +827,20 @@
             "md",
             "lg"
           ]
+        },
+        "shadow": {
+          "type": "boolean",
+          "label": "Sombra",
+          "description": "Mostrar boxShadow",
+          "default": true
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Radio de borde",
+          "description": "px (999 = píldora)",
+          "default": 999,
+          "min": 0,
+          "max": 999
         }
       }
     },
@@ -869,6 +893,20 @@
             "left",
             "right"
           ]
+        },
+        "shadow": {
+          "type": "boolean",
+          "label": "Sombra",
+          "description": "Mostrar boxShadow",
+          "default": true
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Radio de borde",
+          "description": "px (override)",
+          "default": 14,
+          "min": 0,
+          "max": 999
         }
       }
     },
@@ -3138,6 +3176,14 @@
           "type": "text-long",
           "label": "Response Body",
           "description": "JSON body of the API response"
+        },
+        "arrowSpeed": {
+          "type": "number",
+          "label": "Velocidad de flecha",
+          "description": "1 = normal, 2 = el doble de rápida",
+          "default": 1,
+          "min": 0.25,
+          "max": 4
         }
       }
     },

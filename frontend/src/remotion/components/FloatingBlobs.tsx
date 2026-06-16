@@ -21,12 +21,18 @@ export const FloatingBlobs: React.FC<{
   width?: number;
   height?: number;
   opacity?: number;
+  /** Número de glows (1-5). */
+  count?: number;
+  /** Desenfoque del conjunto (en vmin). */
+  blur?: number;
 } & UniversalProps> = ({
   color1 = '#f43f5e', // Rose
   color2 = '#38bdf8', // Sky
   delay = 0,
   color,
   opacity = 1,
+  count = 2,
+  blur = 6,
 }) => {
   const frame = useCurrentFrame();
   const c = useCanvas();
@@ -60,6 +66,17 @@ export const FloatingBlobs: React.FC<{
     };
   };
 
+  // Posiciones base distribuidas hacia los bordes (no en el centro del texto).
+  const layout = [
+    { cx: -c.vw(20), cy: -c.vh(16), period: 90, phase: 0, size: 70 },
+    { cx: c.vw(20), cy: c.vh(18), period: 110, phase: 200, size: 62 },
+    { cx: c.vw(22), cy: -c.vh(20), period: 100, phase: 90, size: 55 },
+    { cx: -c.vw(22), cy: c.vh(20), period: 120, phase: 300, size: 58 },
+    { cx: 0, cy: c.vh(2), period: 130, phase: 150, size: 50 },
+  ];
+  const palette = [color1, color || color2, color1, color2, color || color2];
+  const n = Math.max(1, Math.min(5, Math.round(Number(count) || 2)));
+
   return (
     <div
       style={{
@@ -70,15 +87,14 @@ export const FloatingBlobs: React.FC<{
         height: `${c.height}px`,
         zIndex: 1,
         opacity,
-        filter: `blur(${c.vmin(6)}px)`,
+        filter: `blur(${c.vmin(Number(blur) || 6)}px)`,
         pointerEvents: 'none',
         overflow: 'hidden',
       }}
     >
-      {/* glow 1 — arriba a la izquierda */}
-      <div style={glow(color1, -c.vw(20), -c.vh(16), 90, 0, 70)} />
-      {/* glow 2 — abajo a la derecha */}
-      <div style={glow(color || color2, c.vw(20), c.vh(18), 110, 200, 62)} />
+      {layout.slice(0, n).map((b, i) => (
+        <div key={i} style={glow(palette[i], b.cx, b.cy, b.period, b.phase, b.size)} />
+      ))}
     </div>
   );
 };

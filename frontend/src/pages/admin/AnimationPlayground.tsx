@@ -1,8 +1,10 @@
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Palette, ChevronDown, ChevronRight } from 'lucide-react';
 import { Player } from '@remotion/player';
 import { COMPONENT_REGISTRY } from '../../remotion/registry';
+import { AnimatedWrapper } from '../../remotion/AnimatedWrapper';
+import type { EntryType, ExitType } from '../../remotion/AnimatedWrapper';
 import {
   getComponentManifest,
   getDefaultProps,
@@ -1160,26 +1162,37 @@ const STYLE_SYSTEM_EXAMPLES = [
   }
 ];
 
-// Universal props that should be editable in the UI (subset of UNIVERSAL_PROPS)
-const EDITABLE_UNIVERSAL_PROPS: { name: string; type: PropType; label: string; defaultValue?: string | number; options?: string[]; min?: number; max?: number }[] = [
+type UniversalPropDef = { name: string; type: PropType; label: string; defaultValue?: string | number; options?: string[]; min?: number; max?: number };
+
+// Universales de POSICIÓN / ANIMACIÓN — aplican a TODOS los componentes (los
+// maneja el wrapper, no el componente). Siempre se muestran.
+const POSITION_ANIM_PROPS: UniversalPropDef[] = [
   { name: 'x', type: 'number', label: 'Position X', defaultValue: 540 },
   { name: 'y', type: 'number', label: 'Position Y', defaultValue: 960 },
-  { name: 'color', type: 'color', label: 'Color' },
-  { name: 'bgColor', type: 'color', label: 'Background Color', defaultValue: '#0f172a' },
-  { name: 'textColor', type: 'color', label: 'Text Color', defaultValue: '#f8fafc' },
-  { name: 'fontSize', type: 'number', label: 'Font Size', defaultValue: 40 },
-  { name: 'width', type: 'number', label: 'Width' },
-  { name: 'height', type: 'number', label: 'Height' },
-  { name: 'delay', type: 'number', label: 'Delay (s)', defaultValue: 0 },
   { name: 'scale', type: 'number', label: 'Scale', defaultValue: 1 },
   { name: 'rotation', type: 'number', label: 'Rotation (deg)', defaultValue: 0 },
   { name: 'opacity', type: 'number', label: 'Opacity', defaultValue: 1, min: 0, max: 1 },
   { name: 'entry', type: 'select', label: 'Entry Animation', options: ['fade-in', 'slide-up', 'slide-down', 'slide-left', 'slide-right', 'scale-in', 'spring-in', 'bounce-in'] },
   { name: 'entryDelay', type: 'number', label: 'Entry Delay (s)', defaultValue: 0 },
+  { name: 'entryDuration', type: 'number', label: 'Entry Duration (frames)', defaultValue: 15 },
   { name: 'exit', type: 'select', label: 'Exit Animation', options: ['fade-out', 'slide-up-out', 'slide-down-out', 'slide-left-out', 'slide-right-out', 'scale-out', 'spring-out', 'bounce-out'] },
-  { name: 'exitDelay', type: 'number', label: 'Exit Delay (s)', defaultValue: 0 },
-  { name: 'exitDuration', type: 'number', label: 'Exit Duration (frames)', defaultValue: 30 },
+  { name: 'exitDuration', type: 'number', label: 'Exit Duration (frames)', defaultValue: 15 },
 ];
+
+// Universales de ESTILO — solo relevantes en componentes de texto/UI. Para
+// fondos/decorativos/charts NO se muestran (eran los inputs "irrelevantes" tipo
+// fontSize en FloatingBlobs). `bgColor` se quitó de aquí: el fondo es del PREVIEW,
+// no del componente (ver control de fondo en el área del Player).
+const STYLE_UNIVERSAL_PROPS: UniversalPropDef[] = [
+  { name: 'color', type: 'color', label: 'Color' },
+  { name: 'textColor', type: 'color', label: 'Text Color', defaultValue: '#f8fafc' },
+  { name: 'fontSize', type: 'number', label: 'Font Size (px)', defaultValue: 64 },
+  { name: 'width', type: 'number', label: 'Width' },
+  { name: 'height', type: 'number', label: 'Height' },
+];
+
+const STYLE_RELEVANT_ROLES = new Set(['text', 'ui']);
+const STYLE_RELEVANT_CATEGORIES = new Set(['Text', 'UI']);
 
 /**
  * Props editor for a single component.
@@ -1197,11 +1210,22 @@ function ComponentPropsEditor({
 }) {
   const [showUniversalProps, setShowUniversalProps] = useState(false);
 
+  // ¿Mostrar universales de ESTILO (color/fontSize/...)? Solo en texto/UI; en
+  // fondos/decorativos/charts no aplican (evita inputs irrelevantes).
+  const showStyle = !!(
+    manifestEntry &&
+    (STYLE_RELEVANT_ROLES.has(manifestEntry.role) || STYLE_RELEVANT_CATEGORIES.has(manifestEntry.category))
+  );
+  const relevantUniversals = useMemo(
+    () => (showStyle ? [...POSITION_ANIM_PROPS, ...STYLE_UNIVERSAL_PROPS] : POSITION_ANIM_PROPS),
+    [showStyle]
+  );
+
   // Initialize props from manifest defaults + universal defaults (lazy init — runs once per mount)
   const [props, setProps] = useState<Record<string, unknown>>(() => {
     const componentDefaults = getDefaultProps(componentName);
     const universalDefaults: Record<string, unknown> = {};
-    for (const up of EDITABLE_UNIVERSAL_PROPS) {
+    for (const up of relevantUniversals) {
       if (up.defaultValue !== undefined) {
         universalDefaults[up.name] = up.defaultValue;
       }
@@ -1331,7 +1355,7 @@ function ComponentPropsEditor({
     }
   }, [props, handlePropChange]);
 
-  const renderUniversalInput = useCallback((prop: typeof EDITABLE_UNIVERSAL_PROPS[number]) => {
+  const renderUniversalInput = useCallback((prop: UniversalPropDef) => {
     const value = props[prop.name];
 
     switch (prop.type) {
@@ -1415,12 +1439,12 @@ function ComponentPropsEditor({
           className="flex items-center gap-2 w-full text-left text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
         >
           {showUniversalProps ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          Universal Props
+          Posición y Animación{showStyle ? ' / Estilo' : ''}
         </button>
 
         {showUniversalProps && (
           <div className="mt-3 space-y-3">
-            {EDITABLE_UNIVERSAL_PROPS.map((prop) => (
+            {relevantUniversals.map((prop) => (
               <div key={prop.name}>
                 <label className="block text-xs font-medium text-text-secondary mb-1">
                   {prop.label}
@@ -1462,7 +1486,34 @@ export function AnimationPlayground() {
   // Fase 2: selector de aspect ratio para validar responsividad en todos los formatos.
   const [aspect, setAspect] = useState<'9:16' | '4:5' | '1:1' | '16:9'>('9:16');
 
-  if (!Component) {
+  // Lote A: fondo del preview (color o transparente).
+  const [previewTransparent, setPreviewTransparent] = useState(false);
+  const [previewBgColor, setPreviewBgColor] = useState('#0f172a');
+
+  // Lote A: envuelve el componente en AnimatedWrapper para que entry/exit SÍ se
+  // vean en el Playground (igual que en el render real con AnimaComposer). Las
+  // props de animación se quitan del componente interno para no animar doble.
+  const PreviewComponent = useMemo(() => {
+    if (!Component) return null;
+    const Wrapped: React.FC<Record<string, unknown>> = (p) => {
+      const { entry, exit, entryDelay, entryDuration, exitDuration, ...rest } = p;
+      return (
+        <AnimatedWrapper
+          entry={(entry as EntryType) || null}
+          exit={(exit as ExitType) || null}
+          delay={typeof entryDelay === 'number' ? entryDelay : 0}
+          entryDuration={typeof entryDuration === 'number' ? entryDuration : 15}
+          exitDuration={typeof exitDuration === 'number' ? exitDuration : 15}
+          durationInFrames={150}
+        >
+          <Component {...(rest as Record<string, unknown>)} />
+        </AnimatedWrapper>
+      );
+    };
+    return Wrapped;
+  }, [Component]);
+
+  if (!Component || !PreviewComponent) {
     return <div className="p-8 text-white">Componente no encontrado.</div>;
   }
 
@@ -1561,8 +1612,8 @@ export function AnimationPlayground() {
 
       {/* Player Area */}
       <div className="flex-1 bg-surface-lowest p-8 flex flex-col items-center justify-center relative">
-        {/* Aspect ratio selector (Fase 2: validar responsividad) */}
-        <div className="mb-4 flex items-center gap-2">
+        {/* Controles: aspect ratio + fondo del preview */}
+        <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
           {(Object.keys(ASPECTS) as Array<keyof typeof ASPECTS>).map((ar) => (
             <button
               key={ar}
@@ -1576,11 +1627,40 @@ export function AnimationPlayground() {
               {ar}
             </button>
           ))}
+          <span className="mx-1 h-5 w-px bg-border-tech" />
+          {/* Fondo del preview (Lote A) */}
+          <button
+            onClick={() => setPreviewTransparent((t) => !t)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              previewTransparent
+                ? 'bg-mint-precision/10 border border-mint-precision/30 text-mint-precision'
+                : 'bg-surface-container border border-border-tech hover:border-mint-precision/30 text-text-secondary'
+            }`}
+            title="Fondo transparente"
+          >
+            Transparente
+          </button>
+          <input
+            type="color"
+            value={previewBgColor}
+            onChange={(e) => { setPreviewBgColor(e.target.value); setPreviewTransparent(false); }}
+            className="w-8 h-8 rounded cursor-pointer border border-border-tech"
+            title="Color de fondo del preview"
+          />
         </div>
-        <div className="bg-surface-container p-4 rounded-xl shadow-2xl border border-border-tech">
+        <div
+          className="p-4 rounded-xl shadow-2xl border border-border-tech"
+          // Tablero de ajedrez para visualizar la transparencia.
+          style={previewTransparent ? {
+            backgroundColor: '#1a1a1a',
+            backgroundImage: 'linear-gradient(45deg,#2a2a2a 25%,transparent 25%),linear-gradient(-45deg,#2a2a2a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#2a2a2a 75%),linear-gradient(-45deg,transparent 75%,#2a2a2a 75%)',
+            backgroundSize: '20px 20px',
+            backgroundPosition: '0 0,0 10px,10px -10px,-10px 0',
+          } : { backgroundColor: 'var(--surface-container, #16181d)' }}
+        >
           <Player
-            key={aspect}
-            component={Component}
+            key={`${aspect}-${previewTransparent}`}
+            component={PreviewComponent}
             inputProps={{ ...props, x: dim.w / 2, y: dim.h / 2 }}
             durationInFrames={150} // 5 segundos
             compositionWidth={dim.w}
@@ -1591,7 +1671,7 @@ export function AnimationPlayground() {
               height: `${previewH}px`,
               borderRadius: '8px',
               overflow: 'hidden',
-              backgroundColor: (props.bgColor as string | undefined) ?? '#0f172a'
+              backgroundColor: previewTransparent ? 'transparent' : previewBgColor,
             }}
             controls
             autoPlay
@@ -1599,7 +1679,7 @@ export function AnimationPlayground() {
           />
         </div>
         <p className="mt-4 text-xs text-text-secondary/60 text-center max-w-sm">
-          Vista previa en canvas {dim.w}×{dim.h} ({aspect}), escalado a {previewW}×{previewH}. Cambia el formato para validar la responsividad.
+          Vista previa en canvas {dim.w}×{dim.h} ({aspect}), escalado a {previewW}×{previewH}. Cambia formato/fondo y prueba las animaciones de entrada/salida.
         </p>
       </div>
     </div>

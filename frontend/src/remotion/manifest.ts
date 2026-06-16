@@ -99,6 +99,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
       { name: 'variant', type: 'select', label: 'Variant', description: 'Text style variant', defaultValue: 'heading', options: ['heading', 'body', 'caption', 'quote'] },
       { name: 'align', type: 'select', label: 'Alignment', description: 'Text alignment', defaultValue: 'center', options: ['left', 'center', 'right'] },
       { name: 'maxLines', type: 'number', label: 'Max Lines', description: 'Maximum number of lines before truncation' },
+      { name: 'truncate', type: 'boolean', label: 'Truncate', description: 'Con Max Lines: true recorta con "…"; false deja fluir/envolver', defaultValue: true },
       { name: 'fontWeight', type: 'number', label: 'Font Weight', description: 'Font weight override' },
       { name: 'wordTimestamps', type: 'list', label: 'Word Timestamps', description: 'Array of word timing objects for karaoke sync' },
     ],
@@ -268,12 +269,12 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
     name: 'FloatingBlobs',
     category: 'Background',
     role: 'background',
-    description: 'Gooey blob effect with two rotating, merging blobs using SVG filter.',
+    description: 'Fondo ambiental de glows de color suaves y difusos. Opacidad vía Universal Props.',
     props: [
-      { name: 'color1', type: 'color', label: 'Blob 1 Color', description: 'Color of the first blob', defaultValue: '#f43f5e' },
-      { name: 'color2', type: 'color', label: 'Blob 2 Color', description: 'Color of the second blob', defaultValue: '#f59e0b' },
-      { name: 'width', type: 'number', label: 'Width', description: 'Container width', defaultValue: 800 },
-      { name: 'height', type: 'number', label: 'Height', description: 'Container height', defaultValue: 800 },
+      { name: 'color1', type: 'color', label: 'Color 1', description: 'Color del primer glow', defaultValue: '#f43f5e' },
+      { name: 'color2', type: 'color', label: 'Color 2', description: 'Color del segundo glow', defaultValue: '#38bdf8' },
+      { name: 'count', type: 'number', label: 'Cantidad de glows', description: 'Número de glows (1-5)', defaultValue: 2, min: 1, max: 5 },
+      { name: 'blur', type: 'number', label: 'Desenfoque', description: 'Desenfoque del conjunto (vmin)', defaultValue: 6, min: 0, max: 20 },
     ],
   },
   {
@@ -356,6 +357,8 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
       { name: 'variant', type: 'select', label: 'Variant', description: 'Badge color variant', defaultValue: 'neutral', options: ['success', 'warning', 'error', 'info', 'neutral'] },
       { name: 'icon', type: 'icon', label: 'Icon', description: 'Optional Iconify icon' },
       { name: 'size', type: 'select', label: 'Size', description: 'Badge size', defaultValue: 'md', options: ['sm', 'md', 'lg'] },
+      { name: 'shadow', type: 'boolean', label: 'Sombra', description: 'Mostrar boxShadow', defaultValue: true },
+      { name: 'borderRadius', type: 'number', label: 'Radio de borde', description: 'px (999 = píldora)', defaultValue: 999, min: 0, max: 999 },
     ],
   },
   {
@@ -369,6 +372,8 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
       { name: 'size', type: 'select', label: 'Size', description: 'Button size', defaultValue: 'md', options: ['sm', 'md', 'lg'] },
       { name: 'icon', type: 'icon', label: 'Icon', description: 'Optional Iconify icon' },
       { name: 'iconPosition', type: 'select', label: 'Icon Position', description: 'Icon placement', defaultValue: 'left', options: ['left', 'right'] },
+      { name: 'shadow', type: 'boolean', label: 'Sombra', description: 'Mostrar boxShadow', defaultValue: true },
+      { name: 'borderRadius', type: 'number', label: 'Radio de borde', description: 'px (override)', defaultValue: 14, min: 0, max: 999 },
     ],
   },
   {
@@ -1189,6 +1194,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
       { name: 'responseCode', type: 'number', label: 'Response Code', description: 'HTTP status code', defaultValue: 200 },
       { name: 'requestBody', type: 'text-long', label: 'Request Body', description: 'JSON body of the API request' },
       { name: 'responseBody', type: 'text-long', label: 'Response Body', description: 'JSON body of the API response' },
+      { name: 'arrowSpeed', type: 'number', label: 'Velocidad de flecha', description: '1 = normal, 2 = el doble de rápida', defaultValue: 1, min: 0.25, max: 4 },
     ],
   },
 
