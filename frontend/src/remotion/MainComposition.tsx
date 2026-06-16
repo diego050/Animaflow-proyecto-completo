@@ -6,12 +6,12 @@ import { AnimaComposer } from './composer/AnimaComposer';
 import { COMPONENT_REGISTRY } from './registry';
 import { TransitionWrapper } from './transitions/TransitionWrapper';
 
-// C2 (v7.5): transición de escena por defecto. GradientOverlay es SIMÉTRICO
-// (opacidad sin(progress·π): claro→pico→claro), así que como overlay centrado en
-// el corte hace un "barrido" de color limpio sin dejar la pantalla en negro.
-// Es puramente visual y aditivo: no altera el audio ni el secuenciado de escenas.
-const SCENE_TRANSITION_TYPE = 'GradientOverlay';
-const SCENE_TRANSITION_FRAMES = 16; // ~0.5s a 30fps
+// v8 (Fase 5): transición de escena por defecto = FadeThroughBlack (dip a negro
+// centrado en el corte). Reemplaza al GradientOverlay (barrido de color) y, junto
+// con la eliminación del crossfade de color de fondo en AnimaComposer, elimina los
+// "colores raros" entre escenas (verde→marrón→azul). Limpio y cinematográfico.
+const SCENE_TRANSITION_TYPE = 'FadeThroughBlack';
+const SCENE_TRANSITION_FRAMES = 18; // ~0.6s a 30fps
 
 interface FallbackSceneProps {
   text: string;

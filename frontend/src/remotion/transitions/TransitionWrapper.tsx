@@ -5,12 +5,14 @@ import { WipeTransition } from './WipeTransition';
 import { LightLeakTransition } from './LightLeakTransition';
 import { GlitchTransition } from './GlitchTransition';
 import { GradientOverlay } from './GradientOverlay';
+import { FadeThroughBlack } from './FadeThroughBlack';
 
 export { ZoomBlurTransition } from './ZoomBlurTransition';
 export { WipeTransition } from './WipeTransition';
 export { LightLeakTransition } from './LightLeakTransition';
 export { GlitchTransition } from './GlitchTransition';
 export { GradientOverlay } from './GradientOverlay';
+export { FadeThroughBlack } from './FadeThroughBlack';
 
 // ---------------------------------------------------------------------------
 // TransitionWrapper — Declarative transition between two scenes.
@@ -37,6 +39,7 @@ const TRANSITION_MAP: Record<
   LightLeakTransition,
   GlitchTransition,
   GradientOverlay,
+  FadeThroughBlack,
 };
 
 export const TransitionWrapper: React.FC<TransitionWrapperProps> = ({

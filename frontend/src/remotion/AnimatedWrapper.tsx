@@ -1,4 +1,5 @@
 import React from 'react';
+import { useCurrentFrame } from 'remotion';
 import { Animated, Move, Scale, Fade } from 'remotion-animated';
 import { generateSpringKeyframes, SPRING_PRESETS } from './utils/springPhysics';
 import { SPRING } from './utils/tokens';
@@ -44,6 +45,7 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
   durationInFrames,
   children,
 }) => {
+  const frame = useCurrentFrame();
   if (!entry && !exit) return <>{children}</>;
 
   const delayFrames = Math.round(delay * 30); // Convert seconds to frames (30fps)
@@ -171,9 +173,16 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
 
   if (allAnimations.length === 0) return <>{children}</>;
 
+  // v8 (Fase 4): ocultar el elemento ANTES de que empiece su entrada. Sin esto,
+  // con entryDelay > 0 el elemento se mostraba a opacidad plena, luego saltaba a 0
+  // y recién animaba (el "aparece → desaparece → entra" que se veía en los iconos).
+  const hiddenBeforeEntry = !!entry && frame < delayFrames;
+
   return (
-    <Animated animations={allAnimations}>
-      {children}
-    </Animated>
+    <div style={hiddenBeforeEntry ? { opacity: 0 } : undefined}>
+      <Animated animations={allAnimations}>
+        {children}
+      </Animated>
+    </div>
   );
 };

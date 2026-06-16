@@ -1524,7 +1524,8 @@ export function AnimationPlayground() {
     '16:9': { w: 1920, h: 1080 },
   };
   const dim = ASPECTS[aspect];
-  const previewScale = Math.min(440 / dim.w, 600 / dim.h);
+  // Aprovecha mejor el espacio (antes 16:9 quedaba diminuto).
+  const previewScale = Math.min(640 / dim.w, 680 / dim.h);
   const previewW = Math.round(dim.w * previewScale);
   const previewH = Math.round(dim.h * previewScale);
 
@@ -1610,8 +1611,9 @@ export function AnimationPlayground() {
         )}
       </div>
 
-      {/* Player Area */}
-      <div className="flex-1 bg-surface-lowest p-8 flex flex-col items-center justify-center relative">
+      {/* Player Area — scrollable y alineado arriba para que controles/caption
+          siempre se vean (antes se cortaban con previews altos). */}
+      <div className="flex-1 bg-surface-lowest p-6 flex flex-col items-center justify-start gap-1 overflow-y-auto relative">
         {/* Controles: aspect ratio + fondo del preview */}
         <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
           {(Object.keys(ASPECTS) as Array<keyof typeof ASPECTS>).map((ar) => (
