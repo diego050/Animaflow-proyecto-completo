@@ -400,6 +400,119 @@ def _dedup_cta_components(spec: dict) -> dict:
     return spec
 
 
+# ── Fase 5: refuerzo determinista de "texto opcional por escena" ─────────────
+# El prompt pide que NO toda escena tenga texto (el audio ya narra), pero es una
+# regla blanda y el LLM tiende a poner texto en TODAS. Aquí lo forzamos de forma
+# determinista: una proporción de las escenas DEL MEDIO se vuelve "visual pura"
+# (sin texto en pantalla), escalando con el nº de escenas. Nunca la primera
+# (gancho) ni la última (CTA/cierre), y solo si queda un visual real que sostenga
+# la escena (un texto sin nada detrás dejaría la pantalla vacía).
+
+_ICON_COMPONENTS_VP = {"IconifyIcon", "AnimatedIcon"}
+
+
+def _visual_pure_indices(total_scenes: int) -> set[int]:
+    """Índices de escena (determinista) que deben ir SIN texto en pantalla.
+
+    - < 3 escenas: ninguna (videos cortos necesitan su texto).
+    - Nunca la primera ni la última.
+    - ~1 de cada 3 escenas del medio, repartidas uniformemente, mínimo 1.
+    """
+    if total_scenes < 3:
+        return set()
+    middle = list(range(1, total_scenes - 1))  # excluye gancho y cierre
+    if not middle:
+        return set()
+    k = max(1, len(middle) // 3)
+    if k == 1:
+        return {middle[len(middle) // 2]}
+    chosen: set[int] = set()
+    for j in range(k):
+        pos = round(j * (len(middle) - 1) / (k - 1))
+        chosen.add(middle[pos])
+    return chosen
+
+
+def _is_text_layer(layer: dict) -> bool:
+    return (
+        layer.get("type") == "text"
+        or (layer.get("type") == "component" and layer.get("componentName") in _TEXT_COMPONENTS_BB)
+    )
+
+
+def _layer_has_icon(layer: dict) -> bool:
+    """¿La capa es un ícono o un grupo que contiene un ícono?"""
+    if layer.get("type") == "component" and layer.get("componentName") in _ICON_COMPONENTS_VP:
+        return True
+    if layer.get("icon"):
+        return True
+    for child in layer.get("children", []) or []:
+        if _layer_has_icon(child):
+            return True
+    return False
+
+
+def _strip_text_for_visual_scene(spec: dict, canvas_w: int, canvas_h: int) -> tuple[dict, bool]:
+    """Quita las capas de texto para dejar la escena VISUAL PURA.
+
+    Solo procede si, tras quitar el texto, queda al menos un visual real
+    (ícono/imagen/componente no-texto que no sea solo fondo). Si lo único no-fondo
+    es texto, NO se toca (mejor texto que pantalla vacía). Si el héroe que queda es
+    un único ícono, se centra y se agranda para que la escena se vea intencional.
+    """
+    layers = spec.get("layers", [])
+
+    def _is_real_visual(l: dict) -> bool:
+        if _is_text_layer(l):
+            return False
+        if l.get("type") == "background":
+            return False
+        if l.get("type") == "component" and l.get("componentName") in _FILL_COMPONENTS:
+            return False
+        # grupo cuyo único contenido era texto no cuenta
+        if l.get("type") == "group":
+            return any(_is_real_visual(c) or _layer_has_icon(c) for c in l.get("children", []) or [])
+        return True
+
+    has_text = any(_is_text_layer(l) for l in layers)
+    remaining_visuals = [l for l in layers if _is_real_visual(l)]
+    if not has_text or not remaining_visuals:
+        return spec, False
+
+    kept = [l for l in layers if not _is_text_layer(l)]
+    spec["layers"] = kept
+
+    # Si queda un único visual y es un ícono, hacerlo el héroe: centrado y grande.
+    icon_visuals = [l for l in kept if _layer_has_icon(l) and l.get("type") != "background"]
+    if len(icon_visuals) == 1:
+        hero = icon_visuals[0]
+        hero["x"] = 0
+        hero["y"] = 0
+        hero_size = round(min(canvas_w, canvas_h) * 0.32)  # ~346px en 1080
+        if hero.get("type") == "component" and hero.get("componentName") in _ICON_COMPONENTS_VP:
+            hero["size"] = hero_size
+            hero["width"] = hero_size
+
+    return spec, True
+
+
+def apply_visual_pure_strip(
+    composer_dict: dict,
+    scene_index: int,
+    total_scenes: int,
+    aspect_ratio: str = "9:16",
+) -> tuple[dict, bool]:
+    """Si esta escena toca ser visual-pura (determinista), le quita el texto.
+
+    Devuelve (spec, did_strip). No-op si el índice no fue elegido o si quitar el
+    texto dejaría la escena sin contenido visual.
+    """
+    if scene_index not in _visual_pure_indices(total_scenes):
+        return composer_dict, False
+    cw, ch = _get_canvas_dimensions(aspect_ratio)
+    return _strip_text_for_visual_scene(composer_dict, cw, ch)
+
+
 # ── Catálogo de componentes disponibles ──────────────────────────────────────
 # FUENTE DE VERDAD: component_manifest.json (derivado del frontend manifest.ts).
 # Esta lista se genera automáticamente desde el manifest. Si divergen, el

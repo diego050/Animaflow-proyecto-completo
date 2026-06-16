@@ -1,7 +1,7 @@
 # ADR-011 — Visual Quality v8: plan de calidad + Fases 0a/0b (infra del pipeline + wins visuales)
 
 **Fecha:** 2026-06-15
-**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial**. Fase 3 **núcleo resuelto**. Fase 4 **avanzada** (tokens, springs, idle, halo, FloatingBlobs ambiental, Playground Lotes A+B, fix flash de entrada). Fase 5 **avanzada** (transiciones: FadeThroughBlack + variedad rotada + eliminado el crossfade de color turbio; texto opcional por escena; catálogo Cinematic: KenBurns + CinematicBars).
+**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial**. Fase 3 **núcleo resuelto**. Fase 4 **avanzada** (tokens, springs, idle, halo, FloatingBlobs ambiental, Playground Lotes A+B, fix flash de entrada). Fase 5 **avanzada** (transiciones: FadeThroughBlack + variedad rotada + eliminado el crossfade de color turbio; texto opcional por escena AHORA determinista; catálogo Cinematic: KenBurns + CinematicBars; fix colisión GlitchTitle escena 1).
 **Contexto previo:** [adr-010-visual-quality-v7.md](./adr-010-visual-quality-v7.md), [coordinate-contract.md](./coordinate-contract.md)
 **Plan canónico (vivo):** [`../PLAN-MEJORA-CALIDAD.md`](../PLAN-MEJORA-CALIDAD.md) — este ADR resume; el plan tiene el detalle por fase.
 
@@ -314,6 +314,31 @@ progreso/charts/contadores como relleno (la "Progress 18%" sin sentido). Además
 `StyleProgressBar` se hizo responsivo (height/width/labels vía `useCanvas`, antes px
 de escala web diminutos).
 
+**Refuerzo DETERMINISTA de "texto opcional" (render 2026-06-16: el prompt no pegó —
+las 3 escenas salieron con texto):** la regla de prompt es blanda y el LLM pone texto
+en TODAS. Ahora se fuerza por código (`component_strategy.py` +
+`orchestrator.py`):
+- `_visual_pure_indices(total)`: selección **determinista** de qué escenas van SIN
+  texto. < 3 escenas → ninguna; nunca la 1ra (gancho) ni la última (CTA); ~1 de cada 3
+  escenas del medio, repartidas uniformemente, **mínimo 1**. Escala: n=3→{1}, n=10→2,
+  n=20→6, n=12→{1,5,10}.
+- `_strip_text_for_visual_scene` / `apply_visual_pure_strip`: quita las capas de texto
+  **solo si queda un visual real** (ícono/imagen/componente no-texto, no solo fondo);
+  si lo único no-fondo es texto, NO toca (evita pantalla vacía). Si el héroe que queda
+  es un único ícono, lo **centra (x/y=0) y lo agranda** (size ~0.32·min(w,h)) para que
+  la escena se vea intencional.
+- Se aplica en el orquestador tras `model_dump`, con `(i, len(scenes))`. Tests:
+  `tests/test_visual_pure_scenes.py` (8) verdes.
+
+**Fix colisión escena 1 — texto pisaba el ícono (feedback render 2026-06-16):**
+causa raíz: `GlitchTitle` (y `HighlightText`) **faltaban** en
+`COMPONENT_DEFAULT_WIDTHS` → el `layoutSolver` les pasaba `DEFAULT_LAYER_WIDTH=200px`
+→ el título se comprimía a ~7 líneas altísimas, mientras el estimador de colisión
+asumía 918px → calculaba ~4 líneas → subestimaba la altura → el de-solapado no
+empujaba el ícono lo suficiente. Fix: añadidos `GlitchTitle` y `HighlightText` al mapa
+(`int(cw*0.85)`), igual que los otros componentes de texto que sí se veían bien.
+Tests de colisión 10/10 verdes.
+
 **Catálogo Cinematic (net-new, soporta escenas visuales puras):**
 - **`KenBurns`** (`components/KenBurns.tsx`, role `background`): efecto full-bleed de
   zoom/pan lento sobre una imagen (`url`), con **fallback a gradiente animado** cuando
@@ -333,6 +358,9 @@ de escala web diminutos).
   Playground y vía props explícitas.
 
 **PENDIENTE (Fase 5):**
+- **Selección de iconos** (render 2026-06-16): match literal basura — "diez minutos"
+  → `material-symbols:10mp-outline` (ícono de cámara "10 MP"); e iconos que no
+  cargan → fallback a `mdi:star`. Revisar `iconify_search`/RAG de iconos.
 - Elegir la transición por continuidad de escena (no solo rotación por índice).
 - Categorías nuevas tipo ReactVideoEditor restantes: **Logo & Branding**, **Image & Media**.
 - dotLottie / @remotion/skia para efectos premium.

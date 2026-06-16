@@ -15,7 +15,7 @@ from app.schemas.spec import TimelineSpec
 from app.modules.tts.service import AUDIO_STORAGE
 from app.modules.segmentation.service import split_text_into_chunks
 from app.modules.llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
-from app.modules.llm.component_strategy import generate_scene_composer
+from app.modules.llm.component_strategy import generate_scene_composer, apply_visual_pure_strip
 from app.core.async_utils import run_async
 
 logger = get_logger("pipeline")
@@ -215,7 +215,22 @@ async def _process_chunks_async(
 
             scene["type"] = "custom"
             scene["quality_status"] = "passed"
-            scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
+            composer_dict = composer_spec.model_dump(exclude_none=True)
+
+            # Fase 5: refuerzo determinista de "texto opcional". Una proporción de
+            # las escenas del medio se vuelve visual-pura (sin texto), escalando con
+            # el nº de escenas. El prompt solo no basta (regla blanda → texto en
+            # todas). No toca la 1ra (gancho) ni la última (CTA).
+            composer_dict, stripped = apply_visual_pure_strip(
+                composer_dict, i, len(timeline_scenes), aspect_ratio
+            )
+            if stripped:
+                logger.info(
+                    "Fase 5: escena %d/%d convertida a VISUAL PURA (texto removido)",
+                    i + 1, len(timeline_scenes), extra={"job_id": job_id},
+                )
+
+            scene["anima_composer"] = composer_dict
 
         # Pausa para evitar límites de RPM (Requests Per Minute) del plan gratuito de Gemini
         if i < len(timeline_scenes) - 1:
