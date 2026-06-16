@@ -6,11 +6,11 @@ import { AnimaComposer } from './composer/AnimaComposer';
 import { COMPONENT_REGISTRY } from './registry';
 import { TransitionWrapper } from './transitions/TransitionWrapper';
 
-// v8 (Fase 5): transición de escena por defecto = FadeThroughBlack (dip a negro
-// centrado en el corte). Reemplaza al GradientOverlay (barrido de color) y, junto
-// con la eliminación del crossfade de color de fondo en AnimaComposer, elimina los
-// "colores raros" entre escenas (verde→marrón→azul). Limpio y cinematográfico.
-const SCENE_TRANSITION_TYPE = 'FadeThroughBlack';
+// v8 (Fase 5): VARIEDAD de transiciones limpias (todas neutrales: negro/blanco,
+// sin colores raros). Se rota por corte de forma determinista. Junto con la
+// eliminación del crossfade de color de fondo en AnimaComposer, esto quita los
+// "colores raros" (verde→marrón→azul) y da variedad visual.
+const SCENE_TRANSITIONS = ['FadeThroughBlack', 'ZoomBlurTransition', 'WipeTransition'];
 const SCENE_TRANSITION_FRAMES = 18; // ~0.6s a 30fps
 
 interface FallbackSceneProps {
@@ -163,7 +163,7 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
             durationInFrames={SCENE_TRANSITION_FRAMES}
           >
             <TransitionWrapper
-              type={SCENE_TRANSITION_TYPE}
+              type={SCENE_TRANSITIONS[i % SCENE_TRANSITIONS.length]}
               durationFrames={SCENE_TRANSITION_FRAMES}
             />
           </Sequence>

@@ -691,9 +691,22 @@ Usa componentes de la lista anterior con type: "component" y componentName: "NOM
 REGLAS DE ORO PARA EL DISEÑO:
 1. **USA SOLO COMPONENTES DE LA STANDARD LIBRARY:** No crees formas desde cero con primitivas. Selecciona y combina componentes de la lista proporcionada. Si necesitas un elemento visual específico, busca el componente más cercano en la lista y adáptalo con sus props.
 2. **COHERENCIA TEMÁTICA ESTRICTA:** Solo elige componentes de la Standard Library si tienen una relación DIRECTA y LÓGICA con el guion. Si el video es un documental sobre peces, NO uses un "SubscribeButton" o "TinderSwipeCard". Usa tu juicio semántico: si no encaja perfecto con la vibra de la escena, no lo uses.
+2.1. **NO METAS COMPONENTES DE DATOS SIN DATOS:** barras de progreso (StyleProgressBar, ProgressPill, SocialProgressBar), charts, contadores, rings, etc. SOLO si la escena presenta un dato/porcentaje/cifra REAL y relevante del guion. NUNCA los uses como relleno decorativo — una barra "Progress 18%" sin contexto no aporta y confunde. Si dudas, no lo pongas.
 3. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
-4. El texto hablado principal DEBE aparecer en pantalla de manera legible. Pásalo a tu componente de texto usando `"text": "{{text}}"`.
-4.1. **JERARQUÍA VISUAL — EVITA EL MURO DE TEXTO (MUY IMPORTANTE):** Una escena NO debe ser solo un bloque de texto. SIEMPRE acompaña el texto con AL MENOS un elemento visual relevante:
+4. **EL TEXTO EN PANTALLA ES OPCIONAL — decídelo por escena (MUY IMPORTANTE):**
+   El audio YA narra todo el guion, así que NO hace falta repetir el texto en CADA
+   escena. Un video que es puro texto en todas las escenas es aburrido. Decide por escena:
+   - **MUESTRA el texto** (con `"text": "{{text}}"`) cuando la frase es un GANCHO, una
+     CIFRA/dato clave, un CTA, o una frase de IMPACTO que gana fuerza leída — idealmente
+     resaltando 1-2 palabras (WordHighlight).
+   - **NO muestres texto** (escena VISUAL pura) cuando la frase es descriptiva o de
+     conexión: representa el concepto con un VISUAL fuerte (1 ícono grande relacionado +
+     fondo con movimiento). El audio lleva las palabras.
+   - Regla práctica (video de ~3-5 escenas): la 1ª (gancho) y la del CTA casi siempre
+     llevan texto; **al menos una escena del medio debe ser VISUAL pura o con muy poco
+     texto**. VARÍA — no pongas el texto completo en todas.
+4.1. **JERARQUÍA VISUAL (cuando SÍ hay texto):** una escena con texto NO debe ser solo
+   un bloque de texto. Acompáñalo con AL MENOS un elemento visual relevante:
    - Un **ícono** que represente literalmente el concepto/sujeto de la escena (usa los íconos sugeridos abajo).
    - Y/o un **fondo con movimiento** (ej: KineticBackground, ParticleField, RaysOfLight, FloatingBlobs) acorde a la dirección artística.
    - Composición ideal de una escena hablada: 1 fondo + el texto (tamaño moderado, NO gigante que llene la pantalla) + 1 ícono o acento visual relacionado con una palabra clave del texto.

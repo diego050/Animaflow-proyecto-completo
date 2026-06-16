@@ -1,6 +1,7 @@
 import React from 'react';
 import { interpolate, useCurrentFrame, Easing } from 'remotion';
 import type { UniversalProps } from "./types";
+import { useCanvas } from '../utils/canvas';
 
 interface StyleProgressBarProps extends UniversalProps {
   value?: number;
@@ -33,6 +34,7 @@ export const StyleProgressBar: React.FC<StyleProgressBarProps> = ({
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
 
   // Animate from 0 to target value over 60 frames
@@ -121,21 +123,20 @@ export const StyleProgressBar: React.FC<StyleProgressBarProps> = ({
         top: `${y}px`,
         left: `${x}px`,
         transform: 'translate(-50%, -50%)',
-        width: '80%',
-        maxWidth: 400,
+        width: `${c.vw(72)}px`,
         opacity: customOpacity,
         zIndex: 50,
         display: 'flex',
         flexDirection: 'column',
-        gap: '6px',
+        gap: `${c.vmin(1)}px`,
       }}
     >
       {showLabel && labelPosition === 'top' && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: 14, color: '#94A3B8' }}>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: c.vmin(2.6), color: '#94A3B8' }}>
             Progress
           </span>
-          <span style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 700, fontSize: 14, color: '#FFFFFF' }}>
+          <span style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 700, fontSize: c.vmin(2.6), color: '#FFFFFF' }}>
             {percentage}%
           </span>
         </div>
@@ -143,7 +144,7 @@ export const StyleProgressBar: React.FC<StyleProgressBarProps> = ({
       <div
         style={{
           width: '100%',
-          height: customHeight,
+          height: style?.height ? customHeight : `${c.vmin(1.8)}px`,
           backgroundColor: customBgColor,
           borderRadius: `${customBorderRadius}px`,
           overflow: 'hidden',
@@ -163,7 +164,7 @@ export const StyleProgressBar: React.FC<StyleProgressBarProps> = ({
           }}
         >
           {showLabel && labelPosition === 'inside' && (
-            <span style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 700, fontSize: 12, color: '#0F172A', paddingLeft: 8 }}>
+            <span style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 700, fontSize: c.vmin(2), color: '#0F172A', paddingLeft: c.vmin(0.8) }}>
               {percentage}%
             </span>
           )}
@@ -171,10 +172,10 @@ export const StyleProgressBar: React.FC<StyleProgressBarProps> = ({
       </div>
       {showLabel && labelPosition === 'bottom' && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: 12, color: '#64748B' }}>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: c.vmin(2.2), color: '#64748B' }}>
             0
           </span>
-          <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: 12, color: '#64748B' }}>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: c.vmin(2.2), color: '#64748B' }}>
             {max}
           </span>
         </div>
