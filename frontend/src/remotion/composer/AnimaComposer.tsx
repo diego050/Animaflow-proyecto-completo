@@ -905,30 +905,22 @@ export const AnimaComposer: React.FC<AnimaComposerProps> = ({
   const solvedLayers = solveLayout(spec as unknown as Parameters<typeof solveLayout>[0], width, height);
 
   // -----------------------------------------------------------------------
-  // Background with crossfade (z-index: 0)
+  // Background (z-index: 0)
   // -----------------------------------------------------------------------
-  const crossfadeFrames = 15; // last 15 frames (0.5s at 30fps)
-  const crossfadeStart = actualDurationInFrames - crossfadeFrames;
-
-  let backgroundColors = spec.background.colors;
-  let backgroundType = spec.background.type;
-  let backgroundAngle = spec.background.angle;
-  let backgroundCenter = spec.background.center;
-
-  // If we have next scene colors and we're in the crossfade window, interpolate
-  if (nextSceneBackgroundColors && nextSceneBackgroundColors.length > 0 && frame >= crossfadeStart) {
-    const progress = Math.min(1, (frame - crossfadeStart) / crossfadeFrames);
-    // Use the next scene's colors as the target
-    backgroundColors = nextSceneBackgroundColors;
-    backgroundType = spec.background.type; // keep same gradient type
-  }
+  // v8 (Fase 5): se ELIMINÓ el "crossfade" de fondo que en los últimos 15 frames
+  // cambiaba de golpe al color de la SIGUIENTE escena → producía el salto de
+  // color turbio (verde→marrón→azul) entre escenas. Ahora cada escena mantiene su
+  // propio fondo durante toda su duración; el corte se cubre con una transición
+  // limpia (FadeThroughBlack) en MainComposition. `nextSceneBackgroundColors` se
+  // conserva en la firma por compatibilidad pero ya no se usa.
+  void nextSceneBackgroundColors;
 
   const background = (
     <AnimaGradient
-      type={backgroundType}
-      colors={backgroundColors}
-      angle={backgroundAngle}
-      center={backgroundCenter}
+      type={spec.background.type}
+      colors={spec.background.colors}
+      angle={spec.background.angle}
+      center={spec.background.center}
       width={width}
       height={height}
     />

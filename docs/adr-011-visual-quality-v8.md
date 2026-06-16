@@ -1,7 +1,7 @@
 # ADR-011 — Visual Quality v8: plan de calidad + Fases 0a/0b (infra del pipeline + wins visuales)
 
 **Fecha:** 2026-06-15
-**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial**. Fase 3 **núcleo resuelto**. Fase 4 **iniciada** (tokens + presets de spring + halo de texto + atenuado de decorativos; pendiente idle motion, exitDelay y auditoría de componentes). Fase 5 pendiente.
+**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial**. Fase 3 **núcleo resuelto**. Fase 4 **avanzada** (tokens, springs, idle, halo, FloatingBlobs ambiental, Playground Lotes A+B, fix flash de entrada). Fase 5 **iniciada** (transiciones: FadeThroughBlack + eliminado el crossfade de color turbio).
 **Contexto previo:** [adr-010-visual-quality-v7.md](./adr-010-visual-quality-v7.md), [coordinate-contract.md](./coordinate-contract.md)
 **Plan canónico (vivo):** [`../PLAN-MEJORA-CALIDAD.md`](../PLAN-MEJORA-CALIDAD.md) — este ADR resume; el plan tiene el detalle por fase.
 
@@ -265,7 +265,19 @@ el estimador de colisión no lo predice bien.
 - **APIRequestFlow:** `arrowSpeed` (velocidad de la flecha).
 - Regenerado `component_manifest.json` (en sync, 111). tsc OK, 13 tests backend.
 
+**Fixes de feedback (prueba en Playground):**
+- **Flash pre-entrada (iconos "aparecen → desaparecen → entran"):** con `entryDelay>0`
+  el elemento se mostraba a opacidad plena y luego saltaba a 0 para animar. Fix en
+  `AnimatedWrapper`: se oculta (opacity 0) ANTES de que empiece la entrada
+  (`frame < delayFrames`).
+- **Playground — tamaño/scroll:** preview agrandado (16:9 ya no diminuto) y el área
+  ahora hace scroll y alinea arriba para que los controles y el caption no se corten.
+
 **PENDIENTE (Fase 4):**
+- **Sistema de animación unificado:** algunos componentes tienen entrada PROPIA
+  (AnimatedLine se "dibuja", Typewriter teclea) además de los entry genéricos del
+  wrapper. Conviene declararlas en el manifest como "entrada disponible" por
+  componente (genéricas + custom) para que se elijan en conjunto.
 - **Diferido del Lote B (más complejo):** icono inline DENTRO del texto
   ("te quiero ❤ mucho" → parsear tokens en el texto); posición por-blob editable;
   cajas de tamaños distintos en APIRequestFlow.
@@ -273,6 +285,26 @@ el estimador de colisión no lo predice bien.
 - Continuar auditoría (tokens/elevation/radius, props booleanas, idle en hero).
 - Cablear `exitDelay` en `AnimatedWrapper` (item 19b).
 - dotLottie/skia (estratégico).
+
+### Fase 5 — Catálogo / transiciones (iniciada)
+
+**Transiciones de escena — arreglo del "color raro" (feedback #3):**
+Había DOS mecanismos a la vez y el culpable era el **crossfade de color de fondo**
+en `AnimaComposer`: en los últimos 15 frames **cambiaba de golpe** el fondo de la
+escena actual a los colores de la SIGUIENTE → salto turbio verde→marrón→azul.
+- **Eliminado** ese crossfade: cada escena mantiene su propio fondo toda su duración.
+- **Nueva transición `FadeThroughBlack`** (`transitions/FadeThroughBlack.tsx`):
+  velo negro centrado en el corte (opacidad 0→1→0), cinematográfico y **sin colores
+  raros**. Registrada en `TransitionWrapper` y puesta como **default** en
+  `MainComposition` (antes `GradientOverlay`), ventana ~0.6s.
+- tsc OK.
+
+**PENDIENTE (Fase 5):**
+- Más transiciones seleccionables (wipe, zoom, iris) elegidas por continuidad de escena.
+- Categorías nuevas tipo ReactVideoEditor: **Cinematic** (Ken Burns, vignette, film
+  grain), **Logo & Branding**, **Image & Media**.
+- dotLottie / @remotion/skia para efectos premium.
+- Re-embed final de iconos (43k) — ver §10.1.
 
 ---
 
