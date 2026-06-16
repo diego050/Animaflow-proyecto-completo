@@ -1,105 +1,122 @@
 import React from 'react';
-import { useCurrentFrame, useVideoConfig } from 'remotion';
+import { useCurrentFrame, useVideoConfig, random } from 'remotion';
 import type { UniversalProps } from "./types";
 
-export const NetworkNodes: React.FC<{
+export interface NetworkNodesProps extends UniversalProps {
   nodeColor?: string;
   lineColor?: string;
-  width?: number;
-  height?: number;
-} & UniversalProps> = ({
-  nodeColor = '#38bdf8', // Sky blue
-  lineColor = 'rgba(56, 189, 248, 0.4)',
-  x = 540,
-  y = 960,
-  delay = 0,
-  width = 800,
-  height = 600,
+  /** Número de nodos (3-60). */
+  nodeCount?: number;
+  /** Distancia (px) bajo la cual dos nodos se conectan. Default ~22% del lado menor. */
+  connectionDistance?: number;
+  /** Velocidad de la deriva ambiental. */
+  speed?: number;
+  /** Alias usado por la IA (sobrescribe nodeColor). */
+  color?: string;
+  /** Semilla para variar la disposición de forma determinista. */
+  seed?: number;
+  /** Opacidad global (universal, la IA la usa para atenuar el fondo). */
+  opacity?: number;
+}
+
+/**
+ * NetworkNodes — fondo ambiental de "red neuronal" a pantalla completa.
+ *
+ * - Background role: llena el lienzo (no es una cajita centrada).
+ * - Determinista: posiciones vía `random(seed)`, deriva vía `frame` (sin Math.random).
+ * - Las conexiones se calculan POR PROXIMIDAD cada frame → al derivar los nodos,
+ *   las líneas aparecen/desaparecen como una red viva.
+ * - `nodeCount` controla la densidad; `opacity` (universal) se respeta.
+ */
+export const NetworkNodes: React.FC<NetworkNodesProps> = ({
+  nodeColor = '#38bdf8',
+  lineColor,
+  nodeCount = 18,
+  connectionDistance,
+  speed = 1,
   color,
+  seed = 0,
+  opacity = 1,
+  delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const { width, height, fps } = useVideoConfig();
   const adjustedFrame = Math.max(0, frame - delay);
-  const { fps } = useVideoConfig();
+  const t = (adjustedFrame / fps) * speed;
 
-  // Pre-defined nodes (relative to 0,0 center)
-  const nodes = [
-    { id: 1, cx: 0, cy: -200, r: 25 }, // Top
-    { id: 2, cx: -250, cy: 0, r: 15 }, // Left
-    { id: 3, cx: 250, cy: 50, r: 20 }, // Right
-    { id: 4, cx: -150, cy: 200, r: 18 }, // Bottom Left
-    { id: 5, cx: 150, cy: 150, r: 22 }, // Bottom Right
-    { id: 6, cx: 50, cy: -50, r: 30 }, // Center
-  ];
+  const dots = color ?? nodeColor;
+  const links = lineColor ?? dots;
+  const rootOpacity = Math.min(1, Math.max(0, opacity));
 
-  // Connections (pairs of node IDs)
-  const connections = [
-    [1, 6], [2, 6], [3, 6], [4, 6], [5, 6], // All connect to center
-    [1, 2], [1, 3], [2, 4], [3, 5], [4, 5] // Perimeter connections
-  ];
+  const n = Math.min(60, Math.max(3, Math.round(nodeCount)));
+  const maxDist = connectionDistance ?? Math.min(width, height) * 0.22;
 
-  // Subtle pulsing animation for nodes
-  const pulseScale = 1 + Math.sin(adjustedFrame / 15) * 0.1;
+  // Nodos deterministas con deriva ambiental lenta.
+  const nodes = Array.from({ length: n }).map((_, i) => {
+    const key = `nn-${seed}-${i}`;
+    const baseX = random(`${key}-x`) * width;
+    const baseY = random(`${key}-y`) * height;
+    const phase = random(`${key}-p`) * Math.PI * 2;
+    const ampX = width * 0.04;
+    const ampY = height * 0.04;
+    const x = baseX + Math.sin(t * 0.6 + phase) * ampX;
+    const y = baseY + Math.cos(t * 0.5 + phase * 1.3) * ampY;
+    const r = 3 + random(`${key}-r`) * 6;
+    return { x, y, r, phase };
+  });
+
+  // Conexiones por proximidad (O(n²), n<=60 → barato).
+  const lines: { x1: number; y1: number; x2: number; y2: number; o: number }[] = [];
+  for (let a = 0; a < nodes.length; a++) {
+    for (let b = a + 1; b < nodes.length; b++) {
+      const dx = nodes[a].x - nodes[b].x;
+      const dy = nodes[a].y - nodes[b].y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < maxDist) {
+        // Más cerca = más visible; pulso sutil de "dato viajando".
+        const proximity = 1 - d / maxDist;
+        const pulse = 0.6 + 0.4 * Math.sin(t * 2 + (a + b) * 0.5);
+        lines.push({ x1: nodes[a].x, y1: nodes[a].y, x2: nodes[b].x, y2: nodes[b].y, o: proximity * pulse });
+      }
+    }
+  }
 
   return (
     <div
       style={{
         position: 'absolute',
-        top: `${y}px`,
-        left: `${x}px`,
-        transform: 'translate(-50%, -50%)',
-        width: `${width}px`,
-        height: `${height}px`,
-        zIndex: 5,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 0,
+        opacity: rootOpacity,
+        overflow: 'hidden',
       }}
     >
-      <svg
-        width={width}
-        height={height}
-        viewBox="-400 -300 800 600" // Center coordinate system
-        style={{ overflow: 'visible' }}
-      >
-        {/* Lines */}
-        {connections.map(([a, b], i) => {
-          const nodeA = nodes.find(n => n.id === a)!;
-          const nodeB = nodes.find(n => n.id === b)!;
-          
-          // Animate line opacity like data traveling
-          const opacity = 0.2 + (Math.sin((adjustedFrame + i * 10) / 10) + 1) * 0.4;
-          
-          return (
-            <line
-              key={`line-${i}`}
-              x1={nodeA.cx}
-              y1={nodeA.cy}
-              x2={nodeB.cx}
-              y2={nodeB.cy}
-              stroke={lineColor}
-              strokeWidth="4"
-              style={{
-                opacity,
-                filter: `drop-shadow(0 0 5px ${lineColor})`
-              }}
-            />
-          );
-        })}
-
-        {/* Nodes */}
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+        {lines.map((l, i) => (
+          <line
+            key={`l-${i}`}
+            x1={l.x1}
+            y1={l.y1}
+            x2={l.x2}
+            y2={l.y2}
+            stroke={links}
+            strokeWidth={2}
+            opacity={l.o * 0.5}
+          />
+        ))}
         {nodes.map((node, i) => {
-          // Individual pulse offsets
-          const localPulse = 1 + Math.sin((adjustedFrame + i * 15) / 10) * 0.15;
+          const localPulse = 1 + Math.sin(t * 2 + node.phase) * 0.18;
           return (
             <circle
-              key={node.id}
-              cx={node.cx}
-              cy={node.cy}
+              key={`n-${i}`}
+              cx={node.x}
+              cy={node.y}
               r={node.r * localPulse}
-              fill={nodeColor}
-              style={{
-                filter: `drop-shadow(0 0 15px ${nodeColor})`
-              }}
+              fill={dots}
+              style={{ filter: `drop-shadow(0 0 ${node.r}px ${dots})` }}
             />
           );
         })}

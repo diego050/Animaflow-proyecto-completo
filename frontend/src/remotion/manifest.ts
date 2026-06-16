@@ -337,12 +337,13 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
     name: 'NetworkNodes',
     category: 'Background',
     role: 'background',
-    description: 'Animated network graph with pulsing nodes and data-traveling connections.',
+    description: 'Full-screen ambient "neural network" background: nodes drift and connect by proximity. Deterministic. Good behind text or as a visual-only backdrop.',
     props: [
       { name: 'nodeColor', type: 'color', label: 'Node Color', description: 'Color of the nodes', defaultValue: '#38bdf8' },
-      { name: 'lineColor', type: 'color', label: 'Line Color', description: 'Color of the connections', defaultValue: 'rgba(56, 189, 248, 0.4)' },
-      { name: 'width', type: 'number', label: 'Width', description: 'Container width', defaultValue: 800 },
-      { name: 'height', type: 'number', label: 'Height', description: 'Container height', defaultValue: 600 },
+      { name: 'lineColor', type: 'color', label: 'Line Color', description: 'Color of the connections (defaults to node color)' },
+      { name: 'nodeCount', type: 'number', label: 'Node Count', description: 'Number of nodes (density)', defaultValue: 18, min: 3, max: 60 },
+      { name: 'connectionDistance', type: 'number', label: 'Connection Distance', description: 'Distance (px) under which nodes connect. Empty = auto.', min: 80, max: 600 },
+      { name: 'speed', type: 'number', label: 'Speed', description: 'Ambient drift speed', defaultValue: 1, min: 0, max: 4 },
     ],
   },
   {

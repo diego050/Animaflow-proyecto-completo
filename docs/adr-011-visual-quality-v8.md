@@ -357,6 +357,15 @@ Tests de colisión 10/10 verdes.
   los componentes (generan su embedding). Hasta entonces son usables manualmente en el
   Playground y vía props explícitas.
 
+**`NetworkNodes` rehecho (render 2026-06-16: "neuronas chiquitas"):** antes eran 6
+nodos hardcoded en una caja 800×600 centrada → cluster diminuto, no configurable, y
+**ignoraba `opacity`** (por eso el cap decorativo a 0.30 no hacía nada). Ahora es un
+**fondo ambiental full-screen** (patrón ParticleField): nodos deterministas (`random(seed)`),
+deriva lenta vía `frame`, y **conexiones por proximidad** recalculadas por frame (líneas
+que aparecen/desaparecen = red viva). Props nuevas en el manifest: `nodeCount` (3-60),
+`connectionDistance` (auto si vacío), `speed`; se quitaron `width/height`. Respeta
+`opacity` y el alias `color`. tsc OK, manifest en sync (113).
+
 **PENDIENTE (Fase 5):**
 - **Selección de iconos** (render 2026-06-16): match literal basura — "diez minutos"
   → `material-symbols:10mp-outline` (ícono de cámara "10 MP"); e iconos que no
