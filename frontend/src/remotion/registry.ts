@@ -11,6 +11,7 @@ import { BreakingNewsAlert } from './components/BreakingNewsAlert';
 import { BreakingNewsTicker } from './components/BreakingNewsTicker';
 import { BrowserWindow } from './components/BrowserWindow';
 import { CalendarDatePop } from './components/CalendarDatePop';
+import { CinematicBars } from './components/CinematicBars';
 import { CodeBlockHighlight } from './components/CodeBlockHighlight';
 import { CountdownTimer } from './components/CountdownTimer';
 import { CounterNumber } from './components/CounterNumber';
@@ -33,6 +34,7 @@ import { HighlightText } from './components/HighlightText';
 import { HorizontalBarRace } from './components/HorizontalBarRace';
 import { IconifyIcon } from './components/IconifyIcon';
 import { InstagramPost } from './components/InstagramPost';
+import { KenBurns } from './components/KenBurns';
 import { KeywordPop } from './components/KeywordPop';
 import { KineticBackground } from './components/KineticBackground';
 import { LightLeakTransition } from './components/LightLeakTransition';
@@ -124,6 +126,7 @@ export const COMPONENT_NAMES = [
   'BreakingNewsTicker',
   'BrowserWindow',
   'CalendarDatePop',
+  'CinematicBars',
   'CodeBlockHighlight',
   'CountdownTimer',
   'CounterNumber',
@@ -146,6 +149,7 @@ export const COMPONENT_NAMES = [
   'HorizontalBarRace',
   'IconifyIcon',
   'InstagramPost',
+  'KenBurns',
   'KeywordPop',
   'KineticBackground',
   'LightLeakTransition',
@@ -238,6 +242,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   BreakingNewsTicker,
   BrowserWindow,
   CalendarDatePop,
+  CinematicBars,
   CodeBlockHighlight,
   CountdownTimer,
   CounterNumber,
@@ -260,6 +265,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   HorizontalBarRace,
   IconifyIcon,
   InstagramPost,
+  KenBurns,
   KeywordPop,
   KineticBackground,
   LightLeakTransition,

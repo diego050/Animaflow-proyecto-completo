@@ -1997,6 +1997,12 @@ def generate_scene_composer(
                         "StyleTextBlock": lambda cw: int(cw * 0.85),
                         "StyleScrambleText": lambda cw: int(cw * 0.85),
                         "WordHighlight": lambda cw: int(cw * 0.85),
+                        # v8: títulos display que envuelven por `width`. Sin esto el
+                        # solver les pasaba DEFAULT_LAYER_WIDTH=200 → texto larguísimo
+                        # envuelto a ~7 líneas que pisaba al ícono (escena 1), y el
+                        # estimador de colisión asumía 918 → sub-estimaba la altura.
+                        "GlitchTitle": lambda cw: int(cw * 0.85),
+                        "HighlightText": lambda cw: int(cw * 0.85),
                         "SubscribeButton": lambda cw: int(cw * 0.6),
                         "IconifyIcon": lambda cw: 120,
                     }

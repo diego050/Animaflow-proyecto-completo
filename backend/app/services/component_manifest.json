@@ -670,6 +670,90 @@
       }
     },
     {
+      "name": "KenBurns",
+      "category": "Background",
+      "role": "background",
+      "description": "Cinematic full-bleed Ken Burns effect (slow zoom/pan) over an image, with animated gradient fallback when no image. Ideal for visual-only scenes.",
+      "props": {
+        "url": {
+          "type": "string",
+          "label": "Image URL",
+          "description": "Background image to pan/zoom. Leave empty for gradient.",
+          "default": ""
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Camera motion",
+          "default": "zoom-in",
+          "options": [
+            "zoom-in",
+            "zoom-out",
+            "pan-left",
+            "pan-right",
+            "pan-up",
+            "pan-down"
+          ]
+        },
+        "intensity": {
+          "type": "number",
+          "label": "Intensity",
+          "description": "Zoom/pan range (subtle 0.05 to strong 0.4)",
+          "default": 0.15,
+          "min": 0.05,
+          "max": 0.4
+        },
+        "color1": {
+          "type": "color",
+          "label": "Color 1",
+          "description": "Gradient fallback start (no image)",
+          "default": "#0f172a"
+        },
+        "color2": {
+          "type": "color",
+          "label": "Color 2",
+          "description": "Gradient fallback end (no image)",
+          "default": "#1e293b"
+        },
+        "overlay": {
+          "type": "number",
+          "label": "Overlay",
+          "description": "Dark overlay opacity for text legibility (0-1)",
+          "default": 0,
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    {
+      "name": "CinematicBars",
+      "category": "Background",
+      "role": "background",
+      "description": "Letterbox / cinematic black bars (top + bottom) for a 2.39:1 film look. Overlay that pairs with KenBurns for visual scenes.",
+      "props": {
+        "size": {
+          "type": "number",
+          "label": "Bar Size",
+          "description": "Bar height as % of canvas (per bar)",
+          "default": 11,
+          "min": 0,
+          "max": 25
+        },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Bar color",
+          "default": "#000000"
+        },
+        "animate": {
+          "type": "boolean",
+          "label": "Animate",
+          "description": "Slide bars in",
+          "default": true
+        }
+      }
+    },
+    {
       "name": "GlobalVFX",
       "category": "Background",
       "role": "background",

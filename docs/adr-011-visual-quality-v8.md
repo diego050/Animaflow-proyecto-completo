@@ -1,7 +1,7 @@
 # ADR-011 — Visual Quality v8: plan de calidad + Fases 0a/0b (infra del pipeline + wins visuales)
 
 **Fecha:** 2026-06-15
-**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial**. Fase 3 **núcleo resuelto**. Fase 4 **avanzada** (tokens, springs, idle, halo, FloatingBlobs ambiental, Playground Lotes A+B, fix flash de entrada). Fase 5 **iniciada** (transiciones: FadeThroughBlack + eliminado el crossfade de color turbio).
+**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial**. Fase 3 **núcleo resuelto**. Fase 4 **avanzada** (tokens, springs, idle, halo, FloatingBlobs ambiental, Playground Lotes A+B, fix flash de entrada). Fase 5 **avanzada** (transiciones: FadeThroughBlack + variedad rotada + eliminado el crossfade de color turbio; texto opcional por escena; catálogo Cinematic: KenBurns + CinematicBars).
 **Contexto previo:** [adr-010-visual-quality-v7.md](./adr-010-visual-quality-v7.md), [coordinate-contract.md](./coordinate-contract.md)
 **Plan canónico (vivo):** [`../PLAN-MEJORA-CALIDAD.md`](../PLAN-MEJORA-CALIDAD.md) — este ADR resume; el plan tiene el detalle por fase.
 
@@ -314,10 +314,27 @@ progreso/charts/contadores como relleno (la "Progress 18%" sin sentido). Además
 `StyleProgressBar` se hizo responsivo (height/width/labels vía `useCanvas`, antes px
 de escala web diminutos).
 
+**Catálogo Cinematic (net-new, soporta escenas visuales puras):**
+- **`KenBurns`** (`components/KenBurns.tsx`, role `background`): efecto full-bleed de
+  zoom/pan lento sobre una imagen (`url`), con **fallback a gradiente animado** cuando
+  no hay imagen. 6 direcciones (`zoom-in/out`, `pan-left/right/up/down`), `intensity`
+  acotada (0.05–0.4), `overlay` oscuro opcional para legibilidad de texto. Determinista
+  (deriva de `frame`/`durationInFrames`), responsive por diseño (full-bleed, sin px).
+  Es el mayor salto de "look profesional" que faltaba y el lienzo de las escenas visuales.
+- **`CinematicBars`** (`components/CinematicBars.tsx`, role `background`): barras
+  letterbox (top+bottom) para el look 2.39:1, con slide-in determinista. Combina con
+  KenBurns. Overlay zIndex 9990 (debajo de GlobalVFX/transiciones).
+- **Vignette + film grain + aberración cromática ya existían** en `GlobalVFX`
+  (zIndex 9998) → NO se duplicaron. El catálogo Cinematic se completó con lo que faltaba.
+- Registrados en `registry.ts` (import + lista + mapa) y `manifest.ts`; regenerado
+  `component_manifest.json` (**113 componentes**, en sync), tsc OK, backend lee 113.
+- NOTA de deploy: para que el LLM pueda **seleccionarlos vía RAG** hay que re-seedear
+  los componentes (generan su embedding). Hasta entonces son usables manualmente en el
+  Playground y vía props explícitas.
+
 **PENDIENTE (Fase 5):**
 - Elegir la transición por continuidad de escena (no solo rotación por índice).
-- Categorías nuevas tipo ReactVideoEditor: **Cinematic** (Ken Burns, vignette, film
-  grain), **Logo & Branding**, **Image & Media**.
+- Categorías nuevas tipo ReactVideoEditor restantes: **Logo & Branding**, **Image & Media**.
 - dotLottie / @remotion/skia para efectos premium.
 - Re-embed final de iconos (43k) — ver §10.1.
 
