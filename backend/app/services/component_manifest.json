@@ -779,7 +779,7 @@
       "name": "NetworkNodes",
       "category": "Background",
       "role": "background",
-      "description": "Animated network graph with pulsing nodes and data-traveling connections.",
+      "description": "Full-screen ambient \"neural network\" background: nodes drift and connect by proximity. Deterministic. Good behind text or as a visual-only backdrop.",
       "props": {
         "nodeColor": {
           "type": "color",
@@ -790,20 +790,30 @@
         "lineColor": {
           "type": "color",
           "label": "Line Color",
-          "description": "Color of the connections",
-          "default": "rgba(56, 189, 248, 0.4)"
+          "description": "Color of the connections (defaults to node color)"
         },
-        "width": {
+        "nodeCount": {
           "type": "number",
-          "label": "Width",
-          "description": "Container width",
-          "default": 800
+          "label": "Node Count",
+          "description": "Number of nodes (density)",
+          "default": 18,
+          "min": 3,
+          "max": 60
         },
-        "height": {
+        "connectionDistance": {
           "type": "number",
-          "label": "Height",
-          "description": "Container height",
-          "default": 600
+          "label": "Connection Distance",
+          "description": "Distance (px) under which nodes connect. Empty = auto.",
+          "min": 80,
+          "max": 600
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Ambient drift speed",
+          "default": 1,
+          "min": 0,
+          "max": 4
         }
       }
     },
