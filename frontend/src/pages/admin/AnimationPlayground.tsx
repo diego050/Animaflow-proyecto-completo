@@ -5,6 +5,7 @@ import { Player } from '@remotion/player';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
 import { COMPONENT_REGISTRY } from '../../remotion/registry';
 import { AnimatedWrapper } from '../../remotion/AnimatedWrapper';
+import { UniversalTransform } from '../../remotion/UniversalTransform';
 import { computeCameraShake } from '../../remotion/utils/cameraShake';
 import type { EntryType, ExitType } from '../../remotion/AnimatedWrapper';
 import {
@@ -1174,6 +1175,7 @@ const POSITION_ANIM_PROPS: UniversalPropDef[] = [
   { name: 'scale', type: 'number', label: 'Scale', defaultValue: 1 },
   { name: 'rotation', type: 'number', label: 'Rotation (deg)', defaultValue: 0 },
   { name: 'opacity', type: 'number', label: 'Opacity', defaultValue: 1, min: 0, max: 1 },
+  { name: 'zIndex', type: 'number', label: 'Z-Index (capa)', defaultValue: 0 },
   { name: 'entry', type: 'select', label: 'Entry Animation', options: ['fade-in', 'slide-up', 'slide-down', 'slide-left', 'slide-right', 'scale-in', 'spring-in', 'bounce-in'] },
   { name: 'entryDelay', type: 'number', label: 'Entry Delay (s)', defaultValue: 0 },
   { name: 'entryDuration', type: 'number', label: 'Entry Duration (frames)', defaultValue: 15 },
@@ -1556,18 +1558,36 @@ export function AnimationPlayground() {
     }
 
     const Wrapped: React.FC<Record<string, unknown>> = (p) => {
-      const { entry, exit, entryDelay, entryDuration, exitDuration, ...rest } = p;
+      // scale/rotation/opacity/zIndex son UNIVERSALES: las aplica UniversalTransform,
+      // no el componente (igual que en el render real con AnimaComposer). Se quitan
+      // de `rest` para no duplicar (p.ej. componentes que tienen su propio opacity).
+      const {
+        entry, exit, entryDelay, entryDuration, exitDuration,
+        scale, rotation, opacity, zIndex,
+        ...rest
+      } = p;
       return (
-        <AnimatedWrapper
-          entry={(entry as EntryType) || null}
-          exit={(exit as ExitType) || null}
-          delay={typeof entryDelay === 'number' ? entryDelay : 0}
-          entryDuration={typeof entryDuration === 'number' ? entryDuration : 15}
-          exitDuration={typeof exitDuration === 'number' ? exitDuration : 15}
-          durationInFrames={150}
+        <UniversalTransform
+          scale={typeof scale === 'number' ? scale : undefined}
+          rotation={typeof rotation === 'number' ? rotation : undefined}
+          opacity={typeof opacity === 'number' ? opacity : undefined}
+          zIndex={typeof zIndex === 'number' && zIndex !== 0 ? zIndex : undefined}
+          anchorX={typeof rest.x === 'number' ? rest.x : undefined}
+          anchorY={typeof rest.y === 'number' ? rest.y : undefined}
         >
-          <Component {...(rest as Record<string, unknown>)} />
-        </AnimatedWrapper>
+          <AnimatedWrapper
+            entry={(entry as EntryType) || null}
+            exit={(exit as ExitType) || null}
+            delay={typeof entryDelay === 'number' ? entryDelay : 0}
+            entryDuration={typeof entryDuration === 'number' ? entryDuration : 15}
+            exitDuration={typeof exitDuration === 'number' ? exitDuration : 15}
+            durationInFrames={150}
+          >
+            {/* disableEntry: si el usuario eligió un entry, se desactiva la entrada
+                propia del componente para no animar dos entradas a la vez. */}
+            <Component {...(rest as Record<string, unknown>)} disableEntry={!!entry} />
+          </AnimatedWrapper>
+        </UniversalTransform>
       );
     };
     return Wrapped;
@@ -1723,7 +1743,13 @@ export function AnimationPlayground() {
           <Player
             key={`${aspect}-${previewTransparent}`}
             component={PreviewComponent}
-            inputProps={{ ...props, x: dim.w / 2, y: dim.h / 2 }}
+            // Respeta x/y del editor (antes se forzaban al centro y los controles
+            // Position X/Y no hacían nada). Si no hay valor, cae al centro del lienzo.
+            inputProps={{
+              ...props,
+              x: typeof props.x === 'number' ? props.x : dim.w / 2,
+              y: typeof props.y === 'number' ? props.y : dim.h / 2,
+            }}
             durationInFrames={150} // 5 segundos
             compositionWidth={dim.w}
             compositionHeight={dim.h}

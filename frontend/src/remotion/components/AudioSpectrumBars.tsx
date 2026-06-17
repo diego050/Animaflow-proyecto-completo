@@ -6,12 +6,16 @@ interface AudioSpectrumBarsProps extends UniversalProps {
   barCount?: number;
   barWidth?: number;
   speed?: number;
+  maxHeight?: number;
+  gap?: number;
 }
 
 export const AudioSpectrumBars: React.FC<AudioSpectrumBarsProps> = ({
   barCount = 15,
   barWidth = 12,
   speed = 1,
+  maxHeight = 150,
+  gap = 8,
   color = '#10b981',
   x = 540,
   y = 800,
@@ -29,15 +33,15 @@ export const AudioSpectrumBars: React.FC<AudioSpectrumBarsProps> = ({
     const val = Math.sin(baseFreq + timeFreq) * Math.sin(baseFreq * 2 - timeFreq * 1.5) * Math.cos(timeFreq + i);
     // Normalize to 0-1 and give base height
     const heightMult = 0.2 + (Math.abs(val) * 0.8);
-    const height = heightMult * 150; // max height 150px
+    const height = heightMult * maxHeight;
     
     return (
-      <div key={i} style={{ width: `${barWidth}px`, height: `${height}px`, backgroundColor: color, borderRadius: `${barWidth/2}px`, transformOrigin: 'bottom', opacity: adjustedFrame > 0 ? 1 : 0, transition: 'height 0.05s ease' }} />
+      <div key={i} style={{ width: `${barWidth}px`, height: `${height}px`, backgroundColor: color, borderRadius: `${barWidth/2}px`, transformOrigin: 'bottom', opacity: adjustedFrame > 0 ? 1 : 0 }} />
     );
   });
 
   return (
-    <div style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: 'translate(-50%, -100%)', display: 'flex', alignItems: 'flex-end', gap: '8px', zIndex: 30 }}>
+    <div style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: 'translate(-50%, -100%)', display: 'flex', alignItems: 'flex-end', gap: `${gap}px`, zIndex: 30 }}>
       {bars}
     </div>
   );

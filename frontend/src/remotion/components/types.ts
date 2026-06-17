@@ -24,4 +24,25 @@ export interface UniversalProps {
   height?: number;
   /** Frames de retraso antes de que el componente aparezca */
   delay?: number;
+
+  // --- Transformaciones universales (las aplica el wrapper, NO el componente) ---
+  // Son ATÓMICAS: funcionan en cualquier componente sin que este las implemente.
+  // Ver UniversalTransform.tsx + AnimaComposer (case 'component').
+  /** Escala uniforme alrededor del ancla (x,y). 1 = tamaño natural. */
+  scale?: number;
+  /** Rotación en grados alrededor del ancla (x,y). */
+  rotation?: number;
+  /** Opacidad global del componente (0–1). Se multiplica con la de entry/exit. */
+  opacity?: number;
+  /** Orden de apilado. Mayor = más al frente (p.ej. ripple detrás de un texto). */
+  zIndex?: number;
+
+  /**
+   * Desactiva la entrada PROPIA del componente (los que la traen, p.ej.
+   * BreakingNewsAlert/BreakingNewsTicker). Lo activa automáticamente el composer
+   * cuando la capa define un `entry` explícito, para que la animación del wrapper
+   * tome el control y no se animen dos entradas a la vez. Por defecto la entrada
+   * propia se reproduce (false).
+   */
+  disableEntry?: boolean;
 }

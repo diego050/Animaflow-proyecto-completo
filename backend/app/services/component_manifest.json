@@ -3836,11 +3836,90 @@
       }
     },
     {
+      "name": "GeometricShapes",
+      "category": "Cinematic",
+      "role": "decorative",
+      "description": "A single configurable geometric shape (circle, square, triangle, polygon, star, ring) centered at x,y. Great as an accent behind text using zIndex.",
+      "props": {
+        "shape": {
+          "type": "select",
+          "label": "Shape",
+          "description": "Shape kind",
+          "default": "circle",
+          "options": [
+            "circle",
+            "square",
+            "triangle",
+            "pentagon",
+            "hexagon",
+            "star",
+            "ring"
+          ]
+        },
+        "size": {
+          "type": "number",
+          "label": "Size",
+          "description": "Shape size (px)",
+          "default": 240,
+          "min": 40,
+          "max": 1000
+        },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Fill color",
+          "default": "#6366f1"
+        },
+        "filled": {
+          "type": "boolean",
+          "label": "Filled",
+          "description": "Filled (vs outline only)",
+          "default": true
+        },
+        "strokeColor": {
+          "type": "color",
+          "label": "Stroke Color",
+          "description": "Outline color (when not filled / ring)",
+          "default": "#6366f1"
+        },
+        "strokeWidth": {
+          "type": "number",
+          "label": "Stroke Width",
+          "description": "Outline thickness (px)",
+          "default": 8,
+          "min": 1,
+          "max": 40
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Corner Radius",
+          "description": "Rounded corners (square only)",
+          "default": 24,
+          "min": 0,
+          "max": 200
+        },
+        "spin": {
+          "type": "number",
+          "label": "Spin",
+          "description": "Continuous rotation (deg/sec, 0 = static)",
+          "default": 0,
+          "min": -180,
+          "max": 180
+        }
+      }
+    },
+    {
       "name": "WaveformVisualizer",
       "category": "Cinematic",
       "role": "decorative",
       "description": "Animated sine waveform with multiple frequency layers and glow.",
       "props": {
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Wave color",
+          "default": "#8b5cf6"
+        },
         "lineWidth": {
           "type": "number",
           "label": "Line Width",
@@ -3856,6 +3935,36 @@
           "default": 100,
           "min": 20,
           "max": 300
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Waveform width",
+          "default": 800,
+          "min": 200,
+          "max": 1600
+        },
+        "points": {
+          "type": "number",
+          "label": "Points",
+          "description": "Resolution (segments)",
+          "default": 100,
+          "min": 20,
+          "max": 300
+        },
+        "glow": {
+          "type": "boolean",
+          "label": "Glow",
+          "description": "Show blurred glow layer",
+          "default": true
+        },
+        "glowBlur": {
+          "type": "number",
+          "label": "Glow Blur",
+          "description": "Glow blur radius",
+          "default": 8,
+          "min": 0,
+          "max": 30
         }
       }
     },
@@ -3865,6 +3974,12 @@
       "role": "decorative",
       "description": "Equalizer-style audio spectrum bars with pseudo-random heights.",
       "props": {
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Bar color",
+          "default": "#10b981"
+        },
         "barCount": {
           "type": "number",
           "label": "Bar Count",
@@ -3881,6 +3996,22 @@
           "min": 4,
           "max": 30
         },
+        "maxHeight": {
+          "type": "number",
+          "label": "Max Height",
+          "description": "Peak bar height (px)",
+          "default": 150,
+          "min": 30,
+          "max": 500
+        },
+        "gap": {
+          "type": "number",
+          "label": "Gap",
+          "description": "Space between bars (px)",
+          "default": 8,
+          "min": 0,
+          "max": 40
+        },
         "speed": {
           "type": "number",
           "label": "Speed",
@@ -3895,8 +4026,14 @@
       "name": "SoundWaveCircle",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Expanding concentric circle ripples from a center dot.",
+      "description": "Expanding concentric ripples from a center dot. (Merged into RippleEffect — prefer RippleEffect with centerDot for new scenes.)",
       "props": {
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Ring & dot color",
+          "default": "#f43f5e"
+        },
         "rings": {
           "type": "number",
           "label": "Rings",
@@ -3904,6 +4041,30 @@
           "default": 4,
           "min": 1,
           "max": 10
+        },
+        "strokeWidth": {
+          "type": "number",
+          "label": "Stroke Width",
+          "description": "Ring thickness (px)",
+          "default": 4,
+          "min": 1,
+          "max": 20
+        },
+        "centerDotSize": {
+          "type": "number",
+          "label": "Center Dot",
+          "description": "Center dot size (px)",
+          "default": 40,
+          "min": 0,
+          "max": 120
+        },
+        "baseSize": {
+          "type": "number",
+          "label": "Base Size",
+          "description": "Base ring diameter (px)",
+          "default": 200,
+          "min": 50,
+          "max": 600
         },
         "speed": {
           "type": "number",
@@ -3921,6 +4082,12 @@
       "role": "decorative",
       "description": "Pulsing ring ripples that expand and fade from a center point.",
       "props": {
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Ring color",
+          "default": "#3b82f6"
+        },
         "maxRadius": {
           "type": "number",
           "label": "Max Radius",
@@ -3936,6 +4103,28 @@
           "default": 3,
           "min": 1,
           "max": 10
+        },
+        "strokeWidth": {
+          "type": "number",
+          "label": "Stroke Width",
+          "description": "Ring thickness (px)",
+          "default": 4,
+          "min": 1,
+          "max": 20
+        },
+        "centerDot": {
+          "type": "boolean",
+          "label": "Center Dot",
+          "description": "Solid dot at the center (sound-wave look)",
+          "default": false
+        },
+        "centerDotSize": {
+          "type": "number",
+          "label": "Center Dot Size",
+          "description": "Center dot size (px)",
+          "default": 40,
+          "min": 0,
+          "max": 120
         },
         "speed": {
           "type": "number",
@@ -3967,6 +4156,14 @@
           "min": 1,
           "max": 50
         },
+        "fontSize": {
+          "type": "number",
+          "label": "Size",
+          "description": "Emoji size (px)",
+          "default": 60,
+          "min": 20,
+          "max": 200
+        },
         "spread": {
           "type": "number",
           "label": "Spread",
@@ -3974,6 +4171,22 @@
           "default": 300,
           "min": 50,
           "max": 800
+        },
+        "riseDistance": {
+          "type": "number",
+          "label": "Rise Distance",
+          "description": "How far they float up (px)",
+          "default": 600,
+          "min": 100,
+          "max": 1500
+        },
+        "wiggle": {
+          "type": "number",
+          "label": "Wiggle",
+          "description": "Horizontal sway amount (px)",
+          "default": 50,
+          "min": 0,
+          "max": 200
         },
         "speed": {
           "type": "number",
@@ -3989,7 +4202,7 @@
       "name": "CursorClick",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Animated cursor that moves to a target and clicks with ripple effect.",
+      "description": "Animated cursor that moves to a target and clicks with ripple effect. For multi-click/multi-move use StyleCursor (points[]).",
       "props": {
         "startX": {
           "type": "number",
@@ -4014,6 +4227,42 @@
           "label": "End Y",
           "description": "Target Y position",
           "default": 960
+        },
+        "cursorColor": {
+          "type": "color",
+          "label": "Cursor Color",
+          "description": "Cursor fill color",
+          "default": "#1e293b"
+        },
+        "rippleColor": {
+          "type": "color",
+          "label": "Ripple Color",
+          "description": "Click ripple color",
+          "default": "#38bdf8"
+        },
+        "cursorSize": {
+          "type": "number",
+          "label": "Cursor Size",
+          "description": "Cursor size (px)",
+          "default": 48,
+          "min": 16,
+          "max": 120
+        },
+        "clickFrame": {
+          "type": "number",
+          "label": "Click Frame",
+          "description": "Frame when the click happens",
+          "default": 35,
+          "min": 0,
+          "max": 300
+        },
+        "moveDuration": {
+          "type": "number",
+          "label": "Move Duration",
+          "description": "Frames to reach the target",
+          "default": 30,
+          "min": 5,
+          "max": 120
         }
       }
     },
@@ -4026,13 +4275,40 @@
         "text": {
           "type": "string",
           "label": "Text",
-          "description": "Search query text"
+          "description": "Search query text",
+          "default": "cómo crear videos con IA"
         },
         "width": {
           "type": "number",
           "label": "Width",
           "description": "Search bar width",
           "default": 900
+        },
+        "typeSpeed": {
+          "type": "number",
+          "label": "Type Speed",
+          "description": "Frames per character (lower = faster)",
+          "default": 2,
+          "min": 1,
+          "max": 10
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Bar Color",
+          "description": "Search bar background",
+          "default": "#ffffff"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Typed text color",
+          "default": "#1e293b"
+        },
+        "color": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Icon & ripple color",
+          "default": "#38bdf8"
         }
       }
     },
@@ -4056,6 +4332,48 @@
           "description": "Main commit node color",
           "default": "#3b82f6"
         },
+        "color": {
+          "type": "color",
+          "label": "Line Color",
+          "description": "Trunk/line color",
+          "default": "#334155"
+        },
+        "branchColor": {
+          "type": "color",
+          "label": "Branch Color",
+          "description": "Feature branch color",
+          "default": "#8b5cf6"
+        },
+        "mergeColor": {
+          "type": "color",
+          "label": "Merge Color",
+          "description": "Merge commit color",
+          "default": "#f59e0b"
+        },
+        "lineWidth": {
+          "type": "number",
+          "label": "Line Width",
+          "description": "Trunk/branch thickness (px)",
+          "default": 8,
+          "min": 2,
+          "max": 20
+        },
+        "nodeSize": {
+          "type": "number",
+          "label": "Node Size",
+          "description": "Commit node size (px)",
+          "default": 24,
+          "min": 8,
+          "max": 60
+        },
+        "graphHeight": {
+          "type": "number",
+          "label": "Graph Height",
+          "description": "Total graph height (px)",
+          "default": 600,
+          "min": 200,
+          "max": 1200
+        },
         "mergeFrame": {
           "type": "number",
           "label": "Merge Frame",
@@ -4075,6 +4393,56 @@
           "label": "Headline",
           "description": "Breaking news headline",
           "default": "MAJOR ANNOUNCEMENT"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Banner background color",
+          "default": "#ef4444"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Headline color",
+          "default": "#ffffff"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Headline size (px)",
+          "default": 80,
+          "min": 20,
+          "max": 160
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Banner border color",
+          "default": "#ffffff"
+        },
+        "stripeColor1": {
+          "type": "color",
+          "label": "Stripe Color 1",
+          "description": "Warning stripe color A",
+          "default": "#ef4444"
+        },
+        "stripeColor2": {
+          "type": "color",
+          "label": "Stripe Color 2",
+          "description": "Warning stripe color B",
+          "default": "#ffffff"
+        },
+        "showStripes": {
+          "type": "boolean",
+          "label": "Show Stripes",
+          "description": "Show warning stripes below",
+          "default": true
+        },
+        "pulse": {
+          "type": "boolean",
+          "label": "Pulse",
+          "description": "Continuous pulse animation",
+          "default": true
         }
       }
     },
@@ -4082,7 +4450,7 @@
       "name": "BreakingNewsTicker",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Breaking news ticker bar with scrolling text and \"BREAKING\" badge.",
+      "description": "Breaking news ticker bar with scrolling text and a configurable badge.",
       "props": {
         "text": {
           "type": "text-long",
@@ -4097,6 +4465,52 @@
           "default": 10,
           "min": 1,
           "max": 30
+        },
+        "badgeText": {
+          "type": "string",
+          "label": "Badge Text",
+          "description": "Left badge label (empty = hide)",
+          "default": "BREAKING"
+        },
+        "badgeBg": {
+          "type": "color",
+          "label": "Badge Background",
+          "description": "Badge background color",
+          "default": "#000000"
+        },
+        "badgeColor": {
+          "type": "color",
+          "label": "Badge Text Color",
+          "description": "Badge text color",
+          "default": "#ffffff"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Bar Color",
+          "description": "Ticker bar background",
+          "default": "#ef4444"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Scrolling text color",
+          "default": "#ffffff"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 32,
+          "min": 12,
+          "max": 80
+        },
+        "barHeight": {
+          "type": "number",
+          "label": "Bar Height",
+          "description": "Ticker bar height (px)",
+          "default": 70,
+          "min": 30,
+          "max": 200
         }
       }
     },

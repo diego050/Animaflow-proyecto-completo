@@ -4,11 +4,13 @@ import type { UniversalProps } from "./types";
 import { useCanvas } from '../utils/canvas';
 
 export const SearchEngineTyping: React.FC<{
-  text: string;
+  text?: string;
   width?: number;
+  typeSpeed?: number;
 } & UniversalProps> = ({
-  text,
+  text = 'cómo crear videos con IA',
   width,
+  typeSpeed = 2,
   x = 540,
   y = 960,
   delay = 0,
@@ -20,11 +22,16 @@ export const SearchEngineTyping: React.FC<{
   const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  const charsToShow = Math.floor(adjustedFrame / 2);
-  const displayedText = text.substring(0, charsToShow);
-  const isFinished = charsToShow >= text.length;
+  // Guarda: si llega text vacío/undefined (p.ej. sin default en manifest), no
+  // reventar con .substring sobre undefined (era la causa del ⚠️ en el preview).
+  const safeText = text ?? '';
+  // typeSpeed = frames por carácter (menor = más rápido).
+  const framesPerChar = Math.max(1, typeSpeed);
+  const charsToShow = Math.floor(adjustedFrame / framesPerChar);
+  const displayedText = safeText.substring(0, charsToShow);
+  const isFinished = charsToShow >= safeText.length;
 
-  const rippleFrame = adjustedFrame - text.length * 2 - 10;
+  const rippleFrame = adjustedFrame - safeText.length * framesPerChar - 10;
   const showRipple = rippleFrame > 0 && rippleFrame < 15;
   const rippleScale = showRipple ? 1 + rippleFrame * 0.02 : 1;
   const rippleOpacity = showRipple ? 1 - rippleFrame / 15 : 0;

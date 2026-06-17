@@ -27,6 +27,7 @@ import { FloatingBadge } from './components/FloatingBadge';
 import { FloatingBlobs } from './components/FloatingBlobs';
 import { FollowerCounter } from './components/FollowerCounter';
 import { FunnelChart } from './components/FunnelChart';
+import { GeometricShapes } from './components/GeometricShapes';
 import { GitCommitGraph } from './components/GitCommitGraph';
 import { GlitchTitle } from './components/GlitchTitle';
 import { GlitchTransition } from './components/GlitchTransition';
@@ -149,6 +150,7 @@ export const COMPONENT_NAMES = [
   'FloatingBlobs',
   'FollowerCounter',
   'FunnelChart',
+  'GeometricShapes',
   'GitCommitGraph',
   'GlitchTitle',
   'GlitchTransition',
@@ -272,6 +274,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   FloatingBlobs,
   FollowerCounter,
   FunnelChart,
+  GeometricShapes,
   GitCommitGraph,
   GlitchTitle,
   GlitchTransition,

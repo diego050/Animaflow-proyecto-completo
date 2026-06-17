@@ -7,6 +7,8 @@ interface EmojiFloatProps extends UniversalProps {
   count?: number;
   spread?: number;
   speed?: number;
+  riseDistance?: number;
+  wiggle?: number;
 }
 
 export const EmojiFloat: React.FC<EmojiFloatProps> = ({
@@ -14,6 +16,8 @@ export const EmojiFloat: React.FC<EmojiFloatProps> = ({
   count = 10,
   spread = 300,
   speed = 1.0,
+  riseDistance = 600,
+  wiggle = 50,
   x = 540,
   y = 1000,
   fontSize = 60,
@@ -41,9 +45,9 @@ export const EmojiFloat: React.FC<EmojiFloatProps> = ({
         if (progress === 0) return null;
 
         // Move up
-        const currentY = y - progress * 600;
+        const currentY = y - progress * riseDistance;
         // Wiggle X
-        const currentX = x + randomX + Math.sin(progress * 10 + i) * 50;
+        const currentX = x + randomX + Math.sin(progress * 10 + i) * wiggle;
         
         // Fade out at top
         const opacity = interpolate(progress, [0, 0.1, 0.8, 1], [0, 1, 1, 0]);
