@@ -35,14 +35,30 @@ Estado: ✅ hecho · 🟡 parcial · ⬜ pendiente
 `RaysOfLight`/`GridPerspective`: son líneas/partículas finas (ya sutiles con el cap),
 no requieren reescritura urgente.
 
-## Pendientes destacados (resto del catálogo)
-- **Mockups/cards/charts** (no responsivos aún — ver lista por prioridad en
-  ADR-011 §"Fase 2"): TikTokOverlay, MusicPlayerUI, TweetCard, InstagramPost,
-  BrowserWindow, PhoneMockup, CodeBlockHighlight, los `Style*Chart`, etc.
-- **idle motion** en otros hero (cards, mockups) tras validar que no distrae.
-- **Reducir props booleanas** (`showX`, `fillArea`, etc.) → variantes/composición
-  (skill `composition-patterns`).
-- **elevation()/radius() tokens** en cards/badges/buttons (hoy usan vmin ad-hoc).
+## Backfill responsivo — ✅ COMPLETO (2026-06-16)
+
+Todos los mockups/cards/charts con px de escala web fueron migrados a `useCanvas`
+(detalle por tanda en ADR-011 §"Backfill responsive COMPLETO"). **53/120 .tsx usan
+`useCanvas`** (eran 12). Resumen:
+- **Gráficas:** `StyleBarChart`, `StyleLineChart`, `StylePieChart`, `BarChartReveal`,
+  `FunnelChart`, `StyleFunnelChart`, `StyleBarRace`, `PieChartReveal`,
+  `RadarSpiderChart` (+ `gridShape` polygon/circle), `HorizontalBarRace` (lista atómica).
+- **Mockups/devices:** `PhoneMockup`, `BrowserWindow`, `TerminalHacker`,
+  `MediaFrame`, `StyleVideoPlayer`, `CodeBlockHighlight`, `SplitScreenGrid`,
+  `VersusScreen`, `SearchEngineTyping` (todos atómicos + responsive).
+- **Sociales/engagement:** `TweetCard`, `InstagramPost`, `TikTokOverlay`,
+  `YouTubeEndScreen`, `NotificationToast`, `FollowerCounter`, `MusicPlayerUI`,
+  `TestimonialReview`, `SocialSharePopup`, `ShoppingCartBadge`, `TinderSwipeCard`,
+  `FlashSaleTimer`, `StyleFakeScroll`.
+- **Ventas/misc:** `ProductCardReveal`, `PromoCodeBanner`, `SizeSelector`,
+  `CalendarDatePop`, `FeatureUnlock`, `PodcastGuestCard`, `AppStoreButtons`, `StyleAvatar`.
+- Único `fontSize` numérico restante: `StyleTextBlock` (FALSO POSITIVO — núcleo, el
+  fontSize lo controla el auto-fit del pipeline; renderiza grande).
+
+## Pendientes (no responsividad)
+- **idle motion** en otros hero (cards, mockups) tras validar que no distrae (opcional, "de gusto").
+- **Reducir props booleanas** (`showX`, `fillArea`, etc.) → variantes/composición (opcional).
+- **elevation()/radius() tokens** uniformes en cards/badges/buttons (hoy mezcla vmin ad-hoc + tokens).
 
 ## Cómo retomar
 1. Toma un componente de la tabla/pendientes.

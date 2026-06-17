@@ -6,12 +6,59 @@ import { AnimaComposer } from './composer/AnimaComposer';
 import { COMPONENT_REGISTRY } from './registry';
 import { TransitionWrapper } from './transitions/TransitionWrapper';
 
-// v8 (Fase 5): VARIEDAD de transiciones limpias (todas neutrales: negro/blanco,
-// sin colores raros). Se rota por corte de forma determinista. Junto con la
-// eliminación del crossfade de color de fondo en AnimaComposer, esto quita los
-// "colores raros" (verde→marrón→azul) y da variedad visual.
-const SCENE_TRANSITIONS = ['FadeThroughBlack', 'ZoomBlurTransition', 'WipeTransition'];
+// v8 (Fase 5): transiciones limpias (neutrales: negro/blanco, sin colores raros).
+// Se eligen por CONTINUIDAD entre escenas (no rotación ciega por índice):
+//  - Cambio de fondo grande  → FadeThroughBlack (velo neutro que cubre el salto).
+//  - Escena entrante corta/punchy → ZoomBlurTransition (enérgica, mantiene ritmo).
+//  - Escenas continuas (look similar) → WipeTransition (barrido direccional suave).
 const SCENE_TRANSITION_FRAMES = 18; // ~0.6s a 30fps
+
+type SceneLike = TimelineSpec['scenes'][number];
+
+/** Primer color de fondo representativo de la escena (anima_composer o remotion_props). */
+function sceneBgColor(scene: SceneLike | undefined): string | undefined {
+  const cols = scene?.anima_composer?.background?.colors;
+  if (Array.isArray(cols) && cols.length > 0) return cols[0];
+  return scene?.remotion_props?.backgroundColor as string | undefined;
+}
+
+function parseRgb(color: string | undefined): [number, number, number] | null {
+  if (!color) return null;
+  const s = color.trim();
+  if (s.startsWith('#')) {
+    let h = s.slice(1);
+    if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('');
+    if (h.length >= 6) {
+      const r = parseInt(h.slice(0, 2), 16);
+      const g = parseInt(h.slice(2, 4), 16);
+      const b = parseInt(h.slice(4, 6), 16);
+      if (![r, g, b].some(Number.isNaN)) return [r, g, b];
+    }
+  }
+  const m = s.match(/rgba?\(([^)]+)\)/i);
+  if (m) {
+    const p = m[1].split(',').map((v) => parseFloat(v));
+    if (p.length >= 3 && p.slice(0, 3).every((v) => !Number.isNaN(v))) return [p[0], p[1], p[2]];
+  }
+  return null;
+}
+
+/** Distancia euclidiana RGB (0–441). Desconocido → grande (cubrir por seguridad). */
+function bgColorDistance(a: SceneLike | undefined, b: SceneLike | undefined): number {
+  const ca = parseRgb(sceneBgColor(a));
+  const cb = parseRgb(sceneBgColor(b));
+  if (!ca || !cb) return 441;
+  return Math.sqrt((ca[0] - cb[0]) ** 2 + (ca[1] - cb[1]) ** 2 + (ca[2] - cb[2]) ** 2);
+}
+
+/** Transición determinista según la continuidad entre dos escenas consecutivas. */
+function pickSceneTransition(prev: SceneLike | undefined, next: SceneLike | undefined): string {
+  const dist = bgColorDistance(prev, next);
+  if (dist > 120) return 'FadeThroughBlack'; // cambio visual fuerte → cubrir con negro
+  const nextDur = next?.duration_seconds ?? 3;
+  if (nextDur < 2.5) return 'ZoomBlurTransition'; // escena corta/punchy → enérgica
+  return 'WipeTransition'; // continuas → barrido suave
+}
 
 interface FallbackSceneProps {
   text: string;
@@ -156,6 +203,8 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
       {spec.scenes.slice(1).map((_, i) => {
         const boundaryFrame = sceneOffsets[i + 1];
         const from = Math.max(0, boundaryFrame - Math.floor(SCENE_TRANSITION_FRAMES / 2));
+        // Continuidad: el corte está entre la escena i (saliente) y la i+1 (entrante).
+        const transitionType = pickSceneTransition(spec.scenes[i], spec.scenes[i + 1]);
         return (
           <Sequence
             key={`transition-${i}`}
@@ -163,7 +212,7 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
             durationInFrames={SCENE_TRANSITION_FRAMES}
           >
             <TransitionWrapper
-              type={SCENE_TRANSITIONS[i % SCENE_TRANSITIONS.length]}
+              type={transitionType}
               durationFrames={SCENE_TRANSITION_FRAMES}
             />
           </Sequence>

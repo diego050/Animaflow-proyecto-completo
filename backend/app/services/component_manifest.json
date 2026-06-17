@@ -1792,8 +1792,7 @@
         "innerRadius": {
           "type": "number",
           "label": "Inner Radius",
-          "description": "Donut hole radius",
-          "default": 40
+          "description": "Donut hole radius (auto if empty)"
         },
         "explodeSlice": {
           "type": "number",
@@ -1853,10 +1852,9 @@
         "lineWidth": {
           "type": "number",
           "label": "Line Width",
-          "description": "Stroke width",
-          "default": 3,
+          "description": "Stroke width (auto if empty)",
           "min": 1,
-          "max": 10
+          "max": 40
         }
       }
     },
@@ -2018,18 +2016,6 @@
             45,
             90
           ]
-        },
-        "width": {
-          "type": "number",
-          "label": "Width",
-          "description": "Chart width",
-          "default": 800
-        },
-        "height": {
-          "type": "number",
-          "label": "Height",
-          "description": "Chart height",
-          "default": 500
         }
       }
     },
@@ -2089,24 +2075,35 @@
       "name": "HorizontalBarRace",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Horizontal bar race with Name:Value format and staggered spring animation.",
+      "description": "Ranking of horizontal bars (sorted by value) that grow with a staggered spring. Each item can have an icon. Good for \"top N\" comparisons.",
       "props": {
         "items": {
-          "type": "string",
+          "type": "list",
           "label": "Items",
-          "description": "Comma-separated Name:Value pairs",
-          "default": "JavaScript:100,Python:90,TypeScript:85"
+          "description": "List of {label, value, color?, icon?}",
+          "default": [
+            {
+              "label": "JavaScript",
+              "value": 100,
+              "color": "#f7df1e"
+            },
+            {
+              "label": "Python",
+              "value": 90,
+              "color": "#3776ab"
+            },
+            {
+              "label": "TypeScript",
+              "value": 85,
+              "color": "#3178c6"
+            }
+          ]
         },
-        "colors": {
-          "type": "string",
-          "label": "Colors",
-          "description": "Comma-separated hex colors",
-          "default": "#f7df1e,#3776ab,#3178c6,#00add8,#dea584"
-        },
-        "speed": {
-          "type": "number",
-          "label": "Speed",
-          "description": "Animation speed multiplier"
+        "textColor": {
+          "type": "color",
+          "label": "Label Color",
+          "description": "Label text color",
+          "default": "#ffffff"
         }
       }
     },
@@ -2114,25 +2111,56 @@
       "name": "RadarSpiderChart",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Radar/spider chart with web grid and animated data polygon.",
+      "description": "Radar/spider chart with animated data polygon and dots at each axis. Grid can be polygon or circular.",
       "props": {
-        "values": {
-          "type": "string",
-          "label": "Values",
-          "description": "Comma-separated values (0-100)",
-          "default": "80,95,60,85,70"
+        "data": {
+          "type": "list",
+          "label": "Axes",
+          "description": "List of {label, value 0-100}",
+          "default": [
+            {
+              "label": "Speed",
+              "value": 80
+            },
+            {
+              "label": "Power",
+              "value": 95
+            },
+            {
+              "label": "Agility",
+              "value": 60
+            },
+            {
+              "label": "Stamina",
+              "value": 85
+            },
+            {
+              "label": "Focus",
+              "value": 70
+            }
+          ]
+        },
+        "gridShape": {
+          "type": "select",
+          "label": "Grid Shape",
+          "description": "Background grid shape",
+          "default": "polygon",
+          "options": [
+            "polygon",
+            "circle"
+          ]
+        },
+        "color": {
+          "type": "color",
+          "label": "Stroke Color",
+          "description": "Polygon stroke",
+          "default": "#00FFAB"
         },
         "fillColor": {
           "type": "color",
           "label": "Fill Color",
-          "description": "Polygon fill color",
-          "default": "rgba(59, 130, 246, 0.5)"
-        },
-        "labels": {
-          "type": "string",
-          "label": "Labels",
-          "description": "Comma-separated axis labels",
-          "default": "Speed,Power,Agility,Stamina,Focus"
+          "description": "Polygon fill",
+          "default": "rgba(0, 255, 171, 0.35)"
         }
       }
     },
@@ -2582,24 +2610,47 @@
       "name": "BrowserWindow",
       "category": "UI",
       "role": "ui",
-      "description": "Browser window mockup with traffic light buttons and content area.",
+      "description": "Browser window mockup with traffic-light buttons and address bar. Editable interior: icon + title + subtitle + screen color.",
       "props": {
-        "text": {
+        "title": {
           "type": "string",
-          "label": "Text",
-          "description": "Content text displayed in the window"
+          "label": "Title",
+          "description": "Headline inside the window",
+          "default": "Tu sitio web"
         },
-        "width": {
-          "type": "number",
-          "label": "Width",
-          "description": "Window width",
-          "default": 800
+        "subtitle": {
+          "type": "string",
+          "label": "Subtitle",
+          "description": "Secondary line"
         },
-        "height": {
-          "type": "number",
-          "label": "Height",
-          "description": "Window height",
-          "default": 500
+        "icon": {
+          "type": "icon",
+          "label": "Icon",
+          "description": "Optional icon shown above the title"
+        },
+        "url": {
+          "type": "string",
+          "label": "URL",
+          "description": "Address bar text",
+          "default": "miweb.com"
+        },
+        "screenColor": {
+          "type": "color",
+          "label": "Screen Color",
+          "description": "Interior background",
+          "default": "#ffffff"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Icon color",
+          "default": "#00FFAB"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Title color",
+          "default": "#0f172a"
         }
       }
     },
@@ -2607,12 +2658,138 @@
       "name": "PhoneMockup",
       "category": "UI",
       "role": "ui",
-      "description": "Phone mockup with notch (Dynamic Island) and content area, slides up from bottom.",
+      "description": "Phone mockup with Dynamic Island that slides up. Editable interior: icon + title + subtitle + screen color.",
       "props": {
-        "text": {
+        "title": {
           "type": "string",
-          "label": "Text",
-          "description": "Content text displayed on screen"
+          "label": "Title",
+          "description": "Headline on the screen",
+          "default": "Tu app"
+        },
+        "subtitle": {
+          "type": "string",
+          "label": "Subtitle",
+          "description": "Secondary line"
+        },
+        "icon": {
+          "type": "icon",
+          "label": "Icon",
+          "description": "Optional icon shown above the title"
+        },
+        "screenColor": {
+          "type": "color",
+          "label": "Screen Color",
+          "description": "Interior background",
+          "default": "#f8fafc"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Icon color",
+          "default": "#00FFAB"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Title color",
+          "default": "#1e293b"
+        }
+      }
+    },
+    {
+      "name": "AnimatedChecklist",
+      "category": "UI",
+      "role": "ui",
+      "description": "Animated list that reveals items one by one, each with a check/icon. Ideal for \"3 reasons\", \"steps\", \"tips\". The icon is a per-row accent, not the hero.",
+      "props": {
+        "items": {
+          "type": "list",
+          "label": "Items",
+          "description": "List items: text or {text, icon}",
+          "default": [
+            {
+              "text": "Primer punto"
+            },
+            {
+              "text": "Segundo punto"
+            },
+            {
+              "text": "Tercer punto"
+            }
+          ]
+        },
+        "checkIcon": {
+          "type": "icon",
+          "label": "Default Icon",
+          "description": "Icon for items without one",
+          "default": "mdi:check-circle"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Icon color",
+          "default": "#00FFAB"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Item text color",
+          "default": "#ffffff"
+        },
+        "stagger": {
+          "type": "number",
+          "label": "Stagger",
+          "description": "Seconds between items",
+          "default": 0.35,
+          "min": 0,
+          "max": 2
+        }
+      }
+    },
+    {
+      "name": "RotatingCarousel",
+      "category": "UI",
+      "role": "ui",
+      "description": "Auto-advancing carousel of items, each with an icon and/or label. Use to show several facets of a concept (e.g. coffee → espresso/latte/cappuccino) instead of a single big icon. The icon is an accent per slide, not the centered hero.",
+      "props": {
+        "items": {
+          "type": "list",
+          "label": "Items",
+          "description": "Slides: {icon, label}",
+          "default": [
+            {
+              "icon": "mdi:coffee",
+              "label": "Espresso"
+            },
+            {
+              "icon": "mdi:coffee-outline",
+              "label": "Latte"
+            },
+            {
+              "icon": "mdi:cup",
+              "label": "Cappuccino"
+            }
+          ]
+        },
+        "interval": {
+          "type": "number",
+          "label": "Interval",
+          "description": "Seconds per slide",
+          "default": 1.6,
+          "min": 0.4,
+          "max": 5
+        },
+        "iconColor": {
+          "type": "color",
+          "label": "Icon Color",
+          "description": "Icon + active dot color",
+          "default": "#ffffff"
+        },
+        "labelColor": {
+          "type": "color",
+          "label": "Label Color",
+          "description": "Label color",
+          "default": "#ffffff"
         }
       }
     },
@@ -2724,8 +2901,7 @@
         "borderRadius": {
           "type": "number",
           "label": "Border Radius",
-          "description": "Corner radius",
-          "default": 20
+          "description": "Corner radius (auto if empty)"
         },
         "borderWidth": {
           "type": "number",
@@ -2755,18 +2931,6 @@
             "contain",
             "fill"
           ]
-        },
-        "width": {
-          "type": "number",
-          "label": "Width",
-          "description": "Frame width",
-          "default": 600
-        },
-        "height": {
-          "type": "number",
-          "label": "Height",
-          "description": "Frame height",
-          "default": 400
         }
       }
     },
@@ -3318,19 +3482,47 @@
       "name": "TerminalHacker",
       "category": "UI",
       "role": "ui",
-      "description": "Terminal window with typewriter effect and blinking cursor.",
+      "description": "Terminal window with typewriter effect and blinking cursor. Atomic: lines as a list, editable colors and header title.",
       "props": {
         "lines": {
-          "type": "string",
+          "type": "list",
           "label": "Lines",
-          "description": "Comma-separated terminal lines",
-          "default": "npm install animaflow,> Installing dependencies...,> Success!"
+          "description": "Terminal lines (one per item)",
+          "default": [
+            "npm install animaflow",
+            "> Installing dependencies...",
+            "> Success! Server running on port 3000"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Window header title",
+          "default": "bash — animaflow"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Terminal text color",
+          "default": "#22c55e"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Terminal background",
+          "default": "#0f172a"
         },
         "cursorColor": {
           "type": "color",
           "label": "Cursor Color",
           "description": "Blinking cursor color",
           "default": "#22c55e"
+        },
+        "promptColor": {
+          "type": "color",
+          "label": "Prompt Color",
+          "description": "Prompt symbol (~) color",
+          "default": "#38bdf8"
         },
         "speed": {
           "type": "number",

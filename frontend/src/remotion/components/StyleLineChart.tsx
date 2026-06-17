@@ -1,6 +1,7 @@
 import React from 'react';
 import { interpolate, useCurrentFrame, Easing } from 'remotion';
 import type { UniversalProps } from "./types";
+import { useCanvas } from '../utils/canvas';
 
 interface PointData {
   x: string;
@@ -34,11 +35,12 @@ export const StyleLineChart: React.FC<StyleLineChartProps> = ({
   lineColor = '#00FFAB',
   fillColor = 'rgba(0, 255, 171, 0.1)',
   fillArea = true,
-  lineWidth = 3,
+  lineWidth,
   style,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
 
   const chartOpacity = interpolate(adjustedFrame, [0, 10], [0, 1], {
@@ -46,9 +48,15 @@ export const StyleLineChart: React.FC<StyleLineChartProps> = ({
     extrapolateRight: 'clamp',
   });
 
-  const chartWidth = 360;
-  const chartHeight = 200;
-  const padding = 40;
+  // Relativo al lienzo (antes px de escala web: 360×200, padding 40, fontSize 11).
+  const chartWidth = c.vw(78);
+  const chartHeight = c.vmin(38);
+  const padding = c.vmin(7);
+  const strokeW = lineWidth ?? c.vmin(0.7);
+  const labelFont = c.vmin(2.8);
+  const dotR = c.vmin(1.1);
+  const dotInner = c.vmin(0.7);
+
   const maxVal = Math.max(...data.map(d => d.y));
   const minVal = Math.min(...data.map(d => d.y));
   const range = maxVal - minVal || 1;
@@ -63,12 +71,13 @@ export const StyleLineChart: React.FC<StyleLineChartProps> = ({
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.px},${p.py}`).join(' ');
   const areaPath = linePath + ` L${points[points.length - 1].px},${chartHeight - padding} L${points[0].px},${chartHeight - padding} Z`;
 
-  // Animate line drawing
+  // Animate line drawing (dash mayor que cualquier longitud de path posible).
   const lineProgress = interpolate(adjustedFrame, [0, 40], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
     easing: Easing.out(Easing.cubic),
   });
+  const dash = chartWidth * 3;
 
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * chartOpacity : chartOpacity;
   const customLineColor = (style?.color as string) ?? lineColor;
@@ -91,7 +100,7 @@ export const StyleLineChart: React.FC<StyleLineChartProps> = ({
         )}
 
         {/* Line */}
-        <path d={linePath} fill="none" stroke={customLineColor} strokeWidth={lineWidth} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={1000} strokeDashoffset={1000 * (1 - lineProgress)} />
+        <path d={linePath} fill="none" stroke={customLineColor} strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} strokeDashoffset={dash * (1 - lineProgress)} />
 
         {/* Dots */}
         {showDots && points.map((p, i) => {
@@ -100,15 +109,15 @@ export const StyleLineChart: React.FC<StyleLineChartProps> = ({
           const dotScale = interpolate(dotFrame, [0, 8], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.back(1.5)) });
           return (
             <g key={i} style={{ transform: `scale(${dotScale})`, transformOrigin: `${p.px}px ${p.py}px` }}>
-              <circle cx={p.px} cy={p.py} r="5" fill={customLineColor} />
-              <circle cx={p.px} cy={p.py} r="3" fill="#0F172A" />
+              <circle cx={p.px} cy={p.py} r={dotR} fill={customLineColor} />
+              <circle cx={p.px} cy={p.py} r={dotInner} fill="#0F172A" />
             </g>
           );
         })}
 
         {/* Labels */}
         {showLabels && points.map((p, i) => (
-          <text key={i} x={p.px} y={chartHeight - 10} textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#94A3B8">{p.label}</text>
+          <text key={i} x={p.px} y={chartHeight - c.vmin(2)} textAnchor="middle" fontFamily="Inter, sans-serif" fontSize={labelFont} fill="#94A3B8">{p.label}</text>
         ))}
       </svg>
     </div>

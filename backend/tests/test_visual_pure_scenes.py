@@ -61,6 +61,28 @@ def test_strip_removes_text_and_centers_icon_hero():
     assert hero["size"] > 120                        # agrandado a héroe
 
 
+def test_rich_component_is_not_heroified_as_icon():
+    """Un componente rico (carousel) que usa íconos como parte NO debe convertirse
+    en 'ícono héroe' (sin size forzado). El ícono no siempre es el protagonista."""
+    spec = {
+        "background": {"type": "solid", "colors": ["#000"]},
+        "layers": [
+            {"type": "component", "componentName": "KineticBackground", "x": 0, "y": 0},
+            {"type": "component", "componentName": "RotatingCarousel", "x": 0, "y": 0,
+             "items": [{"icon": "mdi:coffee", "label": "Espresso"}]},
+            {"type": "component", "componentName": "StyleTextBlock", "x": 0, "y": -200,
+             "text": "Café", "fontSize": 80},
+        ],
+    }
+    out, stripped = apply_visual_pure_strip(spec, 1, 3, "9:16")
+    assert stripped is True
+    names = [l.get("componentName") for l in out["layers"]]
+    assert "StyleTextBlock" not in names
+    assert "RotatingCarousel" in names
+    carousel = next(l for l in out["layers"] if l.get("componentName") == "RotatingCarousel")
+    assert "size" not in carousel  # NO se heroificó como ícono
+
+
 def test_non_selected_scene_is_untouched():
     spec, stripped = apply_visual_pure_strip(_scene_with_text_and_icon(), 0, 3, "9:16")
     assert stripped is False

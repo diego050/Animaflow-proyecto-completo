@@ -1,7 +1,7 @@
 # ADR-011 — Visual Quality v8: plan de calidad + Fases 0a/0b (infra del pipeline + wins visuales)
 
 **Fecha:** 2026-06-15
-**Estado:** Fases 0a, 0b, 1 **implementadas**. Fase 2 **parcial**. Fase 3 **núcleo resuelto**. Fase 4 **avanzada** (tokens, springs, idle, halo, FloatingBlobs ambiental, Playground Lotes A+B, fix flash de entrada). Fase 5 **avanzada** (transiciones: FadeThroughBlack + variedad rotada + eliminado el crossfade de color turbio; texto opcional por escena AHORA determinista; catálogo Cinematic COMPLETO: KenBurns + CinematicBars + Spotlight + CameraShake (vignette/grain ya en GlobalVFX); NetworkNodes rehecho full-screen; iconos mitigados; fix colisión GlitchTitle escena 1).
+**Estado:** **Fases 0a–5 completas en lo accionable** (120 componentes). Fase 2 responsividad cerrada (backfill 33/33 + gráficas + 5 mockups atómicos; 53/120 .tsx con useCanvas). Fase 4 (tokens, springs, idle, halo, Playground). Fase 5: transiciones limpias + por continuidad; texto opcional determinista; Cinematic COMPLETO (KenBurns, CinematicBars, Spotlight, CameraShake); Logo & Branding (LogoReveal, BrandOutro); GradientText; RotatingCarousel; AnimatedChecklist; NetworkNodes rehecho; iconos mitigados + filtro junk; Playground agrupado+buscador; mockups atómicos (Phone/Browser/Terminal/BarRace/Radar). **Único pendiente: re-seed + re-embed (operativo, runbook listo). Image & Media bloqueado (sin pipeline de imágenes).**
 **Contexto previo:** [adr-010-visual-quality-v7.md](./adr-010-visual-quality-v7.md), [coordinate-contract.md](./coordinate-contract.md)
 **Plan canónico (vivo):** [`../PLAN-MEJORA-CALIDAD.md`](../PLAN-MEJORA-CALIDAD.md) — este ADR resume; el plan tiene el detalle por fase.
 
@@ -300,8 +300,16 @@ escena actual a los colores de la SIGUIENTE → salto turbio verde→marrón→a
 - tsc OK.
 
 **Variedad de transiciones (feedback: "todas son fade a negro"):** `MainComposition`
-ahora **rota** entre `FadeThroughBlack`, `ZoomBlurTransition` y `WipeTransition` por
-corte (todas neutrales negro/blanco, sin colores raros).
+usa `FadeThroughBlack`, `ZoomBlurTransition` y `WipeTransition` (todas neutrales
+negro/blanco, sin colores raros).
+
+**Transición por CONTINUIDAD (no rotación por índice):** `pickSceneTransition(prev,
+next)` en `MainComposition` elige la transición de cada corte de forma determinista
+según la relación entre las dos escenas:
+- distancia de color de fondo > 120 (RGB) → `FadeThroughBlack` (cubre el salto fuerte),
+- si no, escena entrante corta (< 2.5s) → `ZoomBlurTransition` (enérgica),
+- escenas continuas (look similar) → `WipeTransition` (barrido suave).
+Parsea hex/rgb del primer color de fondo (anima_composer o remotion_props). tsc OK.
 
 **"Todo es texto" (feedback #3 — el problema de fondo de §2):** se reescribió la regla
 del prompt: **el texto en pantalla es OPCIONAL y se decide por escena**. El audio ya
@@ -407,6 +415,27 @@ componentes de imagen ahora es bajo ROI: el LLM no tendría URLs para usarlos (s
 servirían en el Playground/props manuales). `KenBurns` + `MediaFrame` ya cubren el caso
 manual. Se retoma cuando exista un pipeline de imágenes.
 
+**El ícono NO siempre es el protagonista (feedback usuario):** antes el strip
+visual-pura SIEMPRE centraba+agrandaba cualquier capa con ícono (incluido un
+componente que solo lo usa como acento). Ahora `_strip_text_for_visual_scene` solo
+"heroifica" cuando el ÚNICO visual real es un `IconifyIcon`/`AnimatedIcon` SUELTO; si
+es un componente más rico (carousel/card/grid que usa íconos como parte), se respeta.
+Test `test_rich_component_is_not_heroified_as_icon`. Prompt: regla nueva — el ícono
+puede ir DENTRO de componentes (ej. usar `RotatingCarousel` para "café" en vez de un
+ícono gigante).
+- **`RotatingCarousel`** (`components/RotatingCarousel.tsx`, role `ui`): carrusel que
+  auto-avanza entre ítems `{icon, label}` (acento por slide, no héroe central). Para
+  mostrar varias facetas de un concepto. Determinista, responsive, dots indicadores.
+- **`AnimatedChecklist`** (`components/AnimatedChecklist.tsx`, role `ui`): lista que
+  revela ítems uno por uno con check/ícono (stagger). Para "3 razones", "pasos",
+  "tips" — el tipo de contenido del producto. Ícono como acento por fila. Total 120.
+
+**Script de re-seed/re-embed PREPARADO (no ejecutado):** los 3 scripts ya existían
+(`seed_components.py`, `reembed_components.py`, `reembed_icons.py`). Se creó
+`backend/scripts/RESEED_RUNBOOK.md` con el ORDEN exacto y notas (keys, throttle,
+reanudable) para correr UNA vez al final: seed → reembed componentes → reembed 43k
+iconos. El usuario lo ejecuta al cierre del proyecto.
+
 **Variantes de Text (ítem 24) — `GradientText`:** texto con relleno de gradiente
 animado (shimmer) vía `background-clip: text`. Hueco claro (no había equivalente),
 moderno, sin assets → el LLM lo usa de inmediato. Determinista (barrido por `frame`),
@@ -423,12 +452,61 @@ Los efectos de escena (`CameraShake`, `Spotlight`) se previsualizan con un **suj
 muestra** detrás (`SceneEffectDemo` en `AnimationPlayground.tsx`) — antes CameraShake
 (que renderiza null) se veía vacío.
 
+**Mockups/visualizaciones rehechos ATÓMICOS + responsive (feedback usuario):**
+- **`PhoneMockup`** y **`BrowserWindow`**: antes solo mostraban un texto centrado fijo.
+  Ahora interior EDITABLE (ícono + título + subtítulo + `screenColor`/`accentColor`),
+  responsive (useCanvas), barra de URL real en el browser, Dynamic Island en el phone.
+  Compat: `text` sigue mapeando a `title`. (A futuro: imagen de captura.)
+- **`TerminalHacker`**: `lines` pasó de string con comas (frágil) a **lista** atómica;
+  + `title` de cabecera y `promptColor`; responsive (antes width 800/fontSize 24 fijos).
+- **`HorizontalBarRace`**: `items` ahora lista de `{label, value, color?, icon?}`
+  (atómico, soporta ícono por barra), ordenado por valor (ranking), responsive.
+- **`RadarSpiderChart`**: `data` lista de `{label, value}` (antes 2 strings paralelos),
+  + `gridShape` polygon|circle, responsive. Compat legacy values/labels.
+- Todos: 120 componentes, en sync, tsc OK; props nuevas editables en el Playground.
+
+**Backfill responsive de gráficas (Fase 2 leftover):** las gráficas usaban px de
+escala WEB (ej. `StyleBarChart`: 360×200, fontSize 12) → en un lienzo 1080×1920 salían
+chiquitas y con etiquetas ilegibles (mismo problema que NetworkNodes). Migradas a
+`useCanvas` (vw/vmin): `StyleBarChart`, `StyleLineChart`, `StylePieChart`,
+`BarChartReveal`. Dimensiones → `vw(78-80)`/`vmin(38-46)`, fuentes → `vmin(2.8-3)`.
+Se quitaron del manifest los defaults fijos que las anclaban a escala web
+(BarChartReveal width/height, Pie innerRadius=40, Line lineWidth=3) → ahora se calculan
+relativos al lienzo. tsc OK.
+
+**Backfill responsive COMPLETO (33 componentes, en 3 tandas):** todos los componentes
+de contenido que usaban px de escala WEB (texto ilegible / "se ven chiquitos") fueron
+migrados a `useCanvas` (vw/vmin) en cambios INTERNOS (sin tocar props/manifest, salvo
+quitar defaults que anclaban a px). Cobertura: **53/120 .tsx usan `useCanvas`** (eran 12).
+- **Tanda 1 — ilegibles (10):** StyleAvatar, StyleBarRace, AppStoreButtons,
+  StyleFunnelChart, CodeBlockHighlight, StyleFakeScroll, StyleVideoPlayer,
+  PodcastGuestCard, PricingTableReveal, InstagramPost.
+- **Tanda 2 — sociales (11):** TweetCard, NotificationToast, FollowerCounter,
+  TikTokOverlay, YouTubeEndScreen, MusicPlayerUI, TestimonialReview, SocialSharePopup,
+  ShoppingCartBadge, TinderSwipeCard, FlashSaleTimer.
+- **Tanda 3 — ventas/misc (12):** ProductCardReveal, PromoCodeBanner, SizeSelector,
+  CalendarDatePop, FeatureUnlock, FunnelChart, SearchEngineTyping, PieChartReveal,
+  SplitScreenGrid, VersusScreen, MediaFrame.
+- Manifests sin defaults px residuales: MediaFrame (width/height/borderRadius auto).
+- Único `fontSize` numérico restante: **`StyleTextBlock`** = FALSO POSITIVO (texto núcleo,
+  el `fontSize` lo controla el auto-fit del pipeline; ya renderiza grande). No requiere cambio.
+- Patrón usado: fuentes ≈ `vmin(2.6–5)`, contenedores `vw(72–86)`/`vmin(38–80)`, overlays
+  full-screen con `vw/vh`, paddings/gaps `vmin`; px cosméticos diminutos (radios ~4px) se
+  dejaron. Verificado con `tsc -b` (exit 0) tras cada tanda.
+
 **PENDIENTE (Fase 5):**
-- **Re-embed de iconos (43k)** con el modelo actual — fix definitivo de la selección
-  (hoy mitigado). Ver §10.1.
-- Elegir la transición por continuidad de escena (no solo rotación por índice).
-- Categorías nuevas tipo ReactVideoEditor restantes: **Logo & Branding**, **Image & Media**.
-- dotLottie / @remotion/skia para efectos premium.
+- **🔑 Re-seed + re-embed** (runbook `backend/scripts/RESEED_RUNBOOK.md`) — habilita
+  que el LLM use TODO lo nuevo. Diferido al cierre del proyecto. Mayor lever pendiente.
+- **Image & Media** — BLOQUEADO hasta que exista pipeline de imágenes (feature de
+  producto, no de catálogo).
+- ✅ Backfill responsive — **COMPLETO (33/33 + gráficas + 5 mockups atómicos)**.
+  53/120 .tsx usan useCanvas. Solo queda StyleTextBlock (falso positivo, núcleo).
+- ❌ dotLottie / @remotion/skia — DESCARTADO por ahora (el usuario no usará Lottie).
+- ✅ Transición por continuidad — HECHO. Logo & Branding — HECHO. Cinematic — HECHO.
+
+**ESTADO GLOBAL: Fases 0a–5 completas en lo accionable.** Único pendiente real = re-seed
++ re-embed (operativo, runbook listo, al cierre). Image & Media bloqueado por falta de
+pipeline de imágenes. El catálogo (120 componentes) y la calidad/responsividad están cerrados.
 
 ---
 

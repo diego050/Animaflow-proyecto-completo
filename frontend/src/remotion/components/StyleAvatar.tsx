@@ -2,6 +2,7 @@ import React from 'react';
 import { interpolate, useCurrentFrame, Easing } from 'remotion';
 import type { UniversalProps } from "./types";
 import { IconifyIcon } from './IconifyIcon';
+import { useCanvas } from '../utils/canvas';
 
 interface StyleAvatarProps extends UniversalProps {
   icon?: string;
@@ -13,12 +14,6 @@ interface StyleAvatarProps extends UniversalProps {
   badgeText?: string;
   style?: Record<string, unknown>;
 }
-
-const sizeMap = {
-  sm: { avatarSize: 48, iconSize: 24, fontSize: 14, ringWidth: 2 },
-  md: { avatarSize: 64, iconSize: 32, fontSize: 16, ringWidth: 3 },
-  lg: { avatarSize: 80, iconSize: 40, fontSize: 18, ringWidth: 3 },
-};
 
 const variantMap = {
   solid: { bg: '#1E293B', border: '#334155' },
@@ -40,7 +35,15 @@ export const StyleAvatar: React.FC<StyleAvatarProps> = ({
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
+
+  // Tamaños relativos al lienzo (antes px de escala web: 48-80, fontSize 14-18).
+  const sizeMap = {
+    sm: { avatarSize: c.vmin(10), iconSize: c.vmin(5), fontSize: c.vmin(3), ringWidth: c.vmin(0.4) },
+    md: { avatarSize: c.vmin(14), iconSize: c.vmin(7), fontSize: c.vmin(3.4), ringWidth: c.vmin(0.5) },
+    lg: { avatarSize: c.vmin(18), iconSize: c.vmin(9), fontSize: c.vmin(3.8), ringWidth: c.vmin(0.6) },
+  };
 
   // Entrance: scale bounce
   const scale = interpolate(adjustedFrame, [0, 10, 15, 20], [0, 1.2, 0.9, 1], {
@@ -101,7 +104,7 @@ export const StyleAvatar: React.FC<StyleAvatarProps> = ({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '8px',
+        gap: `${c.vmin(1.2)}px`,
       }}
     >
       {/* Avatar container */}
@@ -114,8 +117,8 @@ export const StyleAvatar: React.FC<StyleAvatarProps> = ({
               top: '50%',
               left: '50%',
               transform: `translate(-50%, -50%) scale(${glowScale})`,
-              width: s.avatarSize + 16,
-              height: s.avatarSize + 16,
+              width: s.avatarSize + c.vmin(2.4),
+              height: s.avatarSize + c.vmin(2.4),
               borderRadius: '50%',
               backgroundColor: customBorderColor,
               opacity: 0.12,
@@ -184,14 +187,14 @@ export const StyleAvatar: React.FC<StyleAvatarProps> = ({
           <div
             style={{
               position: 'absolute',
-              top: -4,
-              right: -4,
+              top: `${-c.vmin(0.6)}px`,
+              right: `${-c.vmin(0.6)}px`,
               transform: `scale(${badgeScale})`,
               backgroundColor: '#EF4444',
               color: '#FFFFFF',
-              fontSize: 10,
+              fontSize: c.vmin(2),
               fontWeight: 700,
-              padding: '2px 6px',
+              padding: `${c.vmin(0.4)}px ${c.vmin(1.2)}px`,
               borderRadius: 999,
               fontFamily: 'Inter, sans-serif',
               whiteSpace: 'nowrap',
@@ -225,7 +228,7 @@ export const StyleAvatar: React.FC<StyleAvatarProps> = ({
           style={{
             fontFamily: 'Inter, sans-serif',
             fontWeight: 400,
-            fontSize: s.fontSize - 2,
+            fontSize: s.fontSize - c.vmin(0.4),
             color: '#94A3B8',
             textAlign: 'center',
           }}
