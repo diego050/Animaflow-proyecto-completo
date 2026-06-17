@@ -7,6 +7,11 @@ export const CursorClick: React.FC<{
   startY?: number;
   endX?: number;
   endY?: number;
+  cursorColor?: string;
+  rippleColor?: string;
+  cursorSize?: number;
+  clickFrame?: number;
+  moveDuration?: number;
 } & UniversalProps> = ({
   startX = 800,
   startY = 1500,
@@ -14,10 +19,19 @@ export const CursorClick: React.FC<{
   endY = 960,
   delay = 0,
   color,
+  cursorColor,
+  rippleColor,
+  cursorSize = 48,
+  clickFrame = 35,
+  moveDuration = 30,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
   const { fps } = useVideoConfig();
+
+  // Colores: props específicas con fallback a `color` y al default original.
+  const fillColor = cursorColor || color || '#1e293b';
+  const ripColor = rippleColor || color || 'rgba(56, 189, 248, 0.4)';
 
   // Animate position with an ease-out (smooth finish)
   const progress = spring({
@@ -27,18 +41,18 @@ export const CursorClick: React.FC<{
       damping: 15,
       stiffness: 80,
     },
-    durationInFrames: 30, // Takes 1 second to move
+    durationInFrames: moveDuration,
   });
 
   const x = interpolate(progress, [0, 1], [startX, endX]);
   const y = interpolate(progress, [0, 1], [startY, endY]);
 
-  // Click happens at frame 35
-  const isClicking = adjustedFrame >= 35 && adjustedFrame <= 40;
+  // Click happens at `clickFrame`
+  const isClicking = adjustedFrame >= clickFrame && adjustedFrame <= clickFrame + 5;
   const cursorScale = isClicking ? 0.8 : 1; // It shrinks slightly when clicking
 
   // Ripple effect
-  const rippleFrame = adjustedFrame - 35;
+  const rippleFrame = adjustedFrame - clickFrame;
   const showRipple = rippleFrame >= 0 && rippleFrame < 15;
   const rippleScale = showRipple ? interpolate(rippleFrame, [0, 15], [0, 3]) : 0;
   const rippleOpacity = showRipple ? interpolate(rippleFrame, [0, 15], [0.8, 0]) : 0;
@@ -65,7 +79,7 @@ export const CursorClick: React.FC<{
             width: '40px',
             height: '40px',
             borderRadius: '50%',
-            backgroundColor: color || 'rgba(56, 189, 248, 0.4)',
+            backgroundColor: ripColor,
             transform: `translate(-50%, -50%) scale(${rippleScale})`,
             opacity: rippleOpacity,
           }}
@@ -79,17 +93,16 @@ export const CursorClick: React.FC<{
           left: x,
           top: y,
           transform: `scale(${cursorScale})`,
-          transition: 'transform 0.1s',
           // Offset the anchor point slightly so the tip points exactly to the coord
           marginLeft: '-4px',
           marginTop: '-4px',
         }}
       >
         <svg
-          width="48"
-          height="48"
+          width={cursorSize}
+          height={cursorSize}
           viewBox="0 0 24 24"
-          fill={color || "#1e293b"}
+          fill={fillColor}
           stroke="#ffffff"
           strokeWidth="1.5"
           strokeLinecap="round"

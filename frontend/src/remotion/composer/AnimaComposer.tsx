@@ -25,6 +25,7 @@ import { COMPONENT_REGISTRY, resolveComponentAlias } from '../registry';
 import { computeCameraShake } from '../utils/cameraShake';
 import { AnimatedWrapper } from '../AnimatedWrapper';
 import type { EntryType, ExitType } from '../AnimatedWrapper';
+import { UniversalTransform } from '../UniversalTransform';
 import { solveLayout } from '../utils/layoutSolver';
 import type { SolvedLayer } from '../utils/layoutSolver';
 import { sanitizeComponentProps } from '../utils/sanitizeProps';
@@ -810,6 +811,21 @@ function renderSingleLayer(
           : ctx.text,
       };
 
+      // v8 (Fase 1): scale/rotation/opacity/zIndex son UNIVERSALES (las aplica
+      // UniversalTransform abajo). Se quitan de las props del componente para no
+      // aplicarlas dos veces en los que las definen (GradientOverlay, StyleWatermark,
+      // AnimatedShape). Su default interno cubre el caso sin valor → sin regresión.
+      delete mergedProps.scale;
+      delete mergedProps.rotation;
+      delete mergedProps.opacity;
+      delete mergedProps.zIndex;
+
+      // v8 (Fase 2): si la capa define un `entry` explícito, desactiva la entrada
+      // PROPIA del componente (BreakingNews*, etc.) para que no se animen dos
+      // entradas a la vez (la del wrapper + la built-in). Sin `entry`, la entrada
+      // propia se mantiene como default.
+      if (layer.entry) mergedProps.disableEntry = true;
+
       element = <ComponentToRender {...mergedProps} />;
 
       element = (
@@ -823,6 +839,24 @@ function renderSingleLayer(
         >
           {element}
         </AnimatedWrapper>
+      );
+
+      // v8 (Fase 1): transformaciones ATÓMICAS universales. Antes scale/rotation/
+      // opacity/zIndex se descartaban en capas tipo `component` (a diferencia de
+      // rect/text/...). Ahora un wrapper las aplica para cualquier componente,
+      // anclando el origen en (x,y) para que escale/rote alrededor de su posición.
+      // Se envuelve POR FUERA del entry/exit para que ambas opacidades compongan.
+      element = (
+        <UniversalTransform
+          scale={layer.scale as number | undefined}
+          rotation={layer.rotation as number | undefined}
+          opacity={layer.opacity as number | undefined}
+          zIndex={layer.zIndex as number | undefined}
+          anchorX={absoluteX}
+          anchorY={absoluteY}
+        >
+          {element}
+        </UniversalTransform>
       );
 
       // Apply LayerStyle

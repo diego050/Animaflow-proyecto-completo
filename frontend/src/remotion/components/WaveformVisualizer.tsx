@@ -1,15 +1,22 @@
 import React from 'react';
-import { useCurrentFrame } from 'remotion';
+import { interpolate, useCurrentFrame } from 'remotion';
 import type { UniversalProps } from "./types";
 
 interface WaveformVisualizerProps extends UniversalProps {
   lineWidth?: number;
   amplitude?: number;
+  points?: number;
+  glow?: boolean;
+  glowBlur?: number;
 }
 
 export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
   lineWidth = 6,
   amplitude = 100,
+  points = 100,
+  glow = true,
+  glowBlur = 8,
+  width = 800,
   color = '#8b5cf6',
   x = 540,
   y = 540,
@@ -17,9 +24,8 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
-  
-  const width = 800;
-  const segments = 100;
+
+  const segments = points;
   
   // Generate SVG path for a continuous sine wave that changes over time
   let pathD = `M 0 ${amplitude}`;
@@ -44,11 +50,13 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
   }
 
   return (
-    <div style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: 'translate(-50%, -50%)', zIndex: 30, opacity: adjustedFrame > 0 ? 1 : 0, transition: 'opacity 0.3s ease' }}>
+    <div style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: 'translate(-50%, -50%)', zIndex: 30, opacity: interpolate(adjustedFrame, [0, 9], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) }}>
       <svg width={width} height={amplitude * 2} viewBox={`0 0 ${width} ${amplitude * 2}`}>
         <path d={pathD} fill="none" stroke={color} strokeWidth={lineWidth} strokeLinecap="round" strokeLinejoin="round" />
-        {/* Subtle glow */}
-        <path d={pathD} fill="none" stroke={color} strokeWidth={lineWidth * 3} opacity="0.3" strokeLinecap="round" strokeLinejoin="round" filter="blur(8px)" />
+        {/* Subtle glow (opcional) */}
+        {glow && (
+          <path d={pathD} fill="none" stroke={color} strokeWidth={lineWidth * 3} opacity="0.3" strokeLinecap="round" strokeLinejoin="round" filter={`blur(${glowBlur}px)`} />
+        )}
       </svg>
     </div>
   );
