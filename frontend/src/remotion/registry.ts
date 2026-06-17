@@ -1,6 +1,7 @@
 import { APIRequestFlow } from './components/APIRequestFlow';
 import { AbstractWave } from './components/AbstractWave';
 import { AnimatedArrow } from './components/AnimatedArrow';
+import { AnimatedChecklist } from './components/AnimatedChecklist';
 import { AnimatedIcon } from './components/AnimatedIcon';
 import { AnimatedLine } from './components/AnimatedLine';
 import { AnimatedShape } from './components/AnimatedShape';
@@ -63,6 +64,7 @@ import { QuoteBlock } from './components/QuoteBlock';
 import { RadarSpiderChart } from './components/RadarSpiderChart';
 import { RaysOfLight } from './components/RaysOfLight';
 import { RippleEffect } from './components/RippleEffect';
+import { RotatingCarousel } from './components/RotatingCarousel';
 import { ScoreboardCounter } from './components/ScoreboardCounter';
 import { SearchEngineTyping } from './components/SearchEngineTyping';
 import { ShoppingCartBadge } from './components/ShoppingCartBadge';
@@ -121,6 +123,7 @@ export const COMPONENT_NAMES = [
   'APIRequestFlow',
   'AbstractWave',
   'AnimatedArrow',
+  'AnimatedChecklist',
   'AnimatedIcon',
   'AnimatedLine',
   'AnimatedShape',
@@ -183,6 +186,7 @@ export const COMPONENT_NAMES = [
   'RadarSpiderChart',
   'RaysOfLight',
   'RippleEffect',
+  'RotatingCarousel',
   'ScoreboardCounter',
   'SearchEngineTyping',
   'ShoppingCartBadge',
@@ -242,6 +246,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   APIRequestFlow,
   AbstractWave,
   AnimatedArrow,
+  AnimatedChecklist,
   AnimatedIcon,
   AnimatedLine,
   AnimatedShape,
@@ -304,6 +309,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   RadarSpiderChart,
   RaysOfLight,
   RippleEffect,
+  RotatingCarousel,
   ScoreboardCounter,
   SearchEngineTyping,
   ShoppingCartBadge,

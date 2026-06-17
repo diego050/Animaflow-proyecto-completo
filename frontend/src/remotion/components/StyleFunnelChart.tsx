@@ -1,6 +1,7 @@
 import React from 'react';
 import { interpolate, useCurrentFrame, Easing } from 'remotion';
 import type { UniversalProps } from "./types";
+import { useCanvas } from '../utils/canvas';
 
 interface FunnelStage {
   label: string;
@@ -35,6 +36,7 @@ export const StyleFunnelChart: React.FC<StyleFunnelChartProps> = ({
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
 
   const opacity = interpolate(adjustedFrame, [0, 10], [0, 1], {
@@ -43,10 +45,12 @@ export const StyleFunnelChart: React.FC<StyleFunnelChartProps> = ({
   });
 
   const maxValue = data[0]?.value ?? 1;
-  const chartWidth = 400;
-  const stageHeight = 48;
-  const gap = 4;
-  const totalHeight = data.length * (stageHeight + gap);
+  // Relativo al lienzo (antes px: chartWidth 400, stageHeight 48, fontSize 13/12).
+  const chartWidth = c.vw(58);
+  const stageHeight = c.vmin(7);
+  const gap = c.vmin(0.8);
+  const radius = c.vmin(0.8);
+  const labelFont = c.vmin(2.8);
 
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
 
@@ -59,7 +63,7 @@ export const StyleFunnelChart: React.FC<StyleFunnelChartProps> = ({
         transform: 'translate(-50%, -50%)',
         opacity: customOpacity,
         zIndex: 50,
-        width: chartWidth + 120,
+        width: `${c.vw(84)}px`,
       }}
     >
       {data.map((stage, i) => {
@@ -86,28 +90,16 @@ export const StyleFunnelChart: React.FC<StyleFunnelChartProps> = ({
               height: stageHeight + gap,
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: c.vmin(2),
             }}
           >
             {showLabels && (
-              <span style={{ width: 80, fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E2E8F0', textAlign: 'right', fontWeight: 500 }}>
+              <span style={{ width: c.vmin(18), fontFamily: 'Inter, sans-serif', fontSize: labelFont, color: '#E2E8F0', textAlign: 'right', fontWeight: 500 }}>
                 {stage.label}
               </span>
             )}
             <div style={{ flex: 1, height: stageHeight, position: 'relative' }}>
-              {/* Background track */}
-              <div
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  width: '100%',
-                  height: '100%',
-                  backgroundColor: '#1E293B',
-                  borderRadius: 4,
-                }}
-              />
-              {/* Animated bar */}
+              <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', backgroundColor: '#1E293B', borderRadius: radius }} />
               <div
                 style={{
                   position: 'absolute',
@@ -116,22 +108,21 @@ export const StyleFunnelChart: React.FC<StyleFunnelChartProps> = ({
                   width: `${barWidth}px`,
                   height: '100%',
                   backgroundColor: color,
-                  borderRadius: 4,
-                  transition: 'width 0.1s ease, left 0.1s ease',
+                  borderRadius: radius,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                {showValues && barWidth > 50 && (
-                  <span style={{ fontFamily: 'Inter Tight, sans-serif', fontSize: 13, fontWeight: 700, color: '#0F172A' }}>
+                {showValues && barWidth > c.vmin(12) && (
+                  <span style={{ fontFamily: 'Inter Tight, sans-serif', fontSize: labelFont, fontWeight: 700, color: '#0F172A' }}>
                     {stage.value.toLocaleString()}
                   </span>
                 )}
               </div>
             </div>
             {showPercentages && (
-              <span style={{ width: 50, fontFamily: 'Inter Tight, sans-serif', fontSize: 12, fontWeight: 600, color: i === 0 ? '#94A3B8' : '#E2E8F0' }}>
+              <span style={{ width: c.vmin(11), fontFamily: 'Inter Tight, sans-serif', fontSize: c.vmin(2.6), fontWeight: 600, color: i === 0 ? '#94A3B8' : '#E2E8F0' }}>
                 {i === 0 ? `${overallRate}%` : `${conversionRate}%`}
               </span>
             )}

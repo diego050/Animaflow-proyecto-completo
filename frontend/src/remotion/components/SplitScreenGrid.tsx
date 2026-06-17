@@ -1,5 +1,6 @@
 import React from 'react';
 import { spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { useCanvas } from '../utils/canvas';
 
 export const SplitScreenGrid: React.FC<{
   splitFrame?: number;
@@ -8,6 +9,7 @@ export const SplitScreenGrid: React.FC<{
 }) => {
   const frame = useCurrentFrame();
   const { width, height, fps } = useVideoConfig();
+  const c = useCanvas();
 
   // Animation to scale down and move to corners
   const splitProgress = spring({
@@ -69,11 +71,11 @@ export const SplitScreenGrid: React.FC<{
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              fontSize: '48px',
+              fontSize: `${c.vmin(5)}px`,
               fontFamily: 'Inter, sans-serif',
               fontWeight: 'bold',
               boxShadow: splitProgress > 0.1 ? '0 10px 30px rgba(0,0,0,0.5)' : 'none',
-              borderRadius: splitProgress > 0.1 ? '20px' : '0px',
+              borderRadius: splitProgress > 0.1 ? `${c.vmin(3)}px` : '0px',
               overflow: 'hidden',
             }}
           >

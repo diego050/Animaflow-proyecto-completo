@@ -486,16 +486,24 @@ def _strip_text_for_visual_scene(spec: dict, canvas_w: int, canvas_h: int) -> tu
     kept = [l for l in layers if not _is_text_layer(l)]
     spec["layers"] = kept
 
-    # Si queda un único visual y es un ícono, hacerlo el héroe: centrado y grande.
-    icon_visuals = [l for l in kept if _layer_has_icon(l) and l.get("type") != "background"]
-    if len(icon_visuals) == 1:
-        hero = icon_visuals[0]
-        hero["x"] = 0
-        hero["y"] = 0
-        hero_size = round(min(canvas_w, canvas_h) * 0.32)  # ~346px en 1080
-        if hero.get("type") == "component" and hero.get("componentName") in _ICON_COMPONENTS_VP:
-            hero["size"] = hero_size
-            hero["width"] = hero_size
+    # El ícono NO siempre debe ser el protagonista. Solo lo "heroificamos"
+    # (centrar + agrandar) cuando el ÚNICO visual real es un ícono SUELTO
+    # (IconifyIcon/AnimatedIcon). Si el visual es un componente más rico (carousel,
+    # card, grid… que usa íconos como parte/acento), se respeta tal cual: ahí el
+    # ícono es un detalle del componente, no el sujeto centrado.
+    real_visuals = [l for l in kept if _is_real_visual(l)]
+    if len(real_visuals) == 1:
+        only = real_visuals[0]
+        is_standalone_icon = (
+            only.get("type") == "component"
+            and only.get("componentName") in _ICON_COMPONENTS_VP
+        )
+        if is_standalone_icon:
+            only["x"] = 0
+            only["y"] = 0
+            hero_size = round(min(canvas_w, canvas_h) * 0.32)  # ~346px en 1080
+            only["size"] = hero_size
+            only["width"] = hero_size
 
     return spec, True
 
@@ -614,6 +622,10 @@ REGLA CRÍTICA DE ÍCONOS:
   megapíxeles). "cinco estrellas" → mdi:star, NO un ícono que contenga "5".
 - Prefiere íconos simples y reconocibles (objetos/conceptos claros). NO uses íconos
   oscuros, técnicos o de marcas raras.
+- EL ÍCONO NO SIEMPRE ES EL PROTAGONISTA. A veces va DENTRO de un componente como
+  acento (en un carousel, card, badge, lista) en vez de un ícono gigante centrado.
+  Ej: para "café", en lugar de un único ícono enorme, considera `RotatingCarousel`
+  con varios ítems (cada uno con su ícono) para mostrar facetas del concepto.
 - Si ningún ícono aporta a la escena, NO incluyas ninguno.
 - `size` SIEMPRE es un NÚMERO en píxeles (ej: 120). NUNCA un nombre de color ni texto.
 - Usa type: "component", componentName: "IconifyIcon", icon: "set:nombre-exacto"

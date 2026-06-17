@@ -1,6 +1,7 @@
 import React from 'react';
 import { spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { UniversalProps } from "./types";
+import { useCanvas } from '../utils/canvas';
 
 export const BarChartReveal: React.FC<{
   color1?: string; // Main color of the bars
@@ -15,18 +16,21 @@ export const BarChartReveal: React.FC<{
   x = 540,
   y = 960,
   delay = 0,
-  width = 800,
-  height = 500,
+  width,
+  height,
   color,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
   const { fps } = useVideoConfig();
 
-  // Gap between bars
-  const gap = 20;
-  // Calculate width per bar based on total width and gap
-  const barWidth = (width - gap * (data.length - 1)) / data.length;
+  // Relativo al lienzo (antes px fijos: 800×500, gap 20).
+  const w = width ?? c.vw(80);
+  const h = height ?? c.vmin(40);
+  const gap = c.vmin(2.4);
+  const barRadius = c.vmin(2);
+  const barWidth = (w - gap * (data.length - 1)) / data.length;
 
   return (
     <div
@@ -35,8 +39,8 @@ export const BarChartReveal: React.FC<{
         top: `${y}px`,
         left: `${x}px`,
         transform: 'translate(-50%, -50%)',
-        width: `${width}px`,
-        height: `${height}px`,
+        width: `${w}px`,
+        height: `${h}px`,
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'space-between',
@@ -58,7 +62,7 @@ export const BarChartReveal: React.FC<{
         });
 
         // The height is calculated dynamically
-        const currentHeight = progress * (value / 100) * height;
+        const currentHeight = progress * (value / 100) * h;
 
         return (
           <div
@@ -68,9 +72,9 @@ export const BarChartReveal: React.FC<{
               height: `${Math.max(currentHeight, 0)}px`,
               // Gradient for the bar
               background: `linear-gradient(to top, ${color || color1}, ${color2})`,
-              borderTopLeftRadius: '16px',
-              borderTopRightRadius: '16px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+              borderTopLeftRadius: `${barRadius}px`,
+              borderTopRightRadius: `${barRadius}px`,
+              boxShadow: `0 ${c.vmin(1.8)}px ${c.vmin(4.5)}px rgba(0,0,0,0.2)`,
             }}
           />
         );

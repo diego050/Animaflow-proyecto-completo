@@ -30,7 +30,7 @@ export interface PropDefinition {
   type: PropType;
   label: string;
   description: string;
-  defaultValue?: string | number | boolean | (string | number)[];
+  defaultValue?: string | number | boolean | (string | number)[] | Record<string, unknown>[];
   options?: string[];
   min?: number;
   max?: number;
@@ -637,7 +637,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
       { name: 'showLabels', type: 'boolean', label: 'Show Labels', description: 'Display legend labels', defaultValue: true },
       { name: 'showValues', type: 'boolean', label: 'Show Values', description: 'Display percentage values', defaultValue: true },
       { name: 'variant', type: 'select', label: 'Variant', description: 'Chart type', defaultValue: 'donut', options: ['pie', 'donut'] },
-      { name: 'innerRadius', type: 'number', label: 'Inner Radius', description: 'Donut hole radius', defaultValue: 40 },
+      { name: 'innerRadius', type: 'number', label: 'Inner Radius', description: 'Donut hole radius (auto if empty)' },
       { name: 'explodeSlice', type: 'number', label: 'Explode Slice', description: 'Index of slice to explode', defaultValue: 0 },
     ],
   },
@@ -654,7 +654,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
       { name: 'lineColor', type: 'color', label: 'Line Color', description: 'Line stroke color', defaultValue: '#00FFAB' },
       { name: 'fillColor', type: 'color', label: 'Fill Color', description: 'Area fill color', defaultValue: 'rgba(0, 255, 171, 0.1)' },
       { name: 'fillArea', type: 'boolean', label: 'Fill Area', description: 'Show area under line', defaultValue: true },
-      { name: 'lineWidth', type: 'number', label: 'Line Width', description: 'Stroke width', defaultValue: 3, min: 1, max: 10 },
+      { name: 'lineWidth', type: 'number', label: 'Line Width', description: 'Stroke width (auto if empty)', min: 1, max: 40 },
     ],
   },
   {
@@ -708,8 +708,6 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
       { name: 'color1', type: 'color', label: 'Color 1', description: 'Primary bar gradient color', defaultValue: '#3b82f6' },
       { name: 'color2', type: 'color', label: 'Color 2', description: 'Secondary bar gradient color', defaultValue: '#0ea5e9' },
       { name: 'data', type: 'list', label: 'Data', description: 'Array of bar heights (0-100)', defaultValue: [30, 50, 75, 45, 90] },
-      { name: 'width', type: 'number', label: 'Width', description: 'Chart width', defaultValue: 800 },
-      { name: 'height', type: 'number', label: 'Height', description: 'Chart height', defaultValue: 500 },
     ],
   },
   {
@@ -738,22 +736,22 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
     name: 'HorizontalBarRace',
     category: 'Charts & Data',
     role: 'dataviz',
-    description: 'Horizontal bar race with Name:Value format and staggered spring animation.',
+    description: 'Ranking of horizontal bars (sorted by value) that grow with a staggered spring. Each item can have an icon. Good for "top N" comparisons.',
     props: [
-      { name: 'items', type: 'string', label: 'Items', description: 'Comma-separated Name:Value pairs', defaultValue: 'JavaScript:100,Python:90,TypeScript:85' },
-      { name: 'colors', type: 'string', label: 'Colors', description: 'Comma-separated hex colors', defaultValue: '#f7df1e,#3776ab,#3178c6,#00add8,#dea584' },
-      { name: 'speed', type: 'number', label: 'Speed', description: 'Animation speed multiplier' },
+      { name: 'items', type: 'list', label: 'Items', description: 'List of {label, value, color?, icon?}', defaultValue: [{ label: 'JavaScript', value: 100, color: '#f7df1e' }, { label: 'Python', value: 90, color: '#3776ab' }, { label: 'TypeScript', value: 85, color: '#3178c6' }] },
+      { name: 'textColor', type: 'color', label: 'Label Color', description: 'Label text color', defaultValue: '#ffffff' },
     ],
   },
   {
     name: 'RadarSpiderChart',
     category: 'Charts & Data',
     role: 'dataviz',
-    description: 'Radar/spider chart with web grid and animated data polygon.',
+    description: 'Radar/spider chart with animated data polygon and dots at each axis. Grid can be polygon or circular.',
     props: [
-      { name: 'values', type: 'string', label: 'Values', description: 'Comma-separated values (0-100)', defaultValue: '80,95,60,85,70' },
-      { name: 'fillColor', type: 'color', label: 'Fill Color', description: 'Polygon fill color', defaultValue: 'rgba(59, 130, 246, 0.5)' },
-      { name: 'labels', type: 'string', label: 'Labels', description: 'Comma-separated axis labels', defaultValue: 'Speed,Power,Agility,Stamina,Focus' },
+      { name: 'data', type: 'list', label: 'Axes', description: 'List of {label, value 0-100}', defaultValue: [{ label: 'Speed', value: 80 }, { label: 'Power', value: 95 }, { label: 'Agility', value: 60 }, { label: 'Stamina', value: 85 }, { label: 'Focus', value: 70 }] },
+      { name: 'gridShape', type: 'select', label: 'Grid Shape', description: 'Background grid shape', defaultValue: 'polygon', options: ['polygon', 'circle'] },
+      { name: 'color', type: 'color', label: 'Stroke Color', description: 'Polygon stroke', defaultValue: '#00FFAB' },
+      { name: 'fillColor', type: 'color', label: 'Fill Color', description: 'Polygon fill', defaultValue: 'rgba(0, 255, 171, 0.35)' },
     ],
   },
   {
@@ -945,20 +943,54 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
     name: 'BrowserWindow',
     category: 'UI',
     role: 'ui',
-    description: 'Browser window mockup with traffic light buttons and content area.',
+    description: 'Browser window mockup with traffic-light buttons and address bar. Editable interior: icon + title + subtitle + screen color.',
     props: [
-      { name: 'text', type: 'string', label: 'Text', description: 'Content text displayed in the window' },
-      { name: 'width', type: 'number', label: 'Width', description: 'Window width', defaultValue: 800 },
-      { name: 'height', type: 'number', label: 'Height', description: 'Window height', defaultValue: 500 },
+      { name: 'title', type: 'string', label: 'Title', description: 'Headline inside the window', defaultValue: 'Tu sitio web' },
+      { name: 'subtitle', type: 'string', label: 'Subtitle', description: 'Secondary line' },
+      { name: 'icon', type: 'icon', label: 'Icon', description: 'Optional icon shown above the title' },
+      { name: 'url', type: 'string', label: 'URL', description: 'Address bar text', defaultValue: 'miweb.com' },
+      { name: 'screenColor', type: 'color', label: 'Screen Color', description: 'Interior background', defaultValue: '#ffffff' },
+      { name: 'accentColor', type: 'color', label: 'Accent Color', description: 'Icon color', defaultValue: '#00FFAB' },
+      { name: 'textColor', type: 'color', label: 'Text Color', description: 'Title color', defaultValue: '#0f172a' },
     ],
   },
   {
     name: 'PhoneMockup',
     category: 'UI',
     role: 'ui',
-    description: 'Phone mockup with notch (Dynamic Island) and content area, slides up from bottom.',
+    description: 'Phone mockup with Dynamic Island that slides up. Editable interior: icon + title + subtitle + screen color.',
     props: [
-      { name: 'text', type: 'string', label: 'Text', description: 'Content text displayed on screen' },
+      { name: 'title', type: 'string', label: 'Title', description: 'Headline on the screen', defaultValue: 'Tu app' },
+      { name: 'subtitle', type: 'string', label: 'Subtitle', description: 'Secondary line' },
+      { name: 'icon', type: 'icon', label: 'Icon', description: 'Optional icon shown above the title' },
+      { name: 'screenColor', type: 'color', label: 'Screen Color', description: 'Interior background', defaultValue: '#f8fafc' },
+      { name: 'accentColor', type: 'color', label: 'Accent Color', description: 'Icon color', defaultValue: '#00FFAB' },
+      { name: 'textColor', type: 'color', label: 'Text Color', description: 'Title color', defaultValue: '#1e293b' },
+    ],
+  },
+  {
+    name: 'AnimatedChecklist',
+    category: 'UI',
+    role: 'ui',
+    description: 'Animated list that reveals items one by one, each with a check/icon. Ideal for "3 reasons", "steps", "tips". The icon is a per-row accent, not the hero.',
+    props: [
+      { name: 'items', type: 'list', label: 'Items', description: 'List items: text or {text, icon}', defaultValue: [{ text: 'Primer punto' }, { text: 'Segundo punto' }, { text: 'Tercer punto' }] },
+      { name: 'checkIcon', type: 'icon', label: 'Default Icon', description: 'Icon for items without one', defaultValue: 'mdi:check-circle' },
+      { name: 'accentColor', type: 'color', label: 'Accent Color', description: 'Icon color', defaultValue: '#00FFAB' },
+      { name: 'textColor', type: 'color', label: 'Text Color', description: 'Item text color', defaultValue: '#ffffff' },
+      { name: 'stagger', type: 'number', label: 'Stagger', description: 'Seconds between items', defaultValue: 0.35, min: 0, max: 2 },
+    ],
+  },
+  {
+    name: 'RotatingCarousel',
+    category: 'UI',
+    role: 'ui',
+    description: 'Auto-advancing carousel of items, each with an icon and/or label. Use to show several facets of a concept (e.g. coffee → espresso/latte/cappuccino) instead of a single big icon. The icon is an accent per slide, not the centered hero.',
+    props: [
+      { name: 'items', type: 'list', label: 'Items', description: 'Slides: {icon, label}', defaultValue: [{ icon: 'mdi:coffee', label: 'Espresso' }, { icon: 'mdi:coffee-outline', label: 'Latte' }, { icon: 'mdi:cup', label: 'Cappuccino' }] },
+      { name: 'interval', type: 'number', label: 'Interval', description: 'Seconds per slide', defaultValue: 1.6, min: 0.4, max: 5 },
+      { name: 'iconColor', type: 'color', label: 'Icon Color', description: 'Icon + active dot color', defaultValue: '#ffffff' },
+      { name: 'labelColor', type: 'color', label: 'Label Color', description: 'Label color', defaultValue: '#ffffff' },
     ],
   },
   {
@@ -997,13 +1029,11 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
     description: 'Image/media frame with configurable border, shadow, and object-fit.',
     props: [
       { name: 'url', type: 'string', label: 'Image URL', description: 'Media source URL' },
-      { name: 'borderRadius', type: 'number', label: 'Border Radius', description: 'Corner radius', defaultValue: 20 },
+      { name: 'borderRadius', type: 'number', label: 'Border Radius', description: 'Corner radius (auto if empty)' },
       { name: 'borderWidth', type: 'number', label: 'Border Width', description: 'Border thickness', defaultValue: 0 },
       { name: 'borderColor', type: 'color', label: 'Border Color', description: 'Border color', defaultValue: '#ffffff' },
       { name: 'dropShadow', type: 'boolean', label: 'Drop Shadow', description: 'Enable shadow effect', defaultValue: true },
       { name: 'objectFit', type: 'select', label: 'Object Fit', description: 'Image scaling mode', defaultValue: 'cover', options: ['cover', 'contain', 'fill'] },
-      { name: 'width', type: 'number', label: 'Width', description: 'Frame width', defaultValue: 600 },
-      { name: 'height', type: 'number', label: 'Height', description: 'Frame height', defaultValue: 400 },
     ],
   },
   {
@@ -1231,10 +1261,14 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
     name: 'TerminalHacker',
     category: 'UI',
     role: 'ui',
-    description: 'Terminal window with typewriter effect and blinking cursor.',
+    description: 'Terminal window with typewriter effect and blinking cursor. Atomic: lines as a list, editable colors and header title.',
     props: [
-      { name: 'lines', type: 'string', label: 'Lines', description: 'Comma-separated terminal lines', defaultValue: 'npm install animaflow,> Installing dependencies...,> Success!' },
+      { name: 'lines', type: 'list', label: 'Lines', description: 'Terminal lines (one per item)', defaultValue: ['npm install animaflow', '> Installing dependencies...', '> Success! Server running on port 3000'] },
+      { name: 'title', type: 'string', label: 'Title', description: 'Window header title', defaultValue: 'bash — animaflow' },
+      { name: 'textColor', type: 'color', label: 'Text Color', description: 'Terminal text color', defaultValue: '#22c55e' },
+      { name: 'bgColor', type: 'color', label: 'Background', description: 'Terminal background', defaultValue: '#0f172a' },
       { name: 'cursorColor', type: 'color', label: 'Cursor Color', description: 'Blinking cursor color', defaultValue: '#22c55e' },
+      { name: 'promptColor', type: 'color', label: 'Prompt Color', description: 'Prompt symbol (~) color', defaultValue: '#38bdf8' },
       { name: 'speed', type: 'number', label: 'Speed', description: 'Typing speed (chars per frame)', defaultValue: 2, min: 1, max: 10 },
     ],
   },

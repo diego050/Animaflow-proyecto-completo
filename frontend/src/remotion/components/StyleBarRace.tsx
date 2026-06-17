@@ -1,6 +1,7 @@
 import React from 'react';
 import { interpolate, useCurrentFrame, Easing } from 'remotion';
 import type { UniversalProps } from "./types";
+import { useCanvas } from '../utils/canvas';
 
 interface RaceData {
   label: string;
@@ -30,8 +31,8 @@ export const StyleBarRace: React.FC<StyleBarRaceProps> = ({
     { label: 'Svelte', value: 35, color: '#FF8C00' },
     { label: 'Solid', value: 25, color: '#8B5CF6' },
   ],
-  barHeight = 32,
-  gap = 8,
+  barHeight,
+  gap,
   showLabels = true,
   showValues = true,
   duration = 90,
@@ -39,6 +40,7 @@ export const StyleBarRace: React.FC<StyleBarRaceProps> = ({
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
 
   const progress = interpolate(adjustedFrame, [0, duration], [0, 1], {
@@ -52,10 +54,15 @@ export const StyleBarRace: React.FC<StyleBarRaceProps> = ({
     extrapolateRight: 'clamp',
   });
 
-  // Sort by value and calculate positions
   const sorted = [...data].sort((a, b) => b.value - a.value);
   const maxVal = Math.max(...data.map(d => d.value));
-  const chartWidth = 400;
+
+  // Relativo al lienzo (antes px: barHeight 32, gap 8, chartWidth 400, fontSize 13/12).
+  const bh = barHeight ?? c.vmin(5);
+  const g = gap ?? c.vmin(1.4);
+  const rowGap = c.vmin(1.4);
+  const valueFont = c.vmin(2.8);
+  const radius = c.vmin(0.8);
 
   const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
 
@@ -68,11 +75,11 @@ export const StyleBarRace: React.FC<StyleBarRaceProps> = ({
         transform: 'translate(-50%, -50%)',
         opacity: customOpacity,
         zIndex: 50,
-        width: chartWidth + 100,
+        width: `${c.vw(82)}px`,
       }}
     >
       {sorted.map((item, i) => {
-        const barWidth = (item.value / maxVal) * chartWidth * progress;
+        const barWidthPct = (item.value / maxVal) * 100 * progress;
         const color = item.color ?? defaultColors[i % defaultColors.length];
 
         return (
@@ -80,33 +87,32 @@ export const StyleBarRace: React.FC<StyleBarRaceProps> = ({
             key={item.label}
             style={{
               position: 'relative',
-              height: barHeight + gap,
+              height: bh + g,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: rowGap,
             }}
           >
             {showLabels && (
-              <span style={{ width: 70, fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E2E8F0', textAlign: 'right', fontWeight: 500 }}>
+              <span style={{ width: c.vmin(16), fontFamily: 'Inter, sans-serif', fontSize: c.vmin(3), color: '#E2E8F0', textAlign: 'right', fontWeight: 500 }}>
                 {item.label}
               </span>
             )}
-            <div style={{ flex: 1, height: barHeight, backgroundColor: '#1E293B', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+            <div style={{ flex: 1, height: bh, backgroundColor: '#1E293B', borderRadius: radius, overflow: 'hidden', position: 'relative' }}>
               <div
                 style={{
-                  width: `${barWidth}px`,
+                  width: `${barWidthPct}%`,
                   height: '100%',
                   backgroundColor: color,
-                  borderRadius: 4,
-                  transition: 'width 0.1s ease',
+                  borderRadius: radius,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'flex-end',
-                  paddingRight: 8,
+                  paddingRight: c.vmin(1.4),
                 }}
               >
-                {showValues && barWidth > 40 && (
-                  <span style={{ fontFamily: 'Inter Tight, sans-serif', fontSize: 12, fontWeight: 700, color: '#0F172A' }}>
+                {showValues && barWidthPct > 12 && (
+                  <span style={{ fontFamily: 'Inter Tight, sans-serif', fontSize: valueFont, fontWeight: 700, color: '#0F172A' }}>
                     {item.value}
                   </span>
                 )}
