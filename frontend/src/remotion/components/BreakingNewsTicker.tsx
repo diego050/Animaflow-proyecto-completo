@@ -9,6 +9,8 @@ interface BreakingNewsTickerProps extends UniversalProps {
   badgeBg?: string;
   badgeColor?: string;
   barHeight?: number;
+  /** Ancho de la barra (px). Por defecto = ancho del lienzo (barra completa). */
+  barWidth?: number;
 }
 
 export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
@@ -21,14 +23,23 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
   badgeBg = '#000000',
   badgeColor = '#ffffff',
   barHeight = 70,
+  barWidth,
+  x,
+  y,
   delay = 0,
   disableEntry = false,
 }) => {
   const frame = useCurrentFrame();
-  const { width } = useVideoConfig();
+  const { width: canvasWidth, height: canvasHeight } = useVideoConfig();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  // Marquee scroll effect
+  // Posición/tamaño: por defecto barra completa pegada abajo, pero ahora x/y la
+  // mueven a cualquier sitio (p.ej. arriba) y barWidth/barHeight la redimensionan.
+  const barW = barWidth && barWidth > 0 ? barWidth : canvasWidth;
+  const posX = x ?? canvasWidth / 2;
+  const posY = y ?? canvasHeight - barHeight / 2;
+
+  // Marquee scroll effect (relativo al ancho de la barra)
   const scrollX = (adjustedFrame * speed) % 3000;
 
   // Entrance from bottom (entrada PROPIA). Si hay un entry externo (wrapper),
@@ -38,7 +49,7 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
     : interpolate(adjustedFrame, [0, 15], [100, 0], { extrapolateRight: 'clamp' });
 
   return (
-    <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: `${barHeight}px`, backgroundColor: bgColor, display: 'flex', alignItems: 'center', fontFamily: 'Inter, sans-serif', transform: `translateY(${translateY}%)`, zIndex: 70, overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', top: `${posY}px`, left: `${posX}px`, width: `${barW}px`, height: `${barHeight}px`, backgroundColor: bgColor, display: 'flex', alignItems: 'center', fontFamily: 'Inter, sans-serif', transform: `translate(-50%, -50%) translateY(${translateY}%)`, zIndex: 70, overflow: 'hidden' }}>
 
       {/* Badge (texto configurable; ya no fijo "BREAKING") */}
       {badgeText !== '' && (
@@ -49,7 +60,7 @@ export const BreakingNewsTicker: React.FC<BreakingNewsTickerProps> = ({
       
       {/* Ticker Text */}
       <div style={{ flex: 1, position: 'relative', height: '100%', overflow: 'hidden', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center' }}>
-        <div style={{ position: 'absolute', left: `${width - scrollX}px`, fontSize: `${fontSize}px`, fontWeight: 600, color: textColor, letterSpacing: '1px' }}>
+        <div style={{ position: 'absolute', left: `${barW - scrollX}px`, fontSize: `${fontSize}px`, fontWeight: 600, color: textColor, letterSpacing: '1px' }}>
           {text} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {text}
         </div>
       </div>

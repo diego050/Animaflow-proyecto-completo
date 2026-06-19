@@ -11,6 +11,7 @@ export const CursorClick: React.FC<{
   rippleColor?: string;
   cursorSize?: number;
   clickFrame?: number;
+  clickDelay?: number;
   moveDuration?: number;
 } & UniversalProps> = ({
   startX = 800,
@@ -22,7 +23,8 @@ export const CursorClick: React.FC<{
   cursorColor,
   rippleColor,
   cursorSize = 48,
-  clickFrame = 35,
+  clickFrame,
+  clickDelay = 6,
   moveDuration = 30,
 }) => {
   const frame = useCurrentFrame();
@@ -47,12 +49,16 @@ export const CursorClick: React.FC<{
   const x = interpolate(progress, [0, 1], [startX, endX]);
   const y = interpolate(progress, [0, 1], [startY, endY]);
 
-  // Click happens at `clickFrame`
-  const isClicking = adjustedFrame >= clickFrame && adjustedFrame <= clickFrame + 5;
+  // El click se sincroniza con la LLEGADA del cursor: por defecto ocurre
+  // `clickDelay` frames después de completar el movimiento (no antes). Se puede
+  // forzar un frame exacto con `clickFrame`.
+  const effectiveClickFrame = clickFrame ?? moveDuration + clickDelay;
+  // Click happens at `effectiveClickFrame`
+  const isClicking = adjustedFrame >= effectiveClickFrame && adjustedFrame <= effectiveClickFrame + 5;
   const cursorScale = isClicking ? 0.8 : 1; // It shrinks slightly when clicking
 
   // Ripple effect
-  const rippleFrame = adjustedFrame - clickFrame;
+  const rippleFrame = adjustedFrame - effectiveClickFrame;
   const showRipple = rippleFrame >= 0 && rippleFrame < 15;
   const rippleScale = showRipple ? interpolate(rippleFrame, [0, 15], [0, 3]) : 0;
   const rippleOpacity = showRipple ? interpolate(rippleFrame, [0, 15], [0.8, 0]) : 0;

@@ -6,10 +6,12 @@ import { useCanvas } from '../utils/canvas';
 export const SearchEngineTyping: React.FC<{
   text?: string;
   width?: number;
+  height?: number;
   typeSpeed?: number;
 } & UniversalProps> = ({
   text = 'cómo crear videos con IA',
   width,
+  height,
   typeSpeed = 2,
   x = 540,
   y = 960,
@@ -36,15 +38,20 @@ export const SearchEngineTyping: React.FC<{
   const rippleScale = showRipple ? 1 + rippleFrame * 0.02 : 1;
   const rippleOpacity = showRipple ? 1 - rippleFrame / 15 : 0;
 
-  // Relativo al lienzo (antes px: width 900, height 100, fontSize 40, svg 40).
-  const w = width ?? c.vw(86);
-  const barH = c.vmin(13);
+  // Alto y ancho INDEPENDIENTES, con mínimos sanos. La fuente, el icono y el
+  // padding derivan del alto, así la barra se redimensiona como una pieza y el
+  // anillo (la "luz azul") siempre cuadra exactamente con la barra.
+  const barH = Math.max(height ?? c.vmin(13), c.vmin(6));
+  const w = Math.max(width ?? c.vw(86), barH * 2.2);
+  const fontPx = barH * 0.42;
+  const iconPx = barH * 0.5;
+  const padX = barH * 0.45;
 
   return (
     <div
       style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: 'translate(-50%, -50%)', zIndex: 10 }}
     >
-      {/* Ripple ring */}
+      {/* Ripple ring (mismo tamaño exacto que la barra) */}
       {isFinished && (
         <div
           style={{
@@ -54,30 +61,32 @@ export const SearchEngineTyping: React.FC<{
             width: `${w}px`,
             height: `${barH}px`,
             borderRadius: '999px',
-            border: `${c.vmin(0.6)}px solid ${color || '#38bdf8'}`,
+            border: `${Math.max(2, barH * 0.05)}px solid ${color || '#38bdf8'}`,
             transform: `scale(${rippleScale})`,
             opacity: rippleOpacity,
             pointerEvents: 'none',
+            boxSizing: 'border-box',
           }}
         />
       )}
 
-      {/* Main Search Bar */}
+      {/* Main Search Bar (altura fija = barH; texto en una línea) */}
       <div
         style={{
           width: `${w}px`,
-          minHeight: `${barH}px`,
-          height: 'auto',
+          height: `${barH}px`,
           backgroundColor: bgColor || '#ffffff',
           borderRadius: '999px',
           boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
           display: 'flex',
           alignItems: 'center',
-          padding: `${c.vmin(2.6)}px ${c.vmin(5)}px`,
+          padding: `0 ${padX}px`,
+          boxSizing: 'border-box',
+          overflow: 'hidden',
         }}
       >
         {/* Search Icon */}
-        <svg style={{ flexShrink: 0 }} width={c.vmin(6)} height={c.vmin(6)} viewBox="0 0 24 24" fill="none" stroke={color || "#94a3b8"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg style={{ flexShrink: 0 }} width={iconPx} height={iconPx} viewBox="0 0 24 24" fill="none" stroke={color || "#94a3b8"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
@@ -85,14 +94,14 @@ export const SearchEngineTyping: React.FC<{
         {/* Text */}
         <div
           style={{
-            marginLeft: `${c.vmin(4)}px`,
-            fontSize: `${c.vmin(5)}px`,
+            marginLeft: `${padX * 0.6}px`,
+            fontSize: `${fontPx}px`,
             color: textColor || '#1e293b',
             fontFamily: 'system-ui, sans-serif',
             fontWeight: 500,
-            whiteSpace: 'normal',
-            wordBreak: 'break-word',
-            lineHeight: 1.2,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            lineHeight: 1,
           }}
         >
           {displayedText}

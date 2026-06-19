@@ -3,9 +3,11 @@ import { interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { UniversalProps } from "./types";
 
 interface GitCommitGraphProps extends UniversalProps {
+  /** Nº de commits en el trunk principal. */
+  commits?: number;
+  /** Nº de ramas (feature branches) que salen y se fusionan. */
   branches?: number;
   nodeColor?: string;
-  mergeFrame?: number;
   branchColor?: string;
   mergeColor?: string;
   lineWidth?: number;
@@ -14,6 +16,7 @@ interface GitCommitGraphProps extends UniversalProps {
 }
 
 export const GitCommitGraph: React.FC<GitCommitGraphProps> = ({
+  commits = 4,
   branches = 2,
   nodeColor = '#3b82f6',
   color = '#334155', // Line color
@@ -24,64 +27,111 @@ export const GitCommitGraph: React.FC<GitCommitGraphProps> = ({
   graphHeight = 600,
   x = 540,
   y = 540,
-  mergeFrame = 90,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  const mergeNodeSize = nodeSize + 8;
-  
-  // Progress from bottom to top
+  const commitCount = Math.max(2, Math.round(commits));
+  const branchCount = Math.max(0, Math.round(branches));
+
+  // ── Geometría (SVG, y hacia abajo) ──────────────────────────────────────
+  const branchGap = 90;
+  const trunkX = 60;
+  const W = trunkX + Math.max(1, branchCount) * branchGap + 40;
+  const spacing = graphHeight / (commitCount + 1);
+  const trunkNodeY = (k: number) => graphHeight - (k + 1) * spacing;
+  const topY = trunkNodeY(commitCount - 1);
+
+  // Crece de abajo hacia arriba en ~60 frames.
   const drawProgress = interpolate(adjustedFrame, [0, 60], [0, 1], { extrapolateRight: 'clamp' });
-  const mergeProgress = interpolate(Math.max(0, adjustedFrame - mergeFrame), [0, 30], [0, 1], { extrapolateRight: 'clamp' });
+  // Frame aproximado en el que el trazo alcanza una altura `yy`.
+  const appearFrame = (yy: number) => ((graphHeight - yy) / graphHeight) * 60;
+  const nodeSpring = (yy: number, extra = 0) =>
+    spring({ frame: Math.max(0, adjustedFrame - appearFrame(yy) - extra), fps, config: { damping: 12 } });
+
+  // Reparte cada rama entre dos commits del trunk (fork → merge).
+  const branchSpecs = Array.from({ length: branchCount }).map((_, i) => {
+    const forkIdx = Math.min(commitCount - 2, 1 + (i % Math.max(1, commitCount - 2)));
+    const mergeIdx = Math.min(commitCount - 1, forkIdx + 1 + (i % 2));
+    return {
+      i,
+      branchX: trunkX + (i + 1) * branchGap,
+      forkY: trunkNodeY(forkIdx),
+      mergeY: trunkNodeY(mergeIdx),
+      midY: (trunkNodeY(forkIdx) + trunkNodeY(mergeIdx)) / 2,
+      mergeIdx,
+    };
+  });
+  const mergeTargets = new Set(branchSpecs.map((b) => b.mergeIdx));
+
+  const r = nodeSize / 2;
+  const dashLen = 2000;
 
   return (
-    <div style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: 'translate(-50%, -50%)', width: '400px', height: `${graphHeight}px`, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', zIndex: 40 }}>
-      {/* Main Trunk */}
-      <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: `${lineWidth}px`, height: `${drawProgress * graphHeight}px`, backgroundColor: color, borderRadius: `${lineWidth / 2}px` }} />
-      
-      {/* Commits on main trunk */}
-      {[0.2, 0.5, 0.8].map((pos, i) => {
-        const nodeY = pos * graphHeight;
-        const nodeVisible = (drawProgress * graphHeight) >= nodeY;
-        const nodeScale = spring({ frame: nodeVisible ? Math.max(0, adjustedFrame - (pos * 60)) : 0, fps, config: { damping: 10 } });
-        
-        return (
-          <div key={`main-${i}`} style={{ position: 'absolute', bottom: `${nodeY}px`, left: '50%', transform: `translate(-50%, 50%) scale(${nodeScale})`, width: `${nodeSize}px`, height: `${nodeSize}px`, borderRadius: '50%', backgroundColor: nodeColor, border: `4px solid ${color}`, zIndex: 2 }} />
-        );
-      })}
+    <div style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: 'translate(-50%, -50%)', width: `${W}px`, height: `${graphHeight}px`, zIndex: 40 }}>
+      <svg width={W} height={graphHeight} viewBox={`0 0 ${W} ${graphHeight}`}>
+        {/* Ramas: salen del trunk, suben hasta su commit y se fusionan de vuelta */}
+        {branchSpecs.map((b) => {
+          const d = `M ${trunkX} ${b.forkY} C ${trunkX} ${(b.forkY + b.midY) / 2}, ${b.branchX} ${(b.forkY + b.midY) / 2}, ${b.branchX} ${b.midY} C ${b.branchX} ${(b.midY + b.mergeY) / 2}, ${trunkX} ${(b.midY + b.mergeY) / 2}, ${trunkX} ${b.mergeY}`;
+          return (
+            <path
+              key={`branch-${b.i}`}
+              d={d}
+              fill="none"
+              stroke={branchColor}
+              strokeWidth={lineWidth}
+              strokeLinecap="round"
+              strokeDasharray={dashLen}
+              strokeDashoffset={dashLen * (1 - drawProgress)}
+            />
+          );
+        })}
 
-      {/* Feature Branch */}
-      {branches > 1 && (
-        <>
-          {/* Branch out path (SVG) */}
-          <div style={{ position: 'absolute', bottom: '20%', left: '0', width: '100%', height: '80%', zIndex: 1 }}>
-            <svg width="400" height="480" viewBox="0 0 400 480">
-              {/* Branch off line */}
-              <path d="M 200 480 C 200 420, 280 420, 280 360 L 280 120" fill="none" stroke={branchColor} strokeWidth={lineWidth} strokeLinecap="round" strokeDasharray={400} strokeDashoffset={400 - (drawProgress * 400)} />
+        {/* Trunk principal (crece de abajo hacia arriba) */}
+        <line
+          x1={trunkX}
+          y1={graphHeight}
+          x2={trunkX}
+          y2={topY}
+          stroke={color}
+          strokeWidth={lineWidth}
+          strokeLinecap="round"
+          strokeDasharray={graphHeight}
+          strokeDashoffset={graphHeight * (1 - drawProgress)}
+        />
 
-              {/* Merge back line */}
-              <path d="M 280 120 C 280 60, 200 60, 200 0" fill="none" stroke={branchColor} strokeWidth={lineWidth} strokeLinecap="round" strokeDasharray={200} strokeDashoffset={200 - (mergeProgress * 200)} />
-            </svg>
-          </div>
-          
-          {/* Commits on feature branch */}
-          {[0.4, 0.6].map((pos, i) => {
-            const nodeY = pos * graphHeight;
-            const nodeVisible = (drawProgress * graphHeight) >= nodeY;
-            const nodeScale = spring({ frame: nodeVisible ? Math.max(0, adjustedFrame - (pos * 60)) : 0, fps, config: { damping: 10 } });
-            
-            return (
-              <div key={`feat-${i}`} style={{ position: 'absolute', bottom: `${nodeY}px`, left: 'calc(50% + 80px)', transform: `translate(-50%, 50%) scale(${nodeScale})`, width: `${nodeSize}px`, height: `${nodeSize}px`, borderRadius: '50%', backgroundColor: branchColor, border: `4px solid #4c1d95`, zIndex: 2 }} />
-            );
-          })}
+        {/* Commit en cada rama */}
+        {branchSpecs.map((b) => (
+          <circle
+            key={`bnode-${b.i}`}
+            cx={b.branchX}
+            cy={b.midY}
+            r={r * nodeSpring(b.midY, 6)}
+            fill={branchColor}
+            stroke={color}
+            strokeWidth={4}
+          />
+        ))}
 
-          {/* Merge Commit */}
-          <div style={{ position: 'absolute', bottom: `${0.8 * graphHeight}px`, left: '50%', transform: `translate(-50%, 50%) scale(${spring({ frame: Math.max(0, adjustedFrame - mergeFrame - 15), fps, config: { damping: 10 } })})`, width: `${mergeNodeSize}px`, height: `${mergeNodeSize}px`, borderRadius: '50%', backgroundColor: mergeColor, border: `4px solid ${color}`, zIndex: 3 }} />
-        </>
-      )}
+        {/* Nodos del trunk (los de fusión resaltados con mergeColor) */}
+        {Array.from({ length: commitCount }).map((_, k) => {
+          const yy = trunkNodeY(k);
+          const isMerge = mergeTargets.has(k);
+          return (
+            <circle
+              key={`tnode-${k}`}
+              cx={trunkX}
+              cy={yy}
+              r={(isMerge ? r + 4 : r) * nodeSpring(yy)}
+              fill={isMerge ? mergeColor : nodeColor}
+              stroke={color}
+              strokeWidth={4}
+            />
+          );
+        })}
+      </svg>
     </div>
   );
 };
