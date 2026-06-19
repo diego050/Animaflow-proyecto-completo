@@ -221,7 +221,7 @@ def _clamp_coordinates(spec: dict, width: int, height: int) -> dict:
 _FILL_COMPONENTS = {
     "KineticBackground", "ParticleField", "FloatingBlobs", "RaysOfLight",
     "AbstractWave", "GlobalVFX", "NetworkNodes", "GradientOverlay",
-    "GridPerspective", "SoundWaveCircle",
+    "GridPerspective",
     # v8 (Fase 5): efectos cinematográficos full-screen.
     "CinematicBars", "Spotlight", "CameraShake",
 }
@@ -333,7 +333,7 @@ def _resolve_vertical_overlaps(spec: dict, canvas_w: int, canvas_h: int) -> dict
 # Decorativos de formas/líneas sólidas que, a opacidad alta detrás del texto,
 # generan clutter (ej. FloatingBlobs rojos/cyan grandes en la escena 3).
 _BUSY_DECORATIVE = {
-    "FloatingBlobs", "NetworkNodes", "SoundWaveCircle", "GridPerspective",
+    "FloatingBlobs", "NetworkNodes", "GridPerspective",
     "AbstractWave", "RaysOfLight",
 }
 _DECORATIVE_OPACITY_CAP = 0.30

@@ -5,10 +5,15 @@ import type { UniversalProps } from "./types";
 interface BreakingNewsAlertProps extends UniversalProps {
   headline?: string;
   borderColor?: string;
+  borderWidth?: number;
   stripeColor1?: string;
   stripeColor2?: string;
   showStripes?: boolean;
   pulse?: boolean;
+  /** Color del resplandor/sombra. Por defecto usa el color de fondo. */
+  glowColor?: string;
+  /** Radio del resplandor (px). 0 = sin sombra. */
+  glowSize?: number;
 }
 
 export const BreakingNewsAlert: React.FC<BreakingNewsAlertProps> = ({
@@ -16,10 +21,13 @@ export const BreakingNewsAlert: React.FC<BreakingNewsAlertProps> = ({
   bgColor = '#ef4444', // Red
   textColor = '#ffffff',
   borderColor = '#ffffff',
+  borderWidth = 4,
   stripeColor1 = '#ef4444',
   stripeColor2 = '#ffffff',
   showStripes = true,
   pulse = true,
+  glowColor,
+  glowSize = 100,
   x = 540,
   y = 540,
   fontSize = 80,
@@ -42,7 +50,7 @@ export const BreakingNewsAlert: React.FC<BreakingNewsAlertProps> = ({
 
   return (
     <div style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: `translate(-50%, -50%) scale(${scale})`, zIndex: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', fontFamily: 'Inter, sans-serif' }}>
-      <div style={{ backgroundColor: bgColor, padding: '20px 60px', borderRadius: '12px', boxShadow: `0 0 100px ${bgColor}`, border: `4px solid ${borderColor}` }}>
+      <div style={{ backgroundColor: bgColor, padding: '20px 60px', borderRadius: '12px', boxShadow: glowSize > 0 ? `0 0 ${glowSize}px ${glowColor || bgColor}` : 'none', border: borderWidth > 0 ? `${borderWidth}px solid ${borderColor}` : 'none' }}>
         <div style={{ fontSize: `${fontSize}px`, fontWeight: 900, color: textColor, textTransform: 'uppercase', letterSpacing: '4px', textAlign: 'center', lineHeight: 1 }}>
           {headline}
         </div>

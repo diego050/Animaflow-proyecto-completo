@@ -31,7 +31,7 @@ Estado: ✅ hecho · 🟡 parcial · ⬜ pendiente
 | `FloatingBlobs` | ✅ | ✅ | n/a | **reescrito ambiental**: glows radiales suaves (radial-gradient+blur) hacia los bordes, ya no elipses sólidas centradas; respeta opacity |
 
 ## Decorativos de fondo (atenuados a ≤0.30 con contenido encima)
-`FloatingBlobs` ✅ reescrito. `NetworkNodes`/`SoundWaveCircle`/`AbstractWave`/
+`FloatingBlobs` ✅ reescrito. `NetworkNodes`/`AbstractWave`/
 `RaysOfLight`/`GridPerspective`: son líneas/partículas finas (ya sutiles con el cap),
 no requieren reescritura urgente.
 
@@ -83,6 +83,27 @@ hardcodeado), las props de posición/animación no se aplicaban a capas tipo
 **Capas/posicionamiento manual:** mover algo es x/y (absoluto); apilar (p.ej.
 RippleEffect detrás de un texto) es la prop universal `zIndex`. Bandas sugeridas:
 fondo 0–9, contenido 10–49, overlay 50+.
+
+### Refinamientos sobre Fases 1–4 (2da pasada de feedback) — ✅
+Tras probar en el Playground, segunda ronda de arreglos a los efectos:
+- **BreakingNewsAlert:** sombra/resplandor expuestos (`glowColor`/`glowSize`) + `borderWidth`.
+- **BreakingNewsTicker:** ya no está clavado abajo a ancho completo; respeta x/y y
+  `barWidth` (default 0 = ancho completo) → se puede mover arriba y achicar.
+- **CursorClick:** el click se SINCRONIZA con la llegada del cursor (`clickDelay` tras
+  completar el movimiento); se quitó el `clickFrame` fijo que disparaba antes de llegar.
+- **GeometricShapes:** definido por geometría, no por nombre: `sides` (0=círculo/óvalo,
+  3=triángulo, 4=rectángulo, 5+=polígono) y `points` (estrella), con `width`/`height`
+  separados (óvalos/rectángulos estirados). Eliminado `ring` (= círculo sin relleno).
+- **GitCommitGraph:** reescrito generativo en SVG; `commits` y `branches` ahora SÍ
+  controlan cuántos se dibujan (antes hardcodeados a 3 trunk + 1 branch).
+- **RippleEffect:** stagger repartido en el ciclo → subir `count` muestra más anillos
+  simultáneos de verdad (tope 60, antes 10 e invisibles los altos).
+- **SearchEngineTyping:** `width`/`height` independientes con mínimos; fuente/icono
+  escalan con el alto y el anillo final cuadra exacto con la barra al redimensionar.
+- **SoundWaveCircle:** ELIMINADO (registry + manifest + backend _FILL/_BUSY). Usar
+  RippleEffect con `centerDot`. 121 → 120 componentes.
+- **WaveformVisualizer:** `direction` (right/left/still) + `speed` para controlar el
+  desplazamiento de la onda.
 
 ## Pendientes (no responsividad)
 - **idle motion** en otros hero (cards, mockups) tras validar que no distrae (opcional, "de gusto").

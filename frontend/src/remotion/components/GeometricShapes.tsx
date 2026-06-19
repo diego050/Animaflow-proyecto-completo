@@ -5,23 +5,24 @@ import type { UniversalProps } from "./types";
 /**
  * GeometricShapes — Una figura geométrica configurable, centrada en (x,y).
  *
- * Pensado como acento/fondo reutilizable (p.ej. detrás de un texto, combinándolo
- * con el `zIndex` universal). Cubre el caso "necesito una figura simple al centro"
- * que antes obligaba a usar componentes casi idénticos (ver fusión RippleEffect).
+ * En vez de elegir un "nombre" de figura, se define por geometría:
+ *  - `points` > 0  → ESTRELLA de N puntas (gana sobre `sides`).
+ *  - `sides` <= 2  → CÍRCULO / ÓVALO (un óvalo es un círculo con width != height).
+ *  - `sides` === 4 → RECTÁNGULO / CUADRADO (con `cornerRadius`).
+ *  - `sides` >= 3  → POLÍGONO regular de N lados (triángulo=3, pentágono=5, ...).
+ *
+ * `width`/`height` definen la caja: iguales = figura regular, distintos = estirada
+ * (óvalo, rectángulo, triángulo isósceles, etc.). `size` es el valor por defecto
+ * de ambos. No hay "ring": para un anillo usa `sides` 0 con `filled` desactivado.
  *
  * Determinista: el giro opcional (`spin`) deriva de `frame`, sin Math.random.
  */
-type ShapeKind =
-  | 'circle'
-  | 'square'
-  | 'triangle'
-  | 'pentagon'
-  | 'hexagon'
-  | 'star'
-  | 'ring';
-
 interface GeometricShapesProps extends UniversalProps {
-  shape?: ShapeKind;
+  /** Nº de lados: 0/1/2 = círculo·óvalo, 3 = triángulo, 4 = rectángulo, 5+ = polígono. */
+  sides?: number;
+  /** Nº de puntas de estrella (>= 3). Si es > 0 ignora `sides`. 0 = sin estrella. */
+  points?: number;
+  /** Tamaño por defecto de width y height (px). */
   size?: number;
   filled?: boolean;
   strokeColor?: string;
@@ -31,29 +32,30 @@ interface GeometricShapesProps extends UniversalProps {
   spin?: number;
 }
 
-/** Puntos de un polígono regular de `sides` lados inscrito en un radio `r`. */
-function regularPolygon(sides: number, r: number, cx: number, cy: number, rotation = -90): string {
+/** Puntos de un polígono regular de `sides` lados, escalado a una caja rx×ry. */
+function polygonPoints(sides: number, rx: number, ry: number, cx: number, cy: number, rotation = -90): string {
   const pts: string[] = [];
   for (let i = 0; i < sides; i++) {
     const angle = ((rotation + (360 / sides) * i) * Math.PI) / 180;
-    pts.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
+    pts.push(`${cx + rx * Math.cos(angle)},${cy + ry * Math.sin(angle)}`);
   }
   return pts.join(' ');
 }
 
-/** Puntos de una estrella de `points` puntas. */
-function starPolygon(points: number, rOuter: number, rInner: number, cx: number, cy: number): string {
+/** Puntos de una estrella de `points` puntas, escalada a una caja rx×ry. */
+function starPoints(points: number, rx: number, ry: number, cx: number, cy: number, innerRatio = 0.45): string {
   const pts: string[] = [];
   for (let i = 0; i < points * 2; i++) {
-    const r = i % 2 === 0 ? rOuter : rInner;
+    const k = i % 2 === 0 ? 1 : innerRatio;
     const angle = ((-90 + (180 / points) * i) * Math.PI) / 180;
-    pts.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
+    pts.push(`${cx + rx * k * Math.cos(angle)},${cy + ry * k * Math.sin(angle)}`);
   }
   return pts.join(' ');
 }
 
 export const GeometricShapes: React.FC<GeometricShapesProps> = ({
-  shape = 'circle',
+  sides = 0,
+  points = 0,
   size = 240,
   filled = true,
   color = '#6366f1',
@@ -61,6 +63,8 @@ export const GeometricShapes: React.FC<GeometricShapesProps> = ({
   strokeWidth = 8,
   cornerRadius = 24,
   spin = 0,
+  width,
+  height,
   x = 540,
   y = 540,
   delay = 0,
@@ -69,53 +73,42 @@ export const GeometricShapes: React.FC<GeometricShapesProps> = ({
   const { fps } = useVideoConfig();
   const adjustedFrame = Math.max(0, frame - delay);
 
+  const w = width ?? size;
+  const h = height ?? size;
+
   const fill = filled ? color : 'none';
   const stroke = filled ? 'none' : strokeColor;
   const sw = filled ? 0 : strokeWidth;
 
-  const cx = size / 2;
-  const cy = size / 2;
-  // Margen para que el trazo no se recorte.
-  const r = size / 2 - strokeWidth;
+  const cx = w / 2;
+  const cy = h / 2;
+  // Radios de la caja menos medio trazo, para que el stroke no se recorte.
+  const rx = (w - sw) / 2;
+  const ry = (h - sw) / 2;
 
   const rotateDeg = (adjustedFrame / fps) * spin;
 
   let shapeEl: React.ReactNode;
-  switch (shape) {
-    case 'square':
-      shapeEl = (
-        <rect
-          x={sw / 2}
-          y={sw / 2}
-          width={size - sw}
-          height={size - sw}
-          rx={cornerRadius}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={sw}
-        />
-      );
-      break;
-    case 'triangle':
-      shapeEl = <polygon points={regularPolygon(3, r, cx, cy)} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />;
-      break;
-    case 'pentagon':
-      shapeEl = <polygon points={regularPolygon(5, r, cx, cy)} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />;
-      break;
-    case 'hexagon':
-      shapeEl = <polygon points={regularPolygon(6, r, cx, cy)} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />;
-      break;
-    case 'star':
-      shapeEl = <polygon points={starPolygon(5, r, r * 0.45, cx, cy)} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />;
-      break;
-    case 'ring':
-      // Siempre anillo (trazo, sin relleno) independientemente de `filled`.
-      shapeEl = <circle cx={cx} cy={cy} r={r} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} />;
-      break;
-    case 'circle':
-    default:
-      shapeEl = <circle cx={cx} cy={cy} r={r} fill={fill} stroke={stroke} strokeWidth={sw} />;
-      break;
+  if (points >= 3) {
+    shapeEl = <polygon points={starPoints(points, rx, ry, cx, cy)} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />;
+  } else if (sides >= 3 && sides !== 4) {
+    shapeEl = <polygon points={polygonPoints(sides, rx, ry, cx, cy)} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />;
+  } else if (sides === 4) {
+    shapeEl = (
+      <rect
+        x={sw / 2}
+        y={sw / 2}
+        width={w - sw}
+        height={h - sw}
+        rx={cornerRadius}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={sw}
+      />
+    );
+  } else {
+    // sides <= 2 → círculo / óvalo (rx != ry => óvalo).
+    shapeEl = <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={fill} stroke={stroke} strokeWidth={sw} />;
   }
 
   return (
@@ -124,13 +117,13 @@ export const GeometricShapes: React.FC<GeometricShapesProps> = ({
         position: 'absolute',
         left: `${x}px`,
         top: `${y}px`,
-        width: `${size}px`,
-        height: `${size}px`,
+        width: `${w}px`,
+        height: `${h}px`,
         transform: `translate(-50%, -50%) rotate(${rotateDeg}deg)`,
         zIndex: 5,
       }}
     >
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
         {shapeEl}
       </svg>
     </div>

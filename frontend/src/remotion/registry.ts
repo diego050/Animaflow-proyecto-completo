@@ -72,7 +72,6 @@ import { ShoppingCartBadge } from './components/ShoppingCartBadge';
 import { SizeSelector } from './components/SizeSelector';
 import { SocialProgressBar } from './components/SocialProgressBar';
 import { SocialSharePopup } from './components/SocialSharePopup';
-import { SoundWaveCircle } from './components/SoundWaveCircle';
 import { Spotlight } from './components/Spotlight';
 import { SplitScreenGrid } from './components/SplitScreenGrid';
 import { SplitText } from './components/SplitText';
@@ -195,7 +194,6 @@ export const COMPONENT_NAMES = [
   'SizeSelector',
   'SocialProgressBar',
   'SocialSharePopup',
-  'SoundWaveCircle',
   'Spotlight',
   'SplitScreenGrid',
   'SplitText',
@@ -319,7 +317,6 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   SizeSelector,
   SocialProgressBar,
   SocialSharePopup,
-  SoundWaveCircle,
   Spotlight,
   SplitScreenGrid,
   SplitText,

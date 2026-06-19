@@ -3839,30 +3839,39 @@
       "name": "GeometricShapes",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "A single configurable geometric shape (circle, square, triangle, polygon, star, ring) centered at x,y. Great as an accent behind text using zIndex.",
+      "description": "A single configurable geometric shape centered at x,y, defined by geometry: sides (0=circle/oval, 3=triangle, 4=rectangle, 5+=polygon) or points (star). Use width/height for ovals & rectangles. Great as an accent behind text using zIndex.",
       "props": {
-        "shape": {
-          "type": "select",
-          "label": "Shape",
-          "description": "Shape kind",
-          "default": "circle",
-          "options": [
-            "circle",
-            "square",
-            "triangle",
-            "pentagon",
-            "hexagon",
-            "star",
-            "ring"
-          ]
-        },
-        "size": {
+        "sides": {
           "type": "number",
-          "label": "Size",
-          "description": "Shape size (px)",
+          "label": "Sides",
+          "description": "Number of sides: 0=circle/oval, 3=triangle, 4=rectangle, 5+=polygon",
+          "default": 0,
+          "min": 0,
+          "max": 12
+        },
+        "points": {
+          "type": "number",
+          "label": "Star Points",
+          "description": "Star points (>=3). If > 0 it overrides sides. 0 = no star",
+          "default": 0,
+          "min": 0,
+          "max": 12
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Width (px). Differs from height = oval/rectangle/stretched",
           "default": 240,
           "min": 40,
-          "max": 1000
+          "max": 1600
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Height (px). Differs from width = oval/rectangle/stretched",
+          "default": 240,
+          "min": 40,
+          "max": 1600
         },
         "color": {
           "type": "color",
@@ -3879,7 +3888,7 @@
         "strokeColor": {
           "type": "color",
           "label": "Stroke Color",
-          "description": "Outline color (when not filled / ring)",
+          "description": "Outline color (when not filled)",
           "default": "#6366f1"
         },
         "strokeWidth": {
@@ -3893,7 +3902,7 @@
         "cornerRadius": {
           "type": "number",
           "label": "Corner Radius",
-          "description": "Rounded corners (square only)",
+          "description": "Rounded corners (rectangle only)",
           "default": 24,
           "min": 0,
           "max": 200
@@ -3912,7 +3921,7 @@
       "name": "WaveformVisualizer",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Animated sine waveform with multiple frequency layers and glow.",
+      "description": "Animated sine waveform with multiple frequency layers and glow. Direction controls travel (right/left/still).",
       "props": {
         "color": {
           "type": "color",
@@ -3951,6 +3960,25 @@
           "default": 100,
           "min": 20,
           "max": 300
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Wave travel direction",
+          "default": "right",
+          "options": [
+            "right",
+            "left",
+            "still"
+          ]
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Travel speed multiplier",
+          "default": 1,
+          "min": 0,
+          "max": 5
         },
         "glow": {
           "type": "boolean",
@@ -4023,60 +4051,6 @@
       }
     },
     {
-      "name": "SoundWaveCircle",
-      "category": "Cinematic",
-      "role": "decorative",
-      "description": "Expanding concentric ripples from a center dot. (Merged into RippleEffect — prefer RippleEffect with centerDot for new scenes.)",
-      "props": {
-        "color": {
-          "type": "color",
-          "label": "Color",
-          "description": "Ring & dot color",
-          "default": "#f43f5e"
-        },
-        "rings": {
-          "type": "number",
-          "label": "Rings",
-          "description": "Number of expanding rings",
-          "default": 4,
-          "min": 1,
-          "max": 10
-        },
-        "strokeWidth": {
-          "type": "number",
-          "label": "Stroke Width",
-          "description": "Ring thickness (px)",
-          "default": 4,
-          "min": 1,
-          "max": 20
-        },
-        "centerDotSize": {
-          "type": "number",
-          "label": "Center Dot",
-          "description": "Center dot size (px)",
-          "default": 40,
-          "min": 0,
-          "max": 120
-        },
-        "baseSize": {
-          "type": "number",
-          "label": "Base Size",
-          "description": "Base ring diameter (px)",
-          "default": 200,
-          "min": 50,
-          "max": 600
-        },
-        "speed": {
-          "type": "number",
-          "label": "Speed",
-          "description": "Expansion speed multiplier",
-          "default": 1,
-          "min": 0.5,
-          "max": 5
-        }
-      }
-    },
-    {
       "name": "RippleEffect",
       "category": "Cinematic",
       "role": "decorative",
@@ -4099,10 +4073,10 @@
         "count": {
           "type": "number",
           "label": "Count",
-          "description": "Number of staggered rings",
+          "description": "Number of simultaneous rings (spread across one cycle)",
           "default": 3,
           "min": 1,
-          "max": 10
+          "max": 60
         },
         "strokeWidth": {
           "type": "number",
@@ -4248,14 +4222,6 @@
           "min": 16,
           "max": 120
         },
-        "clickFrame": {
-          "type": "number",
-          "label": "Click Frame",
-          "description": "Frame when the click happens",
-          "default": 35,
-          "min": 0,
-          "max": 300
-        },
         "moveDuration": {
           "type": "number",
           "label": "Move Duration",
@@ -4263,6 +4229,14 @@
           "default": 30,
           "min": 5,
           "max": 120
+        },
+        "clickDelay": {
+          "type": "number",
+          "label": "Click Delay",
+          "description": "Frames AFTER arrival before clicking (click is auto-synced to the cursor)",
+          "default": 6,
+          "min": 0,
+          "max": 60
         }
       }
     },
@@ -4281,8 +4255,18 @@
         "width": {
           "type": "number",
           "label": "Width",
-          "description": "Search bar width",
-          "default": 900
+          "description": "Search bar width (px)",
+          "default": 900,
+          "min": 200,
+          "max": 1600
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Search bar height (px) — font/icon scale with it",
+          "default": 140,
+          "min": 60,
+          "max": 400
         },
         "typeSpeed": {
           "type": "number",
@@ -4316,15 +4300,23 @@
       "name": "GitCommitGraph",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Git branch visualization with commits, feature branch, and merge.",
+      "description": "Git branch visualization: a trunk with N commits and N feature branches that fork off and merge back. commits and branches drive how many are drawn.",
       "props": {
+        "commits": {
+          "type": "number",
+          "label": "Commits",
+          "description": "Number of commits on the main trunk",
+          "default": 4,
+          "min": 2,
+          "max": 12
+        },
         "branches": {
           "type": "number",
           "label": "Branches",
-          "description": "Number of feature branches",
+          "description": "Number of feature branches (0 = trunk only)",
           "default": 2,
-          "min": 1,
-          "max": 5
+          "min": 0,
+          "max": 6
         },
         "nodeColor": {
           "type": "color",
@@ -4347,7 +4339,7 @@
         "mergeColor": {
           "type": "color",
           "label": "Merge Color",
-          "description": "Merge commit color",
+          "description": "Merge commit node color",
           "default": "#f59e0b"
         },
         "lineWidth": {
@@ -4373,12 +4365,6 @@
           "default": 600,
           "min": 200,
           "max": 1200
-        },
-        "mergeFrame": {
-          "type": "number",
-          "label": "Merge Frame",
-          "description": "Frame when merge animation starts",
-          "default": 90
         }
       }
     },
@@ -4419,6 +4405,28 @@
           "label": "Border Color",
           "description": "Banner border color",
           "default": "#ffffff"
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Border Width",
+          "description": "Banner border thickness (px, 0 = none)",
+          "default": 4,
+          "min": 0,
+          "max": 20
+        },
+        "glowColor": {
+          "type": "color",
+          "label": "Glow Color",
+          "description": "Shadow/glow color (defaults to background)",
+          "default": "#ef4444"
+        },
+        "glowSize": {
+          "type": "number",
+          "label": "Glow Size",
+          "description": "Shadow/glow radius (px, 0 = no shadow)",
+          "default": 100,
+          "min": 0,
+          "max": 300
         },
         "stripeColor1": {
           "type": "color",
@@ -4511,6 +4519,14 @@
           "default": 70,
           "min": 30,
           "max": 200
+        },
+        "barWidth": {
+          "type": "number",
+          "label": "Bar Width",
+          "description": "Ticker bar width (px). Empty/0 = full canvas width",
+          "default": 0,
+          "min": 0,
+          "max": 1920
         }
       }
     },

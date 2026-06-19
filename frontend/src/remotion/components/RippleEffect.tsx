@@ -49,14 +49,16 @@ export const RippleEffect: React.FC<RippleEffectProps> = ({
           }}
         />
       )}
-      {Array.from({ length: count }).map((_, i) => {
-        // Stagger each ring
-        const ringDelay = i * 20;
-        const ringFrame = Math.max(0, adjustedFrame - ringDelay);
-        
-        // Use modulo to make rings pulse continuously
-        // Speed determines how fast they grow. 60 frames = 1 cycle at 1.0 speed
+      {Array.from({ length: Math.max(1, Math.round(count)) }).map((_, i) => {
+        // Speed determines how fast they grow. 90 frames = 1 cycle at 1.0 speed.
         const cycleLength = 90 / speed;
+        // Stagger los anillos REPARTIDOS dentro de un ciclo: así subir `count`
+        // muestra más anillos simultáneos (antes el ring N empezaba en frame N*20
+        // y los altos nunca se veían).
+        const ringDelay = (cycleLength / count) * i;
+        const ringFrame = Math.max(0, adjustedFrame - ringDelay);
+
+        // Use modulo to make rings pulse continuously
         const progress = (ringFrame % cycleLength) / cycleLength;
         
         // Size grows from 0 to maxRadius
