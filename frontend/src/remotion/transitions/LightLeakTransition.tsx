@@ -8,6 +8,7 @@ import { interpolate } from 'remotion';
 
 interface Props {
   progress: number;
+  color?: string; // ignorado (look cálido fijo), por consistencia de tipos
 }
 
 export const LightLeakTransition: React.FC<Props> = ({ progress }) => {

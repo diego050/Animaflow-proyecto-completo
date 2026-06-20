@@ -31,7 +31,7 @@ export const Typewriter: React.FC<TypewriterProps> = ({
   wordTimestamps,
 }) => {
   const frame = useCurrentFrame();
-  const { width: canvasWidth, height: canvasHeight, fps } = useVideoConfig();
+  const { width: canvasWidth, height: canvasHeight, fps, durationInFrames: cfgDuration } = useVideoConfig();
 
   const effectiveWidth = width || Math.min(900, Math.floor(canvasWidth * 0.85));
 
@@ -44,24 +44,23 @@ export const Typewriter: React.FC<TypewriterProps> = ({
   });
   const actualFontSize = fitted.fontSize;
 
-  const delayFrames = Math.round(delay * 30);
+  const safeText = text ?? '';
+  const delayFrames = Math.round(delay * fps);
   const adjustedFrame = Math.max(0, frame - delayFrames);
 
-  const totalChars = text.length;
+  const totalChars = safeText.length;
 
-  // v7.2: acoplar el tecleo a la DURACIÓN de la escena (≈ audio).
-  // Si tenemos durationInFrames, repartimos el texto suavemente sobre la
-  // ventana de la escena y terminamos ~0.4s antes del final (reservedFrames),
-  // de modo que la última palabra quede visible antes del corte. Solo si NO
-  // hay duración usamos la velocidad fija heredada.
+  // GARANTÍA: el tecleo SIEMPRE termina dentro de la duración disponible. Usamos
+  // la duración del prop o, si falta (p.ej. en el preview), la del composition
+  // (useVideoConfig) → nunca se queda a medias. `speed` es un multiplicador para
+  // terminar ANTES (>=1): speed=1 termina al final de la escena; speed=2 a la
+  // mitad. No puede ser más lento que terminar dentro de la escena.
   const reservedFrames = 12; // ~0.4s de margen al final
+  const sceneDuration = (durationInFrames && durationInFrames > 0) ? durationInFrames : cfgDuration;
   let charsToShow: number;
   if (Array.isArray(wordTimestamps) && wordTimestamps.length > 0) {
-    // v7.3: KARAOKE — revela el texto al ritmo en que se PRONUNCIAN las
-    // palabras. Usamos la fracción de palabras ya habladas para revelar esa
-    // misma fracción del texto (robusto a diferencias de conteo entre el texto
-    // y la transcripción). La palabra aparece justo cuando se dice.
-    const tSec = frame / fps; // segundos desde el inicio de la escena (= audio)
+    // KARAOKE — revela al ritmo en que se PRONUNCIAN las palabras.
+    const tSec = frame / fps;
     let spoken = 0;
     for (const w of wordTimestamps) {
       if (w.start <= tSec) spoken++;
@@ -69,16 +68,13 @@ export const Typewriter: React.FC<TypewriterProps> = ({
     }
     const fraction = Math.min(1, spoken / wordTimestamps.length);
     charsToShow = Math.ceil(fraction * totalChars);
-  } else if (durationInFrames && durationInFrames > 0) {
-    // Sin timestamps: repartir suave sobre la duración de la escena.
-    const typingWindow = Math.max(1, durationInFrames - reservedFrames - delayFrames);
-    const progress = Math.min(1, adjustedFrame / typingWindow);
-    charsToShow = Math.ceil(progress * totalChars);
   } else {
-    const speed = speedProp ?? 2;
-    charsToShow = Math.floor(adjustedFrame / speed);
+    const fullWindow = Math.max(1, sceneDuration - reservedFrames - delayFrames);
+    const window = fullWindow / Math.max(1, speedProp ?? 1);
+    const progress = Math.min(1, adjustedFrame / window);
+    charsToShow = Math.ceil(progress * totalChars);
   }
-  const displayedText = text.substring(0, charsToShow);
+  const displayedText = safeText.substring(0, charsToShow);
   const cursorBlink = Math.floor(adjustedFrame / 15) % 2 === 0;
 
   return (

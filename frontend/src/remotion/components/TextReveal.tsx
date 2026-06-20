@@ -14,11 +14,13 @@ export interface TextRevealProps extends UniversalProps {
   animation?: 'fade' | 'blur' | 'slide_up';
   glowIntensity?: number;
   width?: number;
+  /** Frames entre la entrada de cada palabra (sin timestamps). */
+  stagger?: number;
   wordTimestamps?: WordTiming[];
 }
 
 export const TextReveal: React.FC<TextRevealProps> = ({
-  text,
+  text = 'Texto que aparece',
   color = '#ffffff',
   animation = 'slide_up',
   glowIntensity = 0.5,
@@ -26,6 +28,7 @@ export const TextReveal: React.FC<TextRevealProps> = ({
   y = 960,
   fontSize = 60,
   width,  // Remove hardcoded default
+  stagger = 3,
   delay = 0,
   wordTimestamps,
 }) => {
@@ -33,13 +36,14 @@ export const TextReveal: React.FC<TextRevealProps> = ({
   const adjustedFrame = Math.max(0, frame - delay);
   const { fps, width: canvasWidth, height: canvasHeight } = useVideoConfig();
 
+  const safeText = text ?? '';
   const hasKaraoke = !!(wordTimestamps && wordTimestamps.length > 0);
 
   // Calculate effective container width
   const effectiveWidth = width || Math.min(900, Math.floor(canvasWidth * 0.85));
 
   // Auto-scale fontSize to fit text
-  const fitted = fitText(text, effectiveWidth, Math.floor(canvasHeight * 0.5), {
+  const fitted = fitText(safeText, effectiveWidth, Math.floor(canvasHeight * 0.5), {
     minFontSize: 48,
     maxFontSize: fontSize || 60,
     fontWeight: 900,
@@ -48,7 +52,7 @@ export const TextReveal: React.FC<TextRevealProps> = ({
   });
   const actualFontSize = fitted.fontSize;
 
-  const words = text.split(' ');
+  const words = safeText.split(' ');
 
   return (
     <div
@@ -78,7 +82,7 @@ export const TextReveal: React.FC<TextRevealProps> = ({
           wordStartFrame = Math.round((ts?.start ?? 0) * fps);
           baseFrame = frame; // timestamps son relativos al inicio de la escena (= audio)
         } else {
-          wordStartFrame = index * 3;
+          wordStartFrame = index * Math.max(0, stagger);
           baseFrame = adjustedFrame;
         }
         const wordFrame = Math.max(0, baseFrame - wordStartFrame);

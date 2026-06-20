@@ -9,9 +9,10 @@ import { interpolate } from 'remotion';
 
 interface Props {
   progress: number;
+  color?: string;
 }
 
-export const WipeTransition: React.FC<Props> = ({ progress }) => {
+export const WipeTransition: React.FC<Props> = ({ progress, color = 'rgba(0, 0, 0, 1)' }) => {
   // Wipe reveals from left to right
   const wipePercentage = interpolate(progress, [0, 1], [0, 100], {
     extrapolateRight: 'clamp',
@@ -51,7 +52,7 @@ export const WipeTransition: React.FC<Props> = ({ progress }) => {
           left: 0,
           width: `${wipePercentage}%`,
           height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 1)',
+          backgroundColor: color,
         }}
       />
     </div>

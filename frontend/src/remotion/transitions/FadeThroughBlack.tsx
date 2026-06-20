@@ -11,14 +11,14 @@ import { AbsoluteFill } from 'remotion';
  *
  * Recibe `progress` (0→1) sobre la ventana de transición. Determinista.
  */
-export const FadeThroughBlack: React.FC<{ progress: number }> = ({ progress }) => {
+export const FadeThroughBlack: React.FC<{ progress: number; color?: string }> = ({ progress, color = '#000' }) => {
   const p = Math.max(0, Math.min(1, progress));
   // sin(π·p): 0 en los bordes, 1 en el centro (corte). Potencia leve para que el
-  // negro pleno dure poco y el dip se sienta suave.
+  // velo pleno dure poco y el dip se sienta suave. `color` permite velo no-negro.
   const opacity = Math.pow(Math.sin(p * Math.PI), 0.8);
   return (
     <AbsoluteFill
-      style={{ backgroundColor: '#000', opacity, zIndex: 9999, pointerEvents: 'none' }}
+      style={{ backgroundColor: color, opacity, zIndex: 9999, pointerEvents: 'none' }}
     />
   );
 };

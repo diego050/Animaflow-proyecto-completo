@@ -2,42 +2,68 @@ import React from 'react';
 import { useCurrentFrame, useVideoConfig } from 'remotion';
 import type { UniversalProps } from "./types";
 
+/**
+ * RaysOfLight — rayos de luz girando desde un punto (god rays / sunburst / radial
+ * beams). Atómico: color, fondo (transparente por defecto), nº de rayos, grosor,
+ * opacidad, velocidad y suavizado. Posicionable con x/y (origen de los rayos).
+ *
+ * Cobertura: los rayos miden por la DIAGONAL del lienzo (vmax), así que cubren las
+ * esquinas en cualquier formato (vertical 9:16 incluido) sin "perder forma" al girar.
+ */
 export interface RaysOfLightProps extends UniversalProps {
-  color1?: string; // Ray color (e.g., #ffffff)
-  color2?: string; // Background color (e.g., #000000)
-  numRays?: number; // Number of light rays
+  /** Color de los rayos. */
+  color1?: string;
+  /** Color de fondo. 'transparent' = se superpone. */
+  bgColor?: string;
+  /** Número de rayos. */
+  numRays?: number;
+  /** Velocidad de giro (grados/frame aprox). Negativo = sentido inverso. */
+  speed?: number;
+  /** Grosor de cada rayo (vh). */
+  rayWidth?: number;
+  /** Opacidad de cada rayo (0-1). */
+  rayOpacity?: number;
+  /** Suavizado del difuminado central→bordes (% donde se desvanece). */
+  fade?: number;
 }
 
 export const RaysOfLight: React.FC<RaysOfLightProps> = ({
   color1 = '#ffffff',
-  color2 = '#0f172a',
+  bgColor = 'transparent',
   numRays = 12,
+  speed = 0.5,
+  rayWidth = 10,
+  rayOpacity = 0.1,
+  fade = 80,
+  x,
+  y,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
-  const { width, height } = useVideoConfig(); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const { width, height } = useVideoConfig();
 
-  // Slow rotation
-  const rotation = adjustedFrame * 0.5;
+  const rotation = adjustedFrame * speed;
+  const n = Math.max(1, Math.round(numRays));
 
-  // Generate the rays as polygon shapes
-  const rays = Array.from({ length: numRays }).map((_, i) => {
-    const angle = (360 / numRays) * i;
+  // Origen de los rayos (por defecto, centro del lienzo).
+  const posX = typeof x === 'number' ? x : width / 2;
+  const posY = typeof y === 'number' ? y : height / 2;
+
+  const rays = Array.from({ length: n }).map((_, i) => {
+    const angle = (360 / n) * i;
     return (
       <div
         key={i}
         style={{
           position: 'absolute',
-          top: '50%',
-          left: '50%',
-          width: '150vw', // Extra long to cover corners
-          height: '10vh', // Thickness of the ray
-          backgroundColor: color1,
-          transformOrigin: '0 50%', // Rotate from left edge (which is placed at center)
+          left: `${posX}px`,
+          top: `${posY}px`,
+          width: '200vmax', // por la diagonal → cubre esquinas en cualquier formato
+          height: `${rayWidth}vh`,
+          transformOrigin: '0 50%',
           transform: `translateY(-50%) rotate(${angle}deg)`,
-          opacity: 0.1, // Subtle
-          // Add a blur filter or linear gradient to make them look like soft light
+          opacity: rayOpacity,
           background: `linear-gradient(90deg, ${color1} 0%, transparent 100%)`,
         }}
       />
@@ -50,7 +76,7 @@ export const RaysOfLight: React.FC<RaysOfLightProps> = ({
         position: 'absolute',
         width: '100%',
         height: '100%',
-        backgroundColor: color2,
+        backgroundColor: bgColor,
         overflow: 'hidden',
         zIndex: 0,
       }}
@@ -58,15 +84,11 @@ export const RaysOfLight: React.FC<RaysOfLightProps> = ({
       <div
         style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
+          inset: 0,
           transform: `rotate(${rotation}deg)`,
-          transformOrigin: 'center center',
-          // Mask to fade out the rays from the center outwards
-          WebkitMaskImage: 'radial-gradient(circle at center, black 0%, transparent 80%)',
-          maskImage: 'radial-gradient(circle at center, black 0%, transparent 80%)',
+          transformOrigin: `${posX}px ${posY}px`,
+          WebkitMaskImage: `radial-gradient(circle at ${posX}px ${posY}px, black 0%, transparent ${fade}%)`,
+          maskImage: `radial-gradient(circle at ${posX}px ${posY}px, black 0%, transparent ${fade}%)`,
         }}
       >
         {rays}

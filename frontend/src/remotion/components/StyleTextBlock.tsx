@@ -112,6 +112,8 @@ export const StyleTextBlock: React.FC<StyleTextBlockProps> = ({
         fontStyle: customFontStyle,
         textDecoration: customTextDecoration,
         textShadow: customTextShadow,
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
         zIndex: 50,
         // En modo karaoke cada palabra controla su opacidad; el bloque no se
         // desvanece (solo conserva su deslizamiento de entrada).

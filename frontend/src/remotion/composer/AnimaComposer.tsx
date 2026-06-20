@@ -696,6 +696,29 @@ function renderSingleLayer(
         );
       }
 
+      // CameraShake POR GRUPO: si la capa-grupo define `cameraShake` (true u
+      // objeto con opciones), solo ESTE grupo tiembla (no toda la escena). Así el
+      // efecto es atómico: agrupas p.ej. un texto + una onda y les das shake juntos.
+      const groupShake = (layer as Record<string, unknown>).cameraShake as
+        | boolean
+        | Record<string, unknown>
+        | undefined;
+      if (groupShake) {
+        const sp = (typeof groupShake === 'object' ? groupShake : {}) as Record<string, unknown>;
+        const groupShakeTransform = computeCameraShake(ctx.frame, ctx.fps, {
+          intensity: sp.intensity as number | undefined,
+          frequency: sp.frequency as number | undefined,
+          rotation: sp.rotation as number | undefined,
+          decay: sp.decay as boolean | undefined,
+          seed: (sp.seed as number | undefined) ?? 0,
+        });
+        element = (
+          <div style={{ position: 'absolute', inset: 0, transform: groupShakeTransform, transformOrigin: 'center center', willChange: 'transform' }}>
+            {element}
+          </div>
+        );
+      }
+
       element = (
         <AnimatedWrapper
           entry={(layer.entry as EntryType | null) ?? null}

@@ -9,6 +9,7 @@ import { interpolate } from 'remotion';
 
 interface Props {
   progress: number;
+  color?: string; // ignorado (gradiente propio), por consistencia de tipos
 }
 
 export const GradientOverlay: React.FC<Props> = ({ progress }) => {

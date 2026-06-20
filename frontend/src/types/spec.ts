@@ -166,6 +166,9 @@ export interface AnimaComposerSpec {
   background: AnimaBackground;
   layers: AnimaLayer[];
   out_transition?: OutTransition;
+  /** Transición de salida elegida por la IA (la lee MainComposition). */
+  transition?: string;
+  transition_color?: string;
 }
 
 export interface Spec {
@@ -183,6 +186,10 @@ export interface Spec {
   ae_metadata?: Record<string, unknown>;
   ae_script_code?: string;
   anima_composer?: AnimaComposerSpec;
+  /** Transición HACIA la siguiente escena (override). Si falta, se elige auto. */
+  transition?: 'FadeThroughBlack' | 'ZoomBlurTransition' | 'WipeTransition' | 'GlitchTransition' | 'LightLeakTransition' | 'GradientOverlay';
+  /** Color del velo/barrido para Fade/Wipe/ZoomBlur. */
+  transition_color?: string;
 }
 
 export interface TimelineSpec {

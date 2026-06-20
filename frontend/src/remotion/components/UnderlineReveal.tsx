@@ -6,14 +6,23 @@ interface UnderlineRevealProps extends UniversalProps {
   text?: string;
   underlineColor?: string;
   underlineWidth?: number;
+  /** Ancho máximo antes de hacer salto de línea (px). */
+  width?: number;
 }
 
+/**
+ * UnderlineReveal — texto con subrayado animado que se dibuja de izq→der.
+ *
+ * Usa un background clonado por línea (box-decoration-break) → cada línea (al hacer
+ * wrap) recibe su propio subrayado. `width` limita el ancho para que el texto baje.
+ */
 export const UnderlineReveal: React.FC<UnderlineRevealProps> = ({
   text = 'Underline',
   color = '#ffffff',
-  underlineColor = '#3b82f6', // Blue 500
+  underlineColor = '#3b82f6',
   underlineWidth = 6,
   fontSize = 80,
+  width = 900,
   x = 540,
   y = 540,
   delay = 0,
@@ -22,14 +31,11 @@ export const UnderlineReveal: React.FC<UnderlineRevealProps> = ({
   const { fps } = useVideoConfig();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  // El texto aparece primero
   const textScale = spring({ frame: adjustedFrame, fps, config: { damping: 14 } });
-  
-  // La línea de subrayado aparece 15 frames después
-  const underlineProgress = spring({ 
-    frame: Math.max(0, adjustedFrame - 15), 
-    fps, 
-    config: { damping: 14, mass: 0.5, stiffness: 100 } 
+  const underlineProgress = spring({
+    frame: Math.max(0, adjustedFrame - 15),
+    fps,
+    config: { damping: 14, mass: 0.5, stiffness: 100 },
   });
 
   return (
@@ -39,29 +45,32 @@ export const UnderlineReveal: React.FC<UnderlineRevealProps> = ({
         left: `${x}px`,
         top: `${y}px`,
         transform: `translate(-50%, -50%) scale(${textScale})`,
-        display: 'inline-block',
-        color: color,
-        fontSize: `${fontSize}px`,
-        fontFamily: 'Inter, sans-serif',
-        fontWeight: 'bold',
-        whiteSpace: 'nowrap',
+        width: `${width}px`,
+        textAlign: 'center',
         zIndex: 40,
       }}
     >
-      {text}
-      
-      {/* Línea de Subrayado */}
-      <div
+      <span
         style={{
-          position: 'absolute',
-          bottom: '-5%',
-          left: '0',
-          width: `${underlineProgress * 100}%`,
-          height: `${underlineWidth}px`,
-          backgroundColor: underlineColor,
-          borderRadius: '4px',
+          color,
+          fontSize: `${fontSize}px`,
+          fontFamily: 'Inter, sans-serif',
+          fontWeight: 'bold',
+          lineHeight: 1.4,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          // Subrayado bajo cada línea, se dibuja de izq→der.
+          backgroundImage: `linear-gradient(${underlineColor}, ${underlineColor})`,
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: `${underlineProgress * 100}% ${underlineWidth}px`,
+          backgroundPosition: '0 100%',
+          WebkitBoxDecorationBreak: 'clone',
+          boxDecorationBreak: 'clone',
+          paddingBottom: `${underlineWidth + 2}px`,
         }}
-      />
+      >
+        {text}
+      </span>
     </div>
   );
 };

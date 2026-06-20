@@ -4,87 +4,81 @@ import type { UniversalProps } from "./types";
 import { useCanvas } from '../utils/canvas';
 
 /**
- * FloatingBlobs — fondo AMBIENTAL de glows de color suaves (v8 / Fase 4).
+ * FloatingBlobs — fondo AMBIENTAL de glows de color suaves (v8 / Fase 4, atómico).
  *
- * Antes: dos elipses SÓLIDAS con un filtro "gooey" (feColorMatrix con alpha
- * contrast alto) que endurecía los bordes → se veían como manchas sólidas
- * centradas detrás del texto, compitiendo con él.
+ * Glows radiales que se desvanecen a transparente + blur, con deriva lenta. Es un
+ * acento de color, no formas duras. Ahora:
+ *  - CONFINABLE a una región con x/y (centro) y width/height → el efecto puede
+ *    ocupar solo media pantalla, subirse, estirarse o achicarse; los blobs se
+ *    distribuyen dentro de esa caja.
+ *  - count hasta 20, tamaño (`blobSize`) y variación de tamaño configurables → se
+ *    pueden tener muchos blobs pequeños con mucho espacio entre ellos.
+ *  - hasta 3 colores que se alternan por blob.
  *
- * Ahora: glows radiales que se desvanecen a transparente + blur, ubicados hacia
- * los bordes (no en el centro), con deriva lenta. Es un acento de color, no una
- * forma. Responsivo (useCanvas) y determinista (función pura de frame). Respeta
- * `opacity` (el post-proceso lo capa a ≤0.30 cuando hay contenido encima).
+ * Determinista (función pura de frame). Respeta `opacity` (el post-proceso lo
+ * capa a ≤0.30 cuando hay contenido encima).
  */
 export const FloatingBlobs: React.FC<{
   color1?: string;
   color2?: string;
+  color3?: string;
   width?: number;
   height?: number;
   opacity?: number;
-  /** Número de glows (1-5). */
+  /** Número de glows (1–20). */
   count?: number;
+  /** Diámetro base de cada glow (% de vmin). */
+  blobSize?: number;
+  /** Variación aleatoria de tamaño entre blobs (0–1). */
+  sizeVariation?: number;
   /** Desenfoque del conjunto (en vmin). */
   blur?: number;
 } & UniversalProps> = ({
   color1 = '#f43f5e', // Rose
   color2 = '#38bdf8', // Sky
+  color3 = '#a855f7', // Purple
+  x,
+  y,
+  width,
+  height,
   delay = 0,
   color,
   opacity = 1,
-  count = 2,
+  count = 3,
+  blobSize = 40,
+  sizeVariation = 0.4,
   blur = 6,
 }) => {
   const frame = useCurrentFrame();
   const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  // Deriva lenta determinista.
-  const drift = (period: number, phase: number) =>
-    Math.sin((adjustedFrame + phase) / period);
+  // Región (caja) donde viven los blobs. Por defecto, todo el lienzo.
+  const W = typeof width === 'number' ? width : c.width;
+  const H = typeof height === 'number' ? height : c.height;
+  const posX = typeof x === 'number' ? x : c.width / 2;
+  const posY = typeof y === 'number' ? y : c.height / 2;
 
+  // Pseudo-aleatorio determinista por blob (sin Math.random).
+  const rand = (i: number, salt: number) => {
+    const v = Math.sin((i + 1) * 12.9898 + salt * 78.233) * 43758.5453;
+    return v - Math.floor(v);
+  };
   const toTransparent = (hex: string) =>
     /^#[0-9a-fA-F]{6}$/.test(hex) ? `${hex}00` : 'transparent';
 
-  const glow = (
-    col: string,
-    cx: number, // offset horizontal desde el centro (px)
-    cy: number,
-    period: number,
-    phase: number,
-    sizePct: number,
-  ): React.CSSProperties => {
-    const d = c.vmin(sizePct);
-    return {
-      position: 'absolute',
-      left: `${c.width / 2 + cx + drift(period, phase) * c.vw(5)}px`,
-      top: `${c.height / 2 + cy + drift(period * 1.2, phase + 40) * c.vh(4)}px`,
-      width: `${d}px`,
-      height: `${d}px`,
-      transform: 'translate(-50%, -50%)',
-      background: `radial-gradient(circle, ${col} 0%, ${toTransparent(col)} 70%)`,
-      borderRadius: '50%',
-    };
-  };
-
-  // Posiciones base distribuidas hacia los bordes (no en el centro del texto).
-  const layout = [
-    { cx: -c.vw(20), cy: -c.vh(16), period: 90, phase: 0, size: 70 },
-    { cx: c.vw(20), cy: c.vh(18), period: 110, phase: 200, size: 62 },
-    { cx: c.vw(22), cy: -c.vh(20), period: 100, phase: 90, size: 55 },
-    { cx: -c.vw(22), cy: c.vh(20), period: 120, phase: 300, size: 58 },
-    { cx: 0, cy: c.vh(2), period: 130, phase: 150, size: 50 },
-  ];
-  const palette = [color1, color || color2, color1, color2, color || color2];
-  const n = Math.max(1, Math.min(5, Math.round(Number(count) || 2)));
+  const palette = [color || color1, color2, color3];
+  const n = Math.max(1, Math.min(20, Math.round(Number(count) || 3)));
 
   return (
     <div
       style={{
         position: 'absolute',
-        left: 0,
-        top: 0,
-        width: `${c.width}px`,
-        height: `${c.height}px`,
+        left: `${posX}px`,
+        top: `${posY}px`,
+        width: `${W}px`,
+        height: `${H}px`,
+        transform: 'translate(-50%, -50%)',
         zIndex: 1,
         opacity,
         filter: `blur(${c.vmin(Number(blur) || 6)}px)`,
@@ -92,9 +86,31 @@ export const FloatingBlobs: React.FC<{
         overflow: 'hidden',
       }}
     >
-      {layout.slice(0, n).map((b, i) => (
-        <div key={i} style={glow(palette[i], b.cx, b.cy, b.period, b.phase, b.size)} />
-      ))}
+      {Array.from({ length: n }).map((_, i) => {
+        const col = palette[i % palette.length];
+        const baseX = rand(i, 1) * W;
+        const baseY = rand(i, 2) * H;
+        const d = c.vmin(blobSize) * (1 + sizeVariation * (rand(i, 3) - 0.5) * 2);
+        const period = 80 + rand(i, 4) * 80;
+        const phase = rand(i, 5) * 200;
+        const driftX = Math.sin((adjustedFrame + phase) / period) * c.vw(4);
+        const driftY = Math.cos((adjustedFrame + phase) / (period * 1.3)) * c.vh(3);
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: `${baseX + driftX}px`,
+              top: `${baseY + driftY}px`,
+              width: `${d}px`,
+              height: `${d}px`,
+              transform: 'translate(-50%, -50%)',
+              background: `radial-gradient(circle, ${col} 0%, ${toTransparent(col)} 70%)`,
+              borderRadius: '50%',
+            }}
+          />
+        );
+      })}
     </div>
   );
 };

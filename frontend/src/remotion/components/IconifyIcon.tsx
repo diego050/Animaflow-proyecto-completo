@@ -17,6 +17,8 @@ interface IconifyIconProps extends UniversalProps {
   opacity?: number;
   rotation?: number;
   scale?: number;
+  /** Animación continua (después de entrar). 'none' = solo respiración sutil. */
+  animation?: 'none' | 'bounce' | 'pulse' | 'spin' | 'float' | 'shake';
   /** Modo inline: se renderiza dentro del flujo (sin position:absolute) para
    *  usarlo DENTRO de otros componentes (badges, botones) sin que se escape. */
   inline?: boolean;
@@ -36,6 +38,7 @@ export const IconifyIcon: React.FC<IconifyIconProps> = ({
   opacity = 1,
   rotation = 0,
   scale = 1,
+  animation = 'none',
   inline = false,
 }) => {
   // Construir URL de Iconify API
@@ -53,6 +56,20 @@ export const IconifyIcon: React.FC<IconifyIconProps> = ({
   // (regla de hooks); en modo inline no se usa.
   const frame = useCurrentFrame();
   const idle = idleBreathe(frame).scale;
+
+  // Animación continua opcional (folded desde el antiguo AnimatedIcon → ahora
+  // CUALQUIERA de los 43k iconos puede animarse). 'none' usa la respiración idle.
+  let animX = 0;
+  let animY = 0;
+  let animRot = 0;
+  let animScale = 1;
+  if (animation === 'bounce') animY = Math.sin(frame * 0.15) * 20;
+  else if (animation === 'pulse') animScale = 1 + Math.sin(frame * 0.1) * 0.1;
+  else if (animation === 'spin') animRot = frame * 2;
+  else if (animation === 'float') { animY = Math.sin(frame * 0.05) * 30; animRot = Math.cos(frame * 0.05) * 10; }
+  else if (animation === 'shake') animX = Math.sin(frame * 0.5) * 10;
+  const animated = animation !== 'none';
+  const finalScale = animated ? animScale : idle;
 
   // Modo inline: img sencillo dentro del flujo (para badges/botones). Sin
   // position:absolute, sin wrapper de animación, sin idle (no aplica).
@@ -82,7 +99,7 @@ export const IconifyIcon: React.FC<IconifyIconProps> = ({
         top: `${y}px`,
         width: `${numericSize * scale}px`,
         height: `${numericSize * scale}px`,
-        transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${idle})`,
+        transform: `translate(calc(-50% + ${animX}px), calc(-50% + ${animY}px)) rotate(${rotation + animRot}deg) scale(${finalScale})`,
         opacity,
         zIndex: 10,
       }}

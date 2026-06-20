@@ -722,6 +722,13 @@ REGLAS DE LAYOUT:
 4. NO uses coordenadas x/y dentro de un grupo flex — el layout las calcula automáticamente.
 5. El texto y los iconos son OPCIONALES. Usa solo lo que la escena necesite.
 6. Puedes anidar grupos flex dentro de otros grupos para layouts complejos.
+7. TEMBLOR (camera shake) EN UN GRUPO: para sacudir SOLO un conjunto de elementos
+   (p.ej. un título + una onda en un momento de impacto) sin afectar el resto de
+   la escena, agrúpalos y añade "cameraShake" al grupo. Para sacudir TODA la
+   escena, usa en cambio el componente CameraShake como capa suelta.
+   { "type": "group", "layout": "flex", "direction": "column", "alignItems": "center",
+     "cameraShake": { "intensity": 14, "frequency": 8, "decay": true },
+     "children": [ { "type": "text", "text": "¡BOOM!" }, { "type": "component", "componentName": "AbstractWave" } ] }
 """
 
     positioning_rules = f"""REGLAS DE POSICIONAMIENTO (CANVAS {width}x{height}, formato {aspect_ratio}):
@@ -824,7 +831,7 @@ Usa componentes de la lista anterior con type: "component" y componentName: "NOM
 REGLAS DE ORO PARA EL DISEÑO:
 1. **USA SOLO COMPONENTES DE LA STANDARD LIBRARY:** No crees formas desde cero con primitivas. Selecciona y combina componentes de la lista proporcionada. Si necesitas un elemento visual específico, busca el componente más cercano en la lista y adáptalo con sus props.
 2. **COHERENCIA TEMÁTICA ESTRICTA:** Solo elige componentes de la Standard Library si tienen una relación DIRECTA y LÓGICA con el guion. Si el video es un documental sobre peces, NO uses un "SubscribeButton" o "TinderSwipeCard". Usa tu juicio semántico: si no encaja perfecto con la vibra de la escena, no lo uses.
-2.1. **NO METAS COMPONENTES DE DATOS SIN DATOS:** barras de progreso (StyleProgressBar, ProgressPill, SocialProgressBar), charts, contadores, rings, etc. SOLO si la escena presenta un dato/porcentaje/cifra REAL y relevante del guion. NUNCA los uses como relleno decorativo — una barra "Progress 18%" sin contexto no aporta y confunde. Si dudas, no lo pongas.
+2.1. **NO METAS COMPONENTES DE DATOS SIN DATOS:** barras de progreso (ProgressPill, SocialProgressBar), charts, contadores, rings, etc. SOLO si la escena presenta un dato/porcentaje/cifra REAL y relevante del guion. NUNCA los uses como relleno decorativo — una barra "Progress 18%" sin contexto no aporta y confunde. Si dudas, no lo pongas.
 3. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
 4. **EL TEXTO EN PANTALLA ES OPCIONAL — decídelo por escena (MUY IMPORTANTE):**
    El audio YA narra todo el guion, así que NO hace falta repetir el texto en CADA
@@ -870,8 +877,22 @@ REGLAS DE ORO PARA EL DISEÑO:
    - Distribúyelos alrededor del elemento central (ej: en círculo, en fila, en esquinas).
    - Si usas el mismo icon múltiples veces, varía el `scale` (ej: 0.8, 1.0, 1.2) para crear profundidad.
    - Máximo 5-6 iconos decorativos por escena para no saturar.
+8. **COMPOSICIÓN LIBRE:** la lista de componentes es un CATÁLOGO de opciones, no una
+   obligación de usar uno de cada tipo. Puedes REPETIR un componente (ej. 3 `StyleTextBlock`
+   para título + subtítulo + pie) y COMBINAR libremente (ej. 1 texto + 1 decorativo, o solo
+   un fondo + un texto). Usa SOLO lo que la escena necesita; no rellenes con componentes de
+   relleno solo porque están en la lista.
 
 {layout_section}
+
+TRANSICIÓN DE SALIDA (opcional): puedes añadir al NIVEL RAÍZ del JSON (junto a "background" y "layers") un campo "transition" indicando cómo corta esta escena hacia la siguiente, según el TONO de la escena:
+- "FadeThroughBlack": neutro/elegante (cambio de tema o de color de fondo fuerte).
+- "ZoomBlurTransition": enérgico/punchy (ritmo rápido, momento de impacto).
+- "WipeTransition": barrido limpio (escenas continuas, mismo look).
+- "GlitchTransition": tecnológico, digital, glitch.
+- "LightLeakTransition": cálido, cinematográfico, soñador.
+- "GradientOverlay": disolución de color suave.
+Si no estás seguro, OMÍTELO y el sistema elegirá una automáticamente. Opcional: "transition_color" (hex) para el velo de Fade/Wipe/ZoomBlur.
 
 GUÍA DE TAMAÑOS DE TEXTO PARA VIDEO VERTICAL (1080x1920):
 ┌─────────────────────────────────────────────────────┐
@@ -991,17 +1012,15 @@ An icon-based avatar with animated ring and optional badge.
 - `badgeText`: Badge text (e.g., "NEW", "•")
 - Use for: Testimonials, team members, social profiles, user mentions
 
-### StyleProgressBar
-A progress indicator with linear and circular variants.
-- `componentName`: "StyleProgressBar"
-- `value`: Current value (0-100)
-- `max`: Maximum value
-- `variant`: "linear" | "circular"
-- `color`: Progress bar color
+### ProgressPill
+The single progress indicator — bars and rings.
+- `componentName`: "ProgressPill"
+- `startPercent` / `endPercent`: animate the fill (0-100)
+- `variant`: "solid" | "gradient" | "striped" | "segmented" | "circular"
+- `barColor` / `trackColor`: fill and track colors
 - `showLabel`: boolean — Show percentage label
-- `labelPosition`: "top" | "bottom" | "inside"
-- `size`: Size for circular variant (default 120)
-- `strokeWidth`: Stroke width for circular variant
+- `labelPosition`: "top" | "bottom" | "inside" | "left" | "right"
+- `size` / `strokeWidth`: diameter and ring thickness (circular variant)
 - Use for: Survey results, completion status, statistics, comparisons
 
 ### StyleDivider
@@ -1325,7 +1344,7 @@ Ejemplo C - Escena data-driven con múltiples elementos:
           "children": [
             {{"type": "component", "componentName": "StyleAnimateNumber", "value": 95, "suffix": "%", "prefix": "+"}},
             {{"type": "component", "componentName": "StyleAnimateNumber", "value": 2400, "prefix": "$", "format": "compact"}},
-            {{"type": "component", "componentName": "StyleProgressBar", "value": 73, "showLabel": true}}
+            {{"type": "component", "componentName": "ProgressPill", "endPercent": 73, "showLabel": true}}
           ]
         }}
       ]
@@ -1450,6 +1469,7 @@ def generate_scene_composer(
     duration_seconds: float = 0.0,
     suggested_bg_color: Optional[str] = None,
     suggested_text_color: Optional[str] = None,
+    seed: Optional[str] = None,
 ) -> AnimaComposerSpec:
     """
     Pregunta al LLM por la composición AnimaComposer (JSON) de la escena.
@@ -1460,7 +1480,7 @@ def generate_scene_composer(
     if db is not None:
         # Use intelligent vector search with diversity quotas
         from app.services.embedding import get_relevant_components
-        relevant = get_relevant_components(db, text, media_query, top_k=15, api_key=api_key)
+        relevant = get_relevant_components(db, text, media_query, top_k=28, api_key=api_key, seed=seed)
         components = relevant  # Already list[dict] from _format_component
         component_names = [c["name"] for c in relevant]
         logger.info("Vector search returned %d relevant components: %s", len(component_names), component_names[:5])
@@ -1659,13 +1679,23 @@ def generate_scene_composer(
                                 "badgeText": {"type": "STRING"},
                                 "from": {"type": "NUMBER"},
                                 "duration": {"type": "NUMBER"},
+                                # CameraShake POR GRUPO: sacude solo este grupo.
+                                "cameraShake": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "intensity": {"type": "NUMBER", "minimum": 0, "maximum": 60},
+                                        "frequency": {"type": "NUMBER", "minimum": 1, "maximum": 20},
+                                        "rotation": {"type": "NUMBER", "minimum": 0, "maximum": 5},
+                                        "decay": {"type": "BOOLEAN"},
+                                    },
+                                },
                             },
                             "required": ["type", "x", "y"]
                         }
                     },
-                    # v7: out_transition eliminado — el frontend nunca lo renderiza
-                    # (MainComposition no lo lee). La única transición es el
-                    # crossfade de fondo de 15 frames en AnimaComposer.
+                    # Transición de SALIDA de la escena (opcional), elegida por la IA.
+                    "transition": {"type": "STRING"},
+                    "transition_color": {"type": "STRING"},
                 },
                 "required": ["background", "layers"]
             }

@@ -9,6 +9,8 @@ interface StyleDividerProps extends UniversalProps {
   lineStyle?: 'solid' | 'dashed' | 'dotted' | 'gradient';
   width?: number;
   height?: number;
+  /** Entrada propia (crece desde el centro). false / disableEntry = la controla el wrapper. */
+  animateIn?: boolean;
   style?: Record<string, unknown>;
 }
 
@@ -17,122 +19,62 @@ export const StyleDivider: React.FC<StyleDividerProps> = ({
   y = 960,
   orientation = 'horizontal',
   color = '#334155',
-  thickness = 1,
+  thickness = 2,
   lineStyle = 'solid',
-  width = 400,
-  height = 200,
-  style: layerStyle,
+  width = 600,
+  height = 300,
+  animateIn = true,
+  disableEntry = false,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  // Entrance: grow from center
   const isHorizontal = orientation === 'horizontal';
-  const scale = interpolate(adjustedFrame, [0, 20], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-    easing: Easing.out(Easing.cubic),
-  });
+  const showEntry = animateIn && !disableEntry;
+  const scale = showEntry ? interpolate(adjustedFrame, [0, 20], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) }) : 1;
+  const opacity = showEntry ? interpolate(adjustedFrame, [0, 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 1;
 
-  const opacity = interpolate(adjustedFrame, [0, 10], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
+  // dotted = puntos redondos (gap mayor); dashed = guiones.
+  const dashArray = lineStyle === 'dashed' ? `${thickness * 3} ${thickness * 2}` : lineStyle === 'dotted' ? `0.1 ${thickness * 2.5}` : undefined;
 
-  // Style overrides
-  const customColor = (layerStyle?.borderColor as string) ?? color;
-  const customThickness = (layerStyle?.borderWidth as number) ?? thickness;
-  const customOpacity = layerStyle?.opacity !== undefined ? (layerStyle.opacity as number) * opacity : opacity;
-  const customWidth = layerStyle?.width ? `${layerStyle.width}px` : `${width}px`;
-  const customHeight = layerStyle?.height ? `${layerStyle.height}px` : `${height}px`;
+  const lengthW = isHorizontal ? `${width}px` : `${thickness}px`;
+  const lengthH = isHorizontal ? `${thickness}px` : `${height}px`;
 
-  const dashArray = lineStyle === 'dashed' ? '8 4' : lineStyle === 'dotted' ? '2 4' : undefined;
+  const lineEl = lineStyle === 'gradient' ? (
+    <div style={{ width: isHorizontal ? '100%' : `${thickness}px`, height: isHorizontal ? `${thickness}px` : '100%', background: `linear-gradient(${isHorizontal ? '90deg' : '180deg'}, transparent, ${color}, transparent)`, borderRadius: 999 }} />
+  ) : (
+    <svg width={isHorizontal ? '100%' : thickness} height={isHorizontal ? thickness : '100%'}>
+      <line
+        x1={isHorizontal ? '0' : thickness / 2}
+        y1={isHorizontal ? thickness / 2 : '0'}
+        x2={isHorizontal ? '100%' : thickness / 2}
+        y2={isHorizontal ? thickness / 2 : '100%'}
+        stroke={color}
+        strokeWidth={thickness}
+        strokeDasharray={dashArray}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 
-  if (isHorizontal) {
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          top: `${y}px`,
-          left: `${x}px`,
-          transform: `translate(-50%, -50%) scaleX(${scale})`,
-          opacity: customOpacity,
-          zIndex: 50,
-          width: customWidth,
-          height: customHeight,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {lineStyle === 'gradient' ? (
-          <div
-            style={{
-              width: '100%',
-              height: `${customThickness}px`,
-              background: `linear-gradient(90deg, transparent, ${customColor}, transparent)`,
-              borderRadius: 999,
-            }}
-          />
-        ) : (
-          <svg width="100%" height={customThickness}>
-            <line
-              x1="0"
-              y1={customThickness / 2}
-              x2="100%"
-              y2={customThickness / 2}
-              stroke={customColor}
-              strokeWidth={customThickness}
-              strokeDasharray={dashArray}
-              strokeLinecap="round"
-            />
-          </svg>
-        )}
-      </div>
-    );
-  }
-
-  // Vertical
   return (
     <div
       style={{
         position: 'absolute',
         top: `${y}px`,
         left: `${x}px`,
-        transform: `translate(-50%, -50%) scaleY(${scale})`,
-        opacity: customOpacity,
+        transform: `translate(-50%, -50%) ${isHorizontal ? `scaleX(${scale})` : `scaleY(${scale})`}`,
+        opacity,
         zIndex: 50,
-        width: customWidth,
-        height: customHeight,
+        width: lengthW,
+        height: lengthH,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      {lineStyle === 'gradient' ? (
-        <div
-          style={{
-            width: `${customThickness}px`,
-            height: '100%',
-            background: `linear-gradient(180deg, transparent, ${customColor}, transparent)`,
-            borderRadius: 999,
-          }}
-        />
-      ) : (
-        <svg width={customThickness} height="100%">
-          <line
-            x1={customThickness / 2}
-            y1="0"
-            x2={customThickness / 2}
-            y2="100%"
-            stroke={customColor}
-            strokeWidth={customThickness}
-            strokeDasharray={dashArray}
-            strokeLinecap="round"
-          />
-        </svg>
-      )}
+      {lineEl}
     </div>
   );
 };

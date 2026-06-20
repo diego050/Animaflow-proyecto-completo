@@ -2,7 +2,6 @@ import { APIRequestFlow } from './components/APIRequestFlow';
 import { AbstractWave } from './components/AbstractWave';
 import { AnimatedArrow } from './components/AnimatedArrow';
 import { AnimatedChecklist } from './components/AnimatedChecklist';
-import { AnimatedIcon } from './components/AnimatedIcon';
 import { AnimatedLine } from './components/AnimatedLine';
 import { AnimatedShape } from './components/AnimatedShape';
 import { AppStoreButtons } from './components/AppStoreButtons';
@@ -18,9 +17,7 @@ import { CinematicBars } from './components/CinematicBars';
 import { CodeBlockHighlight } from './components/CodeBlockHighlight';
 import { CountdownTimer } from './components/CountdownTimer';
 import { CounterNumber } from './components/CounterNumber';
-import { CursorClick } from './components/CursorClick';
 import { EmojiFloat } from './components/EmojiFloat';
-import { FeatureChecklist } from './components/FeatureChecklist';
 import { FeatureUnlock } from './components/FeatureUnlock';
 import { FlashSaleTimer } from './components/FlashSaleTimer';
 import { FloatingBadge } from './components/FloatingBadge';
@@ -30,7 +27,6 @@ import { FunnelChart } from './components/FunnelChart';
 import { GeometricShapes } from './components/GeometricShapes';
 import { GitCommitGraph } from './components/GitCommitGraph';
 import { GlitchTitle } from './components/GlitchTitle';
-import { GlitchTransition } from './components/GlitchTransition';
 import { GlobalVFX } from './components/GlobalVFX';
 import { GradientOverlay } from './components/GradientOverlay';
 import { GradientText } from './components/GradientText';
@@ -42,7 +38,6 @@ import { InstagramPost } from './components/InstagramPost';
 import { KenBurns } from './components/KenBurns';
 import { KeywordPop } from './components/KeywordPop';
 import { KineticBackground } from './components/KineticBackground';
-import { LightLeakTransition } from './components/LightLeakTransition';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { LogoReveal } from './components/LogoReveal';
 import { LowerThird } from './components/LowerThird';
@@ -93,7 +88,6 @@ import { StyleFakeScroll } from './components/StyleFakeScroll';
 import { StyleFunnelChart } from './components/StyleFunnelChart';
 import { StyleLineChart } from './components/StyleLineChart';
 import { StylePieChart } from './components/StylePieChart';
-import { StyleProgressBar } from './components/StyleProgressBar';
 import { StyleRadarChart } from './components/StyleRadarChart';
 import { StyleScrambleText } from './components/StyleScrambleText';
 import { StyleSimulatedHover } from './components/StyleSimulatedHover';
@@ -114,17 +108,14 @@ import { Typewriter } from './components/Typewriter';
 import { UnderlineReveal } from './components/UnderlineReveal';
 import { VersusScreen } from './components/VersusScreen';
 import { WaveformVisualizer } from './components/WaveformVisualizer';
-import { WipeTransition } from './components/WipeTransition';
 import { WordHighlight } from './components/WordHighlight';
 import { YouTubeEndScreen } from './components/YouTubeEndScreen';
-import { ZoomBlurTransition } from './components/ZoomBlurTransition';
 
 export const COMPONENT_NAMES = [
   'APIRequestFlow',
   'AbstractWave',
   'AnimatedArrow',
   'AnimatedChecklist',
-  'AnimatedIcon',
   'AnimatedLine',
   'AnimatedShape',
   'AppStoreButtons',
@@ -140,9 +131,7 @@ export const COMPONENT_NAMES = [
   'CodeBlockHighlight',
   'CountdownTimer',
   'CounterNumber',
-  'CursorClick',
   'EmojiFloat',
-  'FeatureChecklist',
   'FeatureUnlock',
   'FlashSaleTimer',
   'FloatingBadge',
@@ -152,7 +141,6 @@ export const COMPONENT_NAMES = [
   'GeometricShapes',
   'GitCommitGraph',
   'GlitchTitle',
-  'GlitchTransition',
   'GlobalVFX',
   'GradientOverlay',
   'GradientText',
@@ -164,7 +152,6 @@ export const COMPONENT_NAMES = [
   'KenBurns',
   'KeywordPop',
   'KineticBackground',
-  'LightLeakTransition',
   'LoadingSpinner',
   'LogoReveal',
   'LowerThird',
@@ -215,7 +202,6 @@ export const COMPONENT_NAMES = [
   'StyleFunnelChart',
   'StyleLineChart',
   'StylePieChart',
-  'StyleProgressBar',
   'StyleRadarChart',
   'StyleScrambleText',
   'StyleSimulatedHover',
@@ -236,10 +222,8 @@ export const COMPONENT_NAMES = [
   'UnderlineReveal',
   'VersusScreen',
   'WaveformVisualizer',
-  'WipeTransition',
   'WordHighlight',
   'YouTubeEndScreen',
-  'ZoomBlurTransition',
 ];
 
 export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
@@ -247,7 +231,6 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   AbstractWave,
   AnimatedArrow,
   AnimatedChecklist,
-  AnimatedIcon,
   AnimatedLine,
   AnimatedShape,
   AppStoreButtons,
@@ -263,9 +246,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   CodeBlockHighlight,
   CountdownTimer,
   CounterNumber,
-  CursorClick,
   EmojiFloat,
-  FeatureChecklist,
   FeatureUnlock,
   FlashSaleTimer,
   FloatingBadge,
@@ -275,7 +256,6 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   GeometricShapes,
   GitCommitGraph,
   GlitchTitle,
-  GlitchTransition,
   GlobalVFX,
   GradientOverlay,
   GradientText,
@@ -287,7 +267,6 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   KenBurns,
   KeywordPop,
   KineticBackground,
-  LightLeakTransition,
   LoadingSpinner,
   LogoReveal,
   LowerThird,
@@ -338,7 +317,6 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   StyleFunnelChart,
   StyleLineChart,
   StylePieChart,
-  StyleProgressBar,
   StyleRadarChart,
   StyleScrambleText,
   StyleSimulatedHover,
@@ -359,10 +337,8 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   UnderlineReveal,
   VersusScreen,
   WaveformVisualizer,
-  WipeTransition,
   WordHighlight,
   YouTubeEndScreen,
-  ZoomBlurTransition,
 };
 
 // ---------------------------------------------------------------------------
@@ -382,7 +358,7 @@ export const COMPONENT_ALIASES: Record<string, string> = {
 
   // Counters
   'CounterNumber': 'StyleAnimateNumber',
-  'PercentageRing': 'StyleProgressBar',
+  'PercentageRing': 'ProgressPill',
   'ScoreboardCounter': 'StyleAnimateNumber',
   'FollowerCounter': 'StyleAnimateNumber',
   'FlashSaleTimer': 'StyleAnimateNumber',
@@ -409,11 +385,12 @@ export const COMPONENT_ALIASES: Record<string, string> = {
   'MessageBubble': 'StyleCard',
   'TextBubble': 'StyleCard',
   'FloatingBadge': 'StyleBadge',
-  'ProgressPill': 'StyleProgressBar',
-  'LoadingSpinner': 'StyleProgressBar',
+  'LoadingSpinner': 'ProgressPill',
+  'StyleProgressBar': 'ProgressPill',
+  'CursorClick': 'StyleCursor',
 
   // Social
-  'SocialProgressBar': 'StyleProgressBar',
+  'SocialProgressBar': 'ProgressPill',
   'SocialSharePopup': 'StyleCard',
   'ShoppingCartBadge': 'StyleBadge',
   'SizeSelector': 'StyleChip',

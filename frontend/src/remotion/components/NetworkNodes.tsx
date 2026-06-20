@@ -2,6 +2,16 @@ import React from 'react';
 import { useCurrentFrame, useVideoConfig, random } from 'remotion';
 import type { UniversalProps } from "./types";
 
+/**
+ * NetworkNodes — "red neuronal": nodos que derivan y se conectan por proximidad.
+ *
+ * - Posiciones generadas de forma determinista (aleatorias pero reproducibles vía
+ *   `seed`; cambia `seed` para otra disposición). NO están hardcodeadas.
+ * - CONFINABLE a una región con x/y (centro) + width/height → puede ocupar solo
+ *   una zona, moverse o estirarse; los nodos se distribuyen dentro de esa caja.
+ * - Atómico: nodeCount, connectionDistance, speed, nodeSize, lineWidth, drift.
+ * - Las conexiones se recalculan por proximidad cada frame → red viva.
+ */
 export interface NetworkNodesProps extends UniversalProps {
   nodeColor?: string;
   lineColor?: string;
@@ -11,6 +21,12 @@ export interface NetworkNodesProps extends UniversalProps {
   connectionDistance?: number;
   /** Velocidad de la deriva ambiental. */
   speed?: number;
+  /** Tamaño base de los nodos (px). */
+  nodeSize?: number;
+  /** Grosor de las líneas (px). */
+  lineWidth?: number;
+  /** Amplitud de la deriva (1 = normal, 0 = estático). */
+  drift?: number;
   /** Alias usado por la IA (sobrescribe nodeColor). */
   color?: string;
   /** Semilla para variar la disposición de forma determinista. */
@@ -19,28 +35,26 @@ export interface NetworkNodesProps extends UniversalProps {
   opacity?: number;
 }
 
-/**
- * NetworkNodes — fondo ambiental de "red neuronal" a pantalla completa.
- *
- * - Background role: llena el lienzo (no es una cajita centrada).
- * - Determinista: posiciones vía `random(seed)`, deriva vía `frame` (sin Math.random).
- * - Las conexiones se calculan POR PROXIMIDAD cada frame → al derivar los nodos,
- *   las líneas aparecen/desaparecen como una red viva.
- * - `nodeCount` controla la densidad; `opacity` (universal) se respeta.
- */
 export const NetworkNodes: React.FC<NetworkNodesProps> = ({
   nodeColor = '#38bdf8',
   lineColor,
   nodeCount = 18,
   connectionDistance,
   speed = 1,
+  nodeSize = 6,
+  lineWidth = 2,
+  drift = 1,
   color,
   seed = 0,
   opacity = 1,
+  x,
+  y,
+  width,
+  height,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
-  const { width, height, fps } = useVideoConfig();
+  const { width: canvasWidth, height: canvasHeight, fps } = useVideoConfig();
   const adjustedFrame = Math.max(0, frame - delay);
   const t = (adjustedFrame / fps) * speed;
 
@@ -48,21 +62,27 @@ export const NetworkNodes: React.FC<NetworkNodesProps> = ({
   const links = lineColor ?? dots;
   const rootOpacity = Math.min(1, Math.max(0, opacity));
 
-  const n = Math.min(60, Math.max(3, Math.round(nodeCount)));
-  const maxDist = connectionDistance ?? Math.min(width, height) * 0.22;
+  // Región (caja). Por defecto, todo el lienzo.
+  const W = typeof width === 'number' ? width : canvasWidth;
+  const H = typeof height === 'number' ? height : canvasHeight;
+  const posX = typeof x === 'number' ? x : canvasWidth / 2;
+  const posY = typeof y === 'number' ? y : canvasHeight / 2;
 
-  // Nodos deterministas con deriva ambiental lenta.
+  const n = Math.min(60, Math.max(3, Math.round(nodeCount)));
+  const maxDist = connectionDistance ?? Math.min(W, H) * 0.22;
+
+  // Nodos deterministas con deriva ambiental lenta, dentro de la región.
   const nodes = Array.from({ length: n }).map((_, i) => {
     const key = `nn-${seed}-${i}`;
-    const baseX = random(`${key}-x`) * width;
-    const baseY = random(`${key}-y`) * height;
+    const baseX = random(`${key}-x`) * W;
+    const baseY = random(`${key}-y`) * H;
     const phase = random(`${key}-p`) * Math.PI * 2;
-    const ampX = width * 0.04;
-    const ampY = height * 0.04;
-    const x = baseX + Math.sin(t * 0.6 + phase) * ampX;
-    const y = baseY + Math.cos(t * 0.5 + phase * 1.3) * ampY;
-    const r = 3 + random(`${key}-r`) * 6;
-    return { x, y, r, phase };
+    const ampX = W * 0.04 * drift;
+    const ampY = H * 0.04 * drift;
+    const nx = baseX + Math.sin(t * 0.6 + phase) * ampX;
+    const ny = baseY + Math.cos(t * 0.5 + phase * 1.3) * ampY;
+    const r = nodeSize * (0.6 + random(`${key}-r`) * 0.9);
+    return { x: nx, y: ny, r, phase };
   });
 
   // Conexiones por proximidad (O(n²), n<=60 → barato).
@@ -73,7 +93,6 @@ export const NetworkNodes: React.FC<NetworkNodesProps> = ({
       const dy = nodes[a].y - nodes[b].y;
       const d = Math.sqrt(dx * dx + dy * dy);
       if (d < maxDist) {
-        // Más cerca = más visible; pulso sutil de "dato viajando".
         const proximity = 1 - d / maxDist;
         const pulse = 0.6 + 0.4 * Math.sin(t * 2 + (a + b) * 0.5);
         lines.push({ x1: nodes[a].x, y1: nodes[a].y, x2: nodes[b].x, y2: nodes[b].y, o: proximity * pulse });
@@ -85,16 +104,17 @@ export const NetworkNodes: React.FC<NetworkNodesProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
+        left: `${posX}px`,
+        top: `${posY}px`,
+        width: `${W}px`,
+        height: `${H}px`,
+        transform: 'translate(-50%, -50%)',
         zIndex: 0,
         opacity: rootOpacity,
         overflow: 'hidden',
       }}
     >
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
         {lines.map((l, i) => (
           <line
             key={`l-${i}`}
@@ -103,7 +123,7 @@ export const NetworkNodes: React.FC<NetworkNodesProps> = ({
             x2={l.x2}
             y2={l.y2}
             stroke={links}
-            strokeWidth={2}
+            strokeWidth={lineWidth}
             opacity={l.o * 0.5}
           />
         ))}

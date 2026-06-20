@@ -12,6 +12,8 @@ interface TerminalHackerProps extends UniversalProps {
   cursorColor?: string;
   /** Color del símbolo de prompt (~). */
   promptColor?: string;
+  /** Color de la barra de cabecera. */
+  headerColor?: string;
   speed?: number;
   fontSize?: number;
 }
@@ -28,6 +30,7 @@ export const TerminalHacker: React.FC<TerminalHackerProps> = ({
   bgColor = '#0f172a',
   cursorColor = '#22c55e',
   promptColor = '#38bdf8',
+  headerColor = '#1e293b',
   speed = 2,
   fontSize,
   x = 540,
@@ -59,7 +62,7 @@ export const TerminalHacker: React.FC<TerminalHackerProps> = ({
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', zIndex: 40,
     }}>
       {/* Cabecera estilo mac */}
-      <div style={{ height: `${headerH}px`, backgroundColor: '#1e293b', display: 'flex', alignItems: 'center', padding: `0 ${c.vmin(2.4)}px`, gap: `${c.vmin(1)}px` }}>
+      <div style={{ height: `${headerH}px`, backgroundColor: headerColor, display: 'flex', alignItems: 'center', padding: `0 ${c.vmin(2.4)}px`, gap: `${c.vmin(1)}px` }}>
         <div style={{ width: dot, height: dot, borderRadius: '50%', backgroundColor: '#ef4444' }} />
         <div style={{ width: dot, height: dot, borderRadius: '50%', backgroundColor: '#eab308' }} />
         <div style={{ width: dot, height: dot, borderRadius: '50%', backgroundColor: '#22c55e' }} />
@@ -81,12 +84,14 @@ export const TerminalHacker: React.FC<TerminalHackerProps> = ({
           const visibleText = line.substring(0, charsToShow);
 
           return (
-            <div key={lineIndex} style={{ display: 'flex', alignItems: 'center', marginBottom: `${c.vmin(1.4)}px` }}>
-              <span style={{ color: promptColor, marginRight: `${promptGap}px` }}>~</span>
-              <span>{visibleText}</span>
-              {isTyping && cursorBlink && (
-                <div style={{ width: `${c.vmin(1.4)}px`, height: `${fs}px`, backgroundColor: cursorColor, marginLeft: `${c.vmin(0.6)}px` }} />
-              )}
+            <div key={lineIndex} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: `${c.vmin(1.4)}px` }}>
+              <span style={{ color: promptColor, marginRight: `${promptGap}px`, flexShrink: 0 }}>~</span>
+              <span style={{ flex: 1, minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {visibleText}
+                {isTyping && cursorBlink && (
+                  <span style={{ display: 'inline-block', width: `${c.vmin(1.4)}px`, height: `${fs * 0.9}px`, backgroundColor: cursorColor, marginLeft: `${c.vmin(0.6)}px`, verticalAlign: 'text-bottom' }} />
+                )}
+              </span>
             </div>
           );
         })}

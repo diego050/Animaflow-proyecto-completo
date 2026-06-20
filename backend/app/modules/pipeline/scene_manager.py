@@ -89,6 +89,7 @@ async def _regenerate_scene_async(
         db=db,
         suggested_bg_color=visual_spec.backgroundColor,
         suggested_text_color=visual_spec.textColor,
+        seed=job_id,  # semilla por video → variedad entre videos
     )
 
     scene["type"] = "custom"

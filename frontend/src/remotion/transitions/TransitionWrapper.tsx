@@ -28,11 +28,13 @@ export { FadeThroughBlack } from './FadeThroughBlack';
 interface TransitionWrapperProps {
   type: string;
   durationFrames: number;
+  /** Color del velo/barrido (las atómicas: Fade/Wipe/ZoomBlur). */
+  color?: string;
 }
 
 const TRANSITION_MAP: Record<
   string,
-  React.ComponentType<{ progress: number }>
+  React.ComponentType<{ progress: number; color?: string }>
 > = {
   ZoomBlurTransition,
   WipeTransition,
@@ -45,6 +47,7 @@ const TRANSITION_MAP: Record<
 export const TransitionWrapper: React.FC<TransitionWrapperProps> = ({
   type,
   durationFrames,
+  color,
 }) => {
   const frame = useCurrentFrame();
   const progress = frame / durationFrames;
@@ -56,5 +59,5 @@ export const TransitionWrapper: React.FC<TransitionWrapperProps> = ({
     return null;
   }
 
-  return <TransitionComponent progress={progress} />;
+  return <TransitionComponent progress={progress} color={color} />;
 };

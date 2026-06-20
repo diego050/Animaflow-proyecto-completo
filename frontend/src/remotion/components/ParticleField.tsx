@@ -2,63 +2,85 @@ import React from 'react';
 import { useCurrentFrame, useVideoConfig, random } from 'remotion';
 import type { UniversalProps } from "./types";
 
+/**
+ * ParticleField — campo de partículas/puntos flotando (polvo, chispas, motas).
+ *
+ * Atómico: color, fondo (transparente por defecto para superponer), cantidad,
+ * velocidad, tamaño + variación, glow y dirección. CONFINABLE a una región con
+ * x/y (centro) + width/height. Determinista (random por índice).
+ */
 export interface ParticleFieldProps extends UniversalProps {
-  color1?: string; // Color of the particles
-  color2?: string; // Background color
-  density?: number; // Number of particles
+  /** Color de las partículas. */
+  color1?: string;
+  /** Color de fondo. 'transparent' = se superpone sobre lo que haya detrás. */
+  bgColor?: string;
+  /** Número de partículas. */
+  density?: number;
+  /** Velocidad del movimiento. */
+  speed?: number;
+  /** Tamaño base de partícula (px). */
+  particleSize?: number;
+  /** Variación aleatoria de tamaño (px). */
+  sizeVariation?: number;
+  /** Resplandor alrededor de cada partícula. */
+  glow?: boolean;
+  /** Dirección del flujo. */
+  direction?: 'up' | 'down';
 }
 
 export const ParticleField: React.FC<ParticleFieldProps> = ({
   color1 = '#ffffff',
-  color2 = '#0f172a',
+  bgColor = 'transparent',
   density = 50,
+  speed = 1,
+  particleSize = 3,
+  sizeVariation = 4,
+  glow = true,
+  direction = 'up',
+  x,
+  y,
+  width,
+  height,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
-  const { width, height } = useVideoConfig();
+  const { width: canvasWidth, height: canvasHeight } = useVideoConfig();
 
-  // Create an array of particles
-  const particles = Array.from({ length: density }).map((_, i) => {
-    // Stable random values for this particle index
+  // Región (caja). Por defecto, todo el lienzo.
+  const W = typeof width === 'number' ? width : canvasWidth;
+  const H = typeof height === 'number' ? height : canvasHeight;
+  const posX = typeof x === 'number' ? x : canvasWidth / 2;
+  const posY = typeof y === 'number' ? y : canvasHeight / 2;
+  const dirSign = direction === 'down' ? -1 : 1;
+
+  const n = Math.max(1, Math.round(density));
+  const particles = Array.from({ length: n }).map((_, i) => {
     const rX = random(`px-${i}`);
     const rY = random(`py-${i}`);
-    const rSpeed = random(`pspeed-${i}`) * 2 + 1; // Speed between 1 and 3
-    const rSize = random(`psize-${i}`) * 4 + 2; // Size between 2 and 6
-    const rOpacity = random(`popacity-${i}`) * 0.5 + 0.2; // Opacity between 0.2 and 0.7
+    const rSpeed = (random(`pspeed-${i}`) * 2 + 1) * speed; // base 1..3 × speed
+    const size = particleSize + random(`psize-${i}`) * sizeVariation;
+    const opacity = random(`popacity-${i}`) * 0.5 + 0.2; // 0.2..0.7
 
-    // Initial positions
-    const startX = rX * width;
-    // We make them start slightly below the screen and distribute them up to the height
-    const startY = rY * height + (height / 2);
+    const startX = rX * W;
+    const span = H + 200;
+    // Avance acumulado; envuelve dentro de la región (sube o baja).
+    const travel = (adjustedFrame * rSpeed * dirSign);
+    let currentY = ((rY * H + (H / 2) - travel) % span + span) % span - 100;
 
-    // Calculate current position
-    // As frame increases, Y decreases (moves up)
-    let currentY = startY - (adjustedFrame * rSpeed);
-
-    // Loop the particles: if it goes off top, wrap around to bottom
-    // We add 100 to make sure it spawns fully offscreen
-    if (currentY < -100) {
-       // A simple wrap around logic (using modulo doesn't work well if we want smooth respawn without teleporting visibly)
-       // Actually, taking modulo of the total travel distance is easiest:
-       currentY = height + 100 - ((-currentY) % (height + 200));
-    }
-
-    return {
-      x: startX,
-      y: currentY,
-      size: rSize,
-      opacity: rOpacity,
-    };
+    return { x: startX, y: currentY, size, opacity };
   });
 
   return (
     <div
       style={{
         position: 'absolute',
-        width: '100%',
-        height: '100%',
-        backgroundColor: color2,
+        left: `${posX}px`,
+        top: `${posY}px`,
+        width: `${W}px`,
+        height: `${H}px`,
+        transform: 'translate(-50%, -50%)',
+        backgroundColor: bgColor,
         overflow: 'hidden',
         zIndex: 0,
       }}
@@ -75,8 +97,7 @@ export const ParticleField: React.FC<ParticleFieldProps> = ({
             backgroundColor: color1,
             borderRadius: '50%',
             opacity: p.opacity,
-            // Add a subtle glowing effect to the particles
-            boxShadow: `0 0 ${p.size * 2}px ${color1}`,
+            boxShadow: glow ? `0 0 ${p.size * 2}px ${color1}` : undefined,
           }}
         />
       ))}

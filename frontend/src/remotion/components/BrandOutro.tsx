@@ -32,14 +32,18 @@ export const BrandOutro: React.FC<BrandOutroProps> = ({
   brandColor = '#0f172a',
   accentColor = '#00FFAB',
   cardColor = '#ffffff',
-  x = 0,
-  y = 0,
+  x,
+  y,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
   const c = useCanvas();
   const f = Math.max(0, frame - delay * fps);
+
+  // Posición ABSOLUTA (contrato de coordenadas). Por defecto, centro del lienzo.
+  const posX = typeof x === 'number' ? x : width / 2;
+  const posY = typeof y === 'number' ? y : height / 2;
 
   const cardScale = spring({ frame: f, fps, config: SPRING.soft });
   const logoT = interpolate(f, [6, 18], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
@@ -51,8 +55,8 @@ export const BrandOutro: React.FC<BrandOutroProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${height / 2 + Number(y)}px`,
-        left: `${width / 2 + Number(x)}px`,
+        top: `${posY}px`,
+        left: `${posX}px`,
         transform: `translate(-50%, -50%) scale(${cardScale})`,
         display: 'flex',
         flexDirection: 'column',

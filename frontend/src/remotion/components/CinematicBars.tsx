@@ -22,13 +22,16 @@ export const CinematicBars: React.FC<CinematicBarsProps> = ({
   animate = true,
   duration = 18,
   delay = 0,
+  disableEntry = false,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  const barHeight = Math.min(25, Math.max(0, size));
+  const barHeight = Math.min(50, Math.max(0, size));
 
-  const progress = animate
+  // Slide-in PROPIO. Si la capa define un entry/exit (wrapper), `disableEntry`
+  // lo apaga para que el fade-in/out del wrapper controle la entrada y salida.
+  const progress = (animate && !disableEntry)
     ? interpolate(adjustedFrame, [0, Math.max(1, duration)], [0, 1], {
         extrapolateLeft: 'clamp',
         extrapolateRight: 'clamp',

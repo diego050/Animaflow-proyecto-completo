@@ -5,8 +5,12 @@ import { useCanvas } from '../utils/canvas';
 
 interface GradientTextProps extends UniversalProps {
   text?: string;
-  /** Colores del gradiente (2-4). */
+  /** Colores del gradiente (2-4). Si se omite, se usan color1/2/3. */
   colors?: string[];
+  /** Colores individuales del gradiente (editor-friendly). */
+  color1?: string;
+  color2?: string;
+  color3?: string;
   fontSize?: number;
   fontWeight?: number;
   /** Ángulo del gradiente en grados. */
@@ -25,14 +29,17 @@ interface GradientTextProps extends UniversalProps {
  */
 export const GradientText: React.FC<GradientTextProps> = ({
   text = 'Texto degradado',
-  colors = ['#00FFAB', '#38bdf8', '#a855f7'],
+  colors,
+  color1 = '#00FFAB',
+  color2 = '#38bdf8',
+  color3 = '#a855f7',
   fontSize,
   fontWeight = 900,
   angle = 100,
   speed = 1,
   width,
-  x = 0,
-  y = 0,
+  x,
+  y,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
@@ -44,19 +51,26 @@ export const GradientText: React.FC<GradientTextProps> = ({
   const t = (f / fps) * speed;
   const pos = speed > 0 ? interpolate(t % 2, [0, 2], [0, 100]) : 50;
 
-  // Al menos 2 colores; se repite el primero al final para un loop continuo.
-  const stops = colors.length >= 2 ? colors : [colors[0] ?? '#00FFAB', '#38bdf8'];
+  // Colores: usar `colors` si viene; si no, construir desde color1/2/3 (descarta vacíos).
+  const built = (colors && colors.length >= 2)
+    ? colors
+    : [color1, color2, color3].filter((cc) => cc && cc.trim() !== '');
+  const stops = built.length >= 2 ? built : [color1 || '#00FFAB', color2 || '#38bdf8'];
   const gradient = `linear-gradient(${angle}deg, ${[...stops, stops[0]].join(', ')})`;
 
-  const resolvedFontSize = fontSize ?? c.vmin(9);
-  const resolvedWidth = width ?? cw * 0.85;
+  const resolvedFontSize = fontSize && fontSize > 0 ? fontSize : c.vmin(9);
+  const resolvedWidth = width && width > 0 ? width : cw * 0.85;
+
+  // Posición ABSOLUTA (contrato de coordenadas). Por defecto, centro.
+  const posX = typeof x === 'number' ? x : cw / 2;
+  const posY = typeof y === 'number' ? y : ch / 2;
 
   return (
     <div
       style={{
         position: 'absolute',
-        top: `${ch / 2 + Number(y)}px`,
-        left: `${cw / 2 + Number(x)}px`,
+        top: `${posY}px`,
+        left: `${posX}px`,
         transform: 'translate(-50%, -50%)',
         width: `${resolvedWidth}px`,
         textAlign: 'center',
@@ -70,6 +84,8 @@ export const GradientText: React.FC<GradientTextProps> = ({
           fontSize: `${resolvedFontSize}px`,
           letterSpacing: '-0.02em',
           lineHeight: 1.1,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
           backgroundImage: gradient,
           backgroundSize: '200% 100%',
           backgroundPosition: `${pos}% 50%`,

@@ -51,13 +51,22 @@ function bgColorDistance(a: SceneLike | undefined, b: SceneLike | undefined): nu
   return Math.sqrt((ca[0] - cb[0]) ** 2 + (ca[1] - cb[1]) ** 2 + (ca[2] - cb[2]) ** 2);
 }
 
-/** Transición determinista según la continuidad entre dos escenas consecutivas. */
-function pickSceneTransition(prev: SceneLike | undefined, next: SceneLike | undefined): string {
+const VALID_TRANSITIONS = new Set([
+  'FadeThroughBlack', 'ZoomBlurTransition', 'WipeTransition',
+  'GlitchTransition', 'LightLeakTransition', 'GradientOverlay',
+]);
+
+/** Transición determinista según la continuidad entre dos escenas consecutivas.
+ *  `index` aporta variedad determinista entre las opciones "continuas" → así se
+ *  usan los 5 tipos a lo largo del video (antes solo 3). */
+function pickSceneTransition(prev: SceneLike | undefined, next: SceneLike | undefined, index = 0): string {
   const dist = bgColorDistance(prev, next);
-  if (dist > 120) return 'FadeThroughBlack'; // cambio visual fuerte → cubrir con negro
+  if (dist > 120) return 'FadeThroughBlack'; // cambio visual fuerte → cubrir con velo
   const nextDur = next?.duration_seconds ?? 3;
   if (nextDur < 2.5) return 'ZoomBlurTransition'; // escena corta/punchy → enérgica
-  return 'WipeTransition'; // continuas → barrido suave
+  // continuas (look similar): variar de forma determinista entre suaves/estilizadas.
+  const variety = ['WipeTransition', 'LightLeakTransition', 'GlitchTransition'];
+  return variety[index % variety.length];
 }
 
 interface FallbackSceneProps {
@@ -204,7 +213,15 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
         const boundaryFrame = sceneOffsets[i + 1];
         const from = Math.max(0, boundaryFrame - Math.floor(SCENE_TRANSITION_FRAMES / 2));
         // Continuidad: el corte está entre la escena i (saliente) y la i+1 (entrante).
-        const transitionType = pickSceneTransition(spec.scenes[i], spec.scenes[i + 1]);
+        // Override de la IA: la escena saliente puede fijar `transition`/`transition_color`.
+        const outgoing = spec.scenes[i];
+        // Override de la IA: en el spec a nivel escena (transition) o dentro del
+        // anima_composer (donde lo emite el LLM). Si no, se elige automáticamente.
+        const override = outgoing?.transition ?? outgoing?.anima_composer?.transition;
+        const overrideColor = outgoing?.transition_color ?? outgoing?.anima_composer?.transition_color;
+        const transitionType = override && VALID_TRANSITIONS.has(override)
+          ? override
+          : pickSceneTransition(outgoing, spec.scenes[i + 1], i);
         return (
           <Sequence
             key={`transition-${i}`}
@@ -214,6 +231,7 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
             <TransitionWrapper
               type={transitionType}
               durationFrames={SCENE_TRANSITION_FRAMES}
+              color={overrideColor}
             />
           </Sequence>
         );

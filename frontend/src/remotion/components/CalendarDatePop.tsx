@@ -6,12 +6,29 @@ import { useCanvas } from '../utils/canvas';
 interface CalendarDatePopProps extends UniversalProps {
   targetDate?: number;
   month?: string;
+  year?: number;
+  /** Vista: por días del mes, o los 12 meses del año. */
+  view?: 'month' | 'year';
   circleColor?: string;
+  headerColor?: string;
+  showWeekdays?: boolean;
 }
 
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
 export const CalendarDatePop: React.FC<CalendarDatePopProps> = ({
-  targetDate = 15, month = 'November', x = 540, y = 960,
-  circleColor = '#ef4444', bgColor = '#ffffff', textColor = '#334155', delay = 0,
+  targetDate = 15,
+  month = 'November',
+  year,
+  view = 'month',
+  x = 540,
+  y = 960,
+  circleColor = '#ef4444',
+  bgColor = '#ffffff',
+  textColor = '#334155',
+  headerColor,
+  showWeekdays = true,
+  delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -20,9 +37,20 @@ export const CalendarDatePop: React.FC<CalendarDatePopProps> = ({
 
   const entrance = spring({ frame: adjustedFrame, fps, config: { damping: 14 } });
   const circleDrawProgress = spring({ frame: Math.max(0, adjustedFrame - 45), fps, config: { damping: 12, mass: 1, stiffness: 60 } });
+  const hColor = headerColor || textColor;
 
-  const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const isYear = view === 'year';
+  const monthIdx = MONTHS.findIndex((m) => m.toLowerCase() === (month || '').toLowerCase());
+
+  const Circle = (
+    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }}>
+      <svg width="100%" height="100%" viewBox="0 0 60 60" style={{ overflow: 'visible' }}>
+        <circle cx="30" cy="30" r="30" fill="none" stroke={circleColor} strokeWidth="4" strokeLinecap="round"
+          style={{ transformOrigin: 'center', transform: 'scale(1.2) rotate(-90deg)', strokeDasharray: 190, strokeDashoffset: 190 - circleDrawProgress * 190 }} />
+      </svg>
+    </div>
+  );
 
   return (
     <div style={{
@@ -31,31 +59,47 @@ export const CalendarDatePop: React.FC<CalendarDatePopProps> = ({
       width: `${c.vw(82)}px`, backgroundColor: bgColor, borderRadius: `${c.vmin(3.6)}px`, padding: `${c.vmin(5)}px`,
       boxShadow: '0 20px 40px rgba(0,0,0,0.15)', fontFamily: 'Inter, sans-serif', zIndex: 50,
     }}>
-      <h3 style={{ margin: `0 0 ${c.vmin(4)}px 0`, fontSize: `${c.vmin(5)}px`, color: textColor, textAlign: 'center' }}>{month}</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: `${c.vmin(1.4)}px`, marginBottom: `${c.vmin(2)}px` }}>
-        {weekDays.map((d, i) => (
-          <div key={i} style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 'bold', fontSize: `${c.vmin(3)}px` }}>{d}</div>
-        ))}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: `${c.vmin(2)}px` }}>
-        <div /><div />
-        {days.map((day) => {
-          const isTarget = day === targetDate;
-          return (
-            <div key={day} style={{ position: 'relative', height: `${c.vmin(8)}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: `${c.vmin(3.6)}px`, fontWeight: isTarget ? 'bold' : 'normal', color: isTarget ? circleColor : textColor }}>
-              {day}
-              {isTarget && (
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }}>
-                  <svg width="100%" height="100%" viewBox="0 0 60 60" style={{ overflow: 'visible' }}>
-                    <circle cx="30" cy="30" r="30" fill="none" stroke={circleColor} strokeWidth="4" strokeLinecap="round"
-                      style={{ transformOrigin: 'center', transform: 'scale(1.2) rotate(-90deg)', strokeDasharray: 190, strokeDashoffset: 190 - circleDrawProgress * 190 }} />
-                  </svg>
-                </div>
-              )}
+      <h3 style={{ margin: `0 0 ${c.vmin(4)}px 0`, fontSize: `${c.vmin(5)}px`, color: hColor, textAlign: 'center', fontWeight: 800 }}>
+        {isYear ? (year && year > 0 ? year : new Date().getFullYear()) : `${month}${year && year > 0 ? ' ' + year : ''}`}
+      </h3>
+
+      {isYear ? (
+        // Vista de AÑO: 12 meses, resalta el mes objetivo.
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: `${c.vmin(2.5)}px` }}>
+          {MONTHS.map((m, i) => {
+            const isTarget = i === monthIdx;
+            return (
+              <div key={m} style={{ position: 'relative', height: `${c.vmin(9)}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: `${c.vmin(3.2)}px`, fontWeight: isTarget ? 'bold' : 'normal', color: isTarget ? circleColor : textColor }}>
+                {m.slice(0, 3)}
+                {isTarget && Circle}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        // Vista de MES: días.
+        <>
+          {showWeekdays && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: `${c.vmin(1.4)}px`, marginBottom: `${c.vmin(2)}px` }}>
+              {weekDays.map((d, i) => (
+                <div key={i} style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 'bold', fontSize: `${c.vmin(3)}px` }}>{d}</div>
+              ))}
             </div>
-          );
-        })}
-      </div>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: `${c.vmin(2)}px` }}>
+            <div /><div />
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
+              const isTarget = day === targetDate;
+              return (
+                <div key={day} style={{ position: 'relative', height: `${c.vmin(8)}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: `${c.vmin(3.6)}px`, fontWeight: isTarget ? 'bold' : 'normal', color: isTarget ? circleColor : textColor }}>
+                  {day}
+                  {isTarget && Circle}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 };
