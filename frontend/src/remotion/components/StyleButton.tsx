@@ -10,18 +10,22 @@ interface StyleButtonProps extends UniversalProps {
   size?: 'sm' | 'md' | 'lg';
   icon?: string;
   iconPosition?: 'left' | 'right';
-  /** Mostrar sombra. Default true. */
-  shadow?: boolean;
-  /** Radio de borde en px (override). */
+  iconColor?: string;
+  borderWidth?: number;
+  borderColor?: string;
   borderRadius?: number;
+  /** Sombra. */
+  shadow?: boolean;
+  /** Entrada propia. false / disableEntry = la controla el wrapper. */
+  animateIn?: boolean;
   style?: Record<string, unknown>;
 }
 
 const variantMap = {
-  primary: { bg: '#2C3E50', color: '#FFFFFF', border: 'none' },
-  secondary: { bg: '#FF8C00', color: '#FFFFFF', border: 'none' },
-  ghost: { bg: 'transparent', color: '#2C3E50', border: 'none' },
-  outline: { bg: 'transparent', color: '#2C3E50', border: '2px solid #2C3E50' },
+  primary: { bg: '#2C3E50', color: '#FFFFFF', border: false },
+  secondary: { bg: '#FF8C00', color: '#FFFFFF', border: false },
+  ghost: { bg: 'transparent', color: '#2C3E50', border: false },
+  outline: { bg: 'transparent', color: '#2C3E50', border: true },
 };
 
 export const StyleButton: React.FC<StyleButtonProps> = ({
@@ -32,47 +36,49 @@ export const StyleButton: React.FC<StyleButtonProps> = ({
   size = 'md',
   icon,
   iconPosition = 'left',
-  shadow = true,
+  bgColor,
+  textColor,
+  iconColor,
+  fontSize,
+  width,
+  height,
+  borderWidth = 0,
+  borderColor,
   borderRadius,
-  style,
+  shadow = true,
+  animateIn = true,
+  disableEntry = false,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  // Tamaños derivados del lienzo (Fase 2). vmin equivale a los px previos en 1080.
   const sizeMap = {
     sm: { padding: `${c.vmin(1.1)}px ${c.vmin(2.6)}px`, fontSize: c.vmin(2.96), borderRadius: c.vmin(0.93) },
     md: { padding: `${c.vmin(1.5)}px ${c.vmin(3.3)}px`, fontSize: c.vmin(3.7), borderRadius: c.vmin(1.3) },
     lg: { padding: `${c.vmin(2)}px ${c.vmin(4.4)}px`, fontSize: c.vmin(4.8), borderRadius: c.vmin(1.67) },
   };
-
-  // Entrance animation: scale from 0.8 to 1, opacity 0 to 1
-  const scale = interpolate(adjustedFrame, [0, 15], [0.8, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-    easing: Easing.out(Easing.back(1.5)),
-  });
-
-  const opacity = interpolate(adjustedFrame, [0, 10], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
-
   const s = sizeMap[size];
   const v = variantMap[variant];
 
-  // Apply style overrides from LayerStyle
-  const customPadding = style?.padding ? `${style.padding}px` : s.padding;
-  const customBorderRadius = borderRadius ?? (style?.borderRadius as number) ?? s.borderRadius;
-  const customBg = (style?.backgroundColor as string) ?? v.bg;
-  const customColor = (style?.color as string) ?? v.color;
-  const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : (v.border === 'none' ? '0px' : v.border.split(' ')[0]);
-  const customBorderColor = (style?.borderColor as string) ?? (v.border === 'none' ? 'transparent' : v.border.split(' ')[2]);
-  const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
-  const customBoxShadow = shadow === false ? 'none' : (style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 4}px ${(style.boxShadow as Record<string, unknown>).blur || 12}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.3)'}` : `0 ${c.vmin(0.9)}px ${c.vmin(2.8)}px rgba(0,0,0,0.3)`);
-  const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
+  const showEntry = animateIn && !disableEntry;
+  const scale = showEntry
+    ? interpolate(adjustedFrame, [0, 15], [0.8, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.back(1.5)) })
+    : 1;
+  const opacity = showEntry
+    ? interpolate(adjustedFrame, [0, 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    : 1;
+
+  const bg = bgColor || v.bg;
+  const fg = textColor || v.color;
+  const ic = iconColor || fg;
+  const fs = fontSize && fontSize > 0 ? fontSize : s.fontSize;
+  const radius = borderRadius && borderRadius > 0 ? borderRadius : s.borderRadius;
+  // Borde: explícito por borderWidth, o el del preset 'outline'.
+  const showBorder = borderWidth > 0 || v.border;
+  const bWidth = borderWidth > 0 ? borderWidth : 2;
+  const bColor = borderColor || fg;
 
   return (
     <div
@@ -81,29 +87,30 @@ export const StyleButton: React.FC<StyleButtonProps> = ({
         top: `${y}px`,
         left: `${x}px`,
         transform: `translate(-50%, -50%) scale(${scale})`,
-        padding: customPadding,
-        backgroundColor: customBg,
-        color: customColor,
-        borderRadius: `${customBorderRadius}px`,
-        borderWidth: customBorderWidth,
-        borderColor: customBorderColor,
-        borderStyle: customBorderStyle,
-        boxShadow: customBoxShadow,
+        padding: s.padding,
+        width: width && width > 0 ? `${width}px` : undefined,
+        height: height && height > 0 ? `${height}px` : undefined,
+        backgroundColor: bg,
+        color: fg,
+        borderRadius: `${radius}px`,
+        border: showBorder ? `${bWidth}px solid ${bColor}` : 'none',
+        boxShadow: shadow ? `0 ${c.vmin(0.9)}px ${c.vmin(2.8)}px rgba(0,0,0,0.3)` : 'none',
         fontFamily: 'Inter, sans-serif',
         fontWeight: 700,
-        fontSize: `${s.fontSize}px`,
+        fontSize: `${fs}px`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         gap: `${c.vmin(0.8)}px`,
         zIndex: 50,
-        opacity: customOpacity,
+        opacity,
         cursor: 'default',
+        boxSizing: 'border-box',
       }}
     >
-      {icon && iconPosition === 'left' && <IconifyIcon icon={icon} size={s.fontSize} color={customColor} inline />}
+      {icon && iconPosition === 'left' && <IconifyIcon icon={icon} size={fs} color={ic} inline />}
       {text}
-      {icon && iconPosition === 'right' && <IconifyIcon icon={icon} size={s.fontSize} color={customColor} inline />}
+      {icon && iconPosition === 'right' && <IconifyIcon icon={icon} size={fs} color={ic} inline />}
     </div>
   );
 };

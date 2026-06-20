@@ -30,14 +30,18 @@ export const LogoReveal: React.FC<LogoRevealProps> = ({
   brandColor = '#ffffff',
   taglineColor = '#94a3b8',
   shine = true,
-  x = 0,
-  y = 0,
+  x,
+  y,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
   const c = useCanvas();
   const f = Math.max(0, frame - delay * fps);
+
+  // Posición ABSOLUTA (contrato de coordenadas). Por defecto, centro del lienzo.
+  const posX = typeof x === 'number' ? x : width / 2;
+  const posY = typeof y === 'number' ? y : height / 2;
 
   // Logo: spring pop-in. Marca: fade/slide tras el logo. Lema: después.
   const logoScale = spring({ frame: f, fps, config: SPRING.pop });
@@ -54,8 +58,8 @@ export const LogoReveal: React.FC<LogoRevealProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${height / 2 + Number(y)}px`,
-        left: `${width / 2 + Number(x)}px`,
+        top: `${posY}px`,
+        left: `${posX}px`,
         transform: 'translate(-50%, -50%)',
         display: 'flex',
         flexDirection: 'column',

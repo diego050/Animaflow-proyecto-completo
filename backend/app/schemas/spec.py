@@ -484,6 +484,17 @@ class AnimaComposerSpec(BaseModel):
     version: str = Field(default="1.0")
     background: AnimaBackground
     layers: List[AnimaLayer]
+    # Transición HACIA la siguiente escena, elegida por la IA según el tono de la
+    # escena. El frontend la respeta; si falta, elige una automáticamente.
+    transition: Optional[str] = Field(
+        default=None,
+        description=(
+            "Transición hacia la siguiente escena: FadeThroughBlack | "
+            "ZoomBlurTransition | WipeTransition | GlitchTransition | "
+            "LightLeakTransition | GradientOverlay. Vacío = automática."
+        ),
+    )
+    transition_color: Optional[str] = Field(default=None)
     # DEPRECATED (v7): el frontend nunca renderiza out_transition. Ya no se
     # genera (eliminado del prompt y del schema de Gemini). Se mantiene el campo
     # opcional solo para no romper la validación de specs antiguos almacenados
@@ -512,6 +523,20 @@ class Spec(BaseModel):
     anima_composer: Optional[AnimaComposerSpec] = Field(
         default=None,
         description="Cuando presente, type DEBE ser 'custom'",
+    )
+    # Transición HACIA la siguiente escena (override). Si falta, el frontend elige
+    # una automáticamente por continuidad. La IA puede fijarla por escena.
+    transition: Optional[str] = Field(
+        default=None,
+        description=(
+            "Transición hacia la siguiente escena: FadeThroughBlack | "
+            "ZoomBlurTransition | WipeTransition | GlitchTransition | "
+            "LightLeakTransition | GradientOverlay. Vacío = automática."
+        ),
+    )
+    transition_color: Optional[str] = Field(
+        default=None,
+        description="Color del velo/barrido para Fade/Wipe/ZoomBlur (hex o rgba).",
     )
 
     @model_validator(mode="after")

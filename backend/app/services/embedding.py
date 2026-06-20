@@ -1,6 +1,8 @@
 """Component embedding service for semantic search using Gemini Embeddings."""
+import hashlib
 import math
 import os
+import random
 import time
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -110,6 +112,43 @@ def _format_component(comp: ComponentModel) -> dict:
     }
 
 
+# Piso mínimo garantizado por rol (para que la IA SIEMPRE pueda componer) y tope
+# por rol (para que ningún rol acapare el shortlist, ni siquiera en escenas sesgadas).
+_ROLE_FLOORS = {"background": 1, "text": 2, "ui": 2, "decorative": 1, "dataviz": 0, "social": 0, "general": 0}
+_ROLE_CAPS = {"background": 3, "text": 6, "ui": 12, "decorative": 6, "dataviz": 8, "social": 4, "general": 2}
+
+
+def _mmr_select(scored, k, rng, lambda_=0.7, explore_pool=3):
+    """Selección MMR (relevancia − redundancia) con exploración sembrada.
+
+    `scored`: lista [(sim, comp)] desc por similitud. Evita elegir componentes casi
+    idénticos entre sí (diversidad) y, entre los casi-empatados, elige con `rng`
+    (semilla por video) para que no salgan SIEMPRE los mismos.
+    """
+    if k <= 0 or not scored:
+        return []
+    pool = list(scored[: max(k * 4, k + 12)])  # acotar para velocidad
+    selected = []
+    chosen_embs = []
+    while len(selected) < k and pool:
+        ranked = []
+        for sim, comp in pool:
+            if chosen_embs:
+                redundancy = max(cosine_similarity(comp.embedding, e) for e in chosen_embs)
+            else:
+                redundancy = 0.0
+            mmr = lambda_ * sim - (1.0 - lambda_) * redundancy
+            ranked.append((mmr, comp))
+        ranked.sort(key=lambda x: x[0], reverse=True)
+        # Exploración: elegir entre los mejores `explore_pool` con la semilla.
+        candidate_pool = ranked[:explore_pool]
+        _, comp = rng.choice(candidate_pool)
+        selected.append(comp)
+        chosen_embs.append(comp.embedding)
+        pool = [(s, c) for s, c in pool if c.id != comp.id]
+    return selected
+
+
 def get_relevant_components(
     db: Session,
     scene_text: str,
@@ -117,9 +156,26 @@ def get_relevant_components(
     top_k: int = 10,
     category_filter: Optional[str] = None,
     api_key: Optional[str] = None,
+    seed: Optional[str] = None,
 ) -> list[dict]:
-    """Find components with role diversity and return structured data."""
-    query_text = f"{scene_text}. Visual context: {media_query}"
+    """Find components with role diversity and return structured data.
+
+    Estrategia (escala a cientos/miles sin repetir siempre "los mejores"):
+      1. Cupos BLANDOS adaptativos: los slots se reparten proporcional a qué tan
+         relevante es cada rol para ESTA escena (no un split fijo), con un piso
+         mínimo por rol esencial y un tope por rol.
+      2. MMR: dentro de cada rol se evita elegir componentes casi idénticos.
+      3. Exploración: `seed` (p.ej. job_id) → determinista dentro de un video pero
+         distinto entre videos, para que roten los componentes buenos.
+    """
+    # Query enriquecido: enmarca la escena hacia el dominio de los componentes
+    # (las descripciones describen QUÉ es y para qué sirve cada componente, así que
+    # el query debe describir QUÉ necesita la escena), mejorando el match.
+    query_text = (
+        f"Scene narration: {scene_text}. "
+        f"Visual idea: {media_query}. "
+        f"On-screen components, visuals and animations that fit this scene."
+    )
     query_embedding = generate_embedding(query_text, api_key=api_key)
 
     if query_embedding is None:
@@ -147,121 +203,83 @@ def get_relevant_components(
             ).limit(top_k).all()
         return [_format_component(c) for c in components]
 
-    # Define diversity quotas
-    quotas = {
-        "background": 2,
-        "text": 3,
-        "ui": 4,
-        "decorative": 3,
-        "dataviz": 2,
-        "social": 1,
-    }
-    # transition removed — transitions are decided by scene continuity, not semantic search
-    # ui increased from 1 to 4 — buttons/cards/badges are the most versatile components
-    # text increased from 2 to 3 — allows title + subtitle + body/caption hierarchy
+    # ── Carga única de candidatos (activos, con embedding), agrupados por rol.
+    base_query = db.query(ComponentModel).filter(
+        ComponentModel.is_active.is_(True),
+        ComponentModel.embedding.isnot(None),
+    )
+    if category_filter:
+        base_query = base_query.filter(ComponentModel.category == category_filter)
+    try:
+        all_components = base_query.all()
+    except exc.InternalError:
+        logger.warning("Transaction aborted during component query, rolling back.")
+        db.rollback()
+        return []
+    if not all_components:
+        return []
 
-    selected = []
-    seen_ids = set()
+    by_role: dict[str, list] = {}
+    for comp in all_components:
+        sim = cosine_similarity(query_embedding, comp.embedding)
+        by_role.setdefault(comp.role or "general", []).append((sim, comp))
+    for role in by_role:
+        by_role[role].sort(key=lambda x: x[0], reverse=True)
 
-    # 1. Fill quotas per role
-    for role, count in quotas.items():
-        if len(selected) >= top_k:
-            break
+    # Relevancia de cada rol para ESTA escena = media de sus 3 mejores similitudes.
+    # Al cuadrado para acentuar los roles realmente pertinentes.
+    def _role_relevance(scored):
+        top = [s for s, _ in scored[:3]]
+        return (sum(top) / len(top)) if top else 0.0
+    weights = {r: max(0.0, _role_relevance(s)) ** 2 for r, s in by_role.items()}
 
-        # Query components for this role with embeddings
-        role_query = db.query(ComponentModel).filter(
-            ComponentModel.is_active.is_(True),
-            ComponentModel.role == role,
-            ComponentModel.embedding.isnot(None),
-        )
-        if category_filter:
-            role_query = role_query.filter(ComponentModel.category == category_filter)
-
-        try:
-            role_components = role_query.all()
-        except exc.InternalError:
-            logger.warning("Transaction aborted, rolling back and skipping role: %s", role)
-            db.rollback()
-            continue
-
-        # Score and sort
-        scored = []
-        for comp in role_components:
-            if comp.id in seen_ids:
+    # ── Asignación BLANDA: piso mínimo + reparto proporcional greedy (respeta tope
+    # por rol y stock disponible). Adapta el shortlist a lo que pide la escena.
+    alloc = {r: min(_ROLE_FLOORS.get(r, 0), len(by_role[r])) for r in by_role}
+    remaining = max(0, top_k - sum(alloc.values()))
+    while remaining > 0:
+        best_role, best_score = None, -1.0
+        for r in by_role:
+            cap = min(_ROLE_CAPS.get(r, top_k), len(by_role[r]))
+            if alloc[r] >= cap:
                 continue
-            sim = cosine_similarity(query_embedding, comp.embedding)
-            scored.append((sim, comp))
+            score = weights[r] / (alloc[r] + 1)  # favorece relevantes y sub-asignados
+            if score > best_score:
+                best_score, best_role = score, r
+        if best_role is None:
+            break
+        alloc[best_role] += 1
+        remaining -= 1
 
-        scored.sort(key=lambda x: x[0], reverse=True)
+    # Semilla por video: determinista dentro del video, distinta entre videos.
+    effective_seed = seed if seed is not None else f"{scene_text}|{media_query}"
+    rng = random.Random(int(hashlib.md5(str(effective_seed).encode("utf-8")).hexdigest(), 16) % (2 ** 32))
 
-        # Take top 'count' for this role
-        for sim, comp in scored[:count]:
-            if len(selected) >= top_k:
-                break
-            selected.append(_format_component(comp))
-            seen_ids.add(comp.id)
-
-    # 2. Fill remaining slots — prioritize UI (most versatile components)
-    if len(selected) < top_k:
-        remaining = top_k - len(selected)
-
-        # Phase 1: Try UI components first (buttons, cards, badges are highly reusable)
-        ui_query = db.query(ComponentModel).filter(
-            ComponentModel.is_active.is_(True),
-            ComponentModel.role == "ui",
-            ComponentModel.embedding.isnot(None),
-        )
-        if seen_ids:
-            ui_query = ui_query.filter(~ComponentModel.id.in_(seen_ids))
-        if category_filter:
-            ui_query = ui_query.filter(ComponentModel.category == category_filter)
-
-        try:
-            ui_components = ui_query.all()
-        except exc.InternalError:
-            logger.warning("Transaction aborted during UI component query, rolling back.")
-            db.rollback()
-            ui_components = []
-
-        ui_scored = []
-        for comp in ui_components:
-            sim = cosine_similarity(query_embedding, comp.embedding)
-            ui_scored.append((sim, comp))
-
-        ui_scored.sort(key=lambda x: x[0], reverse=True)
-
-        for sim, comp in ui_scored[:remaining]:
-            selected.append(_format_component(comp))
-            seen_ids.add(comp.id)
-
-        # Phase 2: If still slots remaining, fill with any best matches
-        still_remaining = top_k - len(selected)
-        if still_remaining > 0:
-            general_query = db.query(ComponentModel).filter(
-                ComponentModel.is_active.is_(True),
-                ComponentModel.embedding.isnot(None),
-            )
-            if seen_ids:
-                general_query = general_query.filter(~ComponentModel.id.in_(seen_ids))
-            if category_filter:
-                general_query = general_query.filter(ComponentModel.category == category_filter)
-
-            try:
-                all_components = general_query.all()
-            except exc.InternalError:
-                logger.warning("Transaction aborted during general component query, rolling back.")
-                db.rollback()
-                return selected
-
-            scored = []
-            for comp in all_components:
-                sim = cosine_similarity(query_embedding, comp.embedding)
-                scored.append((sim, comp))
-
-            scored.sort(key=lambda x: x[0], reverse=True)
-
-            for sim, comp in scored[:still_remaining]:
-                selected.append(_format_component(comp))
+    # ── Selección MMR por rol (diversidad + exploración sembrada).
+    selected_comps = []
+    seen_ids = set()
+    role_order = ["background", "text", "ui", "decorative", "dataviz", "social", "general"]
+    for role in role_order + [r for r in by_role if r not in role_order]:
+        if alloc.get(role, 0) <= 0:
+            continue
+        for comp in _mmr_select(by_role[role], alloc[role], rng):
+            if comp.id not in seen_ids:
+                selected_comps.append(comp)
                 seen_ids.add(comp.id)
 
-    return selected
+    # Relleno final si quedaron slots libres (por topes/stock): mejores globales.
+    if len(selected_comps) < top_k:
+        leftover = [(s, c) for scored in by_role.values() for (s, c) in scored if c.id not in seen_ids]
+        leftover.sort(key=lambda x: x[0], reverse=True)
+        for comp in _mmr_select(leftover, top_k - len(selected_comps), rng):
+            if comp.id not in seen_ids:
+                selected_comps.append(comp)
+                seen_ids.add(comp.id)
+
+    logger.info(
+        "Retriever: %d componentes (alloc=%s, seed=%s)",
+        len(selected_comps),
+        {r: a for r, a in alloc.items() if a},
+        "video" if seed is not None else "prompt",
+    )
+    return [_format_component(c) for c in selected_comps]

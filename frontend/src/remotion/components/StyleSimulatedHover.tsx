@@ -9,6 +9,18 @@ interface StyleSimulatedHoverProps extends UniversalProps {
   hoverFrame?: number;
   hoverDuration?: number;
   variant?: 'button' | 'card' | 'link';
+  iconColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+  /** Intensidad del "crecer" al hacer hover (0.05 = 5%). */
+  hoverScale?: number;
+  /** Cuánto "levanta" en hover (px). */
+  hoverLift?: number;
+  /** Repite el pulso de hover en bucle (cue de "esto es clickable"). */
+  repeat?: boolean;
+  /** Entrada propia. false / disableEntry = la controla el wrapper. */
+  animateIn?: boolean;
   style?: Record<string, unknown>;
 }
 
@@ -20,43 +32,47 @@ export const StyleSimulatedHover: React.FC<StyleSimulatedHoverProps> = ({
   hoverFrame = 60,
   hoverDuration = 30,
   variant = 'button',
-  style,
+  bgColor = '#2C3E50',
+  textColor = '#FFFFFF',
+  iconColor,
+  fontSize,
+  borderColor = 'transparent',
+  borderWidth = 0,
+  borderRadius,
+  hoverScale = 0.05,
+  hoverLift = 4,
+  repeat = false,
+  animateIn = true,
+  disableEntry = false,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
 
+  // Pulso de hover: una vez en hoverFrame, o repetido en bucle si `repeat`.
+  const localFrame = repeat
+    ? (adjustedFrame - hoverFrame) % (hoverDuration * 2 + 1)
+    : adjustedFrame;
   const hoverProgress = interpolate(
-    adjustedFrame,
+    localFrame,
     [hoverFrame, hoverFrame + hoverDuration / 2, hoverFrame + hoverDuration],
     [0, 1, 0],
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.cubic) }
   );
 
-  const scale = 1 + hoverProgress * 0.05;
+  const hoverScaleVal = 1 + hoverProgress * hoverScale;
   const shadowBlur = 10 + hoverProgress * 20;
   const shadowOpacity = 0.3 + hoverProgress * 0.3;
-  const translateY = -hoverProgress * 4;
+  const translateY = -hoverProgress * hoverLift;
 
-  const entranceScale = interpolate(adjustedFrame, [0, 15], [0.8, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-    easing: Easing.out(Easing.back(1.2)),
-  });
+  const showEntry = animateIn && !disableEntry;
+  const entranceScale = showEntry ? interpolate(adjustedFrame, [0, 15], [0.8, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.back(1.2)) }) : 1;
+  const entranceOpacity = showEntry ? interpolate(adjustedFrame, [0, 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 1;
 
-  const entranceOpacity = interpolate(adjustedFrame, [0, 10], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
-
-  const customBg = (style?.backgroundColor as string) ?? '#2C3E50';
-  const customColor = (style?.color as string) ?? '#FFFFFF';
-  const customPadding = style?.padding ? `${style.padding}px` : (variant === 'button' ? '12px 24px' : '16px');
-  const customBorderRadius = (style?.borderRadius as number) ?? (variant === 'button' ? 8 : 12);
-  const customFontSize = (style?.fontSize as number) ?? (variant === 'button' ? 16 : variant === 'card' ? 14 : 14);
-  const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : '0px';
-  const customBorderColor = (style?.borderColor as string) ?? 'transparent';
-  const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
+  const fs = fontSize && fontSize > 0 ? fontSize : (variant === 'button' ? 32 : 28);
+  const pad = variant === 'button' ? '14px 28px' : '20px';
+  const radius = borderRadius && borderRadius > 0 ? borderRadius : (variant === 'button' ? 10 : 14);
+  const ic = iconColor || textColor;
 
   return (
     <div
@@ -64,29 +80,26 @@ export const StyleSimulatedHover: React.FC<StyleSimulatedHoverProps> = ({
         position: 'absolute',
         top: `${y}px`,
         left: `${x}px`,
-        transform: `translate(-50%, -50%) scale(${entranceScale * scale}) translateY(${translateY}px)`,
+        transform: `translate(-50%, -50%) scale(${entranceScale * hoverScaleVal}) translateY(${translateY}px)`,
         opacity: entranceOpacity,
         zIndex: 50,
-        backgroundColor: customBg,
-        color: customColor,
-        padding: customPadding,
-        borderRadius: `${customBorderRadius}px`,
-        borderWidth: customBorderWidth,
-        borderColor: customBorderColor,
-        borderStyle: customBorderStyle,
+        backgroundColor: bgColor,
+        color: textColor,
+        padding: pad,
+        borderRadius: `${radius}px`,
+        border: borderWidth > 0 ? `${borderWidth}px solid ${borderColor}` : 'none',
         boxShadow: `0 ${8 + translateY}px ${shadowBlur}px rgba(0,0,0,${shadowOpacity})`,
         fontFamily: 'Inter, sans-serif',
         fontWeight: variant === 'button' ? 700 : 500,
-        fontSize: `${customFontSize}px`,
+        fontSize: `${fs}px`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '8px',
-        transition: 'box-shadow 0.1s ease',
+        gap: '10px',
         cursor: 'default',
       }}
     >
-      {icon && <IconifyIcon icon={icon} size={customFontSize} color={customColor} />}
+      {icon && <IconifyIcon icon={icon} size={fs} color={ic} inline />}
       {text}
     </div>
   );

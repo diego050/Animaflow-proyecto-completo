@@ -13,9 +13,10 @@ import { interpolate } from 'remotion';
 
 interface Props {
   progress: number;
+  color?: string;
 }
 
-export const ZoomBlurTransition: React.FC<Props> = ({ progress }) => {
+export const ZoomBlurTransition: React.FC<Props> = ({ progress, color = '#000' }) => {
   const scale = interpolate(progress, [0, 1], [1, 3]);
   const blur = interpolate(progress, [0, 1], [0, 20]);
   const opacity = interpolate(progress, [0, 0.7], [1, 0], {
@@ -42,15 +43,16 @@ export const ZoomBlurTransition: React.FC<Props> = ({ progress }) => {
           background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.3) 0%, rgba(0,0,0,0.8) 100%)',
         }}
       />
-      {/* Fade-to-black overlay that takes over as zoom completes */}
+      {/* Fade-to-color overlay that takes over as zoom completes */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          backgroundColor: `rgba(0, 0, 0, ${interpolate(progress, [0.5, 1], [0, 1], {
+          backgroundColor: color,
+          opacity: interpolate(progress, [0.5, 1], [0, 1], {
             extrapolateLeft: 'clamp',
             extrapolateRight: 'clamp',
-          })})`,
+          }),
         }}
       />
     </div>

@@ -23,6 +23,8 @@ export interface WordHighlightProps extends UniversalProps {
   activeScale?: number;
   /** Atenúa las palabras aún no pronunciadas. */
   dimUpcoming?: boolean;
+  /** Velocidad del resaltado cuando NO hay timestamps (palabras por segundo). */
+  speed?: number;
   wordTimestamps?: WordTiming[];
 }
 
@@ -48,6 +50,7 @@ export const WordHighlight: React.FC<WordHighlightProps> = ({
   width,
   activeScale = 1.08,
   dimUpcoming = true,
+  speed = 2,
   wordTimestamps,
   delay = 0,
 }) => {
@@ -70,18 +73,20 @@ export const WordHighlight: React.FC<WordHighlightProps> = ({
 
   // Índice de la palabra activa (la que suena ahora). Si estamos en un hueco
   // entre palabras, se mantiene activa la última que empezó.
-  const tSec = Math.max(0, frame - Math.round(delay * fps)) / fps;
+  const elapsedFrames = Math.max(0, frame - Math.round(delay * fps));
+  const tSec = elapsedFrames / fps;
   let activeIndex = -1;
   if (hasKaraoke) {
     for (let i = 0; i < wordTimestamps!.length; i++) {
       if (wordTimestamps![i].start <= tSec) activeIndex = i;
       else break;
     }
-    // si la activa ya terminó hace rato y no hay siguiente, sigue siendo la última
-    const cur = wordTimestamps![activeIndex];
-    if (cur && tSec >= cur.end && activeIndex < wordTimestamps!.length - 1) {
-      // entre palabras: la siguiente aún no empieza → mantener la última dicha
-    }
+  } else {
+    // Sin timestamps (p.ej. en el preview o sin audio): recorre las palabras por
+    // tiempo a `speed` palabras/seg y se queda en la última. Así el highlight SÍ
+    // se ve aunque no haya datos de audio.
+    const framesPerWord = Math.max(1, Math.round(fps / Math.max(0.1, speed)));
+    activeIndex = Math.min(words.length - 1, Math.floor(elapsedFrames / framesPerWord));
   }
 
   return (
@@ -103,8 +108,8 @@ export const WordHighlight: React.FC<WordHighlightProps> = ({
       }}
     >
       {words.map((word, index) => {
-        const isActive = hasKaraoke && index === activeIndex;
-        const isUpcoming = hasKaraoke && activeIndex !== -1 && index > activeIndex;
+        const isActive = index === activeIndex;
+        const isUpcoming = activeIndex !== -1 && index > activeIndex;
 
         const wordColor = isActive ? highlightColor : color;
         const scale = isActive ? activeScale : 1;

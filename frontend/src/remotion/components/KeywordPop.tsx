@@ -10,12 +10,14 @@ export interface WordTiming {
 
 export interface KeywordPopProps extends UniversalProps {
   /** Ícono Iconify, ej: "mdi:fire". */
-  icon: string;
+  icon?: string;
   /** Palabra del guion en la que debe aparecer. Si no se da o no se encuentra,
    *  aparece al inicio de la escena. */
   triggerWord?: string;
   size?: number;
   color?: string;
+  /** Brillo/halo detrás del ícono (0 = sin glow). */
+  glow?: number;
   wordTimestamps?: WordTiming[];
 }
 
@@ -34,12 +36,13 @@ function norm(w: string): string {
  * al inicio de la escena como fallback.
  */
 export const KeywordPop: React.FC<KeywordPopProps> = ({
-  icon,
+  icon = 'mdi:fire', // default seguro: evita crash si llega undefined
   triggerWord,
   x = 540,
   y = 960,
   size = 160,
   color = '#ffffff',
+  glow = 0,
   wordTimestamps,
 }) => {
   const frame = useCurrentFrame();
@@ -71,7 +74,8 @@ export const KeywordPop: React.FC<KeywordPopProps> = ({
     extrapolateRight: 'clamp',
   });
 
-  const [prefix, name] = icon.includes(':') ? icon.split(':') : ['mdi', icon];
+  const safeIcon = icon || 'mdi:fire';
+  const [prefix, name] = safeIcon.includes(':') ? safeIcon.split(':') : ['mdi', safeIcon];
   const url = `https://api.iconify.design/${prefix}/${name}.svg?color=${encodeURIComponent(color)}`;
 
   return (
@@ -84,6 +88,7 @@ export const KeywordPop: React.FC<KeywordPopProps> = ({
         height: `${size}px`,
         transform: `translate(-50%, -50%) scale(${scale})`,
         opacity,
+        filter: glow > 0 ? `drop-shadow(0 0 ${glow}px ${color})` : undefined,
         zIndex: 20,
       }}
     >

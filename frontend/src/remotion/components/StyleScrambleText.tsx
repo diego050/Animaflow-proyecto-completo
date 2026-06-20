@@ -16,6 +16,10 @@ interface StyleScrambleTextProps extends UniversalProps {
   fontSize?: number;
   fontWeight?: number;
   color?: string;
+  /** Ancho máximo antes de hacer salto de línea (px). */
+  width?: number;
+  /** Forzar mayúsculas. */
+  uppercase?: boolean;
   style?: Record<string, unknown>;
   wordTimestamps?: WordTiming[];
 }
@@ -32,6 +36,8 @@ export const StyleScrambleText: React.FC<StyleScrambleTextProps> = ({
   fontSize,
   fontWeight,
   color,
+  width = 900,
+  uppercase = true,
   style,
   delay = 0,
   wordTimestamps,
@@ -95,7 +101,11 @@ export const StyleScrambleText: React.FC<StyleScrambleTextProps> = ({
         letterSpacing: customLetterSpacing,
         zIndex: 50,
         opacity: customOpacity,
-        textTransform: 'uppercase',
+        textTransform: uppercase ? 'uppercase' : 'none',
+        width: `${width}px`,
+        textAlign: 'center',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
       }}
     >
       {displayText}

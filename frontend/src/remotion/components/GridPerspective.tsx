@@ -2,25 +2,56 @@ import React from 'react';
 import { useCurrentFrame, useVideoConfig } from 'remotion';
 import type { UniversalProps } from "./types";
 
+/**
+ * GridPerspective — piso de cuadrícula en perspectiva (synthwave / retrowave /
+ * Tron / outrun) que se desplaza hacia el horizonte.
+ *
+ * Atómico: color de líneas, fondo (transparente por defecto para superponer),
+ * densidad (cellSize), grosor de línea, dirección del movimiento (forward/
+ * backward/left/right), ángulo de perspectiva y profundidad.
+ */
 export interface GridPerspectiveProps extends UniversalProps {
-  color1?: string; // Color of the grid lines (e.g. #ff00ff)
-  color2?: string; // Background color (e.g. #000000)
-  speed?: number;  // Speed of forward movement
+  /** Color de las líneas. */
+  color1?: string;
+  /** Color de fondo. 'transparent' = se superpone sobre lo que haya detrás. */
+  bgColor?: string;
+  /** Grosor de las líneas (px). */
+  lineWidth?: number;
+  /** Tamaño de celda (px). Menor = más líneas. */
+  cellSize?: number;
+  /** Velocidad del desplazamiento. */
+  speed?: number;
+  /** Dirección del movimiento. */
+  direction?: 'forward' | 'backward' | 'left' | 'right';
+  /** Inclinación de la perspectiva (grados). */
+  angle?: number;
+  /** Profundidad de la perspectiva (px). Menor = más extremo. */
+  perspective?: number;
 }
 
 export const GridPerspective: React.FC<GridPerspectiveProps> = ({
   color1 = '#38bdf8',
-  color2 = '#0f172a',
+  bgColor = 'transparent',
+  lineWidth = 2,
+  cellSize = 100,
   speed = 4,
+  direction = 'forward',
+  angle = 60,
+  perspective = 600,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
-  const { width, height } = useVideoConfig();
+  useVideoConfig();
 
-  // We want the grid to move forward continuously and loop smoothly.
-  // The grid size is 100px. So we take adjustedFrame * speed modulo 100 to loop.
-  const offset = (adjustedFrame * speed) % 100;
+  // Bucle suave: el desplazamiento se repite cada `cellSize`.
+  const offset = (adjustedFrame * speed) % cellSize;
+  let posX = 0;
+  let posY = 0;
+  if (direction === 'forward') posY = offset;
+  else if (direction === 'backward') posY = -offset;
+  else if (direction === 'right') posX = offset;
+  else if (direction === 'left') posX = -offset;
 
   return (
     <div
@@ -28,15 +59,11 @@ export const GridPerspective: React.FC<GridPerspectiveProps> = ({
         position: 'absolute',
         width: '100%',
         height: '100%',
-        backgroundColor: color2,
+        backgroundColor: bgColor,
         overflow: 'hidden',
         zIndex: 0,
       }}
     >
-      {/* 
-        This is the actual grid layer. 
-        We make it larger than the screen so that when rotated in 3D, it still covers the bottom corners.
-      */}
       <div
         style={{
           position: 'absolute',
@@ -45,14 +72,14 @@ export const GridPerspective: React.FC<GridPerspectiveProps> = ({
           width: '200%',
           height: '150%',
           backgroundImage: `
-            linear-gradient(to right, ${color1} 2px, transparent 2px),
-            linear-gradient(to bottom, ${color1} 2px, transparent 2px)
+            linear-gradient(to right, ${color1} ${lineWidth}px, transparent ${lineWidth}px),
+            linear-gradient(to bottom, ${color1} ${lineWidth}px, transparent ${lineWidth}px)
           `,
-          backgroundSize: '100px 100px',
-          backgroundPosition: `0px ${offset}px`,
+          backgroundSize: `${cellSize}px ${cellSize}px`,
+          backgroundPosition: `${posX}px ${posY}px`,
           transformOrigin: 'top center',
-          transform: 'perspective(600px) rotateX(60deg)',
-          // Add a fade out towards the horizon (top)
+          transform: `perspective(${perspective}px) rotateX(${angle}deg)`,
+          // Fade hacia el horizonte (arriba).
           WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 50%)',
           maskImage: 'linear-gradient(to bottom, transparent 0%, black 50%)',
         }}

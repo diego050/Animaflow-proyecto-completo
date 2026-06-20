@@ -10,6 +10,13 @@ interface StyleAnimateNumberProps extends UniversalProps {
   decimals?: number;
   format?: 'number' | 'currency' | 'percentage' | 'compact';
   duration?: number;
+  fontWeight?: number;
+  letterSpacing?: number;
+  /** Texto opcional debajo del número (ej. "usuarios activos"). */
+  caption?: string;
+  captionColor?: string;
+  captionSize?: number;
+  /** Legacy: objeto de estilo (los props planos tienen prioridad). */
   style?: Record<string, unknown>;
 }
 
@@ -43,6 +50,14 @@ export const StyleAnimateNumber: React.FC<StyleAnimateNumberProps> = ({
   decimals = 0,
   format = 'number',
   duration = 60,
+  color = '#FFFFFF',
+  fontSize = 96,
+  fontWeight = 700,
+  letterSpacing = -1,
+  caption = '',
+  captionColor = '#94A3B8',
+  captionSize = 0,
+  opacity: opacityProp = 1,
   style,
   delay = 0,
 }) => {
@@ -55,19 +70,17 @@ export const StyleAnimateNumber: React.FC<StyleAnimateNumberProps> = ({
     easing: Easing.out(Easing.cubic),
   });
 
-  const opacity = interpolate(adjustedFrame, [0, 8], [0, 1], {
+  const entryOpacity = interpolate(adjustedFrame, [0, 8], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
   const displayText = useMemo(() => formatNumber(animatedValue, format, decimals, prefix, suffix), [animatedValue, format, decimals, prefix, suffix]);
 
-  const customFontSize = (style?.fontSize as number) ?? 48;
-  const customFontWeight = (style?.fontWeight as number) ?? 700;
-  const customColor = (style?.color as string) ?? '#FFFFFF';
-  const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
-  const customLetterSpacing = style?.letterSpacing ? `${style.letterSpacing}px` : '-1px';
-  const customFontFamily = (style?.fontFamily as string) ?? 'Inter Tight, sans-serif';
+  // Props planos tienen prioridad; `style` queda como fallback legacy.
+  const finalColor = color ?? (style?.color as string) ?? '#FFFFFF';
+  const finalFontFamily = (style?.fontFamily as string) ?? 'Inter Tight, sans-serif';
+  const capSize = captionSize && captionSize > 0 ? captionSize : fontSize * 0.28;
 
   return (
     <div
@@ -76,17 +89,33 @@ export const StyleAnimateNumber: React.FC<StyleAnimateNumberProps> = ({
         top: `${y}px`,
         left: `${x}px`,
         transform: 'translate(-50%, -50%)',
-        fontFamily: customFontFamily,
-        fontWeight: customFontWeight,
-        fontSize: `${customFontSize}px`,
-        color: customColor,
-        letterSpacing: customLetterSpacing,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: `${fontSize * 0.12}px`,
         zIndex: 50,
-        opacity: customOpacity,
-        fontVariantNumeric: 'tabular-nums',
+        opacity: entryOpacity * opacityProp,
+        textAlign: 'center',
       }}
     >
-      {displayText}
+      <div
+        style={{
+          fontFamily: finalFontFamily,
+          fontWeight,
+          fontSize: `${fontSize}px`,
+          color: finalColor,
+          letterSpacing: `${letterSpacing}px`,
+          fontVariantNumeric: 'tabular-nums',
+          lineHeight: 1,
+        }}
+      >
+        {displayText}
+      </div>
+      {caption ? (
+        <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: `${capSize}px`, color: captionColor }}>
+          {caption}
+        </div>
+      ) : null}
     </div>
   );
 };

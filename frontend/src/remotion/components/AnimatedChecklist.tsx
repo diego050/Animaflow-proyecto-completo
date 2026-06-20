@@ -14,6 +14,11 @@ interface AnimatedChecklistProps extends UniversalProps {
   checkIcon?: string;
   accentColor?: string;
   textColor?: string;
+  /** Estilo de la lista. */
+  variant?: 'card' | 'minimal' | 'numbered';
+  /** Color de fondo de cada fila (variant 'card'). */
+  cardColor?: string;
+  fontSize?: number;
   /** Segundos entre la aparición de cada ítem. */
   stagger?: number;
   width?: number;
@@ -33,10 +38,13 @@ export const AnimatedChecklist: React.FC<AnimatedChecklistProps> = ({
   checkIcon = 'mdi:check-circle',
   accentColor = '#00FFAB',
   textColor = '#ffffff',
+  variant = 'card',
+  cardColor = 'rgba(255,255,255,0.06)',
+  fontSize,
   stagger = 0.35,
   width,
-  x = 0,
-  y = 0,
+  x,
+  y,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
@@ -51,13 +59,21 @@ export const AnimatedChecklist: React.FC<AnimatedChecklistProps> = ({
   const staggerFrames = Math.max(1, Math.round(stagger * fps));
   const iconSize = c.vmin(5.5);
   const resolvedWidth = width ?? c.vw(78);
+  const fs = fontSize && fontSize > 0 ? fontSize : c.vmin(4.2);
+
+  // Posición ABSOLUTA (contrato de coordenadas). Por defecto, centro.
+  const posX = typeof x === 'number' ? x : cw / 2;
+  const posY = typeof y === 'number' ? y : ch / 2;
+
+  const isCard = variant === 'card';
+  const isNumbered = variant === 'numbered';
 
   return (
     <div
       style={{
         position: 'absolute',
-        top: `${ch / 2 + Number(y)}px`,
-        left: `${cw / 2 + Number(x)}px`,
+        top: `${posY}px`,
+        left: `${posX}px`,
         transform: 'translate(-50%, -50%)',
         width: `${resolvedWidth}px`,
         display: 'flex',
@@ -85,19 +101,25 @@ export const AnimatedChecklist: React.FC<AnimatedChecklistProps> = ({
               gap: `${c.vmin(2.4)}px`,
               opacity: appear,
               transform: `translateX(${(1 - appear) * c.vmin(5)}px)`,
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              borderRadius: `${radius('md', c.vmin)}px`,
-              padding: `${c.vmin(2.4)}px ${c.vmin(3.2)}px`,
+              backgroundColor: isCard ? cardColor : 'transparent',
+              borderRadius: isCard ? `${radius('md', c.vmin)}px` : 0,
+              padding: isCard ? `${c.vmin(2.4)}px ${c.vmin(3.2)}px` : `${c.vmin(0.8)}px 0`,
             }}
           >
-            <div style={{ transform: `scale(${iconPop})`, flexShrink: 0, display: 'flex' }}>
-              <IconifyIcon inline icon={item.icon || checkIcon} size={iconSize} color={accentColor} />
+            <div style={{ transform: `scale(${iconPop})`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {isNumbered ? (
+                <div style={{ width: iconSize, height: iconSize, borderRadius: '50%', backgroundColor: accentColor, color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: `${iconSize * 0.55}px`, fontFamily: 'Inter, sans-serif' }}>
+                  {i + 1}
+                </div>
+              ) : (
+                <IconifyIcon inline icon={item.icon || checkIcon} size={iconSize} color={accentColor} />
+              )}
             </div>
             <div
               style={{
                 fontFamily: 'Inter Tight, Inter, sans-serif',
                 fontWeight: 700,
-                fontSize: `${c.vmin(4.2)}px`,
+                fontSize: `${fs}px`,
                 color: textColor,
                 textShadow: TEXT_HALO,
                 lineHeight: 1.2,

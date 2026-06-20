@@ -17,6 +17,10 @@ export interface BrowserWindowProps extends UniversalProps {
   /** Color de fondo de la pantalla (interior). */
   screenColor?: string;
   accentColor?: string;
+  /** Estilo de la ventana. */
+  browser?: 'mac' | 'windows' | 'minimal';
+  /** Color de la barra superior. */
+  barColor?: string;
   width?: number;
   height?: number;
 }
@@ -35,6 +39,8 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
   screenColor = '#ffffff',
   accentColor = '#00FFAB',
   textColor = '#0f172a',
+  browser = 'mac',
+  barColor = '#f1f5f9',
   width,
   height,
   x = 540,
@@ -76,25 +82,28 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
       <div
         style={{
           height: `${barH}px`,
-          backgroundColor: '#f1f5f9',
+          backgroundColor: barColor,
           display: 'flex',
           alignItems: 'center',
           gap: `${c.vmin(2)}px`,
           padding: `0 ${c.vmin(2.4)}px`,
-          borderBottom: '1px solid #e2e8f0',
+          borderBottom: '1px solid rgba(0,0,0,0.08)',
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', gap: `${c.vmin(1)}px` }}>
-          <div style={{ width: dot, height: dot, borderRadius: '50%', backgroundColor: '#ef4444' }} />
-          <div style={{ width: dot, height: dot, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-          <div style={{ width: dot, height: dot, borderRadius: '50%', backgroundColor: '#10b981' }} />
-        </div>
+        {/* mac: dots a la izquierda */}
+        {browser === 'mac' && (
+          <div style={{ display: 'flex', gap: `${c.vmin(1)}px` }}>
+            <div style={{ width: dot, height: dot, borderRadius: '50%', backgroundColor: '#ef4444' }} />
+            <div style={{ width: dot, height: dot, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+            <div style={{ width: dot, height: dot, borderRadius: '50%', backgroundColor: '#10b981' }} />
+          </div>
+        )}
         <div
           style={{
             flex: 1,
             height: `${barH * 0.6}px`,
-            backgroundColor: '#ffffff',
+            backgroundColor: 'rgba(255,255,255,0.85)',
             borderRadius: '999px',
             display: 'flex',
             alignItems: 'center',
@@ -106,6 +115,12 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
         >
           {url}
         </div>
+        {/* windows: botones cuadrados a la derecha */}
+        {browser === 'windows' && (
+          <div style={{ display: 'flex', gap: `${c.vmin(1.6)}px`, color: '#64748b', fontSize: `${c.vmin(3)}px`, fontFamily: 'system-ui', lineHeight: 1 }}>
+            <span>–</span><span>▢</span><span>✕</span>
+          </div>
+        )}
       </div>
 
       {/* Interior editable */}

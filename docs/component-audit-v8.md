@@ -105,6 +105,284 @@ Tras probar en el Playground, segunda ronda de arreglos a los efectos:
 - **WaveformVisualizer:** `direction` (right/left/still) + `speed` para controlar el
   desplazamiento de la onda.
 
+### Background/efectos full-screen + grupos (3ra ronda) — ✅
+- **BrandOutro / LogoReveal:** BUG de posición arreglado — usaban x/y como *offset
+  desde el centro* (con x=540 → esquina inferior derecha). Ahora x/y ABSOLUTO.
+- **AbstractWave:** atómico (waveCount, color, amplitude, frequency, speed, direction,
+  separation, strokeWidth, glow) + posicionable.
+- **FloatingBlobs:** confinable a una región (x/y centro + width/height → media
+  pantalla, subir, estirar/achicar) y hasta 20 blobs con `blobSize`/`sizeVariation`/
+  3 colores alternados. (Limitación: color por-blob arbitrario no es exponible en el
+  manifest; se alternan 3 colores.)
+- **GlobalVFX:** reescrito como "TV analógica SIN SEÑAL" (estática/nieve animada,
+  scanlines CRT, parpadeo, viñeta). Descripción explícita para que el embedding lo
+  matchee como canal muerto/VHS y no como otro efecto.
+- **CinematicBars:** tope de barra 25%→50%; respeta `disableEntry` → puede usar el
+  fade-in/out del wrapper en vez de su slide; `duration` expuesto. (No reacomoda el
+  contenido dentro de la banda visible — eso es trabajo del layout/safe-area.)
+- **CameraShake POR GRUPO (nuevo):** una capa `group` puede llevar `cameraShake`
+  (true u objeto con intensity/frequency/rotation/decay/seed) y SOLO ese grupo
+  tiembla. Implementado en AnimaComposer (case 'group'). ⚠️ Pendiente backend: el
+  schema de escena + el system prompt deben permitir/mencionar `cameraShake` en
+  grupos para que el LLM lo use; hoy funciona si el spec lo trae.
+- **Descripciones:** mejoradas (más específicas) las de estos componentes para que el
+  embedding no sea ambiguo. Queda pendiente una pasada de auditoría al resto.
+
+### Atomicidad de fondos (4ta ronda) — ✅
+- **GradientOverlay:** lineal/radial, hasta 3 colores con `midPoint`, ángulo (lineal),
+  centro+radio (radial = también lo posiciona). Acepta rgba()/transparent.
+- **GridPerspective:** fondo transparente por defecto, `lineWidth`, `cellSize`
+  (densidad), `direction` (forward/backward/left/right), `angle`, `perspective`.
+- **KineticBackground:** lineal/radial, hasta 3 colores, `angle` y `speed` del vaivén
+  (antes el movimiento estaba atado a la duración). Aclarado vs GradientOverlay/fondo.
+- **NetworkNodes:** confinable a región (x/y/width/height ahora funcionan) + `nodeSize`,
+  `lineWidth`, `drift`, `seed` expuesto. Aclarado que es random-determinista (no hardcode).
+- **ParticleField:** región (x/y/width/height), `speed`, `particleSize`+`sizeVariation`,
+  `glow`, `direction`, fondo transparente por defecto.
+- **KenBurns:** descripción aclarada — es zoom/pan sobre una IMAGEN (no un degradado);
+  el gradiente es solo fallback sin imagen. Se mantiene separado de GradientOverlay.
+- **rgba/transparente:** ya soportado de punta a punta — los componentes pasan el color
+  a CSS y el editor tiene un campo de texto que acepta `rgba()`/`transparent`/`#rrggbbaa`.
+
+### Atomicidad RaysOfLight + Spotlight (6ta ronda) — ✅
+- **RaysOfLight:** atómico (speed, numRays, rayWidth, rayOpacity, fade) + fondo
+  transparente + origen posicionable (x/y); rayos por la diagonal (200vmax) →
+  cubren esquinas en vertical (antes "perdía forma" al girar en 9:16).
+- **Spotlight:** BUG x/y arreglado (trataba x/y como offset → se iba al borde con el
+  x absoluto del Playground); ahora absoluto. + `softness`, `breatheSpeed`, iris-in
+  (`irisIn`/`irisFrames`). `radius` chico = ilumina solo parte de la pantalla.
+
+### ⚠️ Hallazgo: dos sistemas de transición en conflicto (PENDIENTE decidir)
+- **Reales (auto):** `MainComposition` dibuja un overlay en CADA corte entre escenas
+  vía `TransitionWrapper`, elegido por `pickSceneTransition` (solo FadeThroughBlack /
+  ZoomBlurTransition / WipeTransition de `remotion/transitions/`). La IA NO las elige.
+  LightLeak y Glitch existen en `transitions/` pero nunca se eligen.
+- **Manifest "Transition" (`remotion/components/`):** WipeTransition, ZoomBlurTransition,
+  GlitchTransition, LightLeakTransition, MaskedReveal. Son DUPLICADOS/legacy como capa
+  dentro de UNA escena, con `triggerFrame` hardcodeado (130–140 → asume 150f) → en el
+  Playground "no hacen nada". No pueden transicionar de verdad (una capa no ve la
+  escena siguiente). Por eso "la IA nunca usa transiciones".
+- Decisión: AMBAS + arreglar MaskedReveal. RESUELTO (7ma ronda, abajo).
+
+### Transiciones: limpieza + sistema real atómico/dirigible (7ma ronda) — ✅
+- **Quitados del manifest/registry** los 4 duplicados rotos como componente
+  (WipeTransition, ZoomBlurTransition, GlitchTransition, LightLeakTransition de
+  `components/`) + borrados sus archivos. 120 → **116 componentes**. (Las refs en el
+  pipeline AE quedan inertes; paridad AE = follow-up.)
+- **MaskedReveal:** reescrito como EFECTO (categoría Cinematic). Usa clip-path (no
+  caja con overflow) → el texto largo hace wrap y no se recorta; entrada (reveal) +
+  `exit` opcional. Props: direction, content, color, fontSize, width, exit, exitDuration.
+- **Sistema real (`transitions/`) atómico:** FadeThroughBlack/WipeTransition/
+  ZoomBlurTransition aceptan `color`; TransitionWrapper lo pasa. Glitch/LightLeak/
+  GradientOverlay aceptan `color?` por consistencia (lo ignoran).
+- **Usa las 5:** `pickSceneTransition` ahora varía entre Wipe/LightLeak/Glitch en cortes
+  continuos (antes solo 3 tipos en total).
+- **Dirigible por IA:** `MainComposition` respeta `scene.transition`/`transition_color`
+  y `scene.anima_composer.transition`/`transition_color` (override); si no, auto.
+
+### Wire transición IA + DESCUBRIBILIDAD de componentes (8va ronda) — ✅
+- **Transición elegida por la IA (end-to-end):** `transition`/`transition_color` añadidos al
+  `AnimaComposerSpec` (Pydantic + tipo frontend) y al `gemini_schema`; sección nueva en el
+  prompt (`component_strategy`) que explica cuándo usar cada una por TONO. El LLM la emite
+  dentro del anima_composer → `model_dump` → la lee `MainComposition`.
+- **Descubribilidad (causa raíz de "nunca veo muchos componentes"):** el retriever daba
+  `top_k=15` con cuotas por rol (ui:4 de 49, dataviz:2 de 17, social:1 de 10, `general` sin
+  cuota) → la mayoría nunca entraba al shortlist. Ahora **top_k=28** y cuotas rebalanceadas
+  por tamaño de rol: background2/text4/ui8/decorative4/dataviz4/social2/general1 (resto por
+  mejor coincidencia). Más variedad por escena. (El beneficio pleno llega con el re-embed,
+  ya que las descripciones nuevas mejoran el ranking dentro de cada rol.)
+
+### Retriever v2: escalable a miles (9na ronda) — ✅
+Reescrito `get_relevant_components` para que no salgan siempre "los mejores" ni dependa de
+cupos fijos:
+- **Cupos BLANDOS adaptativos:** los slots se reparten proporcional a la relevancia de cada
+  rol PARA ESA escena (media de top-3 sims, al cuadrado), con piso mínimo (`_ROLE_FLOORS`:
+  bg1/text2/ui2/dec1) y tope por rol (`_ROLE_CAPS`). Una escena de datos trae más dataviz;
+  una de cita, más text. Reparto greedy determinista.
+- **MMR** (`_mmr_select`): dentro de cada rol evita componentes casi idénticos (relevancia −
+  redundancia), así no se llenan los slots con clones.
+- **Exploración con semilla por video:** `seed=job_id` enchufado por orchestrator (x2) +
+  scene_manager → `generate_scene_composer` → retriever. Determinista dentro del video,
+  distinto entre videos → rotan los componentes buenos. Sin job_id, fallback determinista
+  por prompt.
+- **Prompt:** regla 8 "Composición libre" — la lista es un catálogo; puede repetir (3 textos)
+  y combinar (texto+decorativo); no rellenar de más.
+- Pendiente (miles, fase futura): router de intención + retrieval híbrido (tags) +
+  penalización por uso.
+
+### Atomicidad de TODA la categoría Text (10ma ronda) — ✅
+13 componentes de texto auditados y arreglados (patrón común: `text`→`text-long` para
+saltos de línea, `whiteSpace: pre-wrap`+`wordBreak`+`maxWidth` para que el texto largo
+BAJE en vez de salirse, y colores/tamaños expuestos).
+- **GradientText:** BUG esquina inferior derecha → x/y absoluto; `color1/2/3` editables.
+- **GlitchTitle:** `glitchColor1/2`, `glitchIntensity`, `glitchAmount`, color de letra.
+- **HighlightText / StrikethroughText / UnderlineReveal:** ahora cubren TODAS las líneas
+  (box-decoration-break) — antes solo la primera; + color de letra y maxWidth.
+- **WordHighlight:** el resaltado YA se ve en preview (fallback por tiempo `speed` cuando
+  no hay wordTimestamps; antes dependía 100% del audio).
+- **Typewriter:** SIEMPRE termina dentro de la duración (usa `useVideoConfig().durationInFrames`
+  como fallback en el preview); `speed` pasó a multiplicador de "terminar antes".
+- **TextReveal:** fix del ⚠️ (default + guarda ante `text` undefined); `stagger` atómico.
+- **TextSwap:** direcciones up/down/left/right + 3D falso; maxWidth/wrap.
+- **SplitText:** dirección vertical/horizontal; `splitAmount`/`revealDelay`.
+- **StyleScrambleText:** color/fontSize/maxWidth/wrap + toggle `uppercase` (estaba forzado).
+- **QuoteBlock:** maxWidth/wrap, `authorColor`, `showQuoteMark`, tamaño.
+- **StyleTextBlock:** confirmado standalone (NO es contenedor de otros textos); + pre-wrap.
+
+### Atomicidad UI/Mockups — tanda 1 (11ma ronda) — ✅
+- **AnimatedChecklist:** BUG esquina inferior derecha → x/y absoluto; variantes
+  `card`/`minimal`/`numbered`; `cardColor`/`fontSize`.
+- **AnimatedIcon:** animación `none` (estático) + `width`/`height` para deformar.
+- **APIRequestFlow:** N cajas vía `steps` (cadena arbitraria) + `revealStyle`
+  (sequence/instant/fade); antes 2 cajas hardcodeadas.
+- **BrowserWindow:** variantes `browser` (mac/windows/minimal) + `barColor`.
+- **CalendarDatePop:** vista `month`/`year` (resalta mes o día), `year`, colores
+  expuestos (bg/text/circle/header) → se puede oscuro/rojo; `showWeekdays`.
+- **CodeBlockHighlight:** modo `typing` (escribe el código y el resaltado SIGUE la
+  línea), colores `bgColor`/`accentColor`/`headerColor` expuestos.
+- Patrón "default 0 = auto" en fontSize/width/height para los nuevos números.
+
+### Atomicidad UI/Mockups — tanda 2 + consolidación (12va ronda) — ✅
+- **CountdownTimer:** `color`/`trackColor`/`lineWidth` del anillo, `size`, `tick` toggle.
+- **FeatureUnlock:** `label` editable, `lockColor`, `size` (escala el candado), `unlockDelay`, colores.
+- **FlashSaleTimer:** ya no se sale de pantalla (tamaños + `size`); `title`/labels editables,
+  `blockColor`/`labelColor`, `showMs`, `bounce` toggle.
+- **FloatingBadge:** `width` (maxWidth → saltos de línea), `borderColor`, `cornerRadius`, `hoverAmount`.
+- **CONSOLIDACIÓN (eliminar redundancia):**
+  - **AnimatedIcon ELIMINADO.** Su animación continua (bounce/pulse/spin/float/shake) se
+    movió a **IconifyIcon** (`animation`) → ahora los 200k+ iconos pueden animarse. No tenía
+    sentido un set de 10 SVGs fijos. (No usamos "IA que dibuja iconos": caro/pobre; Iconify cubre.)
+  - **FeatureChecklist ELIMINADO** en favor de **AnimatedChecklist** (variantes + ícono por fila).
+  - 116 → **114 componentes**. (Refs inertes de "AnimatedIcon" en heurísticas backend/AE quedan;
+    no molestan porque el LLM ya no lo emite.)
+
+### Atomicidad UI — tanda 3 (13va ronda) — ✅
+- **KeywordPop:** ⚠️ fix de crash (`icon` sin default → `icon.includes` reventaba; ahora
+  default `mdi:fire` + `safeIcon`). Manifest ganó `color` (faltaba) y `glow`.
+- **LoadingSpinner:** ahora atómico — `color`/`trackColor`/`lineWidth`/`arc`/`fadeDuration`
+  editables (antes `color`/`bgColor` ni estaban en manifest y el fade-in era hardcodeado).
+- **LowerThird:** salto de línea vía `width` (maxWidth, antes `nowrap` + ancho fijo 800);
+  altura automática (antes fija 120); `bgColor`/`textColor`/`titleColor`/barra + `barWidth`
+  expuestos (antes el subtítulo era `#64748b` fijo y bgColor no estaba en manifest).
+- **MediaFrame:** `shape` rounded/rect/circle/triangle, `fullScreen` (cubre el lienzo),
+  `placeholderColor`. Posición libre ya existía vía x/y + width/height.
+- **MessageBubble:** colores de texto separados `senderTextColor`/`receiverTextColor`;
+  `width`/`fontSize`/`stagger` en manifest. 1 o N mensajes (split por `;`).
+- **MusicPlayerUI:** `progress` (0-100) + `paused` (congela barra, icono play/pause),
+  `width`, `titleSize`/`artistSize` separados, `trackColor`/`textColor`/`artistColor`
+  expuestos (antes track `#333`, título blanco y artista `#a3a3a3` hardcodeados).
+- **Nota arquitectura (combinar en una escena):** las capas soportan `entry`/`exit`/
+  `entryDelay`/`exitDuration` vía AnimatedWrapper → un componente puede aparecer, salir y
+  dar paso a otro DENTRO de la misma escena (mismo fondo). Ej: spinner con `exit:fade-out`
+  + otro componente con `entryDelay`. No requiere 2 escenas.
+
+### Atomicidad UI — tanda 4 (14va ronda) — ✅
+- **NotificationToast:** `bgColor`/`textColor`/`messageColor`/`iconBgColor` ahora en manifest
+  (antes el mensaje era `#64748b` fijo y el cuadro del ícono era `${color}22` verde fijo);
+  `showIconBox` (solo emoji o solo texto) y `width`. Descripción guía a la IA a textos
+  cortos para formato móvil.
+- **PhoneMockup:** `model` iphone/android/tablet/custom, `width`/`height`/`cornerRadius`,
+  `showNotch` (quita la parte negra), `bezelColor`/`bezelWidth`, `shadow` toggle,
+  `subtitleColor`. Fix: palabra larga se desbordaba → `overflowWrap/break-word`. Aclarado
+  que `accentColor` solo colorea el ícono (por eso "no hacía nada" sin ícono).
+- **ProgressPill:** mantiene la simpleza (default `solid`/label `bottom`) + `variant`
+  solid/gradient/striped/segmented y `labelPosition` top/bottom/inside/left/right,
+  `barColor2`, `segments`, `fontSize`.
+- **PromoCodeBanner:** atómico total — `discountBgColor`/`codeBgColor`/`discountTextColor`/
+  `borderColor`, `fontSize`/`codeFontSize` separados, `direction` horizontal/vertical,
+  `showDiscount` (quitar el cuadro 50% → solo cupón), `codeLabel`, `width`, `cornerRadius`,
+  `shadow`, `wiggle`.
+- **RotatingCarousel:** color por slide (`items[].color`), `transition` slide/fade/scale,
+  `cardColor`/`dotColor`, `dots` inside/outside/none, `shadow` toggle, `width`.
+- **Nota nullish-trap:** varios props nuevos con default 0 (`width`/`bezelWidth`/
+  `cornerRadius`/`titleSize`…) usan el patrón `v && v > 0 ? v : fallback` (no `??`).
+
+### Atomicidad UI — tanda 5 (15va ronda) — ✅
+- **StyleAnimateNumber:** raíz del "Posición/Estilo no funciona" → leía todo de un objeto
+  `style`. Pasado a **props planos** (`color`/`fontSize`/`fontWeight`/`letterSpacing`) +
+  **`caption`** (texto debajo) con `captionColor`/`captionSize`. `style` queda como fallback
+  legacy.
+- **StyleAvatar:** BUG "no veo el icono" → `IconifyIcon` se renderizaba SIN `inline`, así
+  que se posicionaba en la esquina con su propio x/y y lo recortaba `overflow:hidden`.
+  Arreglado con `inline`. Props planos para TODO: `iconColor`, `bgColor`, `ringColor`/
+  `ringWidth`, `gradColor1/2/3` (degradado), `badgeColor`/`badgeTextColor`, `nameColor`,
+  `subtitleColor` (antes todos hardcodeados).
+- **SplitScreenGrid:** rediseño completo. Antes era 1→2x2 fijo con 4 colores hardcodeados.
+  Ahora **rejilla flexible**: `panels` (lista con color/text/icon/textColor/shape/span por
+  panel), `columns` (cualquier nº), `entry` split/scale/fade/slide, `stagger` (aparición
+  uno-a-uno), `gap`/`cornerRadius`/`gapColor`/`shadow`, `cover` (full screen) o caja con
+  `width`/`height` en x/y. Cubre "1→4", "4→8", colores/animaciones/formas distintas.
+
+### Atomicidad UI — tanda 6: Style* con `style` anidado (16va ronda) — ✅
+Patrón común: estos leían colores/tamaños de un objeto `style` anidado (por eso el panel
+"Posición/Animación/Estilo" no los afectaba) y traían su **entrada hardcodeada** que NO
+respetaba `disableEntry` (se duplicaba con la del wrapper y siempre se veía en preview).
+Fix transversal: **props planos** + nuevo `animateIn` (default true) que ADEMÁS respeta
+`disableEntry` → si la capa define `entry`, la entrada propia se apaga y manda el wrapper.
+- **StyleBadge:** `bgColor`/`textColor`/`iconColor`/`fontSize`/`width` (maxWidth→wrap)/
+  `uppercase`/`borderWidth`/`borderColor`. `variant` queda como preset de color overridable.
+- **StyleButton:** `bgColor`/`textColor`/`iconColor`/`fontSize` + `width`/`height` libres
+  (manteniendo `size` como preset), `borderColor`/`borderWidth`/`borderRadius`.
+- **StyleCallout:** era todo px hardcodeado (flecha "se perdía") → relativo al lienzo con
+  `size`, `color`/`textColor`/`bgColor` (fill highlight), `fontSize`, `width` (wrap). Arrow
+  con flexDirection por dirección.
+- **StyleCard:** título/subtítulo ahora **hacen salto de línea** (`overflowWrap/break-word`,
+  subtitle → text-long); `bgColor`/`titleColor`/`subtitleColor`/`titleSize`/`subtitleSize`/
+  `borderColor`/`borderWidth`/`borderRadius`/`padding`/`shadow`.
+- **Duplicados revisados (decisión: mantener):** StyleBadge (estado, colores semánticos) ≠
+  StyleChip (tag/filtro) ≠ FloatingBadge (sticker decorativo flotante grande) — 3 usos
+  legítimos, descripciones ya los desambiguan. StyleCard es la única card genérica (las
+  otras son específicas: PodcastGuestCard/TestimonialReview/ProductCardReveal).
+
+### Atomicidad UI + fusiones (17va ronda) — ✅
+- **StyleChip:** props planos (`bgColor`/`textColor`/`iconColor`/`closeColor`/`fontSize`/
+  `width` wrap/borde) + `animateIn`. La X de borrar ahora es editable.
+- **StyleDivider:** `color` ni estaba en el manifest (por eso no se cambiaba); agregado +
+  límites de grosor (1→60) y largo (→1920) + `animateIn`. dotted ahora son puntos redondos.
+- **StyleFakeScroll:** colores (bg/borde/título/subtítulo/iconBg/icono/scrollbar), `width`,
+  `itemHeight`, tamaños de texto, `borderRadius`, `borderWidth`.
+- **FUSIÓN cursores:** **CursorClick ELIMINADO** → **StyleCursor** sobrevive (multi-punto,
+  ahora atómico: `color`/`rippleColor`/`size`/`speed`/`points`; un clic simple = 2 puntos).
+  Actualizado prompt del LLM no aplica (CursorClick no estaba en prompt); alias inerte
+  CursorClick→StyleCursor + parser/AE export quedan inertes.
+- **FUSIÓN progress bars:** **StyleProgressBar ELIMINADO** → **ProgressPill** sobrevive como
+  la única, con `variant` solid/gradient/striped/segmented + **circular** (absorbe el ring),
+  `size`/`strokeWidth`. Actualizado el **prompt del LLM** (component_strategy.py: bloque
+  ### , ejemplo de spec, regla 2.1) de StyleProgressBar→ProgressPill — es live, NO requiere
+  re-embed. spec.py/AE export quedan con refs inertes.
+- 114 → **112 componentes**. Patrón `animateIn`+`disableEntry` extendido a Chip/Divider.
+
+### Atomicidad UI — tanda 7 (18va ronda) — ✅
+- **TerminalHacker:** fix del `~` que se centraba al envolver una línea (`alignItems:flex-start`
+  + cursor inline dentro del texto que ahora hace wrap). `headerColor` editable (el bgColor
+  no cambiaba la cabecera, estaba `#1e293b` fija).
+- **StyleWatermark:** fix de posición — las esquinas centraban en el punto (se salía media marca
+  por la izquierda). Ahora anclan por BORDES con `margin`; x/y manual = centro absoluto.
+  Agregado `color` (ícono) y `monochrome` (filtro B/N opcional, antes forzado en imágenes).
+- **StyleTicker:** props del objeto `style` → planos (color/bgColor/fontSize/fontWeight);
+  loop **continuo sin huecos** (módulo) con `loop` toggle y `direction`; `separator` con
+  `separatorColor` propio.
+- **StyleVideoPlayer:** cambiado `Video`→`OffthreadVideo` (robusto con URLs externas, por eso
+  "no funcionaba"); recorte `trimStart`/`trimEnd` en segundos→frames; `width`/`height` libres
+  (preset `size` como default); borde editable; `animateIn`. (loop no soportado por
+  OffthreadVideo en esta versión → removido.)
+- **StyleSimulatedHover:** props planos + `hoverScale`/`hoverLift`/`repeat` + `animateIn`.
+  ACLARACIÓN: es un elemento **autocontenido** (button/card/link), NO envuelve otros
+  componentes. Aplicar hover a cualquier componente sería un efecto universal (cambio mayor,
+  no hecho).
+
+### Auditoría de descripciones para embeddings (5ta ronda) — ✅ COMPLETA
+Reescritas las 120 descripciones del manifest con criterio: (1) qué es en lenguaje
+llano, (2) sinónimos que un creador buscaría, (3) caso de uso, (4) qué la distingue de
+sus hermanas. En inglés (gemini-embedding es multilingüe). Todas ≥95 chars (antes
+muchas eran 45–70 secas). Se desambiguaron pares casi-duplicados que confundían al
+embedding (StyleBarChart↔BarChartReveal, StylePieChart↔PieChartReveal,
+StyleFunnelChart↔FunnelChart, StyleRadarChart↔RadarSpiderChart,
+StyleBarRace↔HorizontalBarRace, CursorClick↔StyleCursor, TextBubble↔MessageBubble,
+CountdownTimer↔FlashSaleTimer, StyleBadge↔StyleChip, BreakingNewsAlert↔Ticker,
+GradientOverlay↔KineticBackground↔KenBurns). ⚠️ Surten efecto en el matching del LLM
+solo TRAS el re-embed (pendiente, "para el final").
+
 ## Pendientes (no responsividad)
 - **idle motion** en otros hero (cards, mockups) tras validar que no distrae (opcional, "de gusto").
 - **Reducir props booleanas** (`showX`, `fillArea`, etc.) → variantes/composición (opcional).

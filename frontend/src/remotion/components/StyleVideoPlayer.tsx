@@ -1,15 +1,21 @@
 import React from 'react';
-import { interpolate, useCurrentFrame, Easing, Video } from 'remotion';
+import { interpolate, useCurrentFrame, useVideoConfig, Easing, OffthreadVideo } from 'remotion';
 import type { UniversalProps } from "./types";
 import { useCanvas } from '../utils/canvas';
 
 interface StyleVideoPlayerProps extends UniversalProps {
   src?: string;
-  variant?: 'pip' | 'fullscreen' | 'inline';
   size?: 'sm' | 'md' | 'lg';
-  autoplay?: boolean;
-  loop?: boolean;
   muted?: boolean;
+  /** Inicio del fragmento (segundos). */
+  trimStart?: number;
+  /** Fin del fragmento (segundos, 0 = hasta el final). */
+  trimEnd?: number;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+  /** Entrada propia. false / disableEntry = la controla el wrapper. */
+  animateIn?: boolean;
   style?: Record<string, unknown>;
 }
 
@@ -18,42 +24,48 @@ export const StyleVideoPlayer: React.FC<StyleVideoPlayerProps> = ({
   y = 960,
   src,
   size = 'md',
-  loop = true,
   muted = true,
-  style,
+  width,
+  height,
+  trimStart = 0,
+  trimEnd = 0,
+  borderColor = '#334155',
+  borderWidth,
+  borderRadius,
+  animateIn = true,
+  disableEntry = false,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
   const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  const scale = interpolate(adjustedFrame, [0, 15], [0.8, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-    easing: Easing.out(Easing.back(1.2)),
-  });
+  const showEntry = animateIn && !disableEntry;
+  const scale = showEntry ? interpolate(adjustedFrame, [0, 15], [0.8, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.back(1.2)) }) : 1;
+  const opacity = showEntry ? interpolate(adjustedFrame, [0, 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 1;
 
-  const opacity = interpolate(adjustedFrame, [0, 10], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
-
-  // Relativo al lienzo, manteniendo 16:9 (antes px: 240-480 de ancho).
+  // Tamaño: presets 16:9 como default; width/height libres lo sobrescriben.
   const widthMap = { sm: c.vw(46), md: c.vw(64), lg: c.vw(82) };
-  const w = widthMap[size];
-  const h = w * 0.5625;
-  const customWidth = style?.width ? `${style.width}px` : `${w}px`;
-  const customHeight = style?.height ? `${style.height}px` : `${h}px`;
-  const customBorderRadius = (style?.borderRadius as number) ?? c.vmin(2);
-  const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : `${c.vmin(0.4)}px`;
-  const customBorderColor = (style?.borderColor as string) ?? '#334155';
-  const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
-  const customBoxShadow = style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 4}px ${(style.boxShadow as Record<string, unknown>).blur || 16}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.4)'}` : `0 ${c.vmin(1.5)}px ${c.vmin(5)}px rgba(0,0,0,0.4)`;
-  const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
+  const w = width && width > 0 ? width : widthMap[size];
+  const h = height && height > 0 ? height : w * 0.5625;
+  const rad = borderRadius && borderRadius > 0 ? borderRadius : c.vmin(2);
+  const bWidth = borderWidth && borderWidth > 0 ? borderWidth : c.vmin(0.4);
+
+  // Recorte por tiempo → frames (Remotion startFrom/endAt).
+  const startFrom = Math.max(0, Math.round(trimStart * fps));
+  const endAt = trimEnd > 0 ? Math.round(trimEnd * fps) : undefined;
+
+  const containerStyle: React.CSSProperties = {
+    position: 'absolute', top: `${y}px`, left: `${x}px`,
+    transform: `translate(-50%, -50%) scale(${scale})`, opacity,
+    zIndex: 50, width: `${w}px`, height: `${h}px`,
+    borderRadius: `${rad}px`, overflow: 'hidden',
+  };
 
   if (!src) {
     return (
-      <div style={{ position: 'absolute', top: `${y}px`, left: `${x}px`, transform: `translate(-50%, -50%) scale(${scale})`, opacity: customOpacity, zIndex: 50, width: customWidth, height: customHeight, backgroundColor: '#1E293B', borderRadius: `${customBorderRadius}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', fontFamily: 'Inter, sans-serif', fontSize: c.vmin(3) }}>
+      <div style={{ ...containerStyle, backgroundColor: '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', fontFamily: 'Inter, sans-serif', fontSize: c.vmin(3) }}>
         No video source
       </div>
     );
@@ -62,23 +74,12 @@ export const StyleVideoPlayer: React.FC<StyleVideoPlayerProps> = ({
   return (
     <div
       style={{
-        position: 'absolute',
-        top: `${y}px`,
-        left: `${x}px`,
-        transform: `translate(-50%, -50%) scale(${scale})`,
-        opacity: customOpacity,
-        zIndex: 50,
-        width: customWidth,
-        height: customHeight,
-        borderRadius: `${customBorderRadius}px`,
-        borderWidth: customBorderWidth,
-        borderColor: customBorderColor,
-        borderStyle: customBorderStyle,
-        boxShadow: customBoxShadow,
-        overflow: 'hidden',
+        ...containerStyle,
+        border: bWidth > 0 ? `${bWidth}px solid ${borderColor}` : 'none',
+        boxShadow: `0 ${c.vmin(1.5)}px ${c.vmin(5)}px rgba(0,0,0,0.4)`,
       }}
     >
-      <Video src={src} startFrom={0} endAt={undefined} loop={loop} muted={muted} playbackRate={1} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <OffthreadVideo src={src} startFrom={startFrom} endAt={endAt} muted={muted} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
     </div>
   );
 };

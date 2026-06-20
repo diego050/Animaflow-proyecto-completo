@@ -7,14 +7,23 @@ interface TextSwapProps extends UniversalProps {
   finalText?: string;
   initialColor?: string;
   finalColor?: string;
+  /** Dirección/estilo del swap. '3d' = volteo falso 3D. */
+  direction?: 'up' | 'down' | 'left' | 'right' | '3d';
+  /** Frames antes de hacer el swap. */
+  swapDelay?: number;
+  /** Ancho máximo antes de hacer salto de línea (px). */
+  width?: number;
 }
 
 export const TextSwap: React.FC<TextSwapProps> = ({
   initialText = 'BEFORE',
   finalText = 'AFTER',
-  initialColor = '#ef4444', // Red 500
-  finalColor = '#10b981', // Emerald 500
+  initialColor = '#ef4444',
+  finalColor = '#10b981',
   fontSize = 80,
+  direction = 'up',
+  swapDelay = 30,
+  width = 800,
   x = 540,
   y = 540,
   delay = 0,
@@ -23,26 +32,33 @@ export const TextSwap: React.FC<TextSwapProps> = ({
   const { fps } = useVideoConfig();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  // 1. Entrance of initial text
   const entrance = spring({ frame: adjustedFrame, fps, config: { damping: 14 } });
-  
-  // 2. Swap action starts at frame 30
-  const swapProgress = spring({ 
-    frame: Math.max(0, adjustedFrame - 30), 
-    fps, 
-    config: { damping: 16, mass: 1, stiffness: 80 } 
-  });
+  const p = spring({ frame: Math.max(0, adjustedFrame - swapDelay), fps, config: { damping: 16, mass: 1, stiffness: 80 } });
 
-  // Calculate translations for the swap effect (like a slot machine)
-  const yOffset = fontSize * 1.5;
-  
-  // Initial text slides up and fades out
-  const initialY = -swapProgress * yOffset;
-  const initialOpacity = 1 - swapProgress;
-  
-  // Final text slides up from below and fades in
-  const finalY = (1 - swapProgress) * yOffset;
-  const finalOpacity = swapProgress;
+  const off = fontSize * 1.5;
+
+  // Transform de salida (initial) y entrada (final) según la dirección.
+  let initialTransform = '';
+  let finalTransform = '';
+  if (direction === 'up') { initialTransform = `translateY(${-p * off}px)`; finalTransform = `translateY(${(1 - p) * off}px)`; }
+  else if (direction === 'down') { initialTransform = `translateY(${p * off}px)`; finalTransform = `translateY(${-(1 - p) * off}px)`; }
+  else if (direction === 'left') { initialTransform = `translateX(${-p * off}px)`; finalTransform = `translateX(${(1 - p) * off}px)`; }
+  else if (direction === 'right') { initialTransform = `translateX(${p * off}px)`; finalTransform = `translateX(${-(1 - p) * off}px)`; }
+  else { // 3d: volteo en X
+    initialTransform = `rotateX(${p * 90}deg)`;
+    finalTransform = `rotateX(${(1 - p) * -90}deg)`;
+  }
+
+  const textBase: React.CSSProperties = {
+    fontSize: `${fontSize}px`,
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: 900,
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    textAlign: 'center',
+    lineHeight: 1.15,
+    backfaceVisibility: 'hidden',
+  };
 
   return (
     <div
@@ -51,44 +67,18 @@ export const TextSwap: React.FC<TextSwapProps> = ({
         left: `${x}px`,
         top: `${y}px`,
         transform: `translate(-50%, -50%) scale(${entrance})`,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: 'Inter, sans-serif',
-        fontWeight: '900',
+        width: `${width}px`,
+        perspective: direction === '3d' ? '600px' : undefined,
         zIndex: 40,
-        height: `${fontSize * 1.5}px`,
-        overflow: 'hidden', // Hide the text when it slides out of bounds
-        width: '100%',
       }}
     >
-      <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {/* Initial Text */}
-        <div
-          style={{
-            position: 'absolute',
-            color: initialColor,
-            fontSize: `${fontSize}px`,
-            opacity: initialOpacity,
-            transform: `translateY(${initialY}px)`,
-            whiteSpace: 'nowrap',
-          }}
-        >
+      <div style={{ position: 'relative', width: '100%' }}>
+        {/* Initial: relativo (define la altura del bloque) */}
+        <div style={{ ...textBase, color: initialColor, opacity: 1 - p, transform: initialTransform }}>
           {initialText}
         </div>
-
-        {/* Final Text */}
-        <div
-          style={{
-            position: 'absolute',
-            color: finalColor,
-            fontSize: `${fontSize}px`,
-            opacity: finalOpacity,
-            transform: `translateY(${finalY}px)`,
-            whiteSpace: 'nowrap',
-          }}
-        >
+        {/* Final: superpuesto */}
+        <div style={{ ...textBase, color: finalColor, opacity: p, transform: finalTransform, position: 'absolute', top: 0, left: 0, width: '100%' }}>
           {finalText}
         </div>
       </div>

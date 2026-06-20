@@ -9,10 +9,21 @@ interface StyleBadgeProps extends UniversalProps {
   variant?: 'success' | 'warning' | 'error' | 'info' | 'neutral';
   icon?: string;
   size?: 'sm' | 'md' | 'lg';
-  /** Mostrar sombra (boxShadow). Default true. */
-  shadow?: boolean;
+  /** Color del ícono (vacío = color del texto). */
+  iconColor?: string;
+  /** Borde. */
+  borderWidth?: number;
+  borderColor?: string;
   /** Radio de borde en px (default 999 = píldora). */
   borderRadius?: number;
+  /** Ancho máximo (px). >0 permite salto de línea. 0 = una línea. */
+  width?: number;
+  /** Texto en mayúsculas. */
+  uppercase?: boolean;
+  /** Mostrar sombra. */
+  shadow?: boolean;
+  /** Reproducir la entrada propia (rebote). false / disableEntry = la controla el wrapper. */
+  animateIn?: boolean;
   style?: Record<string, unknown>;
 }
 
@@ -31,48 +42,46 @@ export const StyleBadge: React.FC<StyleBadgeProps> = ({
   variant = 'neutral',
   icon,
   size = 'md',
-  shadow = true,
+  bgColor,
+  textColor,
+  iconColor,
+  fontSize,
+  borderWidth = 0,
+  borderColor = 'transparent',
   borderRadius,
-  style,
+  width = 0,
+  uppercase = true,
+  shadow = true,
+  animateIn = true,
+  disableEntry = false,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const c = useCanvas();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  // Tamaños derivados del lienzo (Fase 2): mismo tamaño físico en 9:16/1:1/16:9
-  // y escalado por resolución (720p/4K). vmin equivale a los px previos en 1080.
   const sizeMap = {
     sm: { padding: `${c.vmin(0.9)}px ${c.vmin(2)}px`, fontSize: c.vmin(2.6) },
     md: { padding: `${c.vmin(1.3)}px ${c.vmin(2.8)}px`, fontSize: c.vmin(3.5) },
     lg: { padding: `${c.vmin(1.7)}px ${c.vmin(3.7)}px`, fontSize: c.vmin(4.4) },
   };
-
-  // Entrance: scale bounce
-  const scale = interpolate(adjustedFrame, [0, 8, 12, 16], [0, 1.15, 0.95, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-    easing: Easing.out(Easing.cubic),
-  });
-
-  const opacity = interpolate(adjustedFrame, [0, 8], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
-
-  const v = variantMap[variant];
   const s = sizeMap[size];
+  const v = variantMap[variant];
 
-  // Style overrides
-  const customPadding = style?.padding ? `${style.padding}px` : s.padding;
-  const customBorderRadius = borderRadius ?? (style?.borderRadius as number) ?? 999;
-  const customBg = (style?.backgroundColor as string) ?? v.bg;
-  const customColor = (style?.color as string) ?? v.color;
-  const customOpacity = style?.opacity !== undefined ? (style.opacity as number) * opacity : opacity;
-  const customBorderWidth = style?.borderWidth ? `${style.borderWidth}px` : '0px';
-  const customBorderColor = (style?.borderColor as string) ?? 'transparent';
-  const customBorderStyle = (style?.borderStyle as string) ?? 'solid';
-  const customBoxShadow = shadow === false ? 'none' : (style?.boxShadow ? `${(style.boxShadow as Record<string, unknown>).x || 0}px ${(style.boxShadow as Record<string, unknown>).y || 2}px ${(style.boxShadow as Record<string, unknown>).blur || 8}px ${(style.boxShadow as Record<string, unknown>).spread || 0}px ${(style.boxShadow as Record<string, unknown>).color || 'rgba(0,0,0,0.2)'}` : `0 ${c.vmin(0.2)}px ${c.vmin(0.8)}px rgba(0,0,0,0.2)`);
+  const showEntry = animateIn && !disableEntry;
+  const scale = showEntry
+    ? interpolate(adjustedFrame, [0, 8, 12, 16], [0, 1.15, 0.95, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
+    : 1;
+  const opacity = showEntry
+    ? interpolate(adjustedFrame, [0, 8], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    : 1;
+
+  const bg = bgColor || v.bg;
+  const fg = textColor || v.color;
+  const ic = iconColor || fg;
+  const fs = fontSize && fontSize > 0 ? fontSize : s.fontSize;
+  const radius = borderRadius ?? 999;
+  const hasMax = width > 0;
 
   return (
     <div
@@ -81,28 +90,30 @@ export const StyleBadge: React.FC<StyleBadgeProps> = ({
         top: `${y}px`,
         left: `${x}px`,
         transform: `translate(-50%, -50%) scale(${scale})`,
-        padding: customPadding,
-        backgroundColor: customBg,
-        color: customColor,
-        borderRadius: `${customBorderRadius}px`,
-        borderWidth: customBorderWidth,
-        borderColor: customBorderColor,
-        borderStyle: customBorderStyle,
-        boxShadow: customBoxShadow,
+        padding: s.padding,
+        backgroundColor: bg,
+        color: fg,
+        borderRadius: `${radius}px`,
+        border: borderWidth > 0 ? `${borderWidth}px solid ${borderColor}` : 'none',
+        boxShadow: shadow ? `0 ${c.vmin(0.2)}px ${c.vmin(0.8)}px rgba(0,0,0,0.2)` : 'none',
         fontFamily: 'Inter, sans-serif',
         fontWeight: 700,
-        fontSize: `${s.fontSize}px`,
+        fontSize: `${fs}px`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         gap: `${c.vmin(0.6)}px`,
         zIndex: 50,
-        opacity: customOpacity,
+        opacity,
         letterSpacing: '0.5px',
-        textTransform: 'uppercase',
+        textTransform: uppercase ? 'uppercase' : 'none',
+        maxWidth: hasMax ? `${width}px` : undefined,
+        whiteSpace: hasMax ? 'normal' : 'nowrap',
+        wordBreak: 'break-word',
+        textAlign: 'center',
       }}
     >
-      {icon && <IconifyIcon icon={icon} size={s.fontSize} color={customColor} inline />}
+      {icon && <IconifyIcon icon={icon} size={fs} color={ic} inline />}
       {text}
     </div>
   );

@@ -211,6 +211,7 @@ async def _process_chunks_async(
                 duration_seconds=scene.get("duration_seconds", 0.0),
                 suggested_bg_color=visual_spec.backgroundColor,
                 suggested_text_color=visual_spec.textColor,
+                seed=job_id,  # semilla por video → variedad entre videos
             )
 
             scene["type"] = "custom"
@@ -288,8 +289,9 @@ async def _regenerate_components_for_reformat(
             duration_seconds=scene.get("duration_seconds", 0.0),
             suggested_bg_color=visual_spec.backgroundColor,
             suggested_text_color=visual_spec.textColor,
+            seed=job_id,  # semilla por video → variedad entre videos
         )
-        
+
         scene["type"] = "custom"
         scene["quality_status"] = "passed"
         scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)

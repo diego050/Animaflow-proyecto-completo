@@ -9,6 +9,7 @@ import { interpolate } from 'remotion';
 
 interface Props {
   progress: number;
+  color?: string; // ignorado (efecto estilizado RGB), por consistencia de tipos
 }
 
 export const GlitchTransition: React.FC<Props> = ({ progress }) => {

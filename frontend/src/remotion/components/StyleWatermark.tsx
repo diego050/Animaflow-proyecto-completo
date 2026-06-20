@@ -9,16 +9,13 @@ interface StyleWatermarkProps extends UniversalProps {
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
   opacity?: number;
   size?: number;
-  style?: Record<string, unknown>;
+  /** Color del ícono. */
+  color?: string;
+  /** Margen desde el borde para las posiciones de esquina (px). */
+  margin?: number;
+  /** Forzar imagen en blanco y negro (solo src). */
+  monochrome?: boolean;
 }
-
-const positionMap = {
-  'top-left': { x: 40, y: 40 },
-  'top-right': { x: 1040, y: 40 },
-  'bottom-left': { x: 40, y: 1880 },
-  'bottom-right': { x: 1040, y: 1880 },
-  'center': { x: 540, y: 960 },
-};
 
 export const StyleWatermark: React.FC<StyleWatermarkProps> = ({
   x,
@@ -28,41 +25,44 @@ export const StyleWatermark: React.FC<StyleWatermarkProps> = ({
   position = 'top-right',
   opacity = 0.3,
   size = 60,
-  style,
+  color = '#FFFFFF',
+  margin = 40,
+  monochrome = false,
   delay = 0,
 }) => {
   const frame = useCurrentFrame();
   const adjustedFrame = Math.max(0, frame - delay);
 
   const entranceOpacity = interpolate(adjustedFrame, [0, 20], [0, opacity], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-    easing: Easing.out(Easing.cubic),
+    extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic),
   });
 
-  const pos = positionMap[position];
-  const finalX = x ?? pos.x;
-  const finalY = y ?? pos.y;
-
-  const customOpacity = style?.opacity !== undefined ? style.opacity as number : entranceOpacity;
-  const customSize = style?.width ? `${style.width}px` : `${size}px`;
+  // Posicionamiento: si hay x/y → modo manual (centro absoluto). Si no, anclar
+  // por BORDES con margen (antes se centraba en la esquina y se salía de pantalla).
+  const manual = x !== undefined && y !== undefined;
+  const anchor: React.CSSProperties = manual
+    ? { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
+    : position === 'center'
+    ? { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }
+    : {
+        ...(position.includes('left') ? { left: `${margin}px` } : { right: `${margin}px` }),
+        ...(position.includes('top') ? { top: `${margin}px` } : { bottom: `${margin}px` }),
+      };
 
   return (
     <div
       style={{
         position: 'absolute',
-        top: `${finalY}px`,
-        left: `${finalX}px`,
-        transform: 'translate(-50%, -50%)',
-        opacity: customOpacity,
+        ...anchor,
+        opacity: entranceOpacity,
         zIndex: 100,
         pointerEvents: 'none',
       }}
     >
       {src ? (
-        <img src={src} alt="Watermark" style={{ width: customSize, height: 'auto', filter: 'grayscale(1) brightness(2)' }} />
+        <img src={src} alt="Watermark" style={{ width: `${size}px`, height: 'auto', filter: monochrome ? 'grayscale(1) brightness(2)' : undefined }} />
       ) : (
-        <IconifyIcon icon={icon} size={size} color="#FFFFFF" />
+        <IconifyIcon inline icon={icon} size={size} color={color} />
       )}
     </div>
   );

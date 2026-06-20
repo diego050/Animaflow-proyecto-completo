@@ -6,25 +6,42 @@
       "name": "Typewriter",
       "category": "Text",
       "role": "text",
-      "description": "Typewriter effect that reveals text character by character, optionally synced to word timestamps.",
+      "description": "Reveals text one character at a time, like live typing (typewriter / typing / terminal-typing effect). Can sync to spoken-word timestamps to type in time with narration. Use for intros, code/terminal vibes, or building suspense word by word.",
       "props": {
         "text": {
           "type": "text-long",
           "label": "Text",
-          "description": "The text to type out"
+          "description": "The text to type out (supports line breaks)"
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Max text size (auto-fits down)",
+          "default": 60,
+          "min": 16,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 900,
+          "min": 100,
+          "max": 1600
         },
         "speed": {
           "type": "number",
           "label": "Speed",
-          "description": "Characters per frame (lower = slower)",
-          "default": 2,
+          "description": "Finish multiplier: 1 = finishes at scene end, higher = finishes earlier (always completes)",
+          "default": 1,
           "min": 1,
-          "max": 10
-        },
-        "durationInFrames": {
-          "type": "number",
-          "label": "Duration (frames)",
-          "description": "Total frames for typing animation"
+          "max": 5
         },
         "wordTimestamps": {
           "type": "list",
@@ -43,12 +60,18 @@
       "name": "TextReveal",
       "category": "Text",
       "role": "text",
-      "description": "Word-by-word reveal animation with fade, blur, or slide-up effects.",
+      "description": "Reveals text word by word with a fade, blur, or slide-up per word (staggered word reveal / kinetic text). Smoother and more elegant than character typing. Use for narrated captions, quotes, or building a phrase progressively.",
       "props": {
         "text": {
           "type": "text-long",
           "label": "Text",
-          "description": "The text to reveal"
+          "description": "The text to reveal (supports line breaks)"
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
         },
         "animation": {
           "type": "select",
@@ -60,6 +83,30 @@
             "blur",
             "slide_up"
           ]
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Max text size (auto-fits down)",
+          "default": 60,
+          "min": 16,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 900,
+          "min": 100,
+          "max": 1600
+        },
+        "stagger": {
+          "type": "number",
+          "label": "Stagger",
+          "description": "Frames between each word (no timestamps)",
+          "default": 3,
+          "min": 0,
+          "max": 20
         },
         "glowIntensity": {
           "type": "number",
@@ -86,12 +133,12 @@
       "name": "StyleTextBlock",
       "category": "Text",
       "role": "text",
-      "description": "Versatile text block with heading, body, caption, and quote variants.",
+      "description": "General-purpose text block — the default for any title, paragraph, caption or quote when no special effect is needed. Variants: heading, body, caption, quote. Use this for clean, legible on-screen text (plain title / subtitle / body copy).",
       "props": {
         "text": {
           "type": "text-long",
           "label": "Text",
-          "description": "The text content"
+          "description": "The text content (supports line breaks)"
         },
         "variant": {
           "type": "select",
@@ -104,6 +151,28 @@
             "caption",
             "quote"
           ]
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color (overrides variant default)",
+          "default": "#ffffff"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px). Bigger = fewer words per line",
+          "default": 88,
+          "min": 16,
+          "max": 250
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 900,
+          "min": 100,
+          "max": 1600
         },
         "align": {
           "type": "select",
@@ -143,12 +212,18 @@
       "name": "StyleScrambleText",
       "category": "Text",
       "role": "text",
-      "description": "Hacker-style text scramble that decodes characters over time.",
+      "description": "Text that scrambles and decodes into place, with characters flickering through random symbols before settling (hacker / Matrix / decrypt / glitch-decode effect). Use for tech, hacking or reveal-the-answer moments.",
       "props": {
         "text": {
           "type": "text-long",
           "label": "Text",
-          "description": "The text to scramble/decode"
+          "description": "The text to scramble/decode (supports line breaks)"
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#00FFAB"
         },
         "speed": {
           "type": "number",
@@ -163,6 +238,28 @@
           "label": "Scramble Characters",
           "description": "Character set for scramble effect",
           "default": "#$%&@!?*+=^~01"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 80,
+          "min": 12,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 900,
+          "min": 100,
+          "max": 1600
+        },
+        "uppercase": {
+          "type": "boolean",
+          "label": "Uppercase",
+          "description": "Force uppercase",
+          "default": true
         },
         "loop": {
           "type": "boolean",
@@ -187,18 +284,48 @@
       "name": "WordHighlight",
       "category": "Text",
       "role": "text",
-      "description": "Karaoke-style subtitle that highlights the currently spoken word.",
+      "description": "Karaoke-style subtitles: shows the caption and highlights the spoken word, synced to audio when available (word-by-word highlight / bouncing-ball subtitle / lyric caption). Without timestamps it sweeps word by word over time (works in preview). Use for talking-head captions and lyric videos.",
       "props": {
         "text": {
           "type": "text-long",
           "label": "Text",
           "description": "The full text to display"
         },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Base color for words",
+          "default": "#ffffff"
+        },
         "highlightColor": {
           "type": "color",
           "label": "Highlight Color",
           "description": "Color for the active word",
           "default": "#fbbf24"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Max text size (auto-fits down)",
+          "default": 84,
+          "min": 24,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 900,
+          "min": 200,
+          "max": 1600
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Words/sec when there are no audio timestamps",
+          "default": 2,
+          "min": 0.5,
+          "max": 8
         },
         "activeScale": {
           "type": "number",
@@ -231,31 +358,71 @@
       "name": "SplitText",
       "category": "Text",
       "role": "text",
-      "description": "Text that splits apart to reveal hidden content between top and bottom halves.",
+      "description": "Two short words that slide apart (vertically or horizontally) to reveal a word behind them (split-open / cinematic title reveal). Use for dramatic title intros and big reveals.",
       "props": {
         "topText": {
           "type": "string",
-          "label": "Top Text",
-          "description": "Text shown in the top half",
+          "label": "Top/Left Text",
+          "description": "Text of the first half",
           "default": "SECRET"
         },
         "bottomText": {
           "type": "string",
-          "label": "Bottom Text",
-          "description": "Text shown in the bottom half",
+          "label": "Bottom/Right Text",
+          "description": "Text of the second half",
           "default": "MESSAGE"
         },
         "revealedText": {
           "type": "string",
           "label": "Revealed Text",
-          "description": "Text revealed when split opens",
+          "description": "Text revealed when it opens",
           "default": "UNLOCKED"
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Color of the two halves",
+          "default": "#ffffff"
         },
         "revealedColor": {
           "type": "color",
           "label": "Revealed Color",
           "description": "Color of the revealed text",
           "default": "#10b981"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 100,
+          "min": 20,
+          "max": 250
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Open vertically or horizontally",
+          "default": "vertical",
+          "options": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "splitAmount": {
+          "type": "number",
+          "label": "Split Amount",
+          "description": "How far the halves separate (× font size)",
+          "default": 1.5,
+          "min": 0.5,
+          "max": 4
+        },
+        "revealDelay": {
+          "type": "number",
+          "label": "Reveal Delay",
+          "description": "Frames before it opens",
+          "default": 30,
+          "min": 0,
+          "max": 120
         }
       }
     },
@@ -263,16 +430,16 @@
       "name": "TextSwap",
       "category": "Text",
       "role": "text",
-      "description": "Slot-machine style text swap from initial to final text.",
+      "description": "Swaps one word for another with a roll/slide/3D-flip (text swap / word flip / before-after). Use for \"X becomes Y\" transformations, before/after, or punchlines.",
       "props": {
         "initialText": {
-          "type": "string",
+          "type": "text-long",
           "label": "Initial Text",
           "description": "Text shown before swap",
           "default": "BEFORE"
         },
         "finalText": {
-          "type": "string",
+          "type": "text-long",
           "label": "Final Text",
           "description": "Text shown after swap",
           "default": "AFTER"
@@ -288,6 +455,43 @@
           "label": "Final Color",
           "description": "Color of final text",
           "default": "#10b981"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 80,
+          "min": 16,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 800,
+          "min": 100,
+          "max": 1600
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Swap direction / style",
+          "default": "up",
+          "options": [
+            "up",
+            "down",
+            "left",
+            "right",
+            "3d"
+          ]
+        },
+        "swapDelay": {
+          "type": "number",
+          "label": "Swap Delay",
+          "description": "Frames before the swap happens",
+          "default": 30,
+          "min": 0,
+          "max": 120
         }
       }
     },
@@ -295,12 +499,62 @@
       "name": "GlitchTitle",
       "category": "Text",
       "role": "text",
-      "description": "Title with glitch effect using RGB channel separation and clip paths.",
+      "description": "Title with a digital glitch: RGB channel split, jitter and clip-path tears (glitch / distortion / cyberpunk / datamosh title). Use for edgy, tech, gaming, or error/alert vibes.",
       "props": {
         "text": {
-          "type": "string",
+          "type": "text-long",
           "label": "Text",
-          "description": "The title text"
+          "description": "The title text (supports line breaks)"
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Main text color",
+          "default": "#ffffff"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 80,
+          "min": 12,
+          "max": 250
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 900,
+          "min": 100,
+          "max": 1600
+        },
+        "glitchColor1": {
+          "type": "color",
+          "label": "Glitch Color 1",
+          "description": "First glitch channel color",
+          "default": "#ff0000"
+        },
+        "glitchColor2": {
+          "type": "color",
+          "label": "Glitch Color 2",
+          "description": "Second glitch channel color",
+          "default": "#00ffff"
+        },
+        "glitchIntensity": {
+          "type": "number",
+          "label": "Glitch Intensity",
+          "description": "Channel offset when glitching (px)",
+          "default": 10,
+          "min": 0,
+          "max": 60
+        },
+        "glitchAmount": {
+          "type": "number",
+          "label": "Glitch Amount",
+          "description": "How often it glitches (0-1)",
+          "default": 0.2,
+          "min": 0,
+          "max": 1
         }
       }
     },
@@ -308,23 +562,39 @@
       "name": "GradientText",
       "category": "Text",
       "role": "text",
-      "description": "Text filled with an animated (shimmering) color gradient. Modern, eye-catching headline style.",
+      "description": "Text filled with an animated shimmering color gradient that flows across the letters (gradient / holographic / iridescent headline). Modern and eye-catching. Use for hero titles and brand words.",
       "props": {
         "text": {
-          "type": "string",
+          "type": "text-long",
           "label": "Text",
-          "description": "The text",
+          "description": "The text (supports line breaks)",
           "default": "Texto degradado"
         },
-        "colors": {
-          "type": "list",
-          "label": "Colors",
-          "description": "Gradient colors (2-4)",
-          "default": [
-            "#00FFAB",
-            "#38bdf8",
-            "#a855f7"
-          ]
+        "color1": {
+          "type": "color",
+          "label": "Color 1",
+          "description": "Gradient color 1",
+          "default": "#00FFAB"
+        },
+        "color2": {
+          "type": "color",
+          "label": "Color 2",
+          "description": "Gradient color 2",
+          "default": "#38bdf8"
+        },
+        "color3": {
+          "type": "color",
+          "label": "Color 3",
+          "description": "Gradient color 3 (empty = 2 colors)",
+          "default": "#a855f7"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px). Empty = auto",
+          "default": 0,
+          "min": 0,
+          "max": 250
         },
         "angle": {
           "type": "number",
@@ -349,6 +619,14 @@
           "default": 900,
           "min": 100,
           "max": 900
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px). Empty = auto",
+          "default": 0,
+          "min": 0,
+          "max": 1920
         }
       }
     },
@@ -356,13 +634,19 @@
       "name": "StrikethroughText",
       "category": "Text",
       "role": "text",
-      "description": "Text with an animated strikethrough line that appears after the text.",
+      "description": "Text with a line that animates through it, crossing it out after it appears (strikethrough / cross-out / \"not this\" effect). Crosses ALL lines when multi-line. Use to negate or correct.",
       "props": {
         "text": {
-          "type": "string",
+          "type": "text-long",
           "label": "Text",
-          "description": "The text to strikethrough",
+          "description": "The text to strikethrough (supports line breaks)",
           "default": "Strikethrough"
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
         },
         "strikeColor": {
           "type": "color",
@@ -376,7 +660,23 @@
           "description": "Thickness of the strikethrough line",
           "default": 8,
           "min": 2,
-          "max": 20
+          "max": 30
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 80,
+          "min": 12,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 900,
+          "min": 100,
+          "max": 1600
         }
       }
     },
@@ -384,13 +684,19 @@
       "name": "UnderlineReveal",
       "category": "Text",
       "role": "text",
-      "description": "Text with an animated underline that draws in from left to right.",
+      "description": "Text with an underline that draws in from left to right beneath it (animated / pen-stroke underline). Each line gets its own underline when multi-line. Use to emphasize a key word or term.",
       "props": {
         "text": {
-          "type": "string",
+          "type": "text-long",
           "label": "Text",
-          "description": "The text to underline",
+          "description": "The text to underline (supports line breaks)",
           "default": "Underline"
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
         },
         "underlineColor": {
           "type": "color",
@@ -404,7 +710,23 @@
           "description": "Thickness of the underline",
           "default": 6,
           "min": 2,
-          "max": 20
+          "max": 30
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 80,
+          "min": 12,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 900,
+          "min": 100,
+          "max": 1600
         }
       }
     },
@@ -412,18 +734,48 @@
       "name": "HighlightText",
       "category": "Text",
       "role": "text",
-      "description": "Text with a highlighter effect that sweeps across from left to right.",
+      "description": "Text with a marker/highlighter swipe that sweeps a colored band across it (highlight / marker pen / emphasis). Highlights ALL lines when multi-line. Use to spotlight the most important words.",
       "props": {
         "text": {
-          "type": "string",
+          "type": "text-long",
           "label": "Text",
-          "description": "The text to highlight"
+          "description": "The text to highlight (supports line breaks)"
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color (dark reads well over the marker)",
+          "default": "#0f172a"
         },
         "highlightColor": {
           "type": "color",
           "label": "Highlight Color",
-          "description": "Color of the highlight",
+          "description": "Color of the marker",
           "default": "#eab308"
+        },
+        "highlightHeight": {
+          "type": "number",
+          "label": "Highlight Height",
+          "description": "Marker band height (% of line)",
+          "default": 45,
+          "min": 10,
+          "max": 100
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 80,
+          "min": 12,
+          "max": 250
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 900,
+          "min": 100,
+          "max": 1600
         }
       }
     },
@@ -431,12 +783,18 @@
       "name": "IconifyIcon",
       "category": "UI",
       "role": "ui",
-      "description": "Renders an Iconify icon by name (e.g., \"mdi:heart\"). Supports entry/exit animations.",
+      "description": "Renders any icon from the Iconify library by name (e.g. \"mdi:heart\") — 200k+ icons, logos and symbols (icon / pictogram / glyph / logo). The default way to show a single icon; supports entry/exit and continuous animation (bounce/pulse/spin/float/shake). For an icon that reacts to a spoken word use KeywordPop.",
       "props": {
         "icon": {
           "type": "icon",
           "label": "Icon",
           "description": "Iconify icon name (prefix:name format)"
+        },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Icon color",
+          "default": "#ffffff"
         },
         "size": {
           "type": "number",
@@ -445,6 +803,20 @@
           "default": 120,
           "min": 16,
           "max": 500
+        },
+        "animation": {
+          "type": "select",
+          "label": "Animation",
+          "description": "Continuous motion (none = subtle idle)",
+          "default": "none",
+          "options": [
+            "none",
+            "bounce",
+            "pulse",
+            "spin",
+            "float",
+            "shake"
+          ]
         },
         "entry": {
           "type": "select",
@@ -497,67 +869,27 @@
       }
     },
     {
-      "name": "AnimatedIcon",
-      "category": "UI",
-      "role": "ui",
-      "description": "Animated SVG icon with bounce, pulse, spin, float, or shake animations.",
-      "props": {
-        "icon": {
-          "type": "select",
-          "label": "Icon",
-          "description": "Icon type",
-          "default": "star",
-          "options": [
-            "star",
-            "heart",
-            "arrow",
-            "check",
-            "cross",
-            "bolt",
-            "fire",
-            "rocket",
-            "diamond",
-            "crown"
-          ]
-        },
-        "animation": {
-          "type": "select",
-          "label": "Animation",
-          "description": "Continuous animation type",
-          "default": "bounce",
-          "options": [
-            "bounce",
-            "pulse",
-            "spin",
-            "float",
-            "shake"
-          ]
-        },
-        "size": {
-          "type": "number",
-          "label": "Size",
-          "description": "Icon size in pixels",
-          "default": 120,
-          "min": 16,
-          "max": 500
-        }
-      }
-    },
-    {
       "name": "KeywordPop",
       "category": "UI",
       "role": "ui",
-      "description": "Icon that pops in when a specific trigger word is spoken (synced to audio timestamps).",
+      "description": "An icon that pops onto the screen exactly when a specific word is spoken, synced to the audio timestamps (word-triggered icon / keyword highlight / pop-on-cue). Use to punctuate narration with a visual at the right moment.",
       "props": {
         "icon": {
           "type": "icon",
           "label": "Icon",
-          "description": "Iconify icon name (prefix:name format)"
+          "description": "Iconify icon name (prefix:name format)",
+          "default": "mdi:fire"
         },
         "triggerWord": {
           "type": "string",
           "label": "Trigger Word",
           "description": "Word that triggers the icon appearance"
+        },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Icon color",
+          "default": "#ffffff"
         },
         "size": {
           "type": "number",
@@ -566,6 +898,14 @@
           "default": 160,
           "min": 16,
           "max": 500
+        },
+        "glow": {
+          "type": "number",
+          "label": "Glow",
+          "description": "Halo/glow radius behind the icon (0 = off)",
+          "default": 0,
+          "min": 0,
+          "max": 100
         },
         "wordTimestamps": {
           "type": "list",
@@ -578,8 +918,18 @@
       "name": "KineticBackground",
       "category": "Background",
       "role": "background",
-      "description": "Animated gradient background with slow shifting colors.",
+      "description": "Full-screen animated gradient background with slowly shifting, morphing colors (gradient backdrop / aurora / mesh-gradient / ambient color wash). The default lively background behind any content. Use when you want motion without distracting shapes.",
       "props": {
+        "type": {
+          "type": "select",
+          "label": "Type",
+          "description": "Gradient type",
+          "default": "linear",
+          "options": [
+            "linear",
+            "radial"
+          ]
+        },
         "color1": {
           "type": "color",
           "label": "Color 1",
@@ -592,10 +942,32 @@
           "description": "Secondary gradient color",
           "default": "#312e81"
         },
+        "color3": {
+          "type": "color",
+          "label": "Color 3",
+          "description": "Optional third color (empty = 2 colors)",
+          "default": ""
+        },
+        "angle": {
+          "type": "number",
+          "label": "Angle",
+          "description": "Base angle for linear gradient (deg)",
+          "default": 135,
+          "min": 0,
+          "max": 360
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Gradient sway speed",
+          "default": 1,
+          "min": 0,
+          "max": 5
+        },
         "theme": {
           "type": "select",
-          "label": "Theme",
-          "description": "Preset color theme",
+          "label": "Theme (legacy)",
+          "description": "Legacy color preset; \"default\" uses color1/2/3",
           "default": "default",
           "options": [
             "default",
@@ -609,7 +981,7 @@
       "name": "ParticleField",
       "category": "Background",
       "role": "background",
-      "description": "Floating particle field with configurable density and colors.",
+      "description": "Field of small floating particles drifting across the screen (particles / dust / sparkles / floating dots / confetti-like specks). Atomic: color, transparent background by default, density, speed, size + glow, flow direction. Confinable to a region via Universal x/y (center) + width/height. Use for ambiance, magic/tech mood, or subtle motion behind text.",
       "props": {
         "color1": {
           "type": "color",
@@ -617,11 +989,11 @@
           "description": "Color of the particles",
           "default": "#ffffff"
         },
-        "color2": {
+        "bgColor": {
           "type": "color",
           "label": "Background Color",
-          "description": "Background color",
-          "default": "#0f172a"
+          "description": "Background color (\"transparent\" to overlay)",
+          "default": ""
         },
         "density": {
           "type": "number",
@@ -630,6 +1002,46 @@
           "default": 50,
           "min": 10,
           "max": 200
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Movement speed",
+          "default": 1,
+          "min": 0,
+          "max": 5
+        },
+        "particleSize": {
+          "type": "number",
+          "label": "Particle Size",
+          "description": "Base particle size (px)",
+          "default": 3,
+          "min": 1,
+          "max": 30
+        },
+        "sizeVariation": {
+          "type": "number",
+          "label": "Size Variation",
+          "description": "Random size variation (px)",
+          "default": 4,
+          "min": 0,
+          "max": 30
+        },
+        "glow": {
+          "type": "boolean",
+          "label": "Glow",
+          "description": "Glow around each particle",
+          "default": true
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Flow direction",
+          "default": "up",
+          "options": [
+            "up",
+            "down"
+          ]
         }
       }
     },
@@ -637,32 +1049,54 @@
       "name": "FloatingBlobs",
       "category": "Background",
       "role": "background",
-      "description": "Fondo ambiental de glows de color suaves y difusos. Opacidad vía Universal Props.",
+      "description": "Soft, blurry, drifting color glows (ambient gradient orbs / bokeh-like backdrop). NOT hard shapes. Confinable to a region with Universal x/y (center) + width/height, so it can fill only half the screen, move up, stretch or shrink; blobs distribute inside that box. Up to 20 blobs; smaller blobSize + higher count = many small glows with space between them. Opacity via Universal Props.",
       "props": {
         "color1": {
           "type": "color",
           "label": "Color 1",
-          "description": "Color del primer glow",
+          "description": "First glow color",
           "default": "#f43f5e"
         },
         "color2": {
           "type": "color",
           "label": "Color 2",
-          "description": "Color del segundo glow",
+          "description": "Second glow color",
           "default": "#38bdf8"
+        },
+        "color3": {
+          "type": "color",
+          "label": "Color 3",
+          "description": "Third glow color (colors cycle per blob)",
+          "default": "#a855f7"
         },
         "count": {
           "type": "number",
-          "label": "Cantidad de glows",
-          "description": "Número de glows (1-5)",
-          "default": 2,
+          "label": "Count",
+          "description": "Number of glows (1-20)",
+          "default": 3,
           "min": 1,
-          "max": 5
+          "max": 20
+        },
+        "blobSize": {
+          "type": "number",
+          "label": "Blob Size",
+          "description": "Base glow diameter (% of vmin)",
+          "default": 40,
+          "min": 5,
+          "max": 120
+        },
+        "sizeVariation": {
+          "type": "number",
+          "label": "Size Variation",
+          "description": "Random size variation between blobs (0-1)",
+          "default": 0.4,
+          "min": 0,
+          "max": 1
         },
         "blur": {
           "type": "number",
-          "label": "Desenfoque",
-          "description": "Desenfoque del conjunto (vmin)",
+          "label": "Blur",
+          "description": "Overall softness (vmin)",
           "default": 6,
           "min": 0,
           "max": 20
@@ -673,7 +1107,7 @@
       "name": "RaysOfLight",
       "category": "Background",
       "role": "background",
-      "description": "Rotating light rays emanating from center with soft gradient.",
+      "description": "Rotating light rays beaming out from a point (god rays / sunburst / radial beams / starburst / light rays). Atomic: ray color, transparent background by default, ray count, thickness, opacity, spin speed and fade. Positionable origin via x/y; rays span the diagonal so they cover corners in any aspect (incl. vertical 9:16). Use for divine/hero reveals or an energetic radial backdrop.",
       "props": {
         "color1": {
           "type": "color",
@@ -681,19 +1115,51 @@
           "description": "Color of the light rays",
           "default": "#ffffff"
         },
-        "color2": {
+        "bgColor": {
           "type": "color",
           "label": "Background Color",
-          "description": "Background color",
-          "default": "#0f172a"
+          "description": "Background color (\"transparent\" to overlay)",
+          "default": ""
         },
         "numRays": {
           "type": "number",
           "label": "Number of Rays",
           "description": "How many rays to render",
           "default": 12,
-          "min": 4,
-          "max": 36
+          "min": 2,
+          "max": 72
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Spin speed (deg/frame; negative = reverse)",
+          "default": 0.5,
+          "min": -5,
+          "max": 5
+        },
+        "rayWidth": {
+          "type": "number",
+          "label": "Ray Width",
+          "description": "Thickness of each ray (vh)",
+          "default": 10,
+          "min": 1,
+          "max": 40
+        },
+        "rayOpacity": {
+          "type": "number",
+          "label": "Ray Opacity",
+          "description": "Opacity of each ray (0-1)",
+          "default": 0.1,
+          "min": 0,
+          "max": 1
+        },
+        "fade": {
+          "type": "number",
+          "label": "Fade",
+          "description": "Where rays fade out from the origin (% radius)",
+          "default": 80,
+          "min": 20,
+          "max": 120
         }
       }
     },
@@ -701,19 +1167,94 @@
       "name": "AbstractWave",
       "category": "Background",
       "role": "background",
-      "description": "Multiple overlapping sine waves with glow effects.",
+      "description": "Smooth overlapping sine waves (flowing wavy lines / audio-like ribbons) with glow. Decorative accent, positionable with x/y + width/height. Fully tunable: number of waves, color, amplitude, frequency, travel speed/direction and vertical separation.",
       "props": {
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Wave color",
+          "default": "#818cf8"
+        },
+        "waveCount": {
+          "type": "number",
+          "label": "Waves",
+          "description": "Number of overlapping waves",
+          "default": 3,
+          "min": 1,
+          "max": 8
+        },
+        "amplitude": {
+          "type": "number",
+          "label": "Amplitude",
+          "description": "Peak wave height (px)",
+          "default": 150,
+          "min": 10,
+          "max": 400
+        },
+        "frequency": {
+          "type": "number",
+          "label": "Frequency",
+          "description": "Number of crests across the width",
+          "default": 1,
+          "min": 0.2,
+          "max": 4
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Travel speed",
+          "default": 1,
+          "min": 0,
+          "max": 5
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Wave travel direction",
+          "default": "right",
+          "options": [
+            "right",
+            "left",
+            "still"
+          ]
+        },
+        "separation": {
+          "type": "number",
+          "label": "Separation",
+          "description": "Vertical gap between waves (px)",
+          "default": 0,
+          "min": 0,
+          "max": 300
+        },
+        "strokeWidth": {
+          "type": "number",
+          "label": "Stroke Width",
+          "description": "Main wave thickness (px)",
+          "default": 12,
+          "min": 1,
+          "max": 40
+        },
         "width": {
           "type": "number",
           "label": "Width",
           "description": "Wave container width",
-          "default": 1080
+          "default": 1080,
+          "min": 200,
+          "max": 1920
         },
         "height": {
           "type": "number",
           "label": "Height",
           "description": "Wave container height",
-          "default": 400
+          "default": 400,
+          "min": 50,
+          "max": 1080
+        },
+        "glow": {
+          "type": "boolean",
+          "label": "Glow",
+          "description": "Glow around the waves",
+          "default": true
         }
       }
     },
@@ -721,7 +1262,7 @@
       "name": "KenBurns",
       "category": "Background",
       "role": "background",
-      "description": "Cinematic full-bleed Ken Burns effect (slow zoom/pan) over an image, with animated gradient fallback when no image. Ideal for visual-only scenes.",
+      "description": "Ken Burns effect: slow cinematic ZOOM and PAN over a photo/image (documentary camera move / slow zoom / image pan). This is camera motion over an IMAGE, NOT a gradient — when no image url is given it falls back to a moving gradient plate just so the scene is not empty. Use to bring still photos to life in visual scenes.",
       "props": {
         "url": {
           "type": "string",
@@ -777,7 +1318,7 @@
       "name": "CinematicBars",
       "category": "Background",
       "role": "background",
-      "description": "Letterbox / cinematic black bars (top + bottom) for a 2.39:1 film look. Overlay that pairs with KenBurns for visual scenes.",
+      "description": "Letterbox / cinematic black bars (top + bottom) for a 2.39:1 film look. Full-screen overlay; pairs with KenBurns for visual scenes. Its own slide-in can be turned off (animate=false) so the layer entry/exit (fade-in/out) controls it instead. Note: it only DRAWS the bars — it does not reflow content into the visible band.",
       "props": {
         "size": {
           "type": "number",
@@ -785,7 +1326,7 @@
           "description": "Bar height as % of canvas (per bar)",
           "default": 11,
           "min": 0,
-          "max": 25
+          "max": 50
         },
         "color": {
           "type": "color",
@@ -796,8 +1337,16 @@
         "animate": {
           "type": "boolean",
           "label": "Animate",
-          "description": "Slide bars in",
+          "description": "Slide bars in (turn off to use layer fade-in/out)",
           "default": true
+        },
+        "duration": {
+          "type": "number",
+          "label": "Slide Duration",
+          "description": "Frames for the slide-in",
+          "default": 18,
+          "min": 1,
+          "max": 90
         }
       }
     },
@@ -805,12 +1354,12 @@
       "name": "Spotlight",
       "category": "Background",
       "role": "background",
-      "description": "Theatrical spotlight overlay: lights the center and darkens the edges to focus attention on the subject. Full-screen, cinematic.",
+      "description": "Theatrical spotlight: lights a point and darkens the rest to focus attention (spotlight / vignette / focus / iris). Positionable via x/y (absolute center); radius controls how much is lit (small = only part of the screen). Optional iris-in entrance (the light opens up) and subtle breathing. Full-screen overlay, cinematic.",
       "props": {
         "radius": {
           "type": "number",
           "label": "Radius",
-          "description": "Spotlight size (% of canvas)",
+          "description": "Spotlight size (% of canvas; small = lights only part)",
           "default": 55,
           "min": 10,
           "max": 95
@@ -820,6 +1369,14 @@
           "label": "Darkness",
           "description": "Edge darkness (0-1)",
           "default": 0.7,
+          "min": 0,
+          "max": 1
+        },
+        "softness": {
+          "type": "number",
+          "label": "Softness",
+          "description": "Edge softness (0 = hard, 1 = very diffuse)",
+          "default": 0.45,
           "min": 0,
           "max": 1
         },
@@ -834,6 +1391,28 @@
           "label": "Animate",
           "description": "Subtle breathing of the spotlight",
           "default": true
+        },
+        "breatheSpeed": {
+          "type": "number",
+          "label": "Breathe Speed",
+          "description": "Speed of the breathing",
+          "default": 0.8,
+          "min": 0,
+          "max": 5
+        },
+        "irisIn": {
+          "type": "boolean",
+          "label": "Iris In",
+          "description": "Open the spotlight from closed on entry",
+          "default": false
+        },
+        "irisFrames": {
+          "type": "number",
+          "label": "Iris Frames",
+          "description": "Frames for the iris-in opening",
+          "default": 20,
+          "min": 1,
+          "max": 90
         }
       }
     },
@@ -841,7 +1420,7 @@
       "name": "CameraShake",
       "category": "Background",
       "role": "background",
-      "description": "Scene-wide handheld camera shake (affects the WHOLE scene, not one layer). Use for impact/energy moments. It draws nothing by itself.",
+      "description": "Scene-wide handheld camera shake (affects the WHOLE scene). Use for impact/energy moments. It draws nothing by itself. To shake only SOME layers together (e.g. a title + a wave), put them in a group layer and set the group's \"cameraShake\" instead of adding this component.",
       "props": {
         "intensity": {
           "type": "number",
@@ -879,21 +1458,39 @@
       "name": "GlobalVFX",
       "category": "Background",
       "role": "background",
-      "description": "Full-screen film grain, vignette, and chromatic aberration overlay.",
+      "description": "Old analog TV with NO SIGNAL overlay: animated static / snow (white-noise grain), CRT scanlines, screen flicker and vignette. Dead-channel / VHS / retro glitch look. Full-screen overlay (does not reposition).",
       "props": {
         "intensity": {
           "type": "number",
           "label": "Intensity",
-          "description": "VFX intensity (0-1)",
+          "description": "Overall effect strength (0-1)",
           "default": 0.5,
           "min": 0,
           "max": 1
         },
-        "withLensCurve": {
+        "scanlines": {
           "type": "boolean",
-          "label": "Lens Curve",
-          "description": "Enable CRT/vignette effect",
+          "label": "Scanlines",
+          "description": "CRT horizontal scan lines",
           "default": true
+        },
+        "vignette": {
+          "type": "boolean",
+          "label": "Vignette",
+          "description": "Dark edges (tube curvature)",
+          "default": true
+        },
+        "flicker": {
+          "type": "boolean",
+          "label": "Flicker",
+          "description": "Screen brightness flicker",
+          "default": true
+        },
+        "tint": {
+          "type": "color",
+          "label": "Tint",
+          "description": "Optional static color tint (e.g. bluish dead channel)",
+          "default": ""
         }
       }
     },
@@ -901,7 +1498,7 @@
       "name": "NetworkNodes",
       "category": "Background",
       "role": "background",
-      "description": "Full-screen ambient \"neural network\" background: nodes drift and connect by proximity. Deterministic. Good behind text or as a visual-only backdrop.",
+      "description": "Ambient \"neural network\" / constellation: dots that drift and connect by proximity (network / nodes / plexus / connections / tech mesh). Positions are random-but-deterministic (change \"seed\" for a new layout). Confinable to a region via Universal x/y (center) + width/height. Good behind text or as a visual-only backdrop.",
       "props": {
         "nodeColor": {
           "type": "color",
@@ -936,6 +1533,38 @@
           "default": 1,
           "min": 0,
           "max": 4
+        },
+        "nodeSize": {
+          "type": "number",
+          "label": "Node Size",
+          "description": "Base node radius (px)",
+          "default": 6,
+          "min": 1,
+          "max": 30
+        },
+        "lineWidth": {
+          "type": "number",
+          "label": "Line Width",
+          "description": "Connection thickness (px)",
+          "default": 2,
+          "min": 1,
+          "max": 10
+        },
+        "drift": {
+          "type": "number",
+          "label": "Drift",
+          "description": "Movement amount (0 = static)",
+          "default": 1,
+          "min": 0,
+          "max": 3
+        },
+        "seed": {
+          "type": "number",
+          "label": "Seed",
+          "description": "Layout seed (change for a different arrangement)",
+          "default": 0,
+          "min": 0,
+          "max": 100
         }
       }
     },
@@ -943,8 +1572,18 @@
       "name": "GradientOverlay",
       "category": "Background",
       "role": "background",
-      "description": "Fading gradient overlay with configurable angle and opacity.",
+      "description": "Gradient layer placed ON TOP of content to darken/tint it (scrim / vignette gradient / color wash / readability overlay). Linear or radial, up to 3 colors with an adjustable mid-point (to make the middle color weigh more/less), angle (linear) or center+size (radial, which also positions it). Accepts rgba()/transparent. Use to improve text legibility or to tint a scene.",
       "props": {
+        "type": {
+          "type": "select",
+          "label": "Type",
+          "description": "Linear (directional) or radial (round, from a point)",
+          "default": "linear",
+          "options": [
+            "linear",
+            "radial"
+          ]
+        },
         "color1": {
           "type": "color",
           "label": "Color 1",
@@ -954,16 +1593,54 @@
         "color2": {
           "type": "color",
           "label": "Color 2",
-          "description": "End gradient color",
+          "description": "End (or middle) gradient color",
           "default": "transparent"
+        },
+        "color3": {
+          "type": "color",
+          "label": "Color 3",
+          "description": "Optional third color (empty = 2 colors)",
+          "default": ""
+        },
+        "midPoint": {
+          "type": "number",
+          "label": "Mid Point",
+          "description": "Position % of the middle color (when 3 colors)",
+          "default": 50,
+          "min": 0,
+          "max": 100
         },
         "angle": {
           "type": "number",
           "label": "Angle",
-          "description": "Gradient angle in degrees",
+          "description": "Gradient angle in degrees (linear)",
           "default": 180,
           "min": 0,
           "max": 360
+        },
+        "centerX": {
+          "type": "number",
+          "label": "Center X",
+          "description": "Radial center X (% of canvas)",
+          "default": 50,
+          "min": 0,
+          "max": 100
+        },
+        "centerY": {
+          "type": "number",
+          "label": "Center Y",
+          "description": "Radial center Y (% of canvas)",
+          "default": 50,
+          "min": 0,
+          "max": 100
+        },
+        "radius": {
+          "type": "number",
+          "label": "Radius",
+          "description": "Radial size (% of canvas)",
+          "default": 75,
+          "min": 10,
+          "max": 150
         },
         "opacity": {
           "type": "number",
@@ -979,7 +1656,7 @@
       "name": "GridPerspective",
       "category": "Background",
       "role": "background",
-      "description": "Retro perspective grid moving forward with continuous loop.",
+      "description": "Retro perspective floor grid scrolling toward the horizon (synthwave / retrowave / outrun / Tron / 80s neon grid). Atomic: line color, transparent background by default, line density (cellSize) & width, movement direction (forward/backward/left/right), perspective angle & depth. Use for retro, gaming, music or tech-nostalgia backdrops.",
       "props": {
         "color1": {
           "type": "color",
@@ -987,19 +1664,63 @@
           "description": "Color of the grid lines",
           "default": "#38bdf8"
         },
-        "color2": {
+        "bgColor": {
           "type": "color",
           "label": "Background Color",
-          "description": "Background color",
-          "default": "#0f172a"
+          "description": "Background color (\"transparent\" to overlay)",
+          "default": ""
+        },
+        "lineWidth": {
+          "type": "number",
+          "label": "Line Width",
+          "description": "Grid line thickness (px)",
+          "default": 2,
+          "min": 1,
+          "max": 10
+        },
+        "cellSize": {
+          "type": "number",
+          "label": "Cell Size",
+          "description": "Spacing between lines (px). Smaller = more lines",
+          "default": 100,
+          "min": 20,
+          "max": 300
         },
         "speed": {
           "type": "number",
           "label": "Speed",
           "description": "Grid movement speed",
           "default": 4,
-          "min": 1,
+          "min": 0,
           "max": 20
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Movement direction",
+          "default": "forward",
+          "options": [
+            "forward",
+            "backward",
+            "left",
+            "right"
+          ]
+        },
+        "angle": {
+          "type": "number",
+          "label": "Angle",
+          "description": "Perspective tilt (deg)",
+          "default": 60,
+          "min": 20,
+          "max": 85
+        },
+        "perspective": {
+          "type": "number",
+          "label": "Perspective",
+          "description": "Perspective depth (px). Lower = more extreme",
+          "default": 600,
+          "min": 200,
+          "max": 1500
         }
       }
     },
@@ -1007,7 +1728,7 @@
       "name": "StyleBadge",
       "category": "UI",
       "role": "ui",
-      "description": "Status badge with variant colors (success, warning, error, info, neutral) and optional icon.",
+      "description": "Small status badge/pill with semantic color presets — success, warning, error, info, neutral — and an optional icon (badge / status / label / pill). Colors, font and shape are fully overridable. Use for statuses and small labels. For keyword/filter tags use StyleChip; for a big decorative floating sticker use FloatingBadge.",
       "props": {
         "text": {
           "type": "string",
@@ -1018,7 +1739,7 @@
         "variant": {
           "type": "select",
           "label": "Variant",
-          "description": "Badge color variant",
+          "description": "Color preset (overridden by colors below)",
           "default": "neutral",
           "options": [
             "success",
@@ -1036,7 +1757,7 @@
         "size": {
           "type": "select",
           "label": "Size",
-          "description": "Badge size",
+          "description": "Size preset (padding/font)",
           "default": "md",
           "options": [
             "sm",
@@ -1044,11 +1765,59 @@
             "lg"
           ]
         },
-        "shadow": {
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Badge color (empty = variant)",
+          "default": ""
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color (empty = variant)",
+          "default": ""
+        },
+        "iconColor": {
+          "type": "color",
+          "label": "Icon Color",
+          "description": "Icon color (empty = text color)",
+          "default": ""
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width in px (>0 wraps lines)",
+          "default": 0,
+          "min": 0,
+          "max": 1200
+        },
+        "uppercase": {
           "type": "boolean",
-          "label": "Sombra",
-          "description": "Mostrar boxShadow",
+          "label": "Uppercase",
+          "description": "Force uppercase text",
           "default": true
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Border Width",
+          "description": "Border thickness (px)",
+          "default": 0,
+          "min": 0,
+          "max": 20
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Border color",
+          "default": "transparent"
         },
         "borderRadius": {
           "type": "number",
@@ -1057,6 +1826,18 @@
           "default": 999,
           "min": 0,
           "max": 999
+        },
+        "shadow": {
+          "type": "boolean",
+          "label": "Sombra",
+          "description": "Mostrar boxShadow",
+          "default": true
+        },
+        "animateIn": {
+          "type": "boolean",
+          "label": "Animate In",
+          "description": "Built-in bounce entry (off = use layer entry/exit)",
+          "default": true
         }
       }
     },
@@ -1064,7 +1845,7 @@
       "name": "StyleButton",
       "category": "UI",
       "role": "ui",
-      "description": "Button with variant styles (primary, secondary, ghost, outline) and optional icon.",
+      "description": "A button with primary/secondary/ghost/outline presets and an optional icon (button / CTA / action). Colors, font and width/height fully overridable. Use for calls-to-action and UI mockups.",
       "props": {
         "text": {
           "type": "string",
@@ -1075,7 +1856,7 @@
         "variant": {
           "type": "select",
           "label": "Variant",
-          "description": "Button style variant",
+          "description": "Color preset (overridden by colors below)",
           "default": "primary",
           "options": [
             "primary",
@@ -1087,7 +1868,7 @@
         "size": {
           "type": "select",
           "label": "Size",
-          "description": "Button size",
+          "description": "Size preset (padding/font defaults)",
           "default": "md",
           "options": [
             "sm",
@@ -1110,19 +1891,81 @@
             "right"
           ]
         },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Button color (empty = variant)",
+          "default": ""
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color (empty = variant)",
+          "default": ""
+        },
+        "iconColor": {
+          "type": "color",
+          "label": "Icon Color",
+          "description": "Icon color (empty = text color)",
+          "default": ""
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Fixed width in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 1600
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Fixed height in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 600
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Border Width",
+          "description": "Border thickness (px)",
+          "default": 0,
+          "min": 0,
+          "max": 20
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Border color (empty = text color)",
+          "default": ""
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Radio de borde",
+          "description": "px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 999
+        },
         "shadow": {
           "type": "boolean",
           "label": "Sombra",
           "description": "Mostrar boxShadow",
           "default": true
         },
-        "borderRadius": {
-          "type": "number",
-          "label": "Radio de borde",
-          "description": "px (override)",
-          "default": 14,
-          "min": 0,
-          "max": 999
+        "animateIn": {
+          "type": "boolean",
+          "label": "Animate In",
+          "description": "Built-in pop entry (off = use layer entry/exit)",
+          "default": true
         }
       }
     },
@@ -1130,7 +1973,7 @@
       "name": "StyleCard",
       "category": "UI",
       "role": "ui",
-      "description": "Card container with elevated, filled, outlined, or glass variants.",
+      "description": "Generic card container/panel with elevated, filled, outlined or glass (frosted) presets (card / panel / tile / surface). Title + subtitle wrap long text. Colors, fonts, border and shadow fully overridable. Use to group content onto a contained surface.",
       "props": {
         "title": {
           "type": "string",
@@ -1138,14 +1981,14 @@
           "description": "Card title"
         },
         "subtitle": {
-          "type": "string",
+          "type": "text-long",
           "label": "Subtitle",
-          "description": "Card subtitle"
+          "description": "Card subtitle (wraps)"
         },
         "variant": {
           "type": "select",
           "label": "Variant",
-          "description": "Card style variant",
+          "description": "Style preset (overridden by props below)",
           "default": "elevated",
           "options": [
             "elevated",
@@ -1157,13 +2000,94 @@
         "width": {
           "type": "number",
           "label": "Width",
-          "description": "Card width",
-          "default": 400
+          "description": "Card width in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 1920
         },
         "height": {
           "type": "number",
           "label": "Height",
-          "description": "Card height"
+          "description": "Card height in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 1920
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Card color (empty = variant)",
+          "default": ""
+        },
+        "titleColor": {
+          "type": "color",
+          "label": "Title Color",
+          "description": "Title text color",
+          "default": "#FFFFFF"
+        },
+        "subtitleColor": {
+          "type": "color",
+          "label": "Subtitle Color",
+          "description": "Subtitle text color",
+          "default": "#94A3B8"
+        },
+        "titleSize": {
+          "type": "number",
+          "label": "Title Size",
+          "description": "Title size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
+        },
+        "subtitleSize": {
+          "type": "number",
+          "label": "Subtitle Size",
+          "description": "Subtitle size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Border color (empty = variant)",
+          "default": ""
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Border Width",
+          "description": "Border thickness px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 30
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Corner Radius",
+          "description": "Corner radius px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 120
+        },
+        "padding": {
+          "type": "number",
+          "label": "Padding",
+          "description": "Inner padding px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
+        },
+        "shadow": {
+          "type": "boolean",
+          "label": "Shadow",
+          "description": "Drop shadow (default per variant)",
+          "default": true
+        },
+        "animateIn": {
+          "type": "boolean",
+          "label": "Animate In",
+          "description": "Built-in slide-up entry (off = use layer entry/exit)",
+          "default": true
         }
       }
     },
@@ -1171,7 +2095,7 @@
       "name": "StyleChip",
       "category": "UI",
       "role": "ui",
-      "description": "Chip/tag component with filled, outlined, or soft variants.",
+      "description": "Chip/tag for keywords, categories or filters, with filled/outlined/soft presets and an optional delete (×) (chip / tag / pill / hashtag / label). Colors, font and shape overridable. Use for tag lists and filters. For a status indicator use StyleBadge.",
       "props": {
         "text": {
           "type": "string",
@@ -1187,13 +2111,13 @@
         "deletable": {
           "type": "boolean",
           "label": "Deletable",
-          "description": "Show delete indicator",
+          "description": "Show delete × indicator",
           "default": false
         },
         "variant": {
           "type": "select",
           "label": "Variant",
-          "description": "Chip style variant",
+          "description": "Color preset (overridden by colors below)",
           "default": "filled",
           "options": [
             "filled",
@@ -1204,13 +2128,81 @@
         "size": {
           "type": "select",
           "label": "Size",
-          "description": "Chip size",
+          "description": "Size preset (padding/font)",
           "default": "md",
           "options": [
             "sm",
             "md",
             "lg"
           ]
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Chip color (empty = variant)",
+          "default": ""
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color (empty = variant)",
+          "default": ""
+        },
+        "iconColor": {
+          "type": "color",
+          "label": "Icon Color",
+          "description": "Icon color (empty = text color)",
+          "default": ""
+        },
+        "closeColor": {
+          "type": "color",
+          "label": "Close × Color",
+          "description": "Delete × color (empty = text color)",
+          "default": ""
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width in px (>0 wraps lines)",
+          "default": 0,
+          "min": 0,
+          "max": 1200
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Border Width",
+          "description": "Border thickness px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 20
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Border color (empty = variant)",
+          "default": ""
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Radio de borde",
+          "description": "px (999 = píldora)",
+          "default": 999,
+          "min": 0,
+          "max": 999
+        },
+        "animateIn": {
+          "type": "boolean",
+          "label": "Animate In",
+          "description": "Built-in pop entry (off = use layer entry/exit)",
+          "default": true
         }
       }
     },
@@ -1218,7 +2210,7 @@
       "name": "StyleDivider",
       "category": "UI",
       "role": "ui",
-      "description": "Horizontal or vertical divider line with solid, dashed, dotted, or gradient styles.",
+      "description": "Divider/separator line, horizontal or vertical, in solid/dashed/dotted/gradient styles (divider / separator / rule / line break). Editable color, thickness and length. Use to split sections of content.",
       "props": {
         "orientation": {
           "type": "select",
@@ -1230,13 +2222,19 @@
             "vertical"
           ]
         },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Line color",
+          "default": "#334155"
+        },
         "thickness": {
           "type": "number",
           "label": "Thickness",
-          "description": "Line thickness",
-          "default": 1,
+          "description": "Line thickness (px)",
+          "default": 2,
           "min": 1,
-          "max": 10
+          "max": 60
         },
         "lineStyle": {
           "type": "select",
@@ -1253,14 +2251,24 @@
         "width": {
           "type": "number",
           "label": "Width",
-          "description": "Divider width",
-          "default": 400
+          "description": "Length when horizontal (px)",
+          "default": 600,
+          "min": 10,
+          "max": 1920
         },
         "height": {
           "type": "number",
           "label": "Height",
-          "description": "Divider height",
-          "default": 200
+          "description": "Length when vertical (px)",
+          "default": 300,
+          "min": 10,
+          "max": 1920
+        },
+        "animateIn": {
+          "type": "boolean",
+          "label": "Animate In",
+          "description": "Built-in grow entry (off = use layer entry/exit)",
+          "default": true
         }
       }
     },
@@ -1268,7 +2276,7 @@
       "name": "StyleAvatar",
       "category": "UI",
       "role": "ui",
-      "description": "Avatar with icon, name, subtitle, animated ring, and optional badge.",
+      "description": "Profile avatar with icon, name, subtitle, an animated ring and optional badge (avatar / profile pic / user chip / account). Variants: solid, ring (rotating dashed ring), gradient (gradient ring). Use to represent a person or account.",
       "props": {
         "icon": {
           "type": "icon",
@@ -1308,6 +2316,62 @@
             "gradient"
           ]
         },
+        "iconColor": {
+          "type": "color",
+          "label": "Icon Color",
+          "description": "Avatar icon color",
+          "default": "#E2E8F0"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Avatar Background",
+          "description": "Circle background color",
+          "default": "#1E293B"
+        },
+        "ringColor": {
+          "type": "color",
+          "label": "Ring Color",
+          "description": "Border/ring color (solid & ring)",
+          "default": ""
+        },
+        "ringWidth": {
+          "type": "number",
+          "label": "Ring Width",
+          "description": "Ring/border thickness in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 30
+        },
+        "gradColor1": {
+          "type": "color",
+          "label": "Gradient 1",
+          "description": "Gradient ring color 1",
+          "default": "#00FFAB"
+        },
+        "gradColor2": {
+          "type": "color",
+          "label": "Gradient 2",
+          "description": "Gradient ring color 2",
+          "default": "#FF8C00"
+        },
+        "gradColor3": {
+          "type": "color",
+          "label": "Gradient 3",
+          "description": "Gradient ring color 3",
+          "default": "#3B82F6"
+        },
+        "nameColor": {
+          "type": "color",
+          "label": "Name Color",
+          "description": "Name text color",
+          "default": "#FFFFFF"
+        },
+        "subtitleColor": {
+          "type": "color",
+          "label": "Subtitle Color",
+          "description": "Subtitle color",
+          "default": "#94A3B8"
+        },
         "showBadge": {
           "type": "boolean",
           "label": "Show Badge",
@@ -1318,67 +2382,18 @@
           "type": "string",
           "label": "Badge Text",
           "description": "Badge content"
-        }
-      }
-    },
-    {
-      "name": "StyleProgressBar",
-      "category": "UI",
-      "role": "ui",
-      "description": "Progress bar with linear or circular variants and animated fill.",
-      "props": {
-        "value": {
-          "type": "number",
-          "label": "Value",
-          "description": "Current progress value",
-          "default": 73,
-          "min": 0,
-          "max": 100
         },
-        "max": {
-          "type": "number",
-          "label": "Max Value",
-          "description": "Maximum value",
-          "default": 100
+        "badgeColor": {
+          "type": "color",
+          "label": "Badge Color",
+          "description": "Badge background color",
+          "default": "#EF4444"
         },
-        "variant": {
-          "type": "select",
-          "label": "Variant",
-          "description": "Progress bar type",
-          "default": "linear",
-          "options": [
-            "linear",
-            "circular"
-          ]
-        },
-        "showLabel": {
-          "type": "boolean",
-          "label": "Show Label",
-          "description": "Display percentage label",
-          "default": true
-        },
-        "labelPosition": {
-          "type": "select",
-          "label": "Label Position",
-          "description": "Label placement",
-          "default": "top",
-          "options": [
-            "top",
-            "bottom",
-            "inside"
-          ]
-        },
-        "size": {
-          "type": "number",
-          "label": "Size",
-          "description": "Circular progress size",
-          "default": 120
-        },
-        "strokeWidth": {
-          "type": "number",
-          "label": "Stroke Width",
-          "description": "Circular progress stroke width",
-          "default": 8
+        "badgeTextColor": {
+          "type": "color",
+          "label": "Badge Text Color",
+          "description": "Badge text color",
+          "default": "#FFFFFF"
         }
       }
     },
@@ -1386,13 +2401,19 @@
       "name": "StyleTicker",
       "category": "UI",
       "role": "ui",
-      "description": "Scrolling ticker tape for financial data or news headlines.",
+      "description": "Horizontal scrolling ticker tape that loops seamlessly (stock ticker / news crawl / marquee / running headlines). Separator char divides items; editable colors, size, direction and loop. Use for finance tickers or news-style scrolling text along a bar.",
       "props": {
         "text": {
           "type": "text-long",
           "label": "Text",
           "description": "Ticker content",
           "default": "BTC $45,230 • ETH $3,120 • SOL $98"
+        },
+        "separator": {
+          "type": "string",
+          "label": "Separator",
+          "description": "Characters shown between repeats/items",
+          "default": " • "
         },
         "speed": {
           "type": "number",
@@ -1402,11 +2423,55 @@
           "min": 0.5,
           "max": 10
         },
-        "separator": {
-          "type": "string",
-          "label": "Separator",
-          "description": "Item separator",
-          "default": " • "
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Scroll direction",
+          "default": "left",
+          "options": [
+            "left",
+            "right"
+          ]
+        },
+        "loop": {
+          "type": "boolean",
+          "label": "Loop",
+          "description": "Endless loop (off = scroll once and stop)",
+          "default": true
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#E2E8F0"
+        },
+        "separatorColor": {
+          "type": "color",
+          "label": "Separator Color",
+          "description": "Separator color (empty = text color)",
+          "default": ""
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Bar background (supports rgba)",
+          "default": "rgba(15, 23, 42, 0.8)"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 28,
+          "min": 10,
+          "max": 120
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Text weight (400-900)",
+          "default": 600,
+          "min": 100,
+          "max": 900
         }
       }
     },
@@ -1414,7 +2479,7 @@
       "name": "StyleAnimateNumber",
       "category": "UI",
       "role": "ui",
-      "description": "Animated counter that interpolates from a starting value to a target.",
+      "description": "Number that animates/counts from a start value to a target, with an optional caption below (animated number / count-up / rolling stat). For a big standalone stat use CounterNumber, for social follows use FollowerCounter.",
       "props": {
         "value": {
           "type": "number",
@@ -1461,8 +2526,57 @@
         "duration": {
           "type": "number",
           "label": "Duration (frames)",
-          "description": "Animation duration",
+          "description": "Count-up animation duration",
           "default": 60
+        },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Number color",
+          "default": "#FFFFFF"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Number size (px)",
+          "default": 96,
+          "min": 16,
+          "max": 500
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Number weight (400-900)",
+          "default": 700,
+          "min": 100,
+          "max": 900
+        },
+        "letterSpacing": {
+          "type": "number",
+          "label": "Letter Spacing",
+          "description": "Letter spacing (px)",
+          "default": -1,
+          "min": -10,
+          "max": 20
+        },
+        "caption": {
+          "type": "string",
+          "label": "Caption",
+          "description": "Optional text below the number"
+        },
+        "captionColor": {
+          "type": "color",
+          "label": "Caption Color",
+          "description": "Caption text color",
+          "default": "#94A3B8"
+        },
+        "captionSize": {
+          "type": "number",
+          "label": "Caption Size",
+          "description": "Caption size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
         }
       }
     },
@@ -1470,23 +2584,23 @@
       "name": "StyleWatermark",
       "category": "UI",
       "role": "ui",
-      "description": "Subtle watermark logo or icon positioned at corners or center.",
+      "description": "Subtle, semi-transparent watermark (logo or icon) anchored to a corner or center (watermark / branding stamp / @handle overlay / signature). Use a position preset (anchors to the edge with a margin) OR set x/y for a free position. Use to brand a video persistently without distracting.",
       "props": {
         "src": {
           "type": "string",
           "label": "Image URL",
-          "description": "Watermark image URL"
+          "description": "Watermark image URL (overrides icon)"
         },
         "icon": {
           "type": "icon",
           "label": "Icon",
-          "description": "Fallback Iconify icon",
+          "description": "Iconify icon (when no image)",
           "default": "mdi:watermark"
         },
         "position": {
           "type": "select",
           "label": "Position",
-          "description": "Watermark placement",
+          "description": "Edge placement (ignored if x/y set)",
           "default": "top-right",
           "options": [
             "top-left",
@@ -1495,6 +2609,12 @@
             "bottom-right",
             "center"
           ]
+        },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Icon color",
+          "default": "#FFFFFF"
         },
         "opacity": {
           "type": "number",
@@ -1508,7 +2628,23 @@
           "type": "number",
           "label": "Size",
           "description": "Watermark size in pixels",
-          "default": 60
+          "default": 60,
+          "min": 10,
+          "max": 600
+        },
+        "margin": {
+          "type": "number",
+          "label": "Margin",
+          "description": "Distance from edge for corner positions (px)",
+          "default": 40,
+          "min": 0,
+          "max": 400
+        },
+        "monochrome": {
+          "type": "boolean",
+          "label": "Monochrome",
+          "description": "Force image to black & white (image only)",
+          "default": false
         }
       }
     },
@@ -1516,12 +2652,12 @@
       "name": "StyleFakeScroll",
       "category": "UI",
       "role": "ui",
-      "description": "Auto-scrolling list of items with optional scrollbar, simulating a feed.",
+      "description": "Auto-scrolling list/feed that scrolls by itself, with optional scrollbar (fake scroll / auto-scroll list / feed scroll). Editable colors, sizes and spacing. Use to mimic browsing a social feed, chat or webpage.",
       "props": {
         "items": {
           "type": "list",
           "label": "Items",
-          "description": "Array of scroll items with content, icon, subtitle"
+          "description": "Items: {content, subtitle, icon}"
         },
         "speed": {
           "type": "number",
@@ -1534,14 +2670,100 @@
         "itemHeight": {
           "type": "number",
           "label": "Item Height",
-          "description": "Height per item",
-          "default": 80
+          "description": "Height per item px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 400
         },
         "visibleItems": {
           "type": "number",
           "label": "Visible Items",
-          "description": "Number of visible items",
-          "default": 3
+          "description": "Number of visible rows",
+          "default": 3,
+          "min": 1,
+          "max": 10
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Container width px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 1600
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Container background (supports rgba)",
+          "default": "rgba(30, 41, 59, 0.6)"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Border + row separators",
+          "default": "#334155"
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Border Width",
+          "description": "Border thickness px",
+          "default": 1,
+          "min": 0,
+          "max": 20
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Corner Radius",
+          "description": "Corner radius px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 120
+        },
+        "titleColor": {
+          "type": "color",
+          "label": "Title Color",
+          "description": "Row title color",
+          "default": "#FFFFFF"
+        },
+        "subtitleColor": {
+          "type": "color",
+          "label": "Subtitle Color",
+          "description": "Row subtitle color",
+          "default": "#94A3B8"
+        },
+        "iconBgColor": {
+          "type": "color",
+          "label": "Icon BG",
+          "description": "Icon circle background",
+          "default": "#334155"
+        },
+        "iconColor": {
+          "type": "color",
+          "label": "Icon Color",
+          "description": "Icon color",
+          "default": "#94A3B8"
+        },
+        "titleSize": {
+          "type": "number",
+          "label": "Title Size",
+          "description": "Title size px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 120
+        },
+        "subtitleSize": {
+          "type": "number",
+          "label": "Subtitle Size",
+          "description": "Subtitle size px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 120
+        },
+        "scrollbarColor": {
+          "type": "color",
+          "label": "Scrollbar Color",
+          "description": "Scrollbar color",
+          "default": "#64748B"
         },
         "showScrollbar": {
           "type": "boolean",
@@ -1555,12 +2777,12 @@
       "name": "StyleCursor",
       "category": "UI",
       "role": "ui",
-      "description": "Animated cursor that moves through points with click ripple effects.",
+      "description": "Mouse cursor that travels through a path of points and clicks with a ripple at each stop (cursor / pointer / click-through / demo cursor / mouse / single or multi-click). For a single move-and-click, give it two points (start, then the click point). Use for product walkthroughs and click demos.",
       "props": {
         "points": {
           "type": "list",
           "label": "Points",
-          "description": "Array of cursor positions with x, y, click, holdFrames"
+          "description": "Path: {x, y, click, holdFrames}. Two points = one move + click."
         },
         "speed": {
           "type": "number",
@@ -1569,6 +2791,26 @@
           "default": 1,
           "min": 0.5,
           "max": 5
+        },
+        "color": {
+          "type": "color",
+          "label": "Cursor Color",
+          "description": "Cursor fill color",
+          "default": "#FFFFFF"
+        },
+        "rippleColor": {
+          "type": "color",
+          "label": "Ripple Color",
+          "description": "Click ring color (empty = cursor color)",
+          "default": ""
+        },
+        "size": {
+          "type": "number",
+          "label": "Size",
+          "description": "Cursor size (px)",
+          "default": 40,
+          "min": 12,
+          "max": 200
         },
         "showRipple": {
           "type": "boolean",
@@ -1582,7 +2824,7 @@
       "name": "StyleCallout",
       "category": "UI",
       "role": "ui",
-      "description": "Callout annotation with arrow, circle, or highlight variants pointing to content.",
+      "description": "Annotation that points at something — arrow, dashed circle, or highlight box (callout / annotation / pointer / \"look here\" marker). Editable color, text color, size and font. Use to draw attention to a specific part of the screen.",
       "props": {
         "text": {
           "type": "string",
@@ -1612,6 +2854,54 @@
             "circle",
             "highlight"
           ]
+        },
+        "color": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Arrow / circle / box color",
+          "default": "#00FFAB"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color (empty = accent)",
+          "default": ""
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Highlight Fill",
+          "description": "Box fill for highlight variant (empty = accent tint)",
+          "default": ""
+        },
+        "size": {
+          "type": "number",
+          "label": "Size",
+          "description": "Shape size multiplier",
+          "default": 1,
+          "min": 0.3,
+          "max": 5
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max text width in px (>0 wraps)",
+          "default": 0,
+          "min": 0,
+          "max": 1200
+        },
+        "animateIn": {
+          "type": "boolean",
+          "label": "Animate In",
+          "description": "Built-in entry (off = use layer entry/exit)",
+          "default": true
         }
       }
     },
@@ -1619,28 +2909,17 @@
       "name": "StyleVideoPlayer",
       "category": "UI",
       "role": "ui",
-      "description": "Video player container with PiP, fullscreen, or inline variants.",
+      "description": "Embeds a real video inside a rounded frame, with optional time trim (start/end), any size and editable border (video player / media player / clip / video frame). Use to show a video clip inside the composition.",
       "props": {
         "src": {
           "type": "string",
           "label": "Video URL",
-          "description": "Video source URL"
-        },
-        "variant": {
-          "type": "select",
-          "label": "Variant",
-          "description": "Player layout",
-          "default": "pip",
-          "options": [
-            "pip",
-            "fullscreen",
-            "inline"
-          ]
+          "description": "Video source URL (mp4/webm)"
         },
         "size": {
           "type": "select",
-          "label": "Size",
-          "description": "Player size",
+          "label": "Size Preset",
+          "description": "Default 16:9 size (overridden by width/height)",
           "default": "md",
           "options": [
             "sm",
@@ -1648,22 +2927,70 @@
             "lg"
           ]
         },
-        "autoplay": {
-          "type": "boolean",
-          "label": "Autoplay",
-          "description": "Start playing automatically",
-          "default": true
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Custom width px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 1920
         },
-        "loop": {
-          "type": "boolean",
-          "label": "Loop",
-          "description": "Loop the video",
-          "default": true
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Custom height px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 1920
+        },
+        "trimStart": {
+          "type": "number",
+          "label": "Trim Start (s)",
+          "description": "Fragment start in seconds",
+          "default": 0,
+          "min": 0,
+          "max": 600
+        },
+        "trimEnd": {
+          "type": "number",
+          "label": "Trim End (s)",
+          "description": "Fragment end in seconds (0 = to end)",
+          "default": 0,
+          "min": 0,
+          "max": 600
         },
         "muted": {
           "type": "boolean",
           "label": "Muted",
           "description": "Mute the video",
+          "default": true
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Frame border color",
+          "default": "#334155"
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Border Width",
+          "description": "Frame border thickness px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 40
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Corner Radius",
+          "description": "Corner radius px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 120
+        },
+        "animateIn": {
+          "type": "boolean",
+          "label": "Animate In",
+          "description": "Built-in pop entry (off = use layer entry/exit)",
           "default": true
         }
       }
@@ -1672,7 +2999,7 @@
       "name": "StyleSimulatedHover",
       "category": "UI",
       "role": "ui",
-      "description": "Simulates a mouse hover effect on a button, card, or link element.",
+      "description": "A self-contained button/card/link that fakes a mouse-hover state — it lifts/scales/shadows as if hovered (hover effect / mouseover / interactive cue / clickable hint). It renders its OWN element; it does not wrap other components. Use to hint that something is clickable in UI walkthroughs.",
       "props": {
         "text": {
           "type": "string",
@@ -1685,6 +3012,65 @@
           "label": "Icon",
           "description": "Optional Iconify icon"
         },
+        "variant": {
+          "type": "select",
+          "label": "Variant",
+          "description": "Element type (styling defaults)",
+          "default": "button",
+          "options": [
+            "button",
+            "card",
+            "link"
+          ]
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Element background",
+          "default": "#2C3E50"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#FFFFFF"
+        },
+        "iconColor": {
+          "type": "color",
+          "label": "Icon Color",
+          "description": "Icon color (empty = text color)",
+          "default": ""
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Border color",
+          "default": "transparent"
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Border Width",
+          "description": "Border thickness px",
+          "default": 0,
+          "min": 0,
+          "max": 20
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Corner Radius",
+          "description": "Corner radius px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 100
+        },
         "hoverFrame": {
           "type": "number",
           "label": "Hover Frame",
@@ -1694,19 +3080,36 @@
         "hoverDuration": {
           "type": "number",
           "label": "Hover Duration",
-          "description": "Hover animation duration in frames",
+          "description": "Hover pulse duration in frames",
           "default": 30
         },
-        "variant": {
-          "type": "select",
-          "label": "Variant",
-          "description": "Element type",
-          "default": "button",
-          "options": [
-            "button",
-            "card",
-            "link"
-          ]
+        "hoverScale": {
+          "type": "number",
+          "label": "Hover Scale",
+          "description": "Grow amount on hover (0.05 = 5%)",
+          "default": 0.05,
+          "min": 0,
+          "max": 0.5
+        },
+        "hoverLift": {
+          "type": "number",
+          "label": "Hover Lift",
+          "description": "Lift amount on hover (px)",
+          "default": 4,
+          "min": 0,
+          "max": 40
+        },
+        "repeat": {
+          "type": "boolean",
+          "label": "Repeat",
+          "description": "Loop the hover pulse continuously",
+          "default": false
+        },
+        "animateIn": {
+          "type": "boolean",
+          "label": "Animate In",
+          "description": "Built-in pop entry (off = use layer entry/exit)",
+          "default": true
         }
       }
     },
@@ -1714,7 +3117,7 @@
       "name": "StyleBarChart",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Bar chart with vertical or horizontal orientation and animated bars.",
+      "description": "Standard bar chart, vertical or horizontal, with animated bars (bar graph / column chart). The general-purpose bar chart for comparing categories or values. For an emphatic spring entrance use BarChartReveal.",
       "props": {
         "data": {
           "type": "list",
@@ -1760,7 +3163,7 @@
       "name": "StylePieChart",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Pie or donut chart with animated slice reveal and legend.",
+      "description": "Pie or donut chart with an animated slice reveal and legend (pie / donut / circle chart). Use for parts-of-a-whole and percentage breakdowns. For a clock-style sweep entrance use PieChartReveal.",
       "props": {
         "data": {
           "type": "list",
@@ -1806,7 +3209,7 @@
       "name": "StyleLineChart",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Line chart with animated drawing, optional area fill, dots, and grid.",
+      "description": "Line chart that draws itself across the screen, with optional area fill, dots and grid (line graph / trend chart / time series). Use for trends and growth over time.",
       "props": {
         "data": {
           "type": "list",
@@ -1862,7 +3265,7 @@
       "name": "StyleFunnelChart",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Funnel chart showing conversion stages with percentages.",
+      "description": "Funnel chart of conversion stages labeled with percentages (sales funnel / conversion funnel / drop-off chart). Use for marketing funnels and step-by-step conversion. For a bolder trapezoid-shape version use FunnelChart.",
       "props": {
         "data": {
           "type": "list",
@@ -1893,7 +3296,7 @@
       "name": "StyleRadarChart",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Radar/spider chart with animated data points and grid.",
+      "description": "Radar/spider chart plotting several metrics on axes radiating from a center (spider / web / star / polar chart). Use to compare strengths or attributes across categories. For a polygon/circular-grid variant see RadarSpiderChart.",
       "props": {
         "data": {
           "type": "list",
@@ -1948,7 +3351,7 @@
       "name": "StyleBarRace",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Horizontal bar race chart sorted by value with animated growth.",
+      "description": "Animated bar-chart race: horizontal bars sorted by value that grow and overtake each other over time (bar chart race / racing bars). Use for \"who is winning over time\" rankings that change. For a one-shot ranking that just grows in, use HorizontalBarRace.",
       "props": {
         "data": {
           "type": "list",
@@ -1991,7 +3394,7 @@
       "name": "BarChartReveal",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Bar chart with staggered spring reveal animation and gradient bars.",
+      "description": "Bar/column chart whose bars pop in with a staggered spring and gradient fill (animated bar reveal). Same data as a bar chart but with an emphatic entrance — pick this when the reveal animation is the point; for a plain configurable bar chart use StyleBarChart.",
       "props": {
         "color1": {
           "type": "color",
@@ -2023,7 +3426,7 @@
       "name": "PieChartReveal",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Donut pie chart with sweep reveal animation and legend.",
+      "description": "Donut chart whose ring sweeps in like a clock to reveal the slices, with legend (animated donut reveal). Pick this when the sweep-in animation matters; for a plain pie/donut use StylePieChart.",
       "props": {
         "values": {
           "type": "string",
@@ -2049,7 +3452,7 @@
       "name": "FunnelChart",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Funnel chart with trapezoid stages and spring entrance.",
+      "description": "Funnel built from bold stacked trapezoid stages that spring in (conversion funnel / sales funnel / pipeline). Shape-driven and dramatic; for a version with percentage labels per stage use StyleFunnelChart.",
       "props": {
         "values": {
           "type": "string",
@@ -2075,7 +3478,7 @@
       "name": "HorizontalBarRace",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Ranking of horizontal bars (sorted by value) that grow with a staggered spring. Each item can have an icon. Good for \"top N\" comparisons.",
+      "description": "Static ranking of horizontal bars (sorted by value) that grow in once with a staggered spring; each item can have an icon (leaderboard / top-N ranking / horizontal bar chart). Good for \"top N\" comparisons. For bars that change value and overtake over time, use StyleBarRace.",
       "props": {
         "items": {
           "type": "list",
@@ -2168,7 +3571,7 @@
       "name": "PercentageRing",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Circular progress ring with animated stroke and percentage display.",
+      "description": "Circular progress ring that fills to a percentage with the number in the center (radial progress / completion ring / gauge / donut progress). Use for a single-stat completion, score, or KPI.",
       "props": {
         "targetPercentage": {
           "type": "number",
@@ -2190,7 +3593,7 @@
       "name": "CounterNumber",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Large animated counter with prefix and suffix.",
+      "description": "Large number that counts up/animates to a target value, with optional prefix and suffix (animated counter / number ticker / odometer / roll-up stat). Use for big stats, metrics, money amounts, views or downloads.",
       "props": {
         "from": {
           "type": "number",
@@ -2222,7 +3625,7 @@
       "name": "ScoreboardCounter",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Two-team scoreboard with animated counters and colored headers.",
+      "description": "Two-team scoreboard with animated scores and colored team headers (sports scoreboard / vs score / match result / head-to-head). Use for sports, competitions or any A-vs-B tally.",
       "props": {
         "valueA": {
           "type": "number",
@@ -2266,7 +3669,7 @@
       "name": "FollowerCounter",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Social media follower counter with platform icon and animated count.",
+      "description": "Social follower count that ticks up, with a platform icon (subscriber counter / follower count / gaining followers / 1M subs). Use for growth and milestone moments on a social platform.",
       "props": {
         "startCount": {
           "type": "number",
@@ -2297,7 +3700,7 @@
       "name": "TrendLine",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Animated trend line with glow effect drawn from data points.",
+      "description": "Single glowing trend line that draws across data points, no axes (sparkline / trend / stock line / going up-right). Minimal; use for a quick \"trending up/down\" visual or a hero growth line.",
       "props": {
         "data": {
           "type": "list",
@@ -2334,7 +3737,7 @@
       "name": "StockCandlestick",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Stock candlestick chart with OHLC data and staggered animation.",
+      "description": "Stock candlestick chart with OHLC candles appearing in sequence (trading / finance / crypto / market / price-action chart). Use for finance, trading, crypto and market price moves.",
       "props": {
         "data": {
           "type": "string",
@@ -2360,7 +3763,7 @@
       "name": "TikTokOverlay",
       "category": "Social",
       "role": "social",
-      "description": "TikTok-style overlay with likes, comments, shares, and sound name.",
+      "description": "TikTok-style UI overlay with the side action buttons — likes, comments, shares — and the spinning sound disc (TikTok / Reels / Shorts vertical-video UI). Use to mock a short-form video screen or fake a viral clip.",
       "props": {
         "likes": {
           "type": "string",
@@ -2392,7 +3795,7 @@
       "name": "InstagramPost",
       "category": "Social",
       "role": "social",
-      "description": "Instagram post mockup with username, likes, and caption.",
+      "description": "Instagram post mockup: profile header, image area, like/comment row and caption (IG post / social card / feed post). Use to fake a social-media post or show a brand on Instagram.",
       "props": {
         "username": {
           "type": "string",
@@ -2418,7 +3821,7 @@
       "name": "TweetCard",
       "category": "Social",
       "role": "social",
-      "description": "Twitter/X tweet card with username, handle, content, and engagement stats.",
+      "description": "Twitter/X tweet card: avatar, name, @handle, tweet text and engagement stats (tweet / X post / quote tweet / social card). Use to show a tweet, a quote, or a reaction on X.",
       "props": {
         "username": {
           "type": "string",
@@ -2462,7 +3865,7 @@
       "name": "YouTubeEndScreen",
       "category": "Social",
       "role": "social",
-      "description": "YouTube end screen with video slots, subscribe button, and title.",
+      "description": "YouTube end screen / outro card with video thumbnail slots, a subscribe button and title (end card / outro / \"watch next\" screen). Use for the closing call-to-action of a YouTube-style video.",
       "props": {
         "title": {
           "type": "string",
@@ -2482,7 +3885,7 @@
       "name": "SubscribeButton",
       "category": "Social",
       "role": "social",
-      "description": "Subscribe button with click animation and state change.",
+      "description": "Subscribe/follow button that gets clicked and changes state (subscribe / follow / CTA button / \"hit the bell\"). Use for call-to-action moments urging viewers to subscribe or follow.",
       "props": {
         "text": {
           "type": "string",
@@ -2514,7 +3917,7 @@
       "name": "AppStoreButtons",
       "category": "Social",
       "role": "social",
-      "description": "App Store and Google Play download buttons with staggered entrance.",
+      "description": "App Store and Google Play download badges/buttons appearing with a staggered entrance (\"download on the App Store\" / \"get it on Google Play\" / app download CTA). Use to promote a mobile app.",
       "props": {
         "showApple": {
           "type": "boolean",
@@ -2534,7 +3937,7 @@
       "name": "ShoppingCartBadge",
       "category": "Social",
       "role": "social",
-      "description": "Shopping cart icon with animated badge that appears on trigger frame.",
+      "description": "Shopping cart (or bag) icon with a count badge that pops in (add-to-cart / cart count / e-commerce notification). Use for shopping, checkout, or \"item added\" moments.",
       "props": {
         "triggerFrame": {
           "type": "number",
@@ -2560,7 +3963,7 @@
       "name": "SizeSelector",
       "category": "Social",
       "role": "social",
-      "description": "Size selector (XS, S, M, L, XL) with animated selection highlight.",
+      "description": "Clothing size selector (XS, S, M, L, XL) with an animated highlight landing on the chosen size (size picker / size options / fashion e-commerce). Use for apparel/product demos when picking a size.",
       "props": {
         "sizes": {
           "type": "string",
@@ -2580,7 +3983,7 @@
       "name": "SocialProgressBar",
       "category": "Social",
       "role": "social",
-      "description": "Instagram/TikTok-style story progress bar spanning the full video duration.",
+      "description": "Instagram/TikTok-style story progress bar(s) at the top that fill over the video duration (story bar / stories progress / segmented timeline). Use to mimic a Stories/Reels viewing experience.",
       "props": {
         "heightPx": {
           "type": "number",
@@ -2596,7 +3999,7 @@
       "name": "SocialSharePopup",
       "category": "Social",
       "role": "social",
-      "description": "Share popup drawer with social app icons (WhatsApp, Twitter, Email).",
+      "description": "Share sheet / popup drawer sliding up with social app icons (WhatsApp, Twitter, Email) (share menu / share sheet / send-to). Use for \"share this\" call-to-action moments.",
       "props": {
         "title": {
           "type": "string",
@@ -2610,7 +4013,7 @@
       "name": "BrowserWindow",
       "category": "UI",
       "role": "ui",
-      "description": "Browser window mockup with traffic-light buttons and address bar. Editable interior: icon + title + subtitle + screen color.",
+      "description": "Browser window mockup with an address bar and a chrome style (mac dots / windows buttons / minimal). Editable interior: icon + title + subtitle + colors.",
       "props": {
         "title": {
           "type": "string",
@@ -2634,11 +4037,28 @@
           "description": "Address bar text",
           "default": "miweb.com"
         },
+        "browser": {
+          "type": "select",
+          "label": "Browser Style",
+          "description": "Window chrome style",
+          "default": "mac",
+          "options": [
+            "mac",
+            "windows",
+            "minimal"
+          ]
+        },
         "screenColor": {
           "type": "color",
           "label": "Screen Color",
           "description": "Interior background",
           "default": "#ffffff"
+        },
+        "barColor": {
+          "type": "color",
+          "label": "Bar Color",
+          "description": "Top bar background",
+          "default": "#f1f5f9"
         },
         "accentColor": {
           "type": "color",
@@ -2658,7 +4078,7 @@
       "name": "PhoneMockup",
       "category": "UI",
       "role": "ui",
-      "description": "Phone mockup with Dynamic Island that slides up. Editable interior: icon + title + subtitle + screen color.",
+      "description": "Phone/device mockup that slides up, with editable interior (icon + title + subtitle + screen color). Models: iphone (dynamic island), android (punch-hole), tablet (no notch), custom (your width/height). Editable bezel, corners, shadow and notch.",
       "props": {
         "title": {
           "type": "string",
@@ -2676,6 +4096,18 @@
           "label": "Icon",
           "description": "Optional icon shown above the title"
         },
+        "model": {
+          "type": "select",
+          "label": "Model",
+          "description": "Device model (proportions + notch)",
+          "default": "iphone",
+          "options": [
+            "iphone",
+            "android",
+            "tablet",
+            "custom"
+          ]
+        },
         "screenColor": {
           "type": "color",
           "label": "Screen Color",
@@ -2684,15 +4116,71 @@
         },
         "accentColor": {
           "type": "color",
-          "label": "Accent Color",
-          "description": "Icon color",
+          "label": "Icon Color",
+          "description": "Color of the interior icon (only visible if an icon is set)",
           "default": "#00FFAB"
         },
         "textColor": {
           "type": "color",
-          "label": "Text Color",
+          "label": "Title Color",
           "description": "Title color",
           "default": "#1e293b"
+        },
+        "subtitleColor": {
+          "type": "color",
+          "label": "Subtitle Color",
+          "description": "Subtitle color",
+          "default": "#64748b"
+        },
+        "bezelColor": {
+          "type": "color",
+          "label": "Bezel Color",
+          "description": "Frame + notch color",
+          "default": "#0f172a"
+        },
+        "bezelWidth": {
+          "type": "number",
+          "label": "Bezel Width",
+          "description": "Frame thickness in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 40
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Corner Radius",
+          "description": "Corner radius in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 120
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Custom model width in px",
+          "default": 0,
+          "min": 0,
+          "max": 1200
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Custom model height in px",
+          "default": 0,
+          "min": 0,
+          "max": 1900
+        },
+        "showNotch": {
+          "type": "boolean",
+          "label": "Show Notch",
+          "description": "Show the notch / island / punch-hole",
+          "default": true
+        },
+        "shadow": {
+          "type": "boolean",
+          "label": "Shadow",
+          "description": "Device drop shadow",
+          "default": true
         }
       }
     },
@@ -2700,7 +4188,7 @@
       "name": "AnimatedChecklist",
       "category": "UI",
       "role": "ui",
-      "description": "Animated list that reveals items one by one, each with a check/icon. Ideal for \"3 reasons\", \"steps\", \"tips\". The icon is a per-row accent, not the hero.",
+      "description": "Animated list that reveals items one by one, each with a check/icon. Styles: card (boxed rows), minimal (plain), numbered (1·2·3 badges). Ideal for \"3 reasons\", \"steps\", \"tips\". The icon is a per-row accent, not the hero.",
       "props": {
         "items": {
           "type": "list",
@@ -2718,6 +4206,17 @@
             }
           ]
         },
+        "variant": {
+          "type": "select",
+          "label": "Style",
+          "description": "Checklist style",
+          "default": "card",
+          "options": [
+            "card",
+            "minimal",
+            "numbered"
+          ]
+        },
         "checkIcon": {
           "type": "icon",
           "label": "Default Icon",
@@ -2727,7 +4226,7 @@
         "accentColor": {
           "type": "color",
           "label": "Accent Color",
-          "description": "Icon color",
+          "description": "Icon / number color",
           "default": "#00FFAB"
         },
         "textColor": {
@@ -2735,6 +4234,20 @@
           "label": "Text Color",
           "description": "Item text color",
           "default": "#ffffff"
+        },
+        "cardColor": {
+          "type": "color",
+          "label": "Card Color",
+          "description": "Row background (card style)",
+          "default": "rgba(255,255,255,0.06)"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Item text size (px)",
+          "default": 0,
+          "min": 0,
+          "max": 120
         },
         "stagger": {
           "type": "number",
@@ -2750,12 +4263,12 @@
       "name": "RotatingCarousel",
       "category": "UI",
       "role": "ui",
-      "description": "Auto-advancing carousel of items, each with an icon and/or label. Use to show several facets of a concept (e.g. coffee → espresso/latte/cappuccino) instead of a single big icon. The icon is an accent per slide, not the centered hero.",
+      "description": "Auto-advancing carousel of items, each with an icon and/or label (and optional per-slide color). Use to show several facets of a concept (e.g. coffee → espresso/latte/cappuccino) instead of a single big icon. Dots can sit inside/outside/none; transition can be slide/fade/scale. The icon is an accent per slide, not the centered hero.",
       "props": {
         "items": {
           "type": "list",
           "label": "Items",
-          "description": "Slides: {icon, label}",
+          "description": "Slides: {icon, label, color} (color tints that slide)",
           "default": [
             {
               "icon": "mdi:coffee",
@@ -2779,17 +4292,65 @@
           "min": 0.4,
           "max": 5
         },
+        "transition": {
+          "type": "select",
+          "label": "Transition",
+          "description": "Slide change style",
+          "default": "slide",
+          "options": [
+            "slide",
+            "fade",
+            "scale"
+          ]
+        },
         "iconColor": {
           "type": "color",
           "label": "Icon Color",
-          "description": "Icon + active dot color",
+          "description": "Default icon color",
           "default": "#ffffff"
         },
         "labelColor": {
           "type": "color",
           "label": "Label Color",
-          "description": "Label color",
+          "description": "Default label color",
           "default": "#ffffff"
+        },
+        "cardColor": {
+          "type": "color",
+          "label": "Card Color",
+          "description": "Card background (supports rgba)",
+          "default": "rgba(255,255,255,0.06)"
+        },
+        "dotColor": {
+          "type": "color",
+          "label": "Dot Color",
+          "description": "Active indicator color (empty = icon color)",
+          "default": ""
+        },
+        "dots": {
+          "type": "select",
+          "label": "Dots",
+          "description": "Indicator position",
+          "default": "inside",
+          "options": [
+            "inside",
+            "outside",
+            "none"
+          ]
+        },
+        "shadow": {
+          "type": "boolean",
+          "label": "Shadow",
+          "description": "Card drop shadow",
+          "default": true
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Card width in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 1600
         }
       }
     },
@@ -2891,17 +4452,35 @@
       "name": "MediaFrame",
       "category": "UI",
       "role": "ui",
-      "description": "Image/media frame with configurable border, shadow, and object-fit.",
+      "description": "A framed container for an image or media, with configurable border, shadow and object-fit (photo frame / image frame / picture border). Shapes: rounded/rect/circle/triangle. Free position via x/y + width/height, or fullScreen to cover the whole canvas. Use to present an image; for a slow zoom over a photo use KenBurns.",
       "props": {
         "url": {
           "type": "string",
           "label": "Image URL",
           "description": "Media source URL"
         },
+        "shape": {
+          "type": "select",
+          "label": "Shape",
+          "description": "Crop shape",
+          "default": "rounded",
+          "options": [
+            "rounded",
+            "rect",
+            "circle",
+            "triangle"
+          ]
+        },
+        "fullScreen": {
+          "type": "boolean",
+          "label": "Full Screen",
+          "description": "Cover the entire canvas (ignores x/y/size)",
+          "default": false
+        },
         "borderRadius": {
           "type": "number",
           "label": "Border Radius",
-          "description": "Corner radius (auto if empty)"
+          "description": "Corner radius for \"rounded\" (auto if empty)"
         },
         "borderWidth": {
           "type": "number",
@@ -2914,6 +4493,12 @@
           "label": "Border Color",
           "description": "Border color",
           "default": "#ffffff"
+        },
+        "placeholderColor": {
+          "type": "color",
+          "label": "Placeholder Color",
+          "description": "Background when no image",
+          "default": "#f1f5f9"
         },
         "dropShadow": {
           "type": "boolean",
@@ -2938,13 +4523,116 @@
       "name": "SplitScreenGrid",
       "category": "UI",
       "role": "ui",
-      "description": "Four-quadrant split screen that animates from full screen to grid layout.",
+      "description": "Split-screen grid of panels that animate into place (split screen / multi-cam / quad view / comparison grid / mosaic). Any number of panels and columns (2, 3, 4…), each with its own color, text, icon and shape. Entry: split (from center), scale, fade or slide; stagger to reveal them one by one. Use to compare or show several things at once.",
       "props": {
+        "panels": {
+          "type": "list",
+          "label": "Panels",
+          "description": "Panels: {color, text, icon, textColor, shape, span}",
+          "default": [
+            {
+              "color": "#ef4444",
+              "text": "Uno"
+            },
+            {
+              "color": "#3b82f6",
+              "text": "Dos"
+            },
+            {
+              "color": "#10b981",
+              "text": "Tres"
+            },
+            {
+              "color": "#f59e0b",
+              "text": "Cuatro"
+            }
+          ]
+        },
+        "columns": {
+          "type": "number",
+          "label": "Columns",
+          "description": "Grid columns",
+          "default": 2,
+          "min": 1,
+          "max": 6
+        },
+        "entry": {
+          "type": "select",
+          "label": "Entry",
+          "description": "How panels appear",
+          "default": "split",
+          "options": [
+            "split",
+            "scale",
+            "fade",
+            "slide"
+          ]
+        },
+        "stagger": {
+          "type": "number",
+          "label": "Stagger",
+          "description": "Frames between panels (0 = all at once)",
+          "default": 0,
+          "min": 0,
+          "max": 30
+        },
         "splitFrame": {
           "type": "number",
-          "label": "Split Frame",
-          "description": "Frame when split animation starts",
-          "default": 60
+          "label": "Start Frame",
+          "description": "Frame when animation starts",
+          "default": 60,
+          "min": 0,
+          "max": 300
+        },
+        "gap": {
+          "type": "number",
+          "label": "Gap",
+          "description": "Space between panels (px)",
+          "default": 8,
+          "min": 0,
+          "max": 80
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Corner Radius",
+          "description": "Panel corner radius in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 120
+        },
+        "gapColor": {
+          "type": "color",
+          "label": "Gap Color",
+          "description": "Background behind/between panels",
+          "default": "#0f172a"
+        },
+        "shadow": {
+          "type": "boolean",
+          "label": "Shadow",
+          "description": "Panel drop shadow",
+          "default": true
+        },
+        "cover": {
+          "type": "boolean",
+          "label": "Full Screen",
+          "description": "Cover whole canvas (off = sized box at x/y)",
+          "default": true
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Box width when not full screen (px)",
+          "default": 0,
+          "min": 0,
+          "max": 1920
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Box height when not full screen (px)",
+          "default": 0,
+          "min": 0,
+          "max": 1920
         }
       }
     },
@@ -2952,12 +4640,12 @@
       "name": "QuoteBlock",
       "category": "Text",
       "role": "text",
-      "description": "Styled quote block with decorative quotation mark and author attribution.",
+      "description": "Styled pull-quote block with a big decorative quotation mark and author attribution (quote / blockquote / pull quote / citation). Use for memorable quotes or testimonials as styled text.",
       "props": {
         "text": {
           "type": "text-long",
           "label": "Quote Text",
-          "description": "The quote content",
+          "description": "The quote content (supports line breaks)",
           "default": "The future belongs to those who build it."
         },
         "author": {
@@ -2965,6 +4653,46 @@
           "label": "Author",
           "description": "Quote attribution",
           "default": "Creator"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Quote text color",
+          "default": "#ffffff"
+        },
+        "color": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Quote mark & border color",
+          "default": "#eab308"
+        },
+        "authorColor": {
+          "type": "color",
+          "label": "Author Color",
+          "description": "Attribution color",
+          "default": "#94a3b8"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Quote text size (px)",
+          "default": 48,
+          "min": 16,
+          "max": 160
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 800,
+          "min": 200,
+          "max": 1600
+        },
+        "showQuoteMark": {
+          "type": "boolean",
+          "label": "Show Quote Mark",
+          "description": "Show the decorative quotation mark",
+          "default": true
         }
       }
     },
@@ -2972,7 +4700,7 @@
       "name": "LowerThird",
       "category": "UI",
       "role": "ui",
-      "description": "Lower third name/title graphic with accent bar and slide-in animation.",
+      "description": "Broadcast lower-third: a name/title graphic with an accent bar that slides in near the bottom (lower third / name tag / chyron / news caption / speaker label). Use to introduce a person or topic on screen.",
       "props": {
         "name": {
           "type": "string",
@@ -2985,6 +4713,54 @@
           "label": "Title",
           "description": "Job title or role",
           "default": "Chief Technology Officer"
+        },
+        "color": {
+          "type": "color",
+          "label": "Bar Color",
+          "description": "Accent bar color",
+          "default": "#2563eb"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Box background color",
+          "default": "#ffffff"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Name Color",
+          "description": "Name text color",
+          "default": "#0f172a"
+        },
+        "titleColor": {
+          "type": "color",
+          "label": "Title Color",
+          "description": "Subtitle (role) color",
+          "default": "#64748b"
+        },
+        "barWidth": {
+          "type": "number",
+          "label": "Bar Width",
+          "description": "Accent bar thickness (px)",
+          "default": 12,
+          "min": 0,
+          "max": 60
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before text wraps (px)",
+          "default": 640,
+          "min": 200,
+          "max": 1600
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Name size (px); subtitle is half",
+          "default": 48,
+          "min": 16,
+          "max": 140
         }
       }
     },
@@ -2992,13 +4768,67 @@
       "name": "CountdownTimer",
       "category": "UI",
       "role": "ui",
-      "description": "Countdown timer with ring progress and pop animation on each second.",
+      "description": "Countdown timer with a progress ring that pops on each second (countdown / timer / 3-2-1 / get ready / starting soon). Use for intros and launches. For sale urgency use FlashSaleTimer.",
       "props": {
         "seconds": {
           "type": "number",
           "label": "Seconds",
           "description": "Countdown duration in seconds",
           "default": 10
+        },
+        "color": {
+          "type": "color",
+          "label": "Ring Color",
+          "description": "Progress ring color",
+          "default": "#eab308"
+        },
+        "trackColor": {
+          "type": "color",
+          "label": "Track Color",
+          "description": "Remaining (background) ring color",
+          "default": "#334155"
+        },
+        "lineWidth": {
+          "type": "number",
+          "label": "Ring Width",
+          "description": "Ring thickness (1-20)",
+          "default": 6,
+          "min": 1,
+          "max": 20
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Inner circle color",
+          "default": "#0f172a"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Number Color",
+          "description": "Countdown number color",
+          "default": "#ffffff"
+        },
+        "size": {
+          "type": "number",
+          "label": "Size",
+          "description": "Circle diameter (px)",
+          "default": 400,
+          "min": 100,
+          "max": 900
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Number size (px)",
+          "default": 200,
+          "min": 40,
+          "max": 500
+        },
+        "tick": {
+          "type": "boolean",
+          "label": "Tick Bounce",
+          "description": "Bounce on each second",
+          "default": true
         }
       }
     },
@@ -3006,8 +4836,20 @@
       "name": "LoadingSpinner",
       "category": "UI",
       "role": "ui",
-      "description": "Circular loading spinner with configurable speed and size.",
+      "description": "Circular loading spinner that rotates (spinner / loader / loading / buffering / please wait). Use for loading or processing moments. Pair its exit with another component's entryDelay to show \"loading → result\" within one scene.",
       "props": {
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Spinning arc color",
+          "default": "#3b82f6"
+        },
+        "trackColor": {
+          "type": "color",
+          "label": "Track Color",
+          "description": "Background ring color",
+          "default": "#1e293b"
+        },
         "speed": {
           "type": "number",
           "label": "Speed",
@@ -3019,8 +4861,34 @@
         "size": {
           "type": "number",
           "label": "Size",
-          "description": "Spinner diameter",
-          "default": 100
+          "description": "Spinner diameter (px)",
+          "default": 100,
+          "min": 20,
+          "max": 600
+        },
+        "lineWidth": {
+          "type": "number",
+          "label": "Ring Width",
+          "description": "Ring thickness (1-30)",
+          "default": 10,
+          "min": 1,
+          "max": 30
+        },
+        "arc": {
+          "type": "number",
+          "label": "Arc Length",
+          "description": "Visible fraction of the ring (0-1)",
+          "default": 0.5,
+          "min": 0.05,
+          "max": 1
+        },
+        "fadeDuration": {
+          "type": "number",
+          "label": "Fade In",
+          "description": "Entry fade frames (0 = instant)",
+          "default": 15,
+          "min": 0,
+          "max": 90
         }
       }
     },
@@ -3028,25 +4896,69 @@
       "name": "NotificationToast",
       "category": "UI",
       "role": "ui",
-      "description": "Notification toast that drops in from top with icon, title, and message.",
+      "description": "Notification toast/banner that drops in with an icon, title and message (notification / toast / alert / push / pop-up message). Auto-sizes for mobile; keep title short and message to one concise line so it reads well on a phone. Use to show an alert or app notification.",
       "props": {
         "title": {
           "type": "string",
           "label": "Title",
-          "description": "Notification title",
+          "description": "Notification title (keep short)",
           "default": "Payment Received"
         },
         "message": {
           "type": "string",
           "label": "Message",
-          "description": "Notification message",
+          "description": "One concise line (empty = title only)",
           "default": "$4,200.00 from Acme Corp"
         },
         "icon": {
           "type": "string",
           "label": "Icon",
-          "description": "Emoji or icon for notification",
+          "description": "Emoji for the notification (empty = no icon)",
           "default": "💰"
+        },
+        "showIconBox": {
+          "type": "boolean",
+          "label": "Icon Box",
+          "description": "Show the rounded square behind the icon",
+          "default": true
+        },
+        "iconBgColor": {
+          "type": "color",
+          "label": "Icon Box Color",
+          "description": "Icon square background (empty = accent tint)",
+          "default": ""
+        },
+        "color": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Accent (default icon box tint)",
+          "default": "#22c55e"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Toast background (supports rgba)",
+          "default": "rgba(255, 255, 255, 0.9)"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Title Color",
+          "description": "Title text color",
+          "default": "#0f172a"
+        },
+        "messageColor": {
+          "type": "color",
+          "label": "Message Color",
+          "description": "Message text color",
+          "default": "#64748b"
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Toast width in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 1600
         }
       }
     },
@@ -3054,25 +4966,61 @@
       "name": "MessageBubble",
       "category": "UI",
       "role": "ui",
-      "description": "Chat message bubbles with sender/receiver styling and staggered entrance.",
+      "description": "Chat message bubbles with sender/receiver styling appearing one after another (chat / texting / iMessage / WhatsApp / DM conversation). One message or many (semicolon-separated). Use to show a back-and-forth. For a single bubble use TextBubble.",
       "props": {
         "messages": {
           "type": "text-long",
           "label": "Messages",
-          "description": "Semicolon-separated messages (R: for receiver, S: for sender)",
+          "description": "Semicolon-separated messages (R: for receiver, S: for sender). One item = single bubble.",
           "default": "R:Hey, did you see the new feature?;S:Yeah! It looks amazing."
         },
         "senderColor": {
           "type": "color",
-          "label": "Sender Color",
+          "label": "Sender Bubble",
           "description": "Sender bubble color",
           "default": "#22c55e"
         },
         "receiverColor": {
           "type": "color",
-          "label": "Receiver Color",
+          "label": "Receiver Bubble",
           "description": "Receiver bubble color",
           "default": "#334155"
+        },
+        "senderTextColor": {
+          "type": "color",
+          "label": "Sender Text",
+          "description": "Sender text color",
+          "default": "#ffffff"
+        },
+        "receiverTextColor": {
+          "type": "color",
+          "label": "Receiver Text",
+          "description": "Receiver text color",
+          "default": "#ffffff"
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Chat thread width (px)",
+          "default": 600,
+          "min": 200,
+          "max": 1200
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Message text size (px)",
+          "default": 24,
+          "min": 12,
+          "max": 80
+        },
+        "stagger": {
+          "type": "number",
+          "label": "Stagger",
+          "description": "Frames between each message appearing",
+          "default": 45,
+          "min": 0,
+          "max": 120
         }
       }
     },
@@ -3080,7 +5028,7 @@
       "name": "TextBubble",
       "category": "UI",
       "role": "ui",
-      "description": "Speech bubble with configurable pointer position and pop entrance.",
+      "description": "A single speech/thought bubble with a configurable pointer tail and pop entrance (speech bubble / callout / comic balloon / tooltip). Use for one quote or a pointed remark. For a chat thread use MessageBubble.",
       "props": {
         "text": {
           "type": "text-long",
@@ -3109,36 +5057,68 @@
       }
     },
     {
-      "name": "FeatureChecklist",
-      "category": "UI",
-      "role": "ui",
-      "description": "Checklist with animated checkmarks and staggered text reveal.",
-      "props": {
-        "itemsStr": {
-          "type": "string",
-          "label": "Items",
-          "description": "Comma-separated checklist items",
-          "default": "Free Worldwide Shipping,Premium Quality Materials,30-Day Money Back Guarantee"
-        },
-        "checkColor": {
-          "type": "color",
-          "label": "Check Color",
-          "description": "Checkmark color",
-          "default": "#10b981"
-        }
-      }
-    },
-    {
       "name": "FeatureUnlock",
       "category": "UI",
       "role": "ui",
-      "description": "Padlock that unlocks to reveal a feature name with animation.",
+      "description": "A padlock that unlocks to reveal a feature or reward (unlock / unlocked / new feature / level up / gated reveal). Use for \"feature unlocked\" or unlocking gated content.",
       "props": {
         "featureName": {
           "type": "string",
           "label": "Feature Name",
           "description": "Name of the unlocked feature",
           "default": "Premium Export 4K"
+        },
+        "label": {
+          "type": "string",
+          "label": "Label",
+          "description": "Text before the name (empty = hide)",
+          "default": "UNLOCKED"
+        },
+        "color": {
+          "type": "color",
+          "label": "Lock Color",
+          "description": "Padlock body color",
+          "default": "#eab308"
+        },
+        "lockColor": {
+          "type": "color",
+          "label": "Shackle Color",
+          "description": "Padlock shackle (arc) color",
+          "default": "#94a3b8"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Feature name color (empty = lock color)",
+          "default": ""
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Pill Background",
+          "description": "Revealed text box background",
+          "default": "#0f172a"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Revealed text color",
+          "default": "#ffffff"
+        },
+        "size": {
+          "type": "number",
+          "label": "Lock Size",
+          "description": "Padlock size multiplier (1 = normal)",
+          "default": 1,
+          "min": 0.4,
+          "max": 3
+        },
+        "unlockDelay": {
+          "type": "number",
+          "label": "Unlock Delay",
+          "description": "Frames before it opens",
+          "default": 20,
+          "min": 0,
+          "max": 120
         }
       }
     },
@@ -3146,7 +5126,7 @@
       "name": "FlashSaleTimer",
       "category": "UI",
       "role": "ui",
-      "description": "Flash sale countdown with hours, minutes, seconds, and milliseconds blocks.",
+      "description": "Urgent sale countdown with HH:MM:SS(:MS) blocks (flash sale / limited offer / deal ends / urgency timer / sale countdown). Use for promos and scarcity. For a neutral countdown use CountdownTimer.",
       "props": {
         "hours": {
           "type": "number",
@@ -3165,6 +5145,80 @@
           "label": "Seconds",
           "description": "Starting seconds",
           "default": 30
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Top text (empty = hide)",
+          "default": "⚡ Flash Sale Ends In"
+        },
+        "hoursLabel": {
+          "type": "string",
+          "label": "Hours Label",
+          "description": "Label under hours",
+          "default": "Hours"
+        },
+        "minutesLabel": {
+          "type": "string",
+          "label": "Minutes Label",
+          "description": "Label under minutes",
+          "default": "Minutes"
+        },
+        "secondsLabel": {
+          "type": "string",
+          "label": "Seconds Label",
+          "description": "Label under seconds",
+          "default": "Seconds"
+        },
+        "color": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Border, title & ms color",
+          "default": "#ef4444"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Outer background",
+          "default": "#000000"
+        },
+        "blockColor": {
+          "type": "color",
+          "label": "Block Color",
+          "description": "Digit block background",
+          "default": "#1e293b"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Digit Color",
+          "description": "Digit color",
+          "default": "#ffffff"
+        },
+        "labelColor": {
+          "type": "color",
+          "label": "Label Color",
+          "description": "Label color",
+          "default": "#64748b"
+        },
+        "showMs": {
+          "type": "boolean",
+          "label": "Show Milliseconds",
+          "description": "Show the ms block",
+          "default": true
+        },
+        "bounce": {
+          "type": "boolean",
+          "label": "Bounce",
+          "description": "Bounce on each second",
+          "default": true
+        },
+        "size": {
+          "type": "number",
+          "label": "Size",
+          "description": "Overall size multiplier (shrink if it overflows)",
+          "default": 1,
+          "min": 0.4,
+          "max": 2
         }
       }
     },
@@ -3172,12 +5226,12 @@
       "name": "FloatingBadge",
       "category": "UI",
       "role": "ui",
-      "description": "Floating badge with continuous hover animation and configurable shape.",
+      "description": "A badge/sticker that floats with a continuous hover bob, in configurable shapes (floating badge / sticker / seal / award / \"NEW\" tag). Use for accents like NEW, SALE or a seal of approval.",
       "props": {
         "text": {
-          "type": "string",
+          "type": "text-long",
           "label": "Text",
-          "description": "Badge text",
+          "description": "Badge text (supports line breaks)",
           "default": "NEW!"
         },
         "shape": {
@@ -3191,11 +5245,63 @@
             "circle"
           ]
         },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Badge background",
+          "default": "#ef4444"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Badge text color",
+          "default": "#ffffff"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 32,
+          "min": 10,
+          "max": 160
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px). 0 = no wrap",
+          "default": 0,
+          "min": 0,
+          "max": 1200
+        },
         "borderWidth": {
           "type": "number",
           "label": "Border Width",
-          "description": "Border thickness",
-          "default": 0
+          "description": "Border thickness (px)",
+          "default": 0,
+          "min": 0,
+          "max": 30
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Border color",
+          "default": "#ffffff"
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Corner Radius",
+          "description": "Corner radius for rect shape (px)",
+          "default": 12,
+          "min": 0,
+          "max": 100
+        },
+        "hoverAmount": {
+          "type": "number",
+          "label": "Hover Amount",
+          "description": "Float amplitude (px, 0 = still)",
+          "default": 10,
+          "min": 0,
+          "max": 50
         },
         "shadow": {
           "type": "boolean",
@@ -3209,7 +5315,7 @@
       "name": "ProgressPill",
       "category": "UI",
       "role": "ui",
-      "description": "Pill-shaped progress bar with animated fill from start to end percentage.",
+      "description": "Progress bar with an animated fill from a start to an end percentage (progress / loading bar / completion / percentage). Types: solid, gradient, striped (animated), segmented (chunks) or circular (ring). Label can sit top/bottom/inside/left/right. The single go-to progress component for bars and rings; for a big numeric ring use PercentageRing.",
       "props": {
         "startPercent": {
           "type": "number",
@@ -3227,17 +5333,73 @@
           "min": 0,
           "max": 100
         },
+        "variant": {
+          "type": "select",
+          "label": "Type",
+          "description": "Bar/ring style",
+          "default": "solid",
+          "options": [
+            "solid",
+            "gradient",
+            "striped",
+            "segmented",
+            "circular"
+          ]
+        },
+        "labelPosition": {
+          "type": "select",
+          "label": "Label Position",
+          "description": "Where the % sits",
+          "default": "bottom",
+          "options": [
+            "top",
+            "bottom",
+            "inside",
+            "left",
+            "right"
+          ]
+        },
         "barColor": {
           "type": "color",
           "label": "Bar Color",
           "description": "Fill color",
           "default": "#3b82f6"
         },
+        "barColor2": {
+          "type": "color",
+          "label": "Bar Color 2",
+          "description": "Second color (gradient style)",
+          "default": "#8b5cf6"
+        },
         "trackColor": {
           "type": "color",
           "label": "Track Color",
           "description": "Background track color",
           "default": "#e2e8f0"
+        },
+        "segments": {
+          "type": "number",
+          "label": "Segments",
+          "description": "Chunk count (segmented style)",
+          "default": 10,
+          "min": 2,
+          "max": 40
+        },
+        "size": {
+          "type": "number",
+          "label": "Ring Size",
+          "description": "Diameter px (circular style)",
+          "default": 200,
+          "min": 40,
+          "max": 800
+        },
+        "strokeWidth": {
+          "type": "number",
+          "label": "Ring Width",
+          "description": "Ring thickness px (circular style)",
+          "default": 16,
+          "min": 2,
+          "max": 80
         },
         "duration": {
           "type": "number",
@@ -3254,14 +5416,22 @@
         "width": {
           "type": "number",
           "label": "Width",
-          "description": "Bar width",
+          "description": "Bar width (non-circular)",
           "default": 600
         },
         "height": {
           "type": "number",
           "label": "Height",
-          "description": "Bar height",
+          "description": "Bar height (non-circular)",
           "default": 40
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Label size (px)",
+          "default": 24,
+          "min": 10,
+          "max": 100
         }
       }
     },
@@ -3269,7 +5439,7 @@
       "name": "PromoCodeBanner",
       "category": "UI",
       "role": "ui",
-      "description": "Promotional banner with discount amount and dashed code box, with wiggle effect.",
+      "description": "Promo banner showing a discount and a dashed coupon-code box with a wiggle (promo code / coupon / discount / voucher / deal banner). Atomic: per-panel colors, horizontal or vertical layout, optional discount panel (code-only), editable fonts and shadow. Use for offers and discount codes.",
       "props": {
         "code": {
           "type": "string",
@@ -3282,6 +5452,108 @@
           "label": "Discount",
           "description": "Discount display text",
           "default": "50% OFF"
+        },
+        "codeLabel": {
+          "type": "string",
+          "label": "Code Label",
+          "description": "Small text above the code (empty = hide)",
+          "default": "Use Code"
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Panel layout",
+          "default": "horizontal",
+          "options": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "showDiscount": {
+          "type": "boolean",
+          "label": "Show Discount Panel",
+          "description": "Show the big discount box (off = code only)",
+          "default": true
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Default panel color",
+          "default": "#eab308"
+        },
+        "discountBgColor": {
+          "type": "color",
+          "label": "Discount BG",
+          "description": "Discount panel color (empty = Background)",
+          "default": ""
+        },
+        "codeBgColor": {
+          "type": "color",
+          "label": "Code BG",
+          "description": "Code panel color (empty = Background)",
+          "default": ""
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Code panel text color",
+          "default": "#0f172a"
+        },
+        "discountTextColor": {
+          "type": "color",
+          "label": "Discount Text",
+          "description": "Discount text color (empty = Text Color)",
+          "default": ""
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Dashed Color",
+          "description": "Dashed separator + code border (empty = white)",
+          "default": ""
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Discount Size",
+          "description": "Discount font size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
+        },
+        "codeFontSize": {
+          "type": "number",
+          "label": "Code Size",
+          "description": "Code font size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 160
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width in px (0 = auto)",
+          "default": 0,
+          "min": 0,
+          "max": 1600
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Corner Radius",
+          "description": "Corner radius in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 80
+        },
+        "shadow": {
+          "type": "boolean",
+          "label": "Shadow",
+          "description": "Drop shadow",
+          "default": true
+        },
+        "wiggle": {
+          "type": "boolean",
+          "label": "Wiggle",
+          "description": "Entry wiggle animation",
+          "default": true
         }
       }
     },
@@ -3289,7 +5561,7 @@
       "name": "PodcastGuestCard",
       "category": "UI",
       "role": "ui",
-      "description": "Podcast guest card with avatar, name, role, and pulsing glow effect.",
+      "description": "Podcast guest card: avatar, name and role with a pulsing glow (podcast guest / speaker card / featuring / episode guest). Use to introduce a guest or speaker.",
       "props": {
         "name": {
           "type": "string",
@@ -3315,7 +5587,7 @@
       "name": "PricingTableReveal",
       "category": "UI",
       "role": "ui",
-      "description": "Three-tier pricing table with highlighted \"Most Popular\" center card.",
+      "description": "Three-tier pricing table with a highlighted \"Most Popular\" middle plan (pricing / plans / tiers / subscription table / compare plans). Use for SaaS or product pricing comparisons.",
       "props": {
         "tier1": {
           "type": "string",
@@ -3365,7 +5637,7 @@
       "name": "ProductCardReveal",
       "category": "UI",
       "role": "ui",
-      "description": "Product card with image placeholder, title, and price badge with float animation.",
+      "description": "Product card with image area, title and price badge that floats in (product card / shop item / e-commerce / price tag). Use to showcase a product for sale.",
       "props": {
         "title": {
           "type": "string",
@@ -3391,12 +5663,22 @@
       "name": "CalendarDatePop",
       "category": "UI",
       "role": "ui",
-      "description": "Calendar month view with animated circle drawing around target date.",
+      "description": "Calendar that circles a target date (month view) or a target month (year view) (calendar / save the date / mark the date / event day / reminder). Fully recolorable (light or dark). Use to highlight a date or event.",
       "props": {
+        "view": {
+          "type": "select",
+          "label": "View",
+          "description": "Month (days) or Year (12 months)",
+          "default": "month",
+          "options": [
+            "month",
+            "year"
+          ]
+        },
         "targetDate": {
           "type": "number",
           "label": "Target Date",
-          "description": "Day to highlight",
+          "description": "Day to highlight (month view)",
           "default": 15,
           "min": 1,
           "max": 31
@@ -3404,14 +5686,46 @@
         "month": {
           "type": "string",
           "label": "Month",
-          "description": "Month name",
+          "description": "Month name (header / year-view highlight)",
           "default": "November"
+        },
+        "year": {
+          "type": "number",
+          "label": "Year",
+          "description": "Year shown in the header",
+          "default": 0,
+          "min": 0,
+          "max": 3000
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Calendar background (e.g. #1e293b for dark)",
+          "default": "#ffffff"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Day/month text color",
+          "default": "#334155"
         },
         "circleColor": {
           "type": "color",
           "label": "Circle Color",
           "description": "Highlight circle color",
           "default": "#ef4444"
+        },
+        "headerColor": {
+          "type": "color",
+          "label": "Header Color",
+          "description": "Header text color (empty = text color)",
+          "default": ""
+        },
+        "showWeekdays": {
+          "type": "boolean",
+          "label": "Show Weekdays",
+          "description": "Show the M T W… row (month view)",
+          "default": true
         }
       }
     },
@@ -3419,7 +5733,7 @@
       "name": "CodeBlockHighlight",
       "category": "UI",
       "role": "ui",
-      "description": "Code editor mockup with syntax highlighting and animated line highlight.",
+      "description": "Code editor/snippet mockup with a highlighted line (code block / snippet / IDE / programming). Optional typing mode writes the code out and the highlight follows the line being typed. Fully recolorable. For a terminal/CLI look use TerminalHacker.",
       "props": {
         "code": {
           "type": "text-long",
@@ -3432,17 +5746,49 @@
           "description": "Programming language label",
           "default": "javascript"
         },
+        "typing": {
+          "type": "boolean",
+          "label": "Typing",
+          "description": "Type the code out; highlight follows the current line",
+          "default": false
+        },
         "highlightLine": {
           "type": "number",
           "label": "Highlight Line",
-          "description": "Line number to highlight (1-indexed)",
+          "description": "Line to highlight when not typing (1-indexed)",
           "default": 2
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Code text color",
+          "default": "#e2e8f0"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Code block background",
+          "default": "#0f172a"
+        },
+        "headerColor": {
+          "type": "color",
+          "label": "Header Color",
+          "description": "Top bar background",
+          "default": "#1e293b"
         },
         "accentColor": {
           "type": "color",
           "label": "Accent Color",
           "description": "Highlight accent color",
           "default": "#38bdf8"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Code font size (px). Empty = auto",
+          "default": 0,
+          "min": 0,
+          "max": 120
         }
       }
     },
@@ -3450,7 +5796,7 @@
       "name": "MusicPlayerUI",
       "category": "UI",
       "role": "ui",
-      "description": "Music player UI with album art, song info, progress bar, and controls.",
+      "description": "Music player UI with album art, track info, progress bar and controls (music player / now playing / Spotify-style / song UI). Use for music, podcasts or \"now playing\" moments.",
       "props": {
         "songTitle": {
           "type": "string",
@@ -3464,17 +5810,79 @@
           "description": "Artist name",
           "default": "AnimaFlow Beats"
         },
+        "progress": {
+          "type": "number",
+          "label": "Progress",
+          "description": "Bar position 0-100 (start point, or fixed if paused)",
+          "default": 30,
+          "min": 0,
+          "max": 100
+        },
+        "paused": {
+          "type": "boolean",
+          "label": "Paused",
+          "description": "Freeze the bar at Progress (shows play icon)",
+          "default": false
+        },
         "progressColor": {
           "type": "color",
           "label": "Progress Color",
-          "description": "Progress bar color",
+          "description": "Progress fill color",
           "default": "#1db954"
+        },
+        "trackColor": {
+          "type": "color",
+          "label": "Track Color",
+          "description": "Progress bar track color",
+          "default": "#333333"
         },
         "albumColor": {
           "type": "color",
           "label": "Album Color",
           "description": "Album art gradient color",
           "default": "#f5576c"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Card background (supports rgba)",
+          "default": "rgba(20, 20, 20, 0.85)"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Title Color",
+          "description": "Song title & icon color",
+          "default": "#ffffff"
+        },
+        "artistColor": {
+          "type": "color",
+          "label": "Artist Color",
+          "description": "Artist name color",
+          "default": "#a3a3a3"
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Card width in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 1600
+        },
+        "titleSize": {
+          "type": "number",
+          "label": "Title Size",
+          "description": "Song title size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 120
+        },
+        "artistSize": {
+          "type": "number",
+          "label": "Artist Size",
+          "description": "Artist size in px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 120
         }
       }
     },
@@ -3509,8 +5917,14 @@
         "bgColor": {
           "type": "color",
           "label": "Background",
-          "description": "Terminal background",
+          "description": "Terminal body background",
           "default": "#0f172a"
+        },
+        "headerColor": {
+          "type": "color",
+          "label": "Header Color",
+          "description": "Title bar background",
+          "default": "#1e293b"
         },
         "cursorColor": {
           "type": "color",
@@ -3538,7 +5952,7 @@
       "name": "TestimonialReview",
       "category": "UI",
       "role": "ui",
-      "description": "Review card with animated star rating, quote, and author attribution.",
+      "description": "Testimonial/review card with an animated star rating, a quote and the author (review / testimonial / rating / 5 stars / customer quote). Use for social proof and reviews.",
       "props": {
         "author": {
           "type": "string",
@@ -3572,7 +5986,7 @@
       "name": "TinderSwipeCard",
       "category": "UI",
       "role": "ui",
-      "description": "Tinder-style card that swipes right with a \"MATCH!\" stamp overlay.",
+      "description": "Tinder-style card that swipes left/right with a \"MATCH!\"/\"NOPE\" stamp (swipe card / dating app / Tinder / match / yes-no choice). Use for swipe/choice moments or matchmaking gags.",
       "props": {
         "name": {
           "type": "string",
@@ -3610,7 +6024,7 @@
       "name": "VersusScreen",
       "category": "UI",
       "role": "ui",
-      "description": "VS comparison screen with two colored sides and central badge.",
+      "description": "Versus screen: two colored sides with a central \"VS\" badge (versus / vs / face-off / this vs that / battle / comparison). Use for head-to-head comparisons or matchups.",
       "props": {
         "nameA": {
           "type": "string",
@@ -3642,12 +6056,12 @@
       "name": "APIRequestFlow",
       "category": "UI",
       "role": "ui",
-      "description": "API request/response flow visualization with client box, arrow, and server response.",
+      "description": "Animated flow of N boxes connected by arrows: request→response by default, or an arbitrary chain via \"steps\" (API / request-response / client-server / data flow / HTTP / pipeline). Reveal style: sequence, instant or fade. Use to explain an API or any step-by-step flow.",
       "props": {
         "method": {
           "type": "select",
           "label": "HTTP Method",
-          "description": "Request method",
+          "description": "Request method (default 2-box mode)",
           "default": "POST",
           "options": [
             "GET",
@@ -3679,10 +6093,38 @@
           "label": "Response Body",
           "description": "JSON body of the API response"
         },
+        "steps": {
+          "type": "list",
+          "label": "Steps",
+          "description": "Custom chain of boxes: [{label, sublabel, body, color}] (overrides default 2-box mode)"
+        },
+        "revealStyle": {
+          "type": "select",
+          "label": "Reveal",
+          "description": "How boxes appear",
+          "default": "sequence",
+          "options": [
+            "sequence",
+            "instant",
+            "fade"
+          ]
+        },
+        "color": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Arrow & box outline color",
+          "default": "#3b82f6"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Box Color",
+          "description": "Box background",
+          "default": "#1e293b"
+        },
         "arrowSpeed": {
           "type": "number",
-          "label": "Velocidad de flecha",
-          "description": "1 = normal, 2 = el doble de rápida",
+          "label": "Arrow Speed",
+          "description": "1 = normal, 2 = twice as fast",
           "default": 1,
           "min": 0.25,
           "max": 4
@@ -3691,9 +6133,9 @@
     },
     {
       "name": "MaskedReveal",
-      "category": "Transition",
-      "role": "transition",
-      "description": "Content reveal using overflow mask with directional slide (up, down, left, right).",
+      "category": "Cinematic",
+      "role": "decorative",
+      "description": "Reveals text with a directional clip wipe — up/down/left/right (masked reveal / wipe-in / clip reveal / unmask). Long text wraps (not clipped). Has a built-in reveal in and an optional exit (closes at the end). Use to uncover a title or phrase with a clean edge.",
       "props": {
         "direction": {
           "type": "select",
@@ -3710,128 +6152,44 @@
         "content": {
           "type": "text-long",
           "label": "Content",
-          "description": "Revealed content text",
+          "description": "Revealed text",
           "default": "Revealed Text"
+        },
+        "color": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 60,
+          "min": 12,
+          "max": 200
         },
         "width": {
           "type": "number",
-          "label": "Width",
-          "description": "Mask container width",
-          "default": 800
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 800,
+          "min": 100,
+          "max": 1600
         },
-        "height": {
-          "type": "number",
-          "label": "Height",
-          "description": "Mask container height",
-          "default": 150
-        }
-      }
-    },
-    {
-      "name": "LightLeakTransition",
-      "category": "Transition",
-      "role": "transition",
-      "description": "Cinematic light leak transition with two overlapping blurred light blobs.",
-      "props": {
-        "durationFrames": {
-          "type": "number",
-          "label": "Duration (frames)",
-          "description": "Transition duration",
-          "default": 20
+        "exit": {
+          "type": "boolean",
+          "label": "Exit",
+          "description": "Close the reveal at the end of the scene",
+          "default": false
         },
-        "triggerFrame": {
+        "exitDuration": {
           "type": "number",
-          "label": "Trigger Frame",
-          "description": "Frame when transition starts",
-          "default": 130
-        },
-        "colorPrimary": {
-          "type": "color",
-          "label": "Primary Color",
-          "description": "First light leak color",
-          "default": "rgba(255, 120, 0, 0.7)"
-        },
-        "colorSecondary": {
-          "type": "color",
-          "label": "Secondary Color",
-          "description": "Second light leak color",
-          "default": "rgba(255, 50, 0, 0.5)"
-        },
-        "intensity": {
-          "type": "number",
-          "label": "Intensity",
-          "description": "Transition intensity (0-1)",
-          "default": 1,
-          "min": 0,
-          "max": 1
-        }
-      }
-    },
-    {
-      "name": "GlitchTransition",
-      "category": "Transition",
-      "role": "transition",
-      "description": "Digital glitch transition with color inversion and block displacement.",
-      "props": {
-        "intensity": {
-          "type": "number",
-          "label": "Intensity",
-          "description": "Glitch intensity (0-1)",
-          "default": 1,
-          "min": 0,
-          "max": 1
-        },
-        "durationFrames": {
-          "type": "number",
-          "label": "Duration (frames)",
-          "description": "Transition duration",
-          "default": 10
-        },
-        "triggerFrame": {
-          "type": "number",
-          "label": "Trigger Frame",
-          "description": "Frame when transition starts",
-          "default": 140
-        }
-      }
-    },
-    {
-      "name": "WipeTransition",
-      "category": "Transition",
-      "role": "transition",
-      "description": "Diagonal wipe transition that sweeps across the screen.",
-      "props": {
-        "durationFrames": {
-          "type": "number",
-          "label": "Duration (frames)",
-          "description": "Transition duration",
-          "default": 15
-        },
-        "triggerFrame": {
-          "type": "number",
-          "label": "Trigger Frame",
-          "description": "Frame when transition starts",
-          "default": 135
-        }
-      }
-    },
-    {
-      "name": "ZoomBlurTransition",
-      "category": "Transition",
-      "role": "transition",
-      "description": "Zoom and blur transition that scales up with increasing blur.",
-      "props": {
-        "durationFrames": {
-          "type": "number",
-          "label": "Duration (frames)",
-          "description": "Transition duration",
-          "default": 15
-        },
-        "triggerFrame": {
-          "type": "number",
-          "label": "Trigger Frame",
-          "description": "Frame when transition starts",
-          "default": 135
+          "label": "Exit Duration",
+          "description": "Frames for the exit close",
+          "default": 20,
+          "min": 1,
+          "max": 90
         }
       }
     },
@@ -4000,7 +6358,7 @@
       "name": "AudioSpectrumBars",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Equalizer-style audio spectrum bars with pseudo-random heights.",
+      "description": "Equalizer / audio spectrum bars bouncing like a sound spectrum (equalizer / EQ / audio bars / sound visualizer / music bars). Use for music, audio or podcast vibes.",
       "props": {
         "color": {
           "type": "color",
@@ -4054,7 +6412,7 @@
       "name": "RippleEffect",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Pulsing ring ripples that expand and fade from a center point.",
+      "description": "Pulsing rings that expand and fade out from a center point (ripple / radar ping / sonar / water ripple / pulse / sound wave). Use for taps, signals, pings, or a sound-wave look (enable centerDot).",
       "props": {
         "color": {
           "type": "color",
@@ -4114,7 +6472,7 @@
       "name": "EmojiFloat",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Floating emoji particles that rise upward with wiggle and fade.",
+      "description": "Emoji particles that float upward with a wiggle and fade out (floating emojis / reactions / hearts rising / live reactions). Use for reactions, likes or playful accents.",
       "props": {
         "emoji": {
           "type": "string",
@@ -4173,78 +6531,10 @@
       }
     },
     {
-      "name": "CursorClick",
-      "category": "Cinematic",
-      "role": "decorative",
-      "description": "Animated cursor that moves to a target and clicks with ripple effect. For multi-click/multi-move use StyleCursor (points[]).",
-      "props": {
-        "startX": {
-          "type": "number",
-          "label": "Start X",
-          "description": "Starting X position",
-          "default": 800
-        },
-        "startY": {
-          "type": "number",
-          "label": "Start Y",
-          "description": "Starting Y position",
-          "default": 1500
-        },
-        "endX": {
-          "type": "number",
-          "label": "End X",
-          "description": "Target X position",
-          "default": 540
-        },
-        "endY": {
-          "type": "number",
-          "label": "End Y",
-          "description": "Target Y position",
-          "default": 960
-        },
-        "cursorColor": {
-          "type": "color",
-          "label": "Cursor Color",
-          "description": "Cursor fill color",
-          "default": "#1e293b"
-        },
-        "rippleColor": {
-          "type": "color",
-          "label": "Ripple Color",
-          "description": "Click ripple color",
-          "default": "#38bdf8"
-        },
-        "cursorSize": {
-          "type": "number",
-          "label": "Cursor Size",
-          "description": "Cursor size (px)",
-          "default": 48,
-          "min": 16,
-          "max": 120
-        },
-        "moveDuration": {
-          "type": "number",
-          "label": "Move Duration",
-          "description": "Frames to reach the target",
-          "default": 30,
-          "min": 5,
-          "max": 120
-        },
-        "clickDelay": {
-          "type": "number",
-          "label": "Click Delay",
-          "description": "Frames AFTER arrival before clicking (click is auto-synced to the cursor)",
-          "default": 6,
-          "min": 0,
-          "max": 60
-        }
-      }
-    },
-    {
       "name": "SearchEngineTyping",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Search bar with typewriter effect and ripple ring on completion.",
+      "description": "Search bar that types a query letter by letter, with a ripple when it finishes (search bar / Google search / type-and-search / search query). Use to show someone searching for something.",
       "props": {
         "text": {
           "type": "string",
@@ -4372,7 +6662,7 @@
       "name": "BreakingNewsAlert",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Breaking news banner with aggressive pulse animation and warning stripes.",
+      "description": "Breaking-news banner that slams in with a pulse and warning stripes (breaking news / alert / urgent banner / news flash). Use for dramatic announcements. For a scrolling news bar use BreakingNewsTicker.",
       "props": {
         "headline": {
           "type": "string",
@@ -4458,7 +6748,7 @@
       "name": "BreakingNewsTicker",
       "category": "Cinematic",
       "role": "decorative",
-      "description": "Breaking news ticker bar with scrolling text and a configurable badge.",
+      "description": "News ticker bar with scrolling text and a configurable badge (news ticker / lower bar / crawl / breaking-news strip / chyron ticker). Use for a TV-news scrolling headline. For a centered alert banner use BreakingNewsAlert.",
       "props": {
         "text": {
           "type": "text-long",
@@ -4534,7 +6824,7 @@
       "name": "AnimatedArrow",
       "category": "General",
       "role": "general",
-      "description": "Animated SVG arrow that draws from start to end point with optional curve.",
+      "description": "An arrow that draws itself from a start to an end point, optionally curved (arrow / pointer / direction / \"this way\" / connector arrow). Use to point at, connect, or show direction/flow.",
       "props": {
         "startX": {
           "type": "number",
@@ -4588,7 +6878,7 @@
       "name": "AnimatedLine",
       "category": "General",
       "role": "general",
-      "description": "Animated line that draws from start to end with optional arrowhead and dash style.",
+      "description": "A line that draws itself from start to end, with optional arrowhead and dashed style (line / connector / underline draw / link / divider). Use to connect elements or draw an emphasis line.",
       "props": {
         "startX": {
           "type": "number",
@@ -4645,7 +6935,7 @@
       "name": "AnimatedShape",
       "category": "General",
       "role": "general",
-      "description": "Animated shape (rect, circle, pill, diamond, hexagon) that moves from start to end.",
+      "description": "A simple shape (rect, circle, pill, diamond, hexagon) that animates/moves from a start to an end position (shape / moving shape / motion graphic / animated block). Use as a moving accent or building block. For a static configurable shape use GeometricShapes.",
       "props": {
         "shape": {
           "type": "select",
