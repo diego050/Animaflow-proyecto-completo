@@ -1,5 +1,156 @@
 from .utils import hex_to_rgb_array
 
+
+# ---------------------------------------------------------------------------
+# Helpers de ExtendScript (reutilizables por los bloques de componentes).
+# Devuelven listas de líneas .jsx para extender `parts`.
+# ---------------------------------------------------------------------------
+def _esc(s) -> str:
+    """Escapa una cadena para incrustarla en ExtendScript con comillas dobles."""
+    return str(s).replace('\\', '\\\\').replace('"', '\\"').replace('\n', ' ')
+
+
+def _ae_text(var, name, text, size, color, x, y):
+    return [
+        f'// {name}',
+        f'var {var} = comp.layers.addText();',
+        f'{var}.name = "{_esc(name)}";',
+        f'var {var}P = {var}.property("Source Text");',
+        f'var {var}D = {var}P.value;',
+        f'{var}D.text = "{_esc(text)}";',
+        f'{var}D.fontSize = {size};',
+        f'{var}D.fillColor = {hex_to_rgb_array(color)};',
+        f'{var}D.justification = ParagraphJustification.CENTER_JUSTIFY;',
+        f'{var}P.setValue({var}D);',
+        f'{var}.property("ADBE Transform Group").property("ADBE Position").setValue([{x}, {y}]);',
+        '',
+    ]
+
+
+def _ae_rrect(var, name, w, h, color, roundness, x, y):
+    return [
+        f'// {name}',
+        f'var {var} = comp.layers.addShape();',
+        f'{var}.name = "{_esc(name)}";',
+        f'var {var}R = {var}.property("ADBE Root Vectors Group");',
+        f'var {var}G = {var}R.addProperty("ADBE Vector Group");',
+        f'var {var}V = {var}G.property("ADBE Vectors Group");',
+        f'var {var}Rect = {var}V.addProperty("ADBE Vector Shape - Rect");',
+        f'{var}Rect.property("ADBE Vector Rect Size").setValue([{w}, {h}]);',
+        f'{var}Rect.property("ADBE Vector Rect Roundness").setValue({roundness});',
+        f'var {var}Fill = {var}V.addProperty("ADBE Vector Graphic - Fill");',
+        f'{var}Fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(color)});',
+        f'{var}.property("ADBE Transform Group").property("ADBE Position").setValue([{x}, {y}]);',
+        '',
+    ]
+
+
+def _ae_ellipse(var, name, size, color, x, y):
+    return [
+        f'// {name}',
+        f'var {var} = comp.layers.addShape();',
+        f'{var}.name = "{_esc(name)}";',
+        f'var {var}R = {var}.property("ADBE Root Vectors Group");',
+        f'var {var}G = {var}R.addProperty("ADBE Vector Group");',
+        f'var {var}V = {var}G.property("ADBE Vectors Group");',
+        f'var {var}El = {var}V.addProperty("ADBE Vector Shape - Ellipse");',
+        f'{var}El.property("ADBE Vector Ellipse Size").setValue([{size}, {size}]);',
+        f'var {var}Fill = {var}V.addProperty("ADBE Vector Graphic - Fill");',
+        f'{var}Fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(color)});',
+        f'{var}.property("ADBE Transform Group").property("ADBE Position").setValue([{x}, {y}]);',
+        '',
+    ]
+
+
+def _ae_bars(prefix, name, values, colors, x, y, width=720, height=420, c1='#3b82f6'):
+    """Barras verticales (para bar charts) escaladas a max(values)."""
+    lines = [f'// {name}']
+    n = max(1, len(values))
+    mx = max([abs(float(v)) for v in values] + [1])
+    gap = 16
+    bw = (width - gap * (n - 1)) / n
+    start_x = x - width / 2 + bw / 2
+    base_y = y + height / 2
+    for i, v in enumerate(values):
+        bh = max(2.0, (abs(float(v)) / mx) * height)
+        col = colors[i] if i < len(colors) and colors[i] else c1
+        bx = start_x + i * (bw + gap)
+        by = base_y - bh / 2
+        var = f'{prefix}{i}'
+        lines += [
+            f'var {var} = comp.layers.addShape();',
+            f'{var}.name = "{_esc(name)}_{i}";',
+            f'var {var}R = {var}.property("ADBE Root Vectors Group");',
+            f'var {var}G = {var}R.addProperty("ADBE Vector Group");',
+            f'var {var}V = {var}G.property("ADBE Vectors Group");',
+            f'var {var}Rect = {var}V.addProperty("ADBE Vector Shape - Rect");',
+            f'{var}Rect.property("ADBE Vector Rect Size").setValue([{bw:.1f}, {bh:.1f}]);',
+            f'{var}Rect.property("ADBE Vector Rect Roundness").setValue(8);',
+            f'var {var}Fill = {var}V.addProperty("ADBE Vector Graphic - Fill");',
+            f'{var}Fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(col)});',
+            f'{var}.property("ADBE Transform Group").property("ADBE Position").setValue([{bx:.1f}, {by:.1f}]);',
+        ]
+    lines.append('')
+    return lines
+
+
+def _ae_card(var, name, w, h, bg, x, y, roundness=20, title=None, title_color='#ffffff',
+             title_size=48, subtitle=None, subtitle_color='#94a3b8', subtitle_size=32):
+    """Tarjeta: rrect de fondo + título centrado (+ subtítulo opcional)."""
+    out = _ae_rrect(var, name, w, h, bg, roundness, x, y)
+    out = out[:-1]  # quita la línea en blanco final para agrupar
+    if title:
+        out += _ae_text(f'{var}T', f'{name}_title', title, title_size, title_color, x, y - (20 if subtitle else 0))
+    if subtitle:
+        out += _ae_text(f'{var}S', f'{name}_subtitle', subtitle, subtitle_size, subtitle_color, x, y + 44)
+    out.append('')
+    return out
+
+
+def _hexc(value, fallback):
+    """Devuelve un color HEX usable; cae al fallback si viene vacío o rgba()."""
+    if isinstance(value, str) and value.strip().startswith('#'):
+        return value.strip()
+    return fallback
+
+
+def _split(s, sep=','):
+    """Parte 'a,b,c' en lista de strings (tolera None / listas ya hechas)."""
+    if s is None:
+        return []
+    if isinstance(s, list):
+        return [str(i) for i in s]
+    return [p.strip() for p in str(s).split(sep) if p.strip() != '']
+
+
+def _nums(s, sep=','):
+    """Parte 'a,b,c' en lista de floats (ignora no-numéricos)."""
+    out = []
+    for p in _split(s, sep):
+        try:
+            out.append(float(p))
+        except (TypeError, ValueError):
+            pass
+    return out
+
+
+def _norm_values(data):
+    """Extrae números de una lista [num] o [{value|y}]."""
+    out = []
+    cols = []
+    for d in (data or []):
+        if isinstance(d, dict):
+            out.append(float(d.get('value', d.get('y', 0)) or 0))
+            cols.append(d.get('color'))
+        else:
+            try:
+                out.append(float(d))
+            except (TypeError, ValueError):
+                out.append(0.0)
+            cols.append(None)
+    return out, cols
+
+
 def generate_component_script(
     components: dict,
     text: str,
@@ -12,7 +163,17 @@ def generate_component_script(
     Generates an After Effects ExtendScript based on Remotion components.
     """
     parts = []
-    
+    # La mayoría de los bloques de abajo se escribieron usando `parsed_components`
+    # como nombre; el parámetro real es `components`. Alias para que TODOS los
+    # bloques (no solo los primeros) funcionen (antes lanzaban NameError y el
+    # worker caía al fallback en silencio).
+    parsed_components = components
+
+    # Algunos bloques antiguos usan `safe_text` asumiendo que un bloque previo
+    # (TextReveal) ya lo definió; al descargar un componente individual eso
+    # lanzaba UnboundLocalError. Lo definimos una sola vez aquí.
+    safe_text = (text or '').replace('"', '\\"').replace("'", "\\'")
+
     # === HEADER ===
     parts.append(f'var comp = app.project.items.addComp("Scene", {width}, {height}, 1, {duration}, {fps});')
     parts.append('')
@@ -332,41 +493,6 @@ def generate_component_script(
             parts.append(f'startProp.setValueAtTime({len(text)/15}, 100);')
         parts.append('')
 
-    if 'CursorClick' in parsed_components:
-        cc_props = parsed_components['CursorClick']
-        sx = cc_props.get('startX', 800)
-        sy = cc_props.get('startY', 1500)
-        ex = cc_props.get('endX', 540)
-        ey = cc_props.get('endY', 960)
-        
-        parts.append('// CursorClick')
-        parts.append('var ccLayer = comp.layers.addShape();')
-        parts.append('ccLayer.name = "Cursor";')
-        parts.append('var shapeRoot = ccLayer.property("ADBE Root Vectors Group");')
-        parts.append('var poly = shapeRoot.addProperty("ADBE Vector Shape - Star");')
-        parts.append('poly.property("ADBE Vector Star Type").setValue(1);') # Polygon
-        parts.append('poly.property("ADBE Vector Star Points").setValue(3);')
-        parts.append('poly.property("ADBE Vector Star Outer Radius").setValue(20);')
-        parts.append('var fill = shapeRoot.addProperty("ADBE Vector Graphic - Fill");')
-        parts.append('fill.property("ADBE Vector Fill Color").setValue([0.1,0.1,0.1]);')
-        parts.append('var stroke = shapeRoot.addProperty("ADBE Vector Graphic - Stroke");')
-        parts.append('stroke.property("ADBE Vector Stroke Color").setValue([1,1,1]);')
-        parts.append('stroke.property("ADBE Vector Stroke Width").setValue(2);')
-        
-        # Position animation
-        parts.append('var pos = ccLayer.property("ADBE Transform Group").property("ADBE Position");')
-        parts.append(f'pos.setValueAtTime(0, [{sx}, {sy}]);')
-        parts.append(f'pos.setValueAtTime(1, [{ex}, {ey}]);')
-        parts.append('pos.setInterpolationTypeAtKey(1, KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);')
-        parts.append('pos.setInterpolationTypeAtKey(2, KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);')
-        
-        # Click scale animation
-        parts.append('var scale = ccLayer.property("ADBE Transform Group").property("ADBE Scale");')
-        parts.append('scale.setValueAtTime(1, [100, 100]);')
-        parts.append('scale.setValueAtTime(1.1, [80, 80]);')
-        parts.append('scale.setValueAtTime(1.2, [100, 100]);')
-        parts.append('')
-
     if 'PhoneMockup' in parsed_components:
         pm_props = parsed_components['PhoneMockup']
         text = safe_text if safe_text else pm_props.get('text', '')
@@ -405,42 +531,56 @@ def generate_component_script(
     if 'BarChartReveal' in parsed_components:
         bc_props = parsed_components['BarChartReveal']
         c1 = bc_props.get('color1', '#3b82f6')
-        
+
+        # Data puede ser [num,...] o [{value,label,color},...]. Normalizar.
+        raw_data = bc_props.get('data') or [30, 50, 75, 45, 90]
+        values = []
+        per_bar_colors = []
+        for d in raw_data:
+            if isinstance(d, dict):
+                values.append(float(d.get('value', 0) or 0))
+                per_bar_colors.append(d.get('color'))
+            else:
+                values.append(float(d or 0))
+                per_bar_colors.append(None)
+        # `colors` a nivel componente (lista) como fallback por barra.
+        comp_colors = bc_props.get('colors') or []
+        max_value = float(bc_props.get('maxValue', 100) or 100)
+
         parts.append('// BarChartReveal')
         parts.append('var bcGroup = comp.layers.addShape();')
         parts.append('bcGroup.name = "BarChartReveal";')
         parts.append('var shapeRoot = bcGroup.property("ADBE Root Vectors Group");')
-        
-        # We will create 5 bars
-        data = [30, 50, 75, 45, 90]
+
+        n = max(1, len(values))
         barWidth = 140
         gap = 20
-        totalWidth = (barWidth * 5) + (gap * 4)
+        totalWidth = (barWidth * n) + (gap * (n - 1))
         startX = -totalWidth / 2 + barWidth / 2
-        
-        for i, val in enumerate(data):
+
+        for i, val in enumerate(values):
+            bar_color = per_bar_colors[i] or (comp_colors[i] if i < len(comp_colors) else None) or c1
             parts.append(f'var barGroup{i} = shapeRoot.addProperty("ADBE Vector Group");')
             parts.append(f'var barRoot{i} = barGroup{i}.property("ADBE Vectors Group");')
             parts.append(f'var barRect{i} = barRoot{i}.addProperty("ADBE Vector Shape - Rect");')
             parts.append(f'barRect{i}.property("ADBE Vector Rect Size").setValue([{barWidth}, 500]);')
             parts.append(f'barRect{i}.property("ADBE Vector Rect Roundness").setValue(16);')
-            # Position the anchor point at the bottom of the bar so it scales up
+            # Anchor en la base de la barra para que escale hacia arriba.
             parts.append(f'var barTransform{i} = barGroup{i}.property("ADBE Vector Transform Group");')
             parts.append(f'barTransform{i}.property("ADBE Vector Anchor").setValue([0, 250]);')
             parts.append(f'barTransform{i}.property("ADBE Vector Position").setValue([{startX + i * (barWidth + gap)}, 250]);')
-            
+
             parts.append(f'var fill{i} = barRoot{i}.addProperty("ADBE Vector Graphic - Fill");')
-            parts.append(f'fill{i}.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(c1)});')
-            
-            # Scale Y animation
+            parts.append(f'fill{i}.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(bar_color)});')
+
+            # Animación Scale Y (escalonada), normalizada a maxValue.
             parts.append(f'var scaleProp{i} = barTransform{i}.property("ADBE Vector Scale");')
-            # Staggered start time
             startTime = i * 0.15
-            targetScale = val
+            targetScale = (val / max_value) * 100.0
             parts.append(f'scaleProp{i}.setValueAtTime({startTime}, [100, 0]);')
             parts.append(f'scaleProp{i}.setValueAtTime({startTime + 0.5}, [100, {targetScale}]);')
             parts.append(f'scaleProp{i}.setInterpolationTypeAtKey(2, KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);')
-            
+
         parts.append(f'bcGroup.property("ADBE Transform Group").property("ADBE Position").setValue([{width/2}, {height/2}]);')
         parts.append('')
 
@@ -673,110 +813,6 @@ def generate_component_script(
         
         parts.append('')
 
-    if 'ZoomBlurTransition' in parsed_components:
-        parts.append('// ZoomBlurTransition (Adjustment Layer)')
-        parts.append('var zBlurLayer = comp.layers.addShape();')
-        parts.append('zBlurLayer.name = "ZoomBlurTransition";')
-        parts.append('zBlurLayer.adjustmentLayer = true;')
-        parts.append('var shapeRoot = zBlurLayer.property("ADBE Root Vectors Group");')
-        parts.append('var rect = shapeRoot.addProperty("ADBE Vector Shape - Rect");')
-        parts.append(f'rect.property("ADBE Vector Rect Size").setValue([{width}, {height}]);')
-        parts.append('var fill = shapeRoot.addProperty("ADBE Vector Graphic - Fill");')
-        parts.append('fill.property("ADBE Vector Fill Color").setValue([1,1,1]);')
-        parts.append(f'zBlurLayer.property("ADBE Transform Group").property("ADBE Position").setValue([{width/2}, {height/2}]);')
-        
-        # We need to assume the transition happens at the end. Assuming comp duration is 5 secs.
-        # It's better to use outPoint or just hardcode last 0.5s
-        parts.append('var dur = comp.duration;')
-        
-        parts.append('var transformEffect = zBlurLayer.property("ADBE Effect Parade").addProperty("ADBE Transform");')
-        parts.append('var scaleProp = transformEffect.property("ADBE Transform-0004");') # Scale
-        parts.append('scaleProp.setValueAtTime(dur - 0.5, 100);')
-        parts.append('scaleProp.setValueAtTime(dur, 300);')
-        parts.append('scaleProp.setInterpolationTypeAtKey(2, KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);')
-        
-        parts.append('var radialBlur = zBlurLayer.property("ADBE Effect Parade").addProperty("ADBE Radial Blur");')
-        parts.append('radialBlur.property("ADBE Radial Blur-0001").setValue(0);') # Amount
-        parts.append('radialBlur.property("ADBE Radial Blur-0001").setValueAtTime(dur - 0.5, 0);')
-        parts.append('radialBlur.property("ADBE Radial Blur-0001").setValueAtTime(dur, 100);')
-        parts.append('radialBlur.property("ADBE Radial Blur-0004").setValue(2);') # Type: Zoom (2)
-        parts.append('')
-
-    if 'GlitchTransition' in parsed_components:
-        parts.append('// GlitchTransition (Adjustment Layer)')
-        parts.append('var gLayer = comp.layers.addShape();')
-        parts.append('gLayer.name = "GlitchTransition";')
-        parts.append('gLayer.adjustmentLayer = true;')
-        parts.append('var shapeRoot = gLayer.property("ADBE Root Vectors Group");')
-        parts.append('var rect = shapeRoot.addProperty("ADBE Vector Shape - Rect");')
-        parts.append(f'rect.property("ADBE Vector Rect Size").setValue([{width}, {height}]);')
-        parts.append('var fill = shapeRoot.addProperty("ADBE Vector Graphic - Fill");')
-        parts.append('fill.property("ADBE Vector Fill Color").setValue([1,1,1]);')
-        parts.append(f'gLayer.property("ADBE Transform Group").property("ADBE Position").setValue([{width/2}, {height/2}]);')
-        
-        parts.append('var dur = comp.duration;')
-        parts.append('gLayer.inPoint = dur - 0.4;') # Only active at the end
-        
-        parts.append('var mosaic = gLayer.property("ADBE Effect Parade").addProperty("ADBE Mosaic");')
-        parts.append('mosaic.property("ADBE Mosaic-0001").setValue(10);') # Blocks Horizontal
-        parts.append('mosaic.property("ADBE Mosaic-0002").setValue(10);') # Blocks Vertical
-        
-        parts.append('var invert = gLayer.property("ADBE Effect Parade").addProperty("ADBE Invert");')
-        # Wiggle opacity to make it flash
-        parts.append('gLayer.property("ADBE Transform Group").property("ADBE Opacity").expression = "wiggle(20, 100)";')
-        
-        parts.append('var transformEffect = gLayer.property("ADBE Effect Parade").addProperty("ADBE Transform");')
-        parts.append('transformEffect.property("ADBE Transform-0002").expression = "value + [wiggle(30, 50)[0]-value[0], 0]";') # Wiggle Position X
-        parts.append('')
-
-    if 'WipeTransition' in parsed_components:
-        wipe_props = parsed_components['WipeTransition']
-        color = wipe_props.get('color', '#0f172a')
-        
-        parts.append('// WipeTransition')
-        parts.append('var wLayer = comp.layers.addShape();')
-        parts.append('wLayer.name = "WipeTransition";')
-        parts.append('var shapeRoot = wLayer.property("ADBE Root Vectors Group");')
-        parts.append('var rect = shapeRoot.addProperty("ADBE Vector Shape - Rect");')
-        
-        # Make it huge to cover screen when rotated
-        diag = (width * width + height * height) ** 0.5
-        parts.append(f'rect.property("ADBE Vector Rect Size").setValue([{diag*2}, {diag*2}]);')
-        
-        parts.append('var fill = shapeRoot.addProperty("ADBE Vector Graphic - Fill");')
-        parts.append(f'fill.property("ADBE Vector Fill Color").setValue({hex_to_rgb_array(color)});')
-        
-        parts.append('wLayer.property("ADBE Transform Group").property("ADBE Rotation").setValue(45);')
-        
-        parts.append('var dur = comp.duration;')
-        parts.append('var pos = wLayer.property("ADBE Transform Group").property("ADBE Position");')
-        parts.append(f'pos.setValueAtTime(dur - 0.5, [{-diag}, {height/2}]);')
-        parts.append(f'pos.setValueAtTime(dur, [{width + diag}, {height/2}]);')
-        parts.append('pos.setInterpolationTypeAtKey(1, KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);')
-        parts.append('pos.setInterpolationTypeAtKey(2, KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);')
-        parts.append('')
-
-    if 'LightLeakTransition' in parsed_components:
-        parts.append('// LightLeakTransition')
-        parts.append('var leakLayer = comp.layers.addShape();')
-        parts.append('leakLayer.name = "LightLeakTransition";')
-        parts.append('leakLayer.blendingMode = BlendingMode.ADD;')
-        parts.append('var shapeRoot = leakLayer.property("ADBE Root Vectors Group");')
-        parts.append('var rect = shapeRoot.addProperty("ADBE Vector Shape - Ellipse");')
-        parts.append('rect.property("ADBE Vector Ellipse Size").setValue([1200, 1200]);')
-        parts.append('var fill = shapeRoot.addProperty("ADBE Vector Graphic - Fill");')
-        parts.append('fill.property("ADBE Vector Fill Color").setValue([1, 0.4, 0]);') # Orange
-        
-        parts.append('var dur = comp.duration;')
-        parts.append('var pos = leakLayer.property("ADBE Transform Group").property("ADBE Position");')
-        parts.append(f'pos.setValueAtTime(dur - 0.5, [{-500}, {height/2}]);')
-        parts.append(f'pos.setValueAtTime(dur, [{width + 500}, {height/2}]);')
-        
-        # Feather mask or blur
-        parts.append('var blur = leakLayer.property("ADBE Effect Parade").addProperty("ADBE Fast Blur");')
-        parts.append('blur.property("ADBE Fast Blur-0001").setValue(250);')
-        parts.append('')
-
     if 'GlobalVFX' in parsed_components:
         parts.append('// GlobalVFX (Adjustment Layer for Grain and Lens Curve)')
         parts.append('var vfxLayer = comp.layers.addShape();')
@@ -978,60 +1014,6 @@ def generate_component_script(
         parts.append(f'scale.setValueAtTime({t_time}, [150, 150]);')
         parts.append(f'scale.setValueAtTime({t_time + 0.1}, [90, 90]);')
         parts.append(f'scale.setValueAtTime({t_time + 0.2}, [100, 100]);')
-        parts.append('')
-
-    if 'FeatureChecklist' in parsed_components:
-        check_props = parsed_components['FeatureChecklist']
-        items_str = check_props.get('itemsStr', '')
-        items = [s.strip() for s in items_str.split(',') if s.strip()]
-        
-        parts.append('// FeatureChecklist')
-        for i, item in enumerate(items):
-            delay = 0.5 + (i * 0.5)
-            
-            # Text
-            parts.append(f'var itemText{i} = comp.layers.addText();')
-            parts.append(f'var textProp{i} = itemText{i}.property("Source Text");')
-            parts.append(f'var textDoc{i} = textProp{i}.value;')
-            parts.append(f'textDoc{i}.text = "{item}";')
-            parts.append(f'textDoc{i}.fontSize = 32;')
-            check_text_color = check_props.get('textColor', '#1e293b')
-            parts.append(f'textDoc{i}.fillColor = {hex_to_rgb_array(check_text_color)};')
-            parts.append(f'textProp{i}.setValue(textDoc{i});')
-            parts.append(f'itemText{i}.property("ADBE Transform Group").property("ADBE Position").setValue([{width/2 - 100}, {height/2 + (i*60)}]);')
-            
-            # Opacity Fade
-            parts.append(f'var tOp{i} = itemText{i}.property("ADBE Transform Group").property("ADBE Opacity");')
-            parts.append(f'tOp{i}.setValueAtTime({delay}, 0);')
-            parts.append(f'tOp{i}.setValueAtTime({delay + 0.3}, 100);')
-            
-            # Checkmark Vector (V shape)
-            parts.append(f'var checkLayer{i} = comp.layers.addShape();')
-            parts.append(f'checkLayer{i}.name = "Check_{i}";')
-            parts.append(f'var shapeRoot{i} = checkLayer{i}.property("ADBE Root Vectors Group");')
-            parts.append(f'var checkGroup{i} = shapeRoot{i}.addProperty("ADBE Vector Group");')
-            parts.append(f'var checkVec{i} = checkGroup{i}.property("ADBE Vectors Group");')
-            
-            parts.append(f'var pathGroup{i} = checkVec{i}.addProperty("ADBE Vector Shape - Group");')
-            parts.append('var pathData = new Shape();')
-            # V shape: start top-left, go down-right, go up-right
-            parts.append('pathData.vertices = [[-10, 0], [-2, 10], [12, -10]];')
-            parts.append('pathData.closed = false;')
-            parts.append(f'pathGroup{i}.property("ADBE Vector Shape").setValue(pathData);')
-            
-            parts.append(f'var stroke{i} = checkVec{i}.addProperty("ADBE Vector Graphic - Stroke");')
-            check_color = check_props.get('checkColor', '#10b981')
-            parts.append(f'stroke{i}.property("ADBE Vector Stroke Color").setValue({hex_to_rgb_array(check_color)});')
-            parts.append(f'stroke{i}.property("ADBE Vector Stroke Width").setValue(5);')
-            
-            # Trim Paths Magic
-            parts.append(f'var trim{i} = checkVec{i}.addProperty("ADBE Vector Filter - Trim");')
-            parts.append(f'trim{i}.property("ADBE Vector Trim End").setValueAtTime(0, 0);')
-            parts.append(f'trim{i}.property("ADBE Vector Trim End").setValueAtTime({delay}, 0);')
-            parts.append(f'trim{i}.property("ADBE Vector Trim End").setValueAtTime({delay + 0.3}, 100);')
-            
-            parts.append(f'checkLayer{i}.property("ADBE Transform Group").property("ADBE Position").setValue([{width/2 - 150}, {height/2 - 10 + (i*60)}]);')
-
         parts.append('')
 
     if 'TinderSwipeCard' in parsed_components:
@@ -1240,703 +1222,428 @@ def generate_component_script(
     # ════════════════════════════════════════
     
     if 'TerminalHacker' in parsed_components:
-        props = parsed_components['TerminalHacker']
-        parts.append('// TerminalHacker')
-        parts.append('var termL = comp.layers.addText();')
-        parts.append('termL.name = "TerminalHacker";')
-        parts.append('var termP = termL.property("Source Text");')
-        parts.append('var termD = termP.value;')
-        parts.append('termD.text = "Terminal Hacker Component";')
-        parts.append('termD.fontSize = 40;')
-        parts.append(f'termD.fillColor = {hex_to_rgb_array(props.get("textColor", "#22c55e"))};')
-        parts.append('termP.setValue(termD);')
-        parts.append(f'termL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['TerminalHacker']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('term', 'TerminalHacker_bg', 900, 600, _hexc(p.get('bgColor'), '#0f172a'), 16, x, y)[:-1]
+        parts += _ae_rrect('termH', 'TerminalHacker_header', 900, 60, _hexc(p.get('headerColor'), '#1e293b'), 16, x, y - 270)
+        body = '   '.join(_split(p.get('lines'), ';')) or '> running...'
+        parts += _ae_text('termT', 'TerminalHacker_lines', body, 28, _hexc(p.get('textColor'), '#22c55e'), x, y)
 
     if 'APIRequestFlow' in parsed_components:
-        props = parsed_components['APIRequestFlow']
-        parts.append('// APIRequestFlow')
-        parts.append('var apiL = comp.layers.addText();')
-        parts.append('apiL.name = "APIRequestFlow";')
-        parts.append('var apiP = apiL.property("Source Text");')
-        parts.append('var apiD = apiP.value;')
-        parts.append('apiD.text = "API Request Flow Component";')
-        parts.append('apiD.fontSize = 40;')
-        parts.append(f'apiD.fillColor = {hex_to_rgb_array(props.get("color", "#3b82f6"))};')
-        parts.append('apiP.setValue(apiD);')
-        parts.append(f'apiL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['APIRequestFlow']
+        x, y = p.get('x', 540), p.get('y', 960)
+        title = f"{p.get('method', 'GET')} {p.get('endpoint', '/api')}"
+        parts += _ae_card('api', 'APIRequestFlow', 820, 280, _hexc(p.get('bgColor'), '#1e293b'), x, y,
+                          title=title, title_color=_hexc(p.get('color'), '#3b82f6'), title_size=44,
+                          subtitle=str(p.get('responseCode', 200)), subtitle_color='#22c55e')
 
     if 'GitCommitGraph' in parsed_components:
-        props = parsed_components['GitCommitGraph']
-        parts.append('// GitCommitGraph')
-        parts.append('var gitL = comp.layers.addText();')
-        parts.append('gitL.name = "GitCommitGraph";')
-        parts.append('var gitP = gitL.property("Source Text");')
-        parts.append('var gitD = gitP.value;')
-        parts.append('gitD.text = "Git Commit Graph Component";')
-        parts.append('gitD.fontSize = 40;')
-        parts.append(f'gitD.fillColor = {hex_to_rgb_array(props.get("nodeColor", "#3b82f6"))};')
-        parts.append('gitP.setValue(gitD);')
-        parts.append(f'gitL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['GitCommitGraph']
+        x, y = p.get('x', 540), p.get('y', 960)
+        n = min(int(p.get('commits') or 4), 8)
+        ns = int(p.get('nodeSize') or 24)
+        col = _hexc(p.get('nodeColor'), '#3b82f6')
+        start = x - (n - 1) * 90 / 2
+        for i in range(n):
+            parts += _ae_ellipse(f'git{i}', f'GitCommitGraph_{i}', ns * 2, col, start + i * 90, y)
 
     if 'CodeBlockHighlight' in parsed_components:
-        props = parsed_components['CodeBlockHighlight']
-        parts.append('// CodeBlockHighlight')
-        parts.append('var cbL = comp.layers.addText();')
-        parts.append('cbL.name = "CodeBlockHighlight";')
-        parts.append('var cbP = cbL.property("Source Text");')
-        parts.append('var cbD = cbP.value;')
-        parts.append('cbD.text = "Code Block Highlight Component";')
-        parts.append('cbD.fontSize = 40;')
-        parts.append(f'cbD.fillColor = {hex_to_rgb_array(props.get("accentColor", "#38bdf8"))};')
-        parts.append('cbP.setValue(cbD);')
-        parts.append(f'cbL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['CodeBlockHighlight']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('cbh', 'CodeBlockHighlight_bg', 840, 500, _hexc(p.get('bgColor'), '#0f172a'), 16, x, y)[:-1]
+        parts += _ae_rrect('cbhH', 'CodeBlockHighlight_header', 840, 56, _hexc(p.get('headerColor'), '#1e293b'), 16, x, y - 222)
+        parts += _ae_text('cbhT', 'CodeBlockHighlight_lang', str(p.get('language', 'code')), 34, _hexc(p.get('accentColor'), '#38bdf8'), x, y)
 
     if 'NotificationToast' in parsed_components:
-        props = parsed_components['NotificationToast']
-        parts.append('// NotificationToast')
-        parts.append('var toastL = comp.layers.addText();')
-        parts.append('toastL.name = "NotificationToast";')
-        parts.append('var toastP = toastL.property("Source Text");')
-        parts.append('var toastD = toastP.value;')
-        parts.append('toastD.text = "Notification Toast Component";')
-        parts.append('toastD.fontSize = 40;')
-        parts.append(f'toastD.fillColor = {hex_to_rgb_array(props.get("color", "#22c55e"))};')
-        parts.append('toastP.setValue(toastD);')
-        parts.append(f'toastL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 150)}]);')
-        parts.append('')
+        p = parsed_components['NotificationToast']
+        x, y = p.get('x', 540), p.get('y', 280)
+        w = int(p.get('width') or 0) or 760
+        parts += _ae_rrect('toast', 'NotificationToast_bg', w, 180, '#ffffff', 24, x, y)[:-1]
+        parts += _ae_rrect('toastI', 'NotificationToast_icon', 90, 90, _hexc(p.get('color'), '#22c55e'), 16, x - w / 2 + 80, y)
+        parts += _ae_text('toastT', 'NotificationToast_title', str(p.get('title', 'Notification')), 36, _hexc(p.get('textColor'), '#0f172a'), x + 40, y - 30)
+        parts += _ae_text('toastM', 'NotificationToast_msg', str(p.get('message', '')), 28, _hexc(p.get('messageColor'), '#64748b'), x + 40, y + 28)
 
     if 'LoadingSpinner' in parsed_components:
-        props = parsed_components['LoadingSpinner']
-        parts.append('// LoadingSpinner')
-        parts.append('var spinL = comp.layers.addText();')
-        parts.append('spinL.name = "LoadingSpinner";')
-        parts.append('var spinP = spinL.property("Source Text");')
-        parts.append('var spinD = spinP.value;')
-        parts.append('spinD.text = "Loading Spinner Component";')
-        parts.append('spinD.fontSize = 40;')
-        parts.append(f'spinD.fillColor = {hex_to_rgb_array(props.get("color", "#3b82f6"))};')
-        parts.append('spinP.setValue(spinD);')
-        parts.append(f'spinL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['LoadingSpinner']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_ellipse('spin', 'LoadingSpinner', int(p.get('size') or 100), _hexc(p.get('color'), '#3b82f6'), x, y)
+        parts += [
+            'var spinRot = spin.property("ADBE Transform Group").property("ADBE Rotate Z");',
+            'spinRot.expression = "time * 360";',
+            '',
+        ]
 
     # ════════════════════════════════════════
     # PODCAST & AUDIO
     # ════════════════════════════════════════
 
     if 'AudioSpectrumBars' in parsed_components:
-        props = parsed_components['AudioSpectrumBars']
-        parts.append('// AudioSpectrumBars')
-        parts.append('var asbL = comp.layers.addText();')
-        parts.append('asbL.name = "AudioSpectrumBars";')
-        parts.append('var asbP = asbL.property("Source Text");')
-        parts.append('var asbD = asbP.value;')
-        parts.append('asbD.text = "Audio Spectrum Bars Component";')
-        parts.append('asbD.fontSize = 40;')
-        parts.append(f'asbD.fillColor = {hex_to_rgb_array(props.get("color", "#10b981"))};')
-        parts.append('asbP.setValue(asbD);')
-        parts.append(f'asbL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 800)}]);')
-        parts.append('')
+        p = parsed_components['AudioSpectrumBars']
+        x, y = p.get('x', 540), p.get('y', 960)
+        n = min(int(p.get('barCount') or 15), 24)
+        vals = [30 + (i * 37) % 100 for i in range(n)]  # patrón determinista
+        parts += _ae_bars('asb', 'AudioSpectrumBars', vals, [None] * n, x, y,
+                          width=int(p.get('barWidth', 12)) * n * 2 or 720, height=int(p.get('maxHeight') or 150) * 2,
+                          c1=_hexc(p.get('color'), '#10b981'))
 
     if 'PodcastGuestCard' in parsed_components:
-        props = parsed_components['PodcastGuestCard']
-        parts.append('// PodcastGuestCard')
-        parts.append('var pgcL = comp.layers.addText();')
-        parts.append('pgcL.name = "PodcastGuestCard";')
-        parts.append('var pgcP = pgcL.property("Source Text");')
-        parts.append('var pgcD = pgcP.value;')
-        parts.append('pgcD.text = "Podcast Guest Card Component";')
-        parts.append('pgcD.fontSize = 40;')
-        parts.append(f'pgcD.fillColor = {hex_to_rgb_array(props.get("glowColor", "#3b82f6"))};')
-        parts.append('pgcP.setValue(pgcD);')
-        parts.append(f'pgcL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['PodcastGuestCard']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_ellipse('pgc', 'PodcastGuestCard_avatar', 220, _hexc(p.get('glowColor'), '#3b82f6'), x, y - 80)
+        parts += _ae_text('pgcN', 'PodcastGuestCard_name', str(p.get('name', 'Guest')), 48, '#ffffff', x, y + 90)
+        parts += _ae_text('pgcR', 'PodcastGuestCard_role', str(p.get('role', '')), 32, '#94a3b8', x, y + 150)
 
     if 'MessageBubble' in parsed_components:
-        props = parsed_components['MessageBubble']
-        parts.append('// MessageBubble')
-        parts.append('var mbL = comp.layers.addText();')
-        parts.append('mbL.name = "MessageBubble";')
-        parts.append('var mbP = mbL.property("Source Text");')
-        parts.append('var mbD = mbP.value;')
-        parts.append('mbD.text = "Message Bubble Component";')
-        parts.append('mbD.fontSize = 40;')
-        parts.append(f'mbD.fillColor = {hex_to_rgb_array(props.get("senderColor", "#22c55e"))};')
-        parts.append('mbP.setValue(mbD);')
-        parts.append(f'mbL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['MessageBubble']
+        x, y = p.get('x', 540), p.get('y', 960)
+        w = int(p.get('width') or 600)
+        parts += _ae_rrect('mbR', 'MessageBubble_recv', int(w * 0.7), 90, _hexc(p.get('receiverColor'), '#334155'), 24, x - 120, y - 70)[:-1]
+        parts += _ae_text('mbRT', 'MessageBubble_recv_txt', 'Hey!', int(p.get('fontSize') or 24), _hexc(p.get('receiverTextColor'), '#ffffff'), x - 120, y - 70)
+        parts += _ae_rrect('mbS', 'MessageBubble_send', int(w * 0.7), 90, _hexc(p.get('senderColor'), '#22c55e'), 24, x + 120, y + 70)[:-1]
+        parts += _ae_text('mbST', 'MessageBubble_send_txt', 'Awesome!', int(p.get('fontSize') or 24), _hexc(p.get('senderTextColor'), '#ffffff'), x + 120, y + 70)
 
     if 'WaveformVisualizer' in parsed_components:
-        props = parsed_components['WaveformVisualizer']
-        parts.append('// WaveformVisualizer')
-        parts.append('var wvL = comp.layers.addText();')
-        parts.append('wvL.name = "WaveformVisualizer";')
-        parts.append('var wvP = wvL.property("Source Text");')
-        parts.append('var wvD = wvP.value;')
-        parts.append('wvD.text = "Waveform Visualizer Component";')
-        parts.append('wvD.fontSize = 40;')
-        parts.append(f'wvD.fillColor = {hex_to_rgb_array(props.get("color", "#8b5cf6"))};')
-        parts.append('wvP.setValue(wvD);')
-        parts.append(f'wvL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['WaveformVisualizer']
+        x, y = p.get('x', 540), p.get('y', 960)
+        vals = [40 + abs(((i * 53) % 160) - 80) for i in range(20)]  # onda determinista
+        parts += _ae_bars('wv', 'WaveformVisualizer', vals, [None] * 20, x, y,
+                          width=int(p.get('width') or 800), height=int(p.get('amplitude') or 100) * 2,
+                          c1=_hexc(p.get('color'), '#8b5cf6'))
 
     if 'QuoteBlock' in parsed_components:
-        props = parsed_components['QuoteBlock']
-        parts.append('// QuoteBlock')
-        parts.append('var qbL = comp.layers.addText();')
-        parts.append('qbL.name = "QuoteBlock";')
-        parts.append('var qbP = qbL.property("Source Text");')
-        parts.append('var qbD = qbP.value;')
-        parts.append('qbD.text = "Quote Block Component";')
-        parts.append('qbD.fontSize = 40;')
-        parts.append(f'qbD.fillColor = {hex_to_rgb_array(props.get("color", "#eab308"))};')
-        parts.append('qbP.setValue(qbD);')
-        parts.append(f'qbL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
-
-    if 'SoundWaveCircle' in parsed_components:
-        props = parsed_components['SoundWaveCircle']
-        parts.append('// SoundWaveCircle')
-        parts.append('var swcL = comp.layers.addText();')
-        parts.append('swcL.name = "SoundWaveCircle";')
-        parts.append('var swcP = swcL.property("Source Text");')
-        parts.append('var swcD = swcP.value;')
-        parts.append('swcD.text = "Sound Wave Circle Component";')
-        parts.append('swcD.fontSize = 40;')
-        parts.append(f'swcD.fillColor = {hex_to_rgb_array(props.get("color", "#f43f5e"))};')
-        parts.append('swcP.setValue(swcD);')
-        parts.append(f'swcL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['QuoteBlock']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_text('qb', 'QuoteBlock_text', str(p.get('text', 'Quote')), int(p.get('fontSize') or 48), _hexc(p.get('textColor'), '#ffffff'), x, y)
+        parts += _ae_text('qbA', 'QuoteBlock_author', '— ' + str(p.get('author', '')), 34, _hexc(p.get('authorColor'), '#94a3b8'), x, y + 90)
 
     # ════════════════════════════════════════
     # NEWS, BROADCAST & SPORTS
     # ════════════════════════════════════════
 
     if 'LowerThird' in parsed_components:
-        props = parsed_components['LowerThird']
-        parts.append('// LowerThird')
-        parts.append('var ltL = comp.layers.addText();')
-        parts.append('ltL.name = "LowerThird";')
-        parts.append('var ltP = ltL.property("Source Text");')
-        parts.append('var ltD = ltP.value;')
-        parts.append('ltD.text = "Lower Third Component";')
-        parts.append('ltD.fontSize = 40;')
-        parts.append(f'ltD.fillColor = {hex_to_rgb_array(props.get("color", "#2563eb"))};')
-        parts.append('ltP.setValue(ltD);')
-        parts.append(f'ltL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 200)}, {props.get("y", 800)}]);')
-        parts.append('')
+        p = parsed_components['LowerThird']
+        x, y = p.get('x', 540), p.get('y', 1500)
+        w = int(p.get('width') or 640)
+        parts += _ae_rrect('ltBar', 'LowerThird_bar', int(p.get('barWidth') or 12), 140, _hexc(p.get('color'), '#2563eb'), 0, x - w / 2, y)
+        parts += _ae_rrect('lt', 'LowerThird_bg', w, 140, _hexc(p.get('bgColor'), '#ffffff'), 8, x, y)[:-1]
+        parts += _ae_text('ltN', 'LowerThird_name', str(p.get('name', 'NAME')), int(p.get('fontSize') or 48), _hexc(p.get('textColor'), '#0f172a'), x, y - 26)
+        parts += _ae_text('ltT', 'LowerThird_title', str(p.get('title', '')), 30, _hexc(p.get('titleColor'), '#64748b'), x, y + 30)
 
     if 'BreakingNewsTicker' in parsed_components:
-        props = parsed_components['BreakingNewsTicker']
-        parts.append('// BreakingNewsTicker')
-        parts.append('var bntL = comp.layers.addText();')
-        parts.append('bntL.name = "BreakingNewsTicker";')
-        parts.append('var bntP = bntL.property("Source Text");')
-        parts.append('var bntD = bntP.value;')
-        parts.append('bntD.text = "Breaking News Ticker Component";')
-        parts.append('bntD.fontSize = 40;')
-        parts.append(f'bntD.fillColor = {hex_to_rgb_array(props.get("bgColor", "#ef4444"))};')
-        parts.append('bntP.setValue(bntD);')
-        parts.append(f'bntL.property("ADBE Transform Group").property("ADBE Position").setValue([540, 960]);')
-        parts.append('')
+        p = parsed_components['BreakingNewsTicker']
+        x, y = p.get('x', 540), p.get('y', 1700)
+        bh = int(p.get('barHeight') or 70)
+        parts += _ae_rrect('bnt', 'BreakingNewsTicker_bar', width, bh, _hexc(p.get('bgColor'), '#ef4444'), 0, x, y)[:-1]
+        parts += _ae_rrect('bntB', 'BreakingNewsTicker_badge', 220, bh, _hexc(p.get('badgeBg'), '#000000'), 0, 110, y)[:-1]
+        parts += _ae_text('bntBT', 'BreakingNewsTicker_badge_txt', str(p.get('badgeText', 'BREAKING')), 30, _hexc(p.get('badgeColor'), '#ffffff'), 110, y)
+        parts += _ae_text('bntT', 'BreakingNewsTicker_txt', str(p.get('text', 'News')), int(p.get('fontSize') or 32), _hexc(p.get('textColor'), '#ffffff'), x + 120, y)
 
     if 'VersusScreen' in parsed_components:
-        props = parsed_components['VersusScreen']
-        parts.append('// VersusScreen')
-        parts.append('var vsL = comp.layers.addText();')
-        parts.append('vsL.name = "VersusScreen";')
-        parts.append('var vsP = vsL.property("Source Text");')
-        parts.append('var vsD = vsP.value;')
-        parts.append('vsD.text = "Versus Screen Component";')
-        parts.append('vsD.fontSize = 40;')
-        parts.append(f'vsD.fillColor = {hex_to_rgb_array(props.get("colorA", "#61dafb"))};')
-        parts.append('vsP.setValue(vsD);')
-        parts.append(f'vsL.property("ADBE Transform Group").property("ADBE Position").setValue([540, 540]);')
-        parts.append('')
+        p = parsed_components['VersusScreen']
+        parts += _ae_rrect('vsA', 'VersusScreen_A', width // 2, height, _hexc(p.get('colorA'), '#61dafb'), 0, width / 4, height / 2)[:-1]
+        parts += _ae_rrect('vsB', 'VersusScreen_B', width // 2, height, _hexc(p.get('colorB'), '#42b883'), 0, width * 3 / 4, height / 2)[:-1]
+        parts += _ae_text('vsNA', 'VersusScreen_nameA', str(p.get('nameA', 'A')), 80, '#ffffff', width / 4, height / 2)
+        parts += _ae_text('vsNB', 'VersusScreen_nameB', str(p.get('nameB', 'B')), 80, '#ffffff', width * 3 / 4, height / 2)
+        if p.get('showVs', True):
+            parts += _ae_text('vsVS', 'VersusScreen_vs', str(p.get('vsText', 'VS')), 100, _hexc(p.get('vsColor'), '#ffffff'), width / 2, height / 2)
 
     if 'ScoreboardCounter' in parsed_components:
-        props = parsed_components['ScoreboardCounter']
-        parts.append('// ScoreboardCounter')
-        parts.append('var scL = comp.layers.addText();')
-        parts.append('scL.name = "ScoreboardCounter";')
-        parts.append('var scP = scL.property("Source Text");')
-        parts.append('var scD = scP.value;')
-        parts.append('scD.text = "Scoreboard Counter Component";')
-        parts.append('scD.fontSize = 40;')
-        parts.append(f'scD.fillColor = {hex_to_rgb_array(props.get("colorA", "#ef4444"))};')
-        parts.append('scP.setValue(scD);')
-        parts.append(f'scL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['ScoreboardCounter']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_text('scA', 'ScoreboardCounter_A', str(p.get('valueA', 0)), 160, _hexc(p.get('colorA'), '#ef4444'), x - 220, y)
+        parts += _ae_text('scB', 'ScoreboardCounter_B', str(p.get('valueB', 0)), 160, _hexc(p.get('colorB'), '#3b82f6'), x + 220, y)
+        parts += _ae_text('scLA', 'ScoreboardCounter_labelA', str(p.get('labelA', 'HOME')), 36, '#ffffff', x - 220, y + 130)
+        parts += _ae_text('scLB', 'ScoreboardCounter_labelB', str(p.get('labelB', 'AWAY')), 36, '#ffffff', x + 220, y + 130)
 
     if 'BreakingNewsAlert' in parsed_components:
-        props = parsed_components['BreakingNewsAlert']
-        parts.append('// BreakingNewsAlert')
-        parts.append('var bnaL = comp.layers.addText();')
-        parts.append('bnaL.name = "BreakingNewsAlert";')
-        parts.append('var bnaP = bnaL.property("Source Text");')
-        parts.append('var bnaD = bnaP.value;')
-        parts.append('bnaD.text = "Breaking News Alert Component";')
-        parts.append('bnaD.fontSize = 40;')
-        parts.append(f'bnaD.fillColor = {hex_to_rgb_array(props.get("bgColor", "#ef4444"))};')
-        parts.append('bnaP.setValue(bnaD);')
-        parts.append(f'bnaL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['BreakingNewsAlert']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_card('bna', 'BreakingNewsAlert', 920, 360, _hexc(p.get('bgColor'), '#ef4444'), x, y,
+                          title=str(p.get('headline', 'ALERT')), title_color=_hexc(p.get('textColor'), '#ffffff'),
+                          title_size=int(p.get('fontSize') or 80))
 
     if 'CountdownTimer' in parsed_components:
-        props = parsed_components['CountdownTimer']
-        parts.append('// CountdownTimer')
-        parts.append('var ctL = comp.layers.addText();')
-        parts.append('ctL.name = "CountdownTimer";')
-        parts.append('var ctP = ctL.property("Source Text");')
-        parts.append('var ctD = ctP.value;')
-        parts.append('ctD.text = "Countdown Timer Component";')
-        parts.append('ctD.fontSize = 40;')
-        parts.append(f'ctD.fillColor = {hex_to_rgb_array(props.get("color", "#eab308"))};')
-        parts.append('ctP.setValue(ctD);')
-        parts.append(f'ctL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['CountdownTimer']
+        x, y = p.get('x', 540), p.get('y', 960)
+        sz = int(p.get('size') or 400)
+        parts += _ae_ellipse('ctR', 'CountdownTimer_ring', sz, _hexc(p.get('trackColor'), '#334155'), x, y)
+        parts += _ae_text('ct', 'CountdownTimer_num', str(p.get('seconds', 10)), int(p.get('fontSize') or 200), _hexc(p.get('textColor'), '#ffffff'), x, y)
 
     # ════════════════════════════════════════
     # ADVANCED DATA VIZ
     # ════════════════════════════════════════
 
     if 'PieChartReveal' in parsed_components:
-        props = parsed_components['PieChartReveal']
-        parts.append('// PieChartReveal')
-        parts.append('var pcrL = comp.layers.addText();')
-        parts.append('pcrL.name = "PieChartReveal";')
-        parts.append('var pcrP = pcrL.property("Source Text");')
-        parts.append('var pcrD = pcrP.value;')
-        parts.append('pcrD.text = "Pie Chart Reveal Component";')
-        parts.append('pcrD.fontSize = 40;')
-        parts.append(f'pcrD.fillColor = {hex_to_rgb_array(props.get("bgColor", "#0f172a"))};')
-        parts.append('pcrP.setValue(pcrD);')
-        parts.append(f'pcrL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['PieChartReveal']
+        x, y = p.get('x', 540), p.get('y', 960)
+        cols = _split(p.get('colors'))
+        col = _hexc(cols[0] if cols else None, '#3b82f6')
+        parts += _ae_ellipse('pcr', 'PieChartReveal', 360, col, x, y)
 
     if 'StockCandlestick' in parsed_components:
-        props = parsed_components['StockCandlestick']
-        parts.append('// StockCandlestick')
-        parts.append('var scsL = comp.layers.addText();')
-        parts.append('scsL.name = "StockCandlestick";')
-        parts.append('var scsP = scsL.property("Source Text");')
-        parts.append('var scsD = scsP.value;')
-        parts.append('scsD.text = "Stock Candlestick Component";')
-        parts.append('scsD.fontSize = 40;')
-        parts.append(f'scsD.fillColor = {hex_to_rgb_array(props.get("upColor", "#22c55e"))};')
-        parts.append('scsP.setValue(scsD);')
-        parts.append(f'scsL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['StockCandlestick']
+        x, y = p.get('x', 540), p.get('y', 960)
+        candles = _split(p.get('data'), ';')
+        vals = [_nums(c)[0] if _nums(c) else 50 for c in candles] or [120, 90, 110, 130]
+        cols = [_hexc(p.get('upColor'), '#22c55e') if i % 2 == 0 else _hexc(p.get('downColor'), '#ef4444') for i in range(len(vals))]
+        parts += _ae_bars('scs', 'StockCandlestick', vals, cols, x, y, c1=_hexc(p.get('upColor'), '#22c55e'))
 
     if 'RadarSpiderChart' in parsed_components:
-        props = parsed_components['RadarSpiderChart']
-        parts.append('// RadarSpiderChart')
-        parts.append('var rscL = comp.layers.addText();')
-        parts.append('rscL.name = "RadarSpiderChart";')
-        parts.append('var rscP = rscL.property("Source Text");')
-        parts.append('var rscD = rscP.value;')
-        parts.append('rscD.text = "Radar Spider Chart Component";')
-        parts.append('rscD.fontSize = 40;')
-        parts.append(f'rscD.fillColor = {hex_to_rgb_array(props.get("color", "#3b82f6"))};')
-        parts.append('rscP.setValue(rscD);')
-        parts.append(f'rscL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['RadarSpiderChart']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_ellipse('rsc', 'RadarSpiderChart', 360, _hexc(p.get('color'), '#00FFAB'), x, y)
 
     if 'FunnelChart' in parsed_components:
-        props = parsed_components['FunnelChart']
-        parts.append('// FunnelChart')
-        parts.append('var fcL = comp.layers.addText();')
-        parts.append('fcL.name = "FunnelChart";')
-        parts.append('var fcP = fcL.property("Source Text");')
-        parts.append('var fcD = fcP.value;')
-        parts.append('fcD.text = "Funnel Chart Component";')
-        parts.append('fcD.fontSize = 40;')
-        parts.append(f'fcD.fillColor = {hex_to_rgb_array(props.get("textColor", "#ffffff"))};')
-        parts.append('fcP.setValue(fcD);')
-        parts.append(f'fcL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['FunnelChart']
+        x, y = p.get('x', 540), p.get('y', 960)
+        vals = _nums(p.get('values')) or [100, 70, 45, 25]
+        cols = _split(p.get('colors'))
+        mx = max(vals + [1])
+        for i, v in enumerate(vals):
+            w = int(max(140, (v / mx) * 720))
+            col = _hexc(cols[i] if i < len(cols) else None, '#3b82f6')
+            parts += _ae_rrect(f'fc{i}', f'FunnelChart_{i}', w, 80, col, 8, x, y - len(vals) * 48 + i * 96)
 
     if 'HorizontalBarRace' in parsed_components:
-        props = parsed_components['HorizontalBarRace']
-        parts.append('// HorizontalBarRace')
-        parts.append('var hbrL = comp.layers.addText();')
-        parts.append('hbrL.name = "HorizontalBarRace";')
-        parts.append('var hbrP = hbrL.property("Source Text");')
-        parts.append('var hbrD = hbrP.value;')
-        parts.append('hbrD.text = "Horizontal Bar Race Component";')
-        parts.append('hbrD.fontSize = 40;')
-        parts.append(f'hbrD.fillColor = {hex_to_rgb_array(props.get("textColor", "#ffffff"))};')
-        parts.append('hbrP.setValue(hbrD);')
-        parts.append(f'hbrL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['HorizontalBarRace']
+        x, y = p.get('x', 540), p.get('y', 960)
+        items = p.get('items') or [{'label': 'A', 'value': 100}, {'label': 'B', 'value': 70}]
+        mx = max([float(it.get('value', 0)) for it in items] + [1])
+        for i, it in enumerate(items[:6]):
+            w = int(max(120, (float(it.get('value', 0)) / mx) * 720))
+            col = _hexc(it.get('color'), '#3b82f6')
+            ry = y - len(items) * 50 + i * 100
+            parts += _ae_rrect(f'hbr{i}', f'HorizontalBarRace_{i}', w, 70, col, 8, x - 360 + w / 2, ry)[:-1]
+            parts += _ae_text(f'hbrT{i}', f'HorizontalBarRace_lbl_{i}', str(it.get('label', '')), 32, _hexc(p.get('textColor'), '#ffffff'), x - 360 + w / 2, ry)
 
     if 'CounterNumber' in parsed_components:
-        props = parsed_components['CounterNumber']
-        parts.append('// CounterNumber')
-        parts.append('var cnL = comp.layers.addText();')
-        parts.append('cnL.name = "CounterNumber";')
-        parts.append('var cnP = cnL.property("Source Text");')
-        parts.append('var cnD = cnP.value;')
-        parts.append('cnD.text = "Counter Number Component";')
-        parts.append('cnD.fontSize = 40;')
-        parts.append(f'cnD.fillColor = {hex_to_rgb_array(props.get("color", "#22c55e"))};')
-        parts.append('cnP.setValue(cnD);')
-        parts.append(f'cnL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['CounterNumber']
+        x, y = p.get('x', 540), p.get('y', 960)
+        label = f"{p.get('prefix', '')}{p.get('to', 0)}{p.get('suffix', '')}"
+        parts += _ae_text('cn', 'CounterNumber', label, 160, _hexc(p.get('color'), '#22c55e'), x, y)
 
     # ════════════════════════════════════════
     # SOCIAL MEDIA & UGC
     # ════════════════════════════════════════
 
     if 'TweetCard' in parsed_components:
-        props = parsed_components['TweetCard']
-        parts.append('// TweetCard')
-        parts.append('var tcL = comp.layers.addText();')
-        parts.append('tcL.name = "TweetCard";')
-        parts.append('var tcP = tcL.property("Source Text");')
-        parts.append('var tcD = tcP.value;')
-        parts.append('tcD.text = "Tweet Card Component";')
-        parts.append('tcD.fontSize = 40;')
-        parts.append(f'tcD.fillColor = {hex_to_rgb_array(props.get("color", "#1d9bf0"))};')
-        parts.append('tcP.setValue(tcD);')
-        parts.append(f'tcL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['TweetCard']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('tc', 'TweetCard_bg', 820, 360, '#ffffff', 24, x, y)[:-1]
+        parts += _ae_text('tcU', 'TweetCard_user', str(p.get('username', 'User')), 40, '#0f172a', x, y - 110)
+        parts += _ae_text('tcH', 'TweetCard_handle', str(p.get('handle', '@user')), 30, '#64748b', x, y - 60)
+        parts += _ae_text('tcC', 'TweetCard_content', str(p.get('content', '')), 34, '#0f172a', x, y + 40)
 
     if 'InstagramPost' in parsed_components:
-        props = parsed_components['InstagramPost']
-        parts.append('// InstagramPost')
-        parts.append('var ipL = comp.layers.addText();')
-        parts.append('ipL.name = "InstagramPost";')
-        parts.append('var ipP = ipL.property("Source Text");')
-        parts.append('var ipD = ipP.value;')
-        parts.append('ipD.text = "Instagram Post Component";')
-        parts.append('ipD.fontSize = 40;')
-        parts.append(f'ipD.fillColor = {hex_to_rgb_array(props.get("color", "#e1306c"))};')
-        parts.append('ipP.setValue(ipD);')
-        parts.append(f'ipL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['InstagramPost']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('ip', 'InstagramPost_bg', 820, 820, '#ffffff', 16, x, y)[:-1]
+        parts += _ae_text('ipU', 'InstagramPost_user', str(p.get('username', 'user')), 36, '#0f172a', x, y - 360)
+        parts += _ae_text('ipC', 'InstagramPost_caption', str(p.get('caption', '')), 32, '#0f172a', x, y + 340)
 
     if 'TikTokOverlay' in parsed_components:
-        props = parsed_components['TikTokOverlay']
-        parts.append('// TikTokOverlay')
-        parts.append('var ttoL = comp.layers.addText();')
-        parts.append('ttoL.name = "TikTokOverlay";')
-        parts.append('var ttoP = ttoL.property("Source Text");')
-        parts.append('var ttoD = ttoP.value;')
-        parts.append('ttoD.text = "TikTok Overlay Component";')
-        parts.append('ttoD.fontSize = 40;')
-        parts.append(f'ttoD.fillColor = {hex_to_rgb_array(props.get("color", "#fe2c55"))};')
-        parts.append('ttoP.setValue(ttoD);')
-        parts.append(f'ttoL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 900)}, {props.get("y", 960)}]);')
-        parts.append('')
+        p = parsed_components['TikTokOverlay']
+        x = p.get('x', width - 120)
+        y = p.get('y', 960)
+        parts += _ae_text('ttoL', 'TikTokOverlay_likes', '♥ ' + str(p.get('likes', '0')), 36, '#ffffff', x, y - 120)
+        parts += _ae_text('ttoC', 'TikTokOverlay_comments', '💬 ' + str(p.get('comments', '0')), 36, '#ffffff', x, y)
+        parts += _ae_text('ttoS', 'TikTokOverlay_shares', '↪ ' + str(p.get('shares', '0')), 36, '#ffffff', x, y + 120)
 
     if 'YouTubeEndScreen' in parsed_components:
-        props = parsed_components['YouTubeEndScreen']
-        parts.append('// YouTubeEndScreen')
-        parts.append('var yesL = comp.layers.addText();')
-        parts.append('yesL.name = "YouTubeEndScreen";')
-        parts.append('var yesP = yesL.property("Source Text");')
-        parts.append('var yesD = yesP.value;')
-        parts.append('yesD.text = "YouTube End Screen Component";')
-        parts.append('yesD.fontSize = 40;')
-        parts.append(f'yesD.fillColor = {hex_to_rgb_array(props.get("subscribeColor", "#ff0000"))};')
-        parts.append('yesP.setValue(yesD);')
-        parts.append(f'yesL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['YouTubeEndScreen']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_text('yes', 'YouTubeEndScreen_title', str(p.get('title', 'Thanks!')), 64, '#ffffff', x, y - 120)
+        parts += _ae_rrect('yesB', 'YouTubeEndScreen_subscribe', 360, 100, _hexc(p.get('subscribeColor'), '#ff0000'), 12, x, y + 40)[:-1]
+        parts += _ae_text('yesBT', 'YouTubeEndScreen_sub_txt', 'SUBSCRIBE', 40, '#ffffff', x, y + 40)
 
     if 'FollowerCounter' in parsed_components:
-        props = parsed_components['FollowerCounter']
-        parts.append('// FollowerCounter')
-        parts.append('var fcL = comp.layers.addText();')
-        parts.append('fcL.name = "FollowerCounter";')
-        parts.append('var fcP = fcL.property("Source Text");')
-        parts.append('var fcD = fcP.value;')
-        parts.append('fcD.text = "Follower Counter Component";')
-        parts.append('fcD.fontSize = 40;')
-        parts.append(f'fcD.fillColor = {hex_to_rgb_array(props.get("color", "#e1306c"))};')
-        parts.append('fcP.setValue(fcD);')
-        parts.append(f'fcL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['FollowerCounter']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_text('fc', 'FollowerCounter', str(p.get('endCount', 0)), 150, _hexc(p.get('color'), '#e1306c'), x, y)
+        parts += _ae_text('fcP', 'FollowerCounter_platform', str(p.get('platform', '')), 36, '#94a3b8', x, y + 120)
 
     if 'SocialSharePopup' in parsed_components:
-        props = parsed_components['SocialSharePopup']
-        parts.append('// SocialSharePopup')
-        parts.append('var sspL = comp.layers.addText();')
-        parts.append('sspL.name = "SocialSharePopup";')
-        parts.append('var sspP = sspL.property("Source Text");')
-        parts.append('var sspD = sspP.value;')
-        parts.append('sspD.text = "Social Share Popup Component";')
-        parts.append('sspD.fontSize = 40;')
-        parts.append(f'sspD.fillColor = {hex_to_rgb_array(props.get("color", "#3b82f6"))};')
-        parts.append('sspP.setValue(sspD);')
-        parts.append(f'sspL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['SocialSharePopup']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_card('ssp', 'SocialSharePopup', 760, 300, _hexc(p.get('bgColor'), '#1e293b'), x, y,
+                          title=str(p.get('title', 'Share')), title_color='#ffffff', title_size=48)
 
     # ════════════════════════════════════════
     # ADVANCED E-COMMERCE & B2C
     # ════════════════════════════════════════
 
     if 'PromoCodeBanner' in parsed_components:
-        props = parsed_components['PromoCodeBanner']
-        parts.append('// PromoCodeBanner')
-        parts.append('var pcbL = comp.layers.addText();')
-        parts.append('pcbL.name = "PromoCodeBanner";')
-        parts.append('var pcbP = pcbL.property("Source Text");')
-        parts.append('var pcbD = pcbP.value;')
-        parts.append('pcbD.text = "Promo Code Banner Component";')
-        parts.append('pcbD.fontSize = 40;')
-        parts.append(f'pcbD.fillColor = {hex_to_rgb_array(props.get("bgColor", "#eab308"))};')
-        parts.append('pcbP.setValue(pcbD);')
-        parts.append(f'pcbL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['PromoCodeBanner']
+        x, y = p.get('x', 540), p.get('y', 960)
+        w = int(p.get('width') or 0) or 760
+        parts += _ae_rrect('pcb', 'PromoCodeBanner_bg', w, 240, _hexc(p.get('bgColor'), '#eab308'), int(p.get('cornerRadius') or 24), x, y)[:-1]
+        if p.get('showDiscount', True):
+            parts += _ae_text('pcbD', 'PromoCodeBanner_discount', str(p.get('discount', '')), 56, _hexc(p.get('discountTextColor'), p.get('textColor') or '#0f172a'), x, y - 50)
+        parts += _ae_text('pcbC', 'PromoCodeBanner_code', str(p.get('code', 'CODE')), 64, _hexc(p.get('textColor'), '#0f172a'), x, y + 40)
 
     if 'SizeSelector' in parsed_components:
-        props = parsed_components['SizeSelector']
-        parts.append('// SizeSelector')
-        parts.append('var ssL = comp.layers.addText();')
-        parts.append('ssL.name = "SizeSelector";')
-        parts.append('var ssP = ssL.property("Source Text");')
-        parts.append('var ssD = ssP.value;')
-        parts.append('ssD.text = "Size Selector Component";')
-        parts.append('ssD.fontSize = 40;')
-        parts.append(f'ssD.fillColor = {hex_to_rgb_array(props.get("color", "#0f172a"))};')
-        parts.append('ssP.setValue(ssD);')
-        parts.append(f'ssL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['SizeSelector']
+        x, y = p.get('x', 540), p.get('y', 960)
+        sizes = _split(p.get('sizes')) or ['S', 'M', 'L']
+        sel = str(p.get('selectedSize', ''))
+        start = x - (len(sizes) - 1) * 130 / 2
+        for i, s in enumerate(sizes[:7]):
+            bx = start + i * 130
+            col = _hexc(p.get('accentColor'), '#3b82f6') if s == sel else '#1e293b'
+            parts += _ae_rrect(f'ss{i}', f'SizeSelector_{i}', 100, 100, col, 16, bx, y)[:-1]
+            parts += _ae_text(f'ssT{i}', f'SizeSelector_lbl_{i}', s, 40, '#ffffff', bx, y)
 
     if 'AppStoreButtons' in parsed_components:
-        props = parsed_components['AppStoreButtons']
-        parts.append('// AppStoreButtons')
-        parts.append('var asbL = comp.layers.addText();')
-        parts.append('asbL.name = "AppStoreButtons";')
-        parts.append('var asbP = asbL.property("Source Text");')
-        parts.append('var asbD = asbP.value;')
-        parts.append('asbD.text = "App Store Buttons Component";')
-        parts.append('asbD.fontSize = 40;')
-        parts.append(f'asbD.fillColor = {hex_to_rgb_array(props.get("bgColor", "#000000"))};')
-        parts.append('asbP.setValue(asbD);')
-        parts.append(f'asbL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['AppStoreButtons']
+        x, y = p.get('x', 540), p.get('y', 960)
+        if p.get('showApple', True):
+            parts += _ae_rrect('asbA', 'AppStoreButtons_apple', 420, 130, '#000000', 16, x, y - 80)[:-1]
+            parts += _ae_text('asbAT', 'AppStoreButtons_apple_txt', 'App Store', 40, '#ffffff', x, y - 80)
+        if p.get('showGoogle', True):
+            parts += _ae_rrect('asbG', 'AppStoreButtons_google', 420, 130, '#000000', 16, x, y + 80)[:-1]
+            parts += _ae_text('asbGT', 'AppStoreButtons_google_txt', 'Google Play', 40, '#ffffff', x, y + 80)
 
     if 'FeatureUnlock' in parsed_components:
-        props = parsed_components['FeatureUnlock']
-        parts.append('// FeatureUnlock')
-        parts.append('var fuL = comp.layers.addText();')
-        parts.append('fuL.name = "FeatureUnlock";')
-        parts.append('var fuP = fuL.property("Source Text");')
-        parts.append('var fuD = fuP.value;')
-        parts.append('fuD.text = "Feature Unlock Component";')
-        parts.append('fuD.fontSize = 40;')
-        parts.append(f'fuD.fillColor = {hex_to_rgb_array(props.get("color", "#eab308"))};')
-        parts.append('fuP.setValue(fuD);')
-        parts.append(f'fuL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['FeatureUnlock']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_card('fu', 'FeatureUnlock', 760, 320, _hexc(p.get('bgColor'), '#0f172a'), x, y,
+                          title=str(p.get('featureName', 'Feature')), title_color=_hexc(p.get('textColor'), '#ffffff'),
+                          subtitle=str(p.get('label', 'UNLOCKED')), subtitle_color=_hexc(p.get('color'), '#eab308'))
 
     if 'FlashSaleTimer' in parsed_components:
-        props = parsed_components['FlashSaleTimer']
-        parts.append('// FlashSaleTimer')
-        parts.append('var fstL = comp.layers.addText();')
-        parts.append('fstL.name = "FlashSaleTimer";')
-        parts.append('var fstP = fstL.property("Source Text");')
-        parts.append('var fstD = fstP.value;')
-        parts.append('fstD.text = "Flash Sale Timer Component";')
-        parts.append('fstD.fontSize = 40;')
-        parts.append(f'fstD.fillColor = {hex_to_rgb_array(props.get("color", "#ef4444"))};')
-        parts.append('fstP.setValue(fstD);')
-        parts.append(f'fstL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['FlashSaleTimer']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_text('fstT', 'FlashSaleTimer_title', str(p.get('title', 'Flash Sale')), 48, _hexc(p.get('color'), '#ef4444'), x, y - 160)
+        units = [(p.get('hours', 0), p.get('hoursLabel', 'H')), (p.get('minutes', 0), p.get('minutesLabel', 'M')), (p.get('seconds', 0), p.get('secondsLabel', 'S'))]
+        start = x - 280
+        for i, (val, lbl) in enumerate(units):
+            bx = start + i * 280
+            parts += _ae_rrect(f'fst{i}', f'FlashSaleTimer_block_{i}', 200, 200, _hexc(p.get('blockColor'), '#1e293b'), 16, bx, y)[:-1]
+            parts += _ae_text(f'fstN{i}', f'FlashSaleTimer_num_{i}', str(val).zfill(2), 90, _hexc(p.get('textColor'), '#ffffff'), bx, y - 16)
+            parts += _ae_text(f'fstL{i}', f'FlashSaleTimer_lbl_{i}', str(lbl), 28, _hexc(p.get('labelColor'), '#64748b'), bx, y + 70)
 
     if 'PricingTableReveal' in parsed_components:
-        props = parsed_components['PricingTableReveal']
-        parts.append('// PricingTableReveal')
-        parts.append('var ptrL = comp.layers.addText();')
-        parts.append('ptrL.name = "PricingTableReveal";')
-        parts.append('var ptrP = ptrL.property("Source Text");')
-        parts.append('var ptrD = ptrP.value;')
-        parts.append('ptrD.text = "Pricing Table Reveal Component";')
-        parts.append('ptrD.fontSize = 40;')
-        parts.append(f'ptrD.fillColor = {hex_to_rgb_array(props.get("highlightColor", "#3b82f6"))};')
-        parts.append('ptrP.setValue(ptrD);')
-        parts.append(f'ptrL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['PricingTableReveal']
+        x, y = p.get('x', 540), p.get('y', 960)
+        tiers = [(p.get('tier1', 'Starter'), p.get('price1', '$0')), (p.get('tier2', 'Pro'), p.get('price2', '$29')), (p.get('tier3', 'Enterprise'), p.get('price3', '$99'))]
+        start = x - 320
+        for i, (tier, price) in enumerate(tiers):
+            cx = start + i * 320
+            col = _hexc(p.get('highlightColor'), '#3b82f6') if i == 1 else '#1e293b'
+            parts += _ae_rrect(f'ptr{i}', f'PricingTableReveal_col_{i}', 280, 420, col, 20, cx, y)[:-1]
+            parts += _ae_text(f'ptrT{i}', f'PricingTableReveal_tier_{i}', str(tier), 40, '#ffffff', cx, y - 120)
+            parts += _ae_text(f'ptrP{i}', f'PricingTableReveal_price_{i}', str(price), 70, '#ffffff', cx, y)
 
     # ════════════════════════════════════════
     # SPRINT 4: PRIMITIVAS GEOMÉTRICAS
     # ════════════════════════════════════════
 
     if 'AnimatedShape' in parsed_components:
-        props = parsed_components['AnimatedShape']
-        parts.append('// AnimatedShape')
-        parts.append('var ashL = comp.layers.addText();')
-        parts.append('ashL.name = "AnimatedShape";')
-        parts.append('var ashP = ashL.property("Source Text");')
-        parts.append('var ashD = ashP.value;')
-        parts.append('ashD.text = "Animated Shape Component";')
-        parts.append('ashD.fontSize = 40;')
-        parts.append(f'ashD.fillColor = {hex_to_rgb_array(props.get("color", "#3b82f6"))};')
-        parts.append('ashP.setValue(ashD);')
-        parts.append(f'ashL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['AnimatedShape']
+        x = p.get('endX', p.get('x', 540))
+        y = p.get('endY', p.get('y', 960))
+        w = int(p.get('width') or 200)
+        h = int(p.get('height') or 200)
+        col = _hexc(p.get('color'), '#3b82f6')
+        if p.get('shape') == 'circle':
+            parts += _ae_ellipse('ash', 'AnimatedShape', min(w, h), col, x, y)
+        else:
+            parts += _ae_rrect('ash', 'AnimatedShape', w, h, col, int(p.get('borderRadius') or 0), x, y)
 
     if 'AnimatedLine' in parsed_components:
-        props = parsed_components['AnimatedLine']
-        parts.append('// AnimatedLine')
-        parts.append('var alL = comp.layers.addText();')
-        parts.append('alL.name = "AnimatedLine";')
-        parts.append('var alP = alL.property("Source Text");')
-        parts.append('var alD = alP.value;')
-        parts.append('alD.text = "Animated Line Component";')
-        parts.append('alD.fontSize = 40;')
-        parts.append(f'alD.fillColor = {hex_to_rgb_array(props.get("color", "#3b82f6"))};')
-        parts.append('alP.setValue(alD);')
-        parts.append(f'alL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
-
-    if 'AnimatedIcon' in parsed_components:
-        props = parsed_components['AnimatedIcon']
-        parts.append('// AnimatedIcon')
-        parts.append('var aicL = comp.layers.addText();')
-        parts.append('aicL.name = "AnimatedIcon";')
-        parts.append('var aicP = aicL.property("Source Text");')
-        parts.append('var aicD = aicP.value;')
-        parts.append('aicD.text = "Animated Icon Component";')
-        parts.append('aicD.fontSize = 40;')
-        parts.append(f'aicD.fillColor = {hex_to_rgb_array(props.get("color", "#eab308"))};')
-        parts.append('aicP.setValue(aicD);')
-        parts.append(f'aicL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['AnimatedLine']
+        sx, sy = p.get('startX', 100), p.get('startY', 540)
+        ex, ey = p.get('endX', 900), p.get('endY', 540)
+        cx, cy = (sx + ex) / 2, (sy + ey) / 2
+        length = max(20, ((ex - sx) ** 2 + (ey - sy) ** 2) ** 0.5)
+        parts += _ae_rrect('al', 'AnimatedLine', int(length), int(p.get('strokeWidth') or 8), _hexc(p.get('color'), '#3b82f6'), 4, cx, cy)
 
     if 'FloatingBadge' in parsed_components:
-        props = parsed_components['FloatingBadge']
-        parts.append('// FloatingBadge')
-        parts.append('var fbL = comp.layers.addText();')
-        parts.append('fbL.name = "FloatingBadge";')
-        parts.append('var fbP = fbL.property("Source Text");')
-        parts.append('var fbD = fbP.value;')
-        parts.append('fbD.text = "Floating Badge Component";')
-        parts.append('fbD.fontSize = 40;')
-        parts.append(f'fbD.fillColor = {hex_to_rgb_array(props.get("color", "#ef4444"))};')
-        parts.append('fbP.setValue(fbD);')
-        parts.append(f'fbL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['FloatingBadge']
+        x, y = p.get('x', 540), p.get('y', 960)
+        w = int(p.get('width') or 0) or 260
+        rnd = 999 if p.get('shape') == 'pill' else int(p.get('cornerRadius') or 12)
+        parts += _ae_rrect('fb', 'FloatingBadge', w, 120, _hexc(p.get('color'), '#ef4444'), rnd, x, y)[:-1]
+        parts += _ae_text('fbT', 'FloatingBadge_txt', str(p.get('text', 'NEW')), int(p.get('fontSize') or 32), _hexc(p.get('textColor'), '#ffffff'), x, y)
 
     if 'AnimatedArrow' in parsed_components:
-        props = parsed_components['AnimatedArrow']
-        parts.append('// AnimatedArrow')
-        parts.append('var aarL = comp.layers.addText();')
-        parts.append('aarL.name = "AnimatedArrow";')
-        parts.append('var aarP = aarL.property("Source Text");')
-        parts.append('var aarD = aarP.value;')
-        parts.append('aarD.text = "Animated Arrow Component";')
-        parts.append('aarD.fontSize = 40;')
-        parts.append(f'aarD.fillColor = {hex_to_rgb_array(props.get("color", "#ffffff"))};')
-        parts.append('aarP.setValue(aarD);')
-        parts.append(f'aarL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['AnimatedArrow']
+        sx, sy = p.get('startX', 200), p.get('startY', 540)
+        ex, ey = p.get('endX', 800), p.get('endY', 540)
+        cx, cy = (sx + ex) / 2, (sy + ey) / 2
+        length = max(20, ((ex - sx) ** 2 + (ey - sy) ** 2) ** 0.5)
+        parts += _ae_rrect('aar', 'AnimatedArrow', int(length), int(p.get('strokeWidth') or 10), _hexc(p.get('color'), '#ffffff'), 4, cx, cy)
 
     if 'EmojiFloat' in parsed_components:
-        props = parsed_components['EmojiFloat']
-        parts.append('// EmojiFloat')
-        parts.append('var efL = comp.layers.addText();')
-        parts.append('efL.name = "EmojiFloat";')
-        parts.append('var efP = efL.property("Source Text");')
-        parts.append('var efD = efP.value;')
-        parts.append('efD.text = "Emoji Float Component";')
-        parts.append('efD.fontSize = 40;')
-        parts.append(f'efD.fillColor = [1,1,1];')
-        parts.append('efP.setValue(efD);')
-        parts.append(f'efL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['EmojiFloat']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_text('ef', 'EmojiFloat', str(p.get('emoji', '🔥')), int(p.get('fontSize') or 60), '#ffffff', x, y)
 
     if 'GradientOverlay' in parsed_components:
-        props = parsed_components['GradientOverlay']
-        parts.append('// GradientOverlay')
-        parts.append('var goL = comp.layers.addText();')
-        parts.append('goL.name = "GradientOverlay";')
-        parts.append('var goP = goL.property("Source Text");')
-        parts.append('var goD = goP.value;')
-        parts.append('goD.text = "Gradient Overlay Component";')
-        parts.append('goD.fontSize = 40;')
-        parts.append(f'goD.fillColor = {hex_to_rgb_array(props.get("color1", "#000000"))};')
-        parts.append('goP.setValue(goD);')
-        parts.append(f'goL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['GradientOverlay']
+        parts += _ae_rrect('go', 'GradientOverlay', width, height, _hexc(p.get('color1'), '#000000'), 0, width / 2, height / 2)[:-1]
+        parts += [
+            'var goOp = go.property("ADBE Transform Group").property("ADBE Opacity");',
+            f'goOp.setValue({float(p.get("opacity", 0.8)) * 100:.0f});',
+            '',
+        ]
 
     if 'TextBubble' in parsed_components:
-        props = parsed_components['TextBubble']
-        parts.append('// TextBubble')
-        parts.append('var tbL = comp.layers.addText();')
-        parts.append('tbL.name = "TextBubble";')
-        parts.append('var tbP = tbL.property("Source Text");')
-        parts.append('var tbD = tbP.value;')
-        parts.append('tbD.text = "Text Bubble Component";')
-        parts.append('tbD.fontSize = 40;')
-        parts.append(f'tbD.fillColor = {hex_to_rgb_array(props.get("bgColor", "#ffffff"))};')
-        parts.append('tbP.setValue(tbD);')
-        parts.append(f'tbL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['TextBubble']
+        x, y = p.get('x', 540), p.get('y', 960)
+        w = int(p.get('width') or 800)
+        parts += _ae_rrect('tb', 'TextBubble_bg', w, 200, _hexc(p.get('bgColor'), '#ffffff'), int(p.get('borderRadius') or 30), x, y)[:-1]
+        parts += _ae_text('tbT', 'TextBubble_txt', str(p.get('text', 'Hello')), int(p.get('fontSize') or 40), _hexc(p.get('textColor'), '#0f172a'), x, y)
 
     # ════════════════════════════════════════
     # SPRINT 4.5: PRIMITIVAS EXTRA
     # ════════════════════════════════════════
 
     if 'MediaFrame' in parsed_components:
-        props = parsed_components['MediaFrame']
-        parts.append('// MediaFrame')
-        parts.append('var mfL = comp.layers.addText();')
-        parts.append('mfL.name = "MediaFrame";')
-        parts.append('var mfP = mfL.property("Source Text");')
-        parts.append('var mfD = mfP.value;')
-        parts.append('mfD.text = "Media Frame Component\\n" + "' + props.get("url", "") + '";')
-        parts.append('mfD.fontSize = 30;')
-        parts.append('mfD.fillColor = [0.8, 0.8, 0.8];')
-        parts.append('mfP.setValue(mfD);')
-        parts.append(f'mfL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['MediaFrame']
+        x, y = p.get('x', 540), p.get('y', 960)
+        ph = p.get('placeholderColor') or '#1e293b'
+        if p.get('fullScreen'):
+            fw, fh = width, height
+            x, y = width / 2, height / 2
+        else:
+            fw, fh = int(p.get('width') or 720), int(p.get('height') or 720)
+        shape = p.get('shape') or 'rounded'
+        if shape == 'circle':
+            parts += _ae_ellipse('mf', 'MediaFrame', min(fw, fh), ph, x, y)
+        else:
+            parts += _ae_rrect('mf', 'MediaFrame', fw, fh, ph, 24 if shape == 'rounded' else 0, x, y)
 
     if 'RippleEffect' in parsed_components:
-        props = parsed_components['RippleEffect']
-        parts.append('// RippleEffect')
-        parts.append('var reL = comp.layers.addText();')
-        parts.append('reL.name = "RippleEffect";')
-        parts.append('var reP = reL.property("Source Text");')
-        parts.append('var reD = reP.value;')
-        parts.append('reD.text = "Ripple Effect Component";')
-        parts.append('reD.fontSize = 40;')
-        parts.append(f'reD.fillColor = {hex_to_rgb_array(props.get("color", "#3b82f6"))};')
-        parts.append('reP.setValue(reD);')
-        parts.append(f'reL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['RippleEffect']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_ellipse('re', 'RippleEffect', int(p.get('maxRadius') or 300) * 2, _hexc(p.get('color'), '#3b82f6'), x, y)
+        parts += [
+            'var reSc = re.property("ADBE Transform Group").property("ADBE Scale");',
+            'reSc.setValueAtTime(0, [0, 0]);',
+            'reSc.setValueAtTime(1, [100, 100]);',
+            'var reOp = re.property("ADBE Transform Group").property("ADBE Opacity");',
+            'reOp.setValueAtTime(0, 100);',
+            'reOp.setValueAtTime(1, 0);',
+            '',
+        ]
 
     if 'MaskedReveal' in parsed_components:
-        props = parsed_components['MaskedReveal']
-        parts.append('// MaskedReveal')
-        parts.append('var mrL = comp.layers.addText();')
-        parts.append('mrL.name = "MaskedReveal";')
-        parts.append('var mrP = mrL.property("Source Text");')
-        parts.append('var mrD = mrP.value;')
-        parts.append('mrD.text = "Masked Reveal Component\\n" + "' + props.get("content", "") + '";')
-        parts.append('mrD.fontSize = 40;')
-        parts.append(f'mrD.fillColor = {hex_to_rgb_array(props.get("color", "#ffffff"))};')
-        parts.append('mrP.setValue(mrD);')
-        parts.append(f'mrL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
-        parts.append('')
+        p = parsed_components['MaskedReveal']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_text('mr', 'MaskedReveal', str(p.get('content') or p.get('text') or 'Revealed'), 60, _hexc(p.get('color'), '#ffffff'), x, y)
 
     if 'ProgressPill' in parsed_components:
-        props = parsed_components['ProgressPill']
-        parts.append('// ProgressPill')
-        parts.append('var ppL = comp.layers.addText();')
-        parts.append('ppL.name = "ProgressPill";')
-        parts.append('var ppP = ppL.property("Source Text");')
-        parts.append('var ppD = ppP.value;')
-        parts.append('ppD.text = "Progress Pill Component";')
-        parts.append('ppD.fontSize = 40;')
-        parts.append(f'ppD.fillColor = {hex_to_rgb_array(props.get("barColor", "#3b82f6"))};')
-        parts.append('ppP.setValue(ppD);')
-        parts.append(f'ppL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
+        p = parsed_components['ProgressPill']
+        x, y = p.get('x', 540), p.get('y', 960)
+        w = int(p.get('width') or 600)
+        h = int(p.get('height') or 40)
+        pct = float(p.get('endPercent') or 100) / 100.0
+        parts += _ae_rrect('pp', 'ProgressPill_track', w, h, _hexc(p.get('trackColor'), '#e2e8f0'), h // 2, x, y)[:-1]
+        fw = max(2, int(w * pct))
+        parts += _ae_rrect('ppF', 'ProgressPill_fill', fw, h, _hexc(p.get('barColor'), '#3b82f6'), h // 2, x - w / 2 + fw / 2, y)[:-1]
+        if p.get('showLabel', True):
+            parts += _ae_text('ppL', 'ProgressPill_label', f"{int(p.get('endPercent') or 100)}%", int(p.get('fontSize') or 24), _hexc(p.get('barColor'), '#3b82f6'), x, y + h + 30)
         parts.append('')
 
     # ════════════════════════════════════════
@@ -1998,5 +1705,300 @@ def generate_component_script(
         parts.append('tswP.setValue(tswD);')
         parts.append(f'tswL.property("ADBE Transform Group").property("ADBE Position").setValue([{props.get("x", 540)}, {props.get("y", 540)}]);')
         parts.append('')
+
+    # ════════════════════════════════════════
+    # FAMILIA Style* (aproximaciones en capas nativas)
+    # ════════════════════════════════════════
+
+    def _badge_w(text, fs, pad=60):
+        return int(max(160, len(str(text)) * fs * 0.62 + pad))
+
+    # --- Texto puro ---
+    if 'StyleTextBlock' in parsed_components:
+        p = parsed_components['StyleTextBlock']
+        size = {'heading': 90, 'quote': 56, 'body': 40, 'caption': 28}.get(p.get('variant', 'body'), 48)
+        parts += _ae_text('stb', 'StyleTextBlock', p.get('text', 'Text'), size,
+                          p.get('textColor') or p.get('color', '#ffffff'), p.get('x', 540), p.get('y', 540))
+    for cname, var, default in [
+        ('StyleScrambleText', 'sst', 'SCRAMBLE'),
+        ('StylePulseText', 'spt', 'PULSE'),
+        ('StyleSpringText', 'sprt', 'Spring'),
+    ]:
+        if cname in parsed_components:
+            p = parsed_components[cname]
+            parts += _ae_text(var, cname, p.get('text', default), p.get('fontSize', 80),
+                              p.get('textColor', '#ffffff'), p.get('x', 540), p.get('y', 540))
+    if 'StyleTicker' in parsed_components:
+        p = parsed_components['StyleTicker']
+        parts += _ae_text('stk', 'StyleTicker', p.get('text', 'TICKER • TICKER'), p.get('fontSize', 28),
+                          p.get('color', '#e2e8f0'), p.get('x', 540), p.get('y', 1800))
+    if 'StyleWatermark' in parsed_components:
+        p = parsed_components['StyleWatermark']
+        parts += _ae_text('swm', 'StyleWatermark', p.get('icon', '© watermark'), int(p.get('size', 60)),
+                          p.get('color', '#ffffff'), p.get('x', 960), p.get('y', 120))
+    if 'StyleCallout' in parsed_components:
+        p = parsed_components['StyleCallout']
+        parts += _ae_text('sca', 'StyleCallout', p.get('text', '¡Mira aquí!'), int(p.get('fontSize') or 48),
+                          p.get('color', '#00ffab'), p.get('x', 540), p.get('y', 400))
+    if 'StyleCountdown' in parsed_components:
+        p = parsed_components['StyleCountdown']
+        parts += _ae_text('scd', 'StyleCountdown', str(p.get('seconds', p.get('value', 10))), 160,
+                          p.get('color', '#ffffff'), p.get('x', 540), p.get('y', 540))
+    if 'StyleAnimateNumber' in parsed_components:
+        p = parsed_components['StyleAnimateNumber']
+        label = f"{p.get('prefix', '')}{p.get('value', 100)}{p.get('suffix', '')}"
+        parts += _ae_text('san', 'StyleAnimateNumber', label, int(p.get('fontSize') or 96),
+                          p.get('color', '#ffffff'), p.get('x', 540), p.get('y', 400))
+        if p.get('caption'):
+            parts += _ae_text('sanC', 'StyleAnimateNumber_caption', p['caption'], 36,
+                              p.get('captionColor', '#94a3b8'), p.get('x', 540), int(p.get('y', 400)) + 90)
+
+    # --- Caja + texto ---
+    for cname, var, default_text, default_bg in [
+        ('StyleBadge', 'sbg', 'BADGE', '#334155'),
+        ('StyleChip', 'schp', 'Chip', '#334155'),
+        ('StyleButton', 'sbtn', 'Click Here', '#2c3e50'),
+        ('StyleSimulatedHover', 'ssh', 'Click Here', '#2c3e50'),
+    ]:
+        if cname in parsed_components:
+            p = parsed_components[cname]
+            fs = int(p.get('fontSize') or 40)
+            txt = p.get('text', default_text)
+            bg = p.get('bgColor') or default_bg
+            x, y = p.get('x', 540), p.get('y', 540)
+            parts += _ae_rrect(f'{var}Box', f'{cname}_bg', _badge_w(txt, fs), int(fs * 2.2), bg, 999, x, y)
+            parts += _ae_text(f'{var}Txt', cname, txt, fs, p.get('textColor', '#ffffff'), x, y)
+
+    if 'StyleCard' in parsed_components:
+        p = parsed_components['StyleCard']
+        x, y = p.get('x', 540), p.get('y', 540)
+        w = int(p.get('width') or 640)
+        parts += _ae_rrect('scdBox', 'StyleCard_bg', w, 360, p.get('bgColor') or '#1e293b', 24, x, y)
+        parts += _ae_text('scdT', 'StyleCard_title', p.get('title', 'Title'), 56, p.get('titleColor', '#ffffff'), x, y - 70)
+        if p.get('subtitle'):
+            parts += _ae_text('scdS', 'StyleCard_subtitle', p['subtitle'], 34, p.get('subtitleColor', '#94a3b8'), x, y + 20)
+
+    if 'StyleStatCard' in parsed_components:
+        p = parsed_components['StyleStatCard']
+        x, y = p.get('x', 540), p.get('y', 540)
+        parts += _ae_rrect('ssc', 'StyleStatCard_bg', 420, 300, p.get('bgColor') or '#1e293b', 20, x, y)
+        parts += _ae_text('sscV', 'StyleStatCard_value', str(p.get('value', '73%')), 90, p.get('color', '#00ffab'), x, y - 40)
+        parts += _ae_text('sscL', 'StyleStatCard_label', p.get('label', 'Stat'), 32, p.get('textColor', '#94a3b8'), x, y + 60)
+
+    if 'StyleVideoPlayer' in parsed_components:
+        p = parsed_components['StyleVideoPlayer']
+        x, y = p.get('x', 540), p.get('y', 960)
+        w = int(p.get('width') or 720)
+        h = int(p.get('height') or (w * 0.5625))
+        parts += _ae_rrect('svp', 'StyleVideoPlayer_frame', w, h, '#1e293b', 16, x, y)
+        parts += _ae_text('svpI', 'StyleVideoPlayer_icon', '▶', 90, '#ffffff', x, y)
+
+    if 'StyleDivider' in parsed_components:
+        p = parsed_components['StyleDivider']
+        x, y = p.get('x', 540), p.get('y', 960)
+        th = int(p.get('thickness', 2))
+        if p.get('orientation') == 'vertical':
+            parts += _ae_rrect('sdv', 'StyleDivider', th, int(p.get('height', 300)), p.get('color', '#334155'), 2, x, y)
+        else:
+            parts += _ae_rrect('sdv', 'StyleDivider', int(p.get('width', 600)), th, p.get('color', '#334155'), 2, x, y)
+
+    if 'StyleAvatar' in parsed_components:
+        p = parsed_components['StyleAvatar']
+        x, y = p.get('x', 540), p.get('y', 400)
+        sz = {'sm': 110, 'md': 150, 'lg': 200}.get(p.get('size', 'md'), 150)
+        parts += _ae_ellipse('sav', 'StyleAvatar_circle', sz, p.get('bgColor') or '#1e293b', x, y)
+        if p.get('name'):
+            parts += _ae_text('savN', 'StyleAvatar_name', p['name'], 36, p.get('nameColor', '#ffffff'), x, y + sz / 2 + 40)
+
+    if 'StyleCursor' in parsed_components:
+        p = parsed_components['StyleCursor']
+        pts = p.get('points') or [{'x': 540, 'y': 540}]
+        first = pts[0] if isinstance(pts, list) and pts else {'x': 540, 'y': 540}
+        parts += _ae_ellipse('scur', 'StyleCursor', int(p.get('size', 40)), p.get('color', '#ffffff'),
+                             first.get('x', 540), first.get('y', 540))
+
+    if 'StyleFakeScroll' in parsed_components:
+        p = parsed_components['StyleFakeScroll']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('sfs', 'StyleFakeScroll_bg', int(p.get('width') or 740), 360, p.get('bgColor') or '#1e293b', 16, x, y)
+        items = p.get('items') or []
+        first = items[0] if items else None
+        label = (first.get('content') if isinstance(first, dict) else str(first)) if first else 'Feed'
+        parts += _ae_text('sfsT', 'StyleFakeScroll_item', label, 34, p.get('titleColor', '#ffffff'), x, y - 100)
+
+    # --- Charts (aproximaciones) ---
+    for cname, var, defx, defy in [
+        ('StyleBarChart', 'sbc', 540, 540),
+        ('StyleMultiBar', 'smb', 540, 540),
+        ('StyleBarRace', 'sbr', 540, 540),
+        ('StyleLineChart', 'slc', 540, 540),
+        ('StyleComparisonChart', 'scc', 540, 540),
+    ]:
+        if cname in parsed_components:
+            p = parsed_components[cname]
+            vals, cols = _norm_values(p.get('data'))
+            if not vals:
+                vals, cols = [40, 70, 55, 90], [None, None, None, None]
+            parts += _ae_bars(var, cname, vals, cols, p.get('x', defx), p.get('y', defy),
+                              c1=p.get('lineColor') or p.get('color') or '#3b82f6')
+
+    if 'StyleFunnelChart' in parsed_components:
+        p = parsed_components['StyleFunnelChart']
+        vals, cols = _norm_values(p.get('data'))
+        if not vals:
+            vals, cols = [100, 70, 45, 25], [None] * 4
+        x, y = p.get('x', 540), p.get('y', 540)
+        mx = max(vals + [1])
+        for i, v in enumerate(vals):
+            w = int(max(120, (v / mx) * 600))
+            parts += _ae_rrect(f'sfn{i}', f'StyleFunnelChart_{i}', w, 70,
+                               (cols[i] if i < len(cols) and cols[i] else '#3b82f6'), 8, x, y - len(vals) * 40 + i * 84)
+
+    for cname, var in [('StylePieChart', 'spie'), ('StyleDonutChart', 'sdn'), ('StyleRadarChart', 'srad')]:
+        if cname in parsed_components:
+            p = parsed_components[cname]
+            _, cols = _norm_values(p.get('data'))
+            col = next((c for c in cols if c), None) or p.get('color') or '#3b82f6'
+            parts += _ae_ellipse(var, cname, int(p.get('size', 280)), col, p.get('x', 540), p.get('y', 540))
+
+    # --- Componentes no-Style (texto / branding / cinematic) ---
+    if 'GradientText' in parsed_components:
+        p = parsed_components['GradientText']
+        x, y = p.get('x', 540), p.get('y', 960)
+        # AE no soporta gradiente en texto trivialmente: usamos color1 como aproximación.
+        parts += _ae_text('gtx', 'GradientText', text or p.get('text') or 'Gradient',
+                          int(p.get('fontSize') or 90), p.get('color1') or '#a855f7', x, y)
+
+    if 'WordHighlight' in parsed_components:
+        p = parsed_components['WordHighlight']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_text('wht', 'WordHighlight', text or p.get('text') or 'Highlight',
+                          int(p.get('fontSize') or 80), p.get('color') or '#94a3b8', x, y)
+
+    if 'IconifyIcon' in parsed_components:
+        p = parsed_components['IconifyIcon']
+        x, y = p.get('x', 540), p.get('y', 960)
+        sz = int(p.get('size') or 200)
+        # Aproximación: círculo del color del icono (Iconify no existe en AE).
+        parts += _ae_ellipse('ico', 'IconifyIcon', sz, p.get('color') or '#3b82f6', x, y)
+
+    if 'KeywordPop' in parsed_components:
+        p = parsed_components['KeywordPop']
+        x, y = p.get('x', 540), p.get('y', 960)
+        word = p.get('triggerWord') or text or 'Pop'
+        var = 'kwp'
+        parts += _ae_text(var, 'KeywordPop', word, int(p.get('size') or 120), p.get('color') or '#f59e0b', x, y)
+        # Pop de escala (0 -> sobreimpulso -> 1) sobre el texto.
+        parts += [
+            f'var {var}Sc = {var}.property("ADBE Transform Group").property("ADBE Scale");',
+            f'{var}Sc.setValueAtTime(0, [0, 0]);',
+            f'{var}Sc.setValueAtTime(0.25, [120, 120]);',
+            f'{var}Sc.setValueAtTime(0.4, [100, 100]);',
+            '',
+        ]
+
+    if 'KenBurns' in parsed_components:
+        p = parsed_components['KenBurns']
+        x, y = p.get('x', 540), p.get('y', 960)
+        var = 'kb'
+        parts += _ae_rrect(var, 'KenBurns_frame', width, height, p.get('color1') or '#1e293b', 0, x, y)
+        # Zoom lento (Ken Burns) sobre toda la duración.
+        parts += [
+            f'var {var}Sc = {var}.property("ADBE Transform Group").property("ADBE Scale");',
+            f'{var}Sc.setValueAtTime(0, [100, 100]);',
+            f'{var}Sc.setValueAtTime({max(0.1, float(duration)):.2f}, [118, 118]);',
+            '',
+        ]
+
+    if 'CinematicBars' in parsed_components:
+        p = parsed_components['CinematicBars']
+        sz = int(p.get('size') or 140)
+        col = p.get('color') or '#000000'
+        parts += _ae_rrect('cbT', 'CinematicBars_top', width, sz, col, 0, width / 2, sz / 2)
+        parts += _ae_rrect('cbB', 'CinematicBars_bottom', width, sz, col, 0, width / 2, height - sz / 2)
+
+    if 'Spotlight' in parsed_components:
+        p = parsed_components['Spotlight']
+        x, y = p.get('x', width / 2), p.get('y', height / 2)
+        parts += _ae_ellipse('spot', 'Spotlight', int(p.get('radius') or 400) * 2, p.get('color') or '#ffffff', x, y)
+
+    if 'CameraShake' in parsed_components:
+        # Sin contenido propio: un null con wiggle como guía de movimiento.
+        amp = int(p.get('intensity', 12)) if (p := parsed_components.get('CameraShake')) else 12
+        freq = int(parsed_components['CameraShake'].get('frequency') or 5)
+        parts += [
+            '// CameraShake (null guía con wiggle)',
+            'var camsh = comp.layers.addNull();',
+            'camsh.name = "CameraShake";',
+            'var camshP = camsh.property("ADBE Transform Group").property("ADBE Position");',
+            f'camshP.expression = "wiggle({freq}, {amp})";',
+            '',
+        ]
+
+    if 'AnimatedChecklist' in parsed_components:
+        p = parsed_components['AnimatedChecklist']
+        x, y = p.get('x', 540), p.get('y', 960)
+        items = p.get('items') or ['Item 1', 'Item 2', 'Item 3']
+        fs = int(p.get('fontSize') or 44)
+        accent = p.get('accentColor') or '#22c55e'
+        txtc = p.get('textColor') or '#ffffff'
+        row_h = fs + 36
+        start = y - (len(items) - 1) * row_h / 2
+        for i, it in enumerate(items[:8]):
+            label = it.get('text') if isinstance(it, dict) else str(it)
+            ry = start + i * row_h
+            parts += _ae_ellipse(f'aclC{i}', f'AnimatedChecklist_chk_{i}', fs, accent, x - 280, ry)
+            parts += _ae_text(f'aclT{i}', f'AnimatedChecklist_txt_{i}', label, fs, txtc, x + 40, ry)
+
+    if 'RotatingCarousel' in parsed_components:
+        p = parsed_components['RotatingCarousel']
+        x, y = p.get('x', 540), p.get('y', 960)
+        items = p.get('items') or ['Slide']
+        first = items[0] if items else 'Slide'
+        label = first.get('label') if isinstance(first, dict) else str(first)
+        parts += _ae_rrect('rcar', 'RotatingCarousel_card', int(p.get('width') or 600), 400,
+                           p.get('cardColor') or '#1e293b', 24, x, y)
+        parts += _ae_text('rcarT', 'RotatingCarousel_label', label, 48, p.get('labelColor') or '#ffffff', x, y)
+
+    if 'LogoReveal' in parsed_components:
+        p = parsed_components['LogoReveal']
+        x, y = p.get('x', 540), p.get('y', 960)
+        var = 'lrv'
+        brand = p.get('brand') or text or 'Brand'
+        parts += _ae_text(var, 'LogoReveal_brand', brand, 110, p.get('brandColor') or '#ffffff', x, y)
+        if p.get('tagline'):
+            parts += _ae_text('lrvT', 'LogoReveal_tagline', p['tagline'], 40, p.get('taglineColor') or '#94a3b8', x, y + 100)
+        parts += [
+            f'var {var}Op = {var}.property("ADBE Transform Group").property("ADBE Opacity");',
+            f'{var}Op.setValueAtTime(0, 0);',
+            f'{var}Op.setValueAtTime(0.6, 100);',
+            '',
+        ]
+
+    if 'BrandOutro' in parsed_components:
+        p = parsed_components['BrandOutro']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('bro', 'BrandOutro_card', 760, 460, p.get('cardColor') or '#0f172a', 28, x, y)
+        parts += _ae_text('broB', 'BrandOutro_brand', p.get('brand') or text or 'Brand', 90,
+                          p.get('brandColor') or '#ffffff', x, y - 60)
+        if p.get('handle'):
+            parts += _ae_text('broH', 'BrandOutro_handle', p['handle'], 44, p.get('accentColor') or '#38bdf8', x, y + 40)
+        if p.get('cta'):
+            parts += _ae_text('broC', 'BrandOutro_cta', p['cta'], 38, p.get('accentColor') or '#38bdf8', x, y + 130)
+
+    if 'GeometricShapes' in parsed_components:
+        p = parsed_components['GeometricShapes']
+        x, y = p.get('x', 540), p.get('y', 960)
+        col = p.get('color') or '#3b82f6'
+        sz = int(p.get('width') or 300)
+        var = 'geo'
+        parts += _ae_ellipse(var, 'GeometricShapes', sz, col, x, y)
+        if p.get('spin'):
+            parts += [
+                f'var {var}Rot = {var}.property("ADBE Transform Group").property("ADBE Rotate Z");',
+                f'{var}Rot.setValueAtTime(0, 0);',
+                f'{var}Rot.setValueAtTime({max(0.1, float(duration)):.2f}, 360);',
+                '',
+            ]
 
     return '\n'.join(parts)

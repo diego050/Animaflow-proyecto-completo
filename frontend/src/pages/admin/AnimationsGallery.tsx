@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, PlayCircle, Settings, Search } from 'lucide-react';
+import { ArrowLeft, PlayCircle, Settings, Search, Download } from 'lucide-react';
 
-import { COMPONENT_MANIFEST } from '../../remotion/manifest';
+import { COMPONENT_MANIFEST, getDefaultProps } from '../../remotion/manifest';
+import { downloadComponentAEScript } from '../../api/aeScript';
 
 // Orden de presentación de las categorías (las no listadas van al final, alfabéticas).
 const CATEGORY_ORDER = [
@@ -108,33 +109,51 @@ export function AnimationsGallery() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {items.map((entry) => (
-                <button
+                <div
                   key={entry.name}
-                  onClick={() => navigate(`/admin/animations/${entry.name}`)}
-                  className="flex flex-col text-left group bg-surface-container border border-border-tech hover:border-mint-precision rounded-xl overflow-hidden transition-all hover:-translate-y-1 hover:shadow-[0_4px_20px_rgba(0,255,171,0.1)]"
+                  className="relative flex flex-col text-left group bg-surface-container border border-border-tech hover:border-mint-precision rounded-xl overflow-hidden transition-all hover:-translate-y-1 hover:shadow-[0_4px_20px_rgba(0,255,171,0.1)]"
                 >
-                  <div className="h-32 bg-surface-lowest flex items-center justify-center p-4 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-mint-precision/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <PlayCircle
-                      className="text-mint-precision/40 group-hover:text-mint-precision transition-colors"
-                      size={48}
-                    />
-                  </div>
-                  <div className="p-4 border-t border-border-tech/50">
-                    <h3 className="text-sm font-semibold text-text-primary font-mono group-hover:text-mint-precision transition-colors">
-                      {entry.name}
-                    </h3>
-                    {entry.description && (
-                      <p className="text-xs text-text-secondary mt-1 line-clamp-2">
-                        {entry.description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-2 text-xs text-text-secondary">
-                      <Settings size={12} />
-                      <span>Interactuable</span>
+                  {/* Descargar AE (.jsx) con props por defecto — no navega */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadComponentAEScript(entry.name, getDefaultProps(entry.name)).catch((err) =>
+                        alert(`No se pudo generar el .jsx: ${err?.message ?? err}`),
+                      );
+                    }}
+                    className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-surface-lowest/80 border border-border-tech text-text-secondary hover:text-mint-precision hover:border-mint-precision/40 opacity-0 group-hover:opacity-100 transition-all"
+                    title="Descargar AE ExtendScript (.jsx) para probar en After Effects"
+                  >
+                    <Download size={14} />
+                  </button>
+
+                  <button
+                    onClick={() => navigate(`/admin/animations/${entry.name}`)}
+                    className="flex flex-col text-left w-full"
+                  >
+                    <div className="h-32 bg-surface-lowest flex items-center justify-center p-4 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-mint-precision/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <PlayCircle
+                        className="text-mint-precision/40 group-hover:text-mint-precision transition-colors"
+                        size={48}
+                      />
                     </div>
-                  </div>
-                </button>
+                    <div className="p-4 border-t border-border-tech/50">
+                      <h3 className="text-sm font-semibold text-text-primary font-mono group-hover:text-mint-precision transition-colors">
+                        {entry.name}
+                      </h3>
+                      {entry.description && (
+                        <p className="text-xs text-text-secondary mt-1 line-clamp-2">
+                          {entry.description}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2 text-xs text-text-secondary">
+                        <Settings size={12} />
+                        <span>Interactuable</span>
+                      </div>
+                    </div>
+                  </button>
+                </div>
               ))}
             </div>
           </section>

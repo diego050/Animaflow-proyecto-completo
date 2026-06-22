@@ -47,7 +47,10 @@ import { MessageBubble } from './components/MessageBubble';
 import { MusicPlayerUI } from './components/MusicPlayerUI';
 import { NetworkNodes } from './components/NetworkNodes';
 import { NotificationToast } from './components/NotificationToast';
+import { StyleNotificationStack } from './components/StyleNotificationStack';
 import { ParticleField } from './components/ParticleField';
+import { StyleParticleExplosion } from './components/StyleParticleExplosion';
+import { StylePixelTransition } from './components/StylePixelTransition';
 import { PercentageRing } from './components/PercentageRing';
 import { PhoneMockup } from './components/PhoneMockup';
 import { PieChartReveal } from './components/PieChartReveal';
@@ -81,17 +84,31 @@ import { StyleBadge } from './components/StyleBadge';
 import { StyleButton } from './components/StyleButton';
 import { StyleCallout } from './components/StyleCallout';
 import { StyleCard } from './components/StyleCard';
+import { StyleBokehCircles } from './components/StyleBokehCircles';
+import { StyleCardFlip } from './components/StyleCardFlip';
 import { StyleChip } from './components/StyleChip';
+import { StyleComparisonChart } from './components/StyleComparisonChart';
+import { StyleCountdown } from './components/StyleCountdown';
 import { StyleCursor } from './components/StyleCursor';
 import { StyleDivider } from './components/StyleDivider';
+import { StyleDonutChart } from './components/StyleDonutChart';
 import { StyleFakeScroll } from './components/StyleFakeScroll';
+import { StyleMultiBar } from './components/StyleMultiBar';
 import { StyleFunnelChart } from './components/StyleFunnelChart';
 import { StyleLineChart } from './components/StyleLineChart';
 import { StylePieChart } from './components/StylePieChart';
+import { StylePulseText } from './components/StylePulseText';
+import { StyleProgressSteps } from './components/StyleProgressSteps';
+import { StyleSpringText } from './components/StyleSpringText';
 import { StyleRadarChart } from './components/StyleRadarChart';
+import { StyleRotatingCarousel } from './components/StyleRotatingCarousel';
 import { StyleScrambleText } from './components/StyleScrambleText';
 import { StyleSimulatedHover } from './components/StyleSimulatedHover';
+import { StyleSoundWave } from './components/StyleSoundWave';
+import { StyleStatCard } from './components/StyleStatCard';
+import { StyleStarfield } from './components/StyleStarfield';
 import { StyleTextBlock } from './components/StyleTextBlock';
+import { StyleTextHighlight } from './components/StyleTextHighlight';
 import { StyleTicker } from './components/StyleTicker';
 import { StyleVideoPlayer } from './components/StyleVideoPlayer';
 import { StyleWatermark } from './components/StyleWatermark';
@@ -161,7 +178,10 @@ export const COMPONENT_NAMES = [
   'MusicPlayerUI',
   'NetworkNodes',
   'NotificationToast',
+  'StyleNotificationStack',
   'ParticleField',
+  'StyleParticleExplosion',
+  'StylePixelTransition',
   'PercentageRing',
   'PhoneMockup',
   'PieChartReveal',
@@ -195,17 +215,31 @@ export const COMPONENT_NAMES = [
   'StyleButton',
   'StyleCallout',
   'StyleCard',
+  'StyleBokehCircles',
+  'StyleCardFlip',
   'StyleChip',
+  'StyleComparisonChart',
+  'StyleCountdown',
   'StyleCursor',
   'StyleDivider',
+  'StyleDonutChart',
   'StyleFakeScroll',
+  'StyleMultiBar',
   'StyleFunnelChart',
   'StyleLineChart',
   'StylePieChart',
+  'StylePulseText',
+  'StyleProgressSteps',
+  'StyleSpringText',
   'StyleRadarChart',
+  'StyleRotatingCarousel',
   'StyleScrambleText',
   'StyleSimulatedHover',
+  'StyleSoundWave',
+  'StyleStatCard',
+  'StyleStarfield',
   'StyleTextBlock',
+  'StyleTextHighlight',
   'StyleTicker',
   'StyleVideoPlayer',
   'StyleWatermark',
@@ -276,7 +310,10 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   MusicPlayerUI,
   NetworkNodes,
   NotificationToast,
+  StyleNotificationStack,
   ParticleField,
+  StyleParticleExplosion,
+  StylePixelTransition,
   PercentageRing,
   PhoneMockup,
   PieChartReveal,
@@ -310,17 +347,31 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   StyleButton,
   StyleCallout,
   StyleCard,
+  StyleBokehCircles,
+  StyleCardFlip,
   StyleChip,
+  StyleComparisonChart,
+  StyleCountdown,
   StyleCursor,
   StyleDivider,
+  StyleDonutChart,
   StyleFakeScroll,
+  StyleMultiBar,
   StyleFunnelChart,
   StyleLineChart,
   StylePieChart,
+  StylePulseText,
+  StyleProgressSteps,
+  StyleSpringText,
   StyleRadarChart,
+  StyleRotatingCarousel,
   StyleScrambleText,
   StyleSimulatedHover,
+  StyleSoundWave,
+  StyleStatCard,
+  StyleStarfield,
   StyleTextBlock,
+  StyleTextHighlight,
   StyleTicker,
   StyleVideoPlayer,
   StyleWatermark,

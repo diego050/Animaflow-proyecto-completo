@@ -209,6 +209,93 @@
       }
     },
     {
+      "name": "StyleTextHighlight",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Text where each word gets a colored background pill that fills in sequentially (word highlight / text reveal / sequential highlight / marker text). Use for emphasis and progressive text reveal.",
+      "props": {
+        "text": {
+          "type": "string",
+          "label": "Text",
+          "description": "Text to display (space-separated words)",
+          "default": "Build amazing videos with code"
+        },
+        "framesPerWord": {
+          "type": "number",
+          "label": "Frames Per Word",
+          "description": "Frames per word highlight",
+          "default": 18
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
+        },
+        "gradientStart": {
+          "type": "color",
+          "label": "Gradient Start",
+          "description": "Highlight gradient start",
+          "default": "#3b82f6"
+        },
+        "gradientEnd": {
+          "type": "color",
+          "label": "Gradient End",
+          "description": "Highlight gradient end",
+          "default": "#7209b7"
+        },
+        "highlightOpacity": {
+          "type": "number",
+          "label": "Highlight Opacity",
+          "description": "Opacity of highlight pill",
+          "default": 0.85,
+          "min": 0,
+          "max": 1
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Border Radius",
+          "description": "Pill border radius (auto if empty)",
+          "min": 0,
+          "max": 30
+        },
+        "paddingX": {
+          "type": "number",
+          "label": "Padding X",
+          "description": "Horizontal padding per word (auto if empty)",
+          "min": 0,
+          "max": 40
+        },
+        "paddingY": {
+          "type": "number",
+          "label": "Padding Y",
+          "description": "Vertical padding per word (auto if empty)",
+          "min": 0,
+          "max": 20
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Font weight",
+          "default": 800
+        },
+        "gap": {
+          "type": "number",
+          "label": "Gap",
+          "description": "Gap between words (auto if empty)",
+          "min": 0,
+          "max": 40
+        }
+      }
+    },
+    {
       "name": "StyleScrambleText",
       "category": "Text",
       "role": "text",
@@ -277,6 +364,274 @@
           "type": "list",
           "label": "Word Timestamps",
           "description": "Array of word timing objects for karaoke sync"
+        }
+      }
+    },
+    {
+      "name": "StyleSoundWave",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Sound wave visualization with two variants: continuous sine wave (line) or equalizer bars (bars). Use for audio visualization, music mood, or tech ambiance.",
+      "props": {
+        "variant": {
+          "type": "select",
+          "label": "Variant",
+          "description": "Visual style: line (sine wave) or bars (equalizer)",
+          "default": "bars",
+          "options": [
+            "line",
+            "bars"
+          ]
+        },
+        "color": {
+          "type": "color",
+          "label": "Color",
+          "description": "Wave/bar color",
+          "default": "#8b5cf6"
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Component width in px (auto if empty)",
+          "min": 100,
+          "max": 1600
+        },
+        "glow": {
+          "type": "boolean",
+          "label": "Glow",
+          "description": "Show glow effect",
+          "default": true
+        },
+        "lineWidth": {
+          "type": "number",
+          "label": "Line Width",
+          "description": "Stroke width for line variant",
+          "default": 6,
+          "min": 1,
+          "max": 20
+        },
+        "amplitude": {
+          "type": "number",
+          "label": "Amplitude",
+          "description": "Wave amplitude for line variant",
+          "default": 100,
+          "min": 20,
+          "max": 300
+        },
+        "points": {
+          "type": "number",
+          "label": "Points",
+          "description": "Number of points for line variant",
+          "default": 100,
+          "min": 20,
+          "max": 300
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Wave travel direction for line variant",
+          "default": "right",
+          "options": [
+            "right",
+            "left",
+            "still"
+          ]
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Animation speed for line variant",
+          "default": 1,
+          "min": 0.1,
+          "max": 5
+        },
+        "barCount": {
+          "type": "number",
+          "label": "Bar Count",
+          "description": "Number of bars for bars variant",
+          "default": 40,
+          "min": 10,
+          "max": 100
+        },
+        "maxBarHeight": {
+          "type": "number",
+          "label": "Max Bar Height",
+          "description": "Maximum bar height for bars variant (auto if empty)",
+          "min": 20,
+          "max": 400
+        },
+        "gap": {
+          "type": "number",
+          "label": "Gap",
+          "description": "Gap between bars for bars variant (auto if empty)",
+          "min": 0,
+          "max": 20
+        }
+      }
+    },
+    {
+      "name": "StyleStarfield",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Starfield/space effect with configurable star count, movement patterns (radial/random/directional), colors, and area dimensions (stars / space / warp speed / particle field). Use for space backgrounds, tech ambiance, or motion effects.",
+      "props": {
+        "starCount": {
+          "type": "number",
+          "label": "Star Count",
+          "description": "Number of stars",
+          "default": 80,
+          "min": 10,
+          "max": 500
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background Color",
+          "description": "Background color",
+          "default": "#0a0a1a"
+        },
+        "starColor": {
+          "type": "color",
+          "label": "Star Color",
+          "description": "Base star color",
+          "default": "#ffffff"
+        },
+        "colorVariation": {
+          "type": "boolean",
+          "label": "Color Variation",
+          "description": "Add slight hue variation per star",
+          "default": false
+        },
+        "minSize": {
+          "type": "number",
+          "label": "Min Size",
+          "description": "Minimum star size in px",
+          "default": 1,
+          "min": 1,
+          "max": 10
+        },
+        "maxSize": {
+          "type": "number",
+          "label": "Max Size",
+          "description": "Maximum star size in px",
+          "default": 3,
+          "min": 1,
+          "max": 20
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Movement speed multiplier",
+          "default": 1,
+          "min": 0.1,
+          "max": 5
+        },
+        "cycleLength": {
+          "type": "number",
+          "label": "Cycle Length",
+          "description": "Frames before stars reset",
+          "default": 150
+        },
+        "movement": {
+          "type": "select",
+          "label": "Movement",
+          "description": "Star movement pattern",
+          "default": "radial",
+          "options": [
+            "radial",
+            "random",
+            "directional"
+          ]
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Travel direction for directional mode",
+          "default": "right",
+          "options": [
+            "left",
+            "right",
+            "up",
+            "down"
+          ]
+        },
+        "opacityFade": {
+          "type": "boolean",
+          "label": "Opacity Fade",
+          "description": "Stars fade in/out",
+          "default": true
+        }
+      }
+    },
+    {
+      "name": "StyleStatCard",
+      "category": "Charts & Data",
+      "role": "dataviz",
+      "description": "KPI stat card with animated counter, label, and optional sub-stats row (big number card / metric card / stat badge). Use for showcasing a single key metric with context.",
+      "props": {
+        "from": {
+          "type": "number",
+          "label": "From",
+          "description": "Starting value for counter",
+          "default": 0
+        },
+        "to": {
+          "type": "number",
+          "label": "To",
+          "description": "Target value for counter",
+          "default": 1247
+        },
+        "prefix": {
+          "type": "string",
+          "label": "Prefix",
+          "description": "Prefix before number (e.g. \"$\")",
+          "default": ""
+        },
+        "suffix": {
+          "type": "string",
+          "label": "Suffix",
+          "description": "Suffix after number (e.g. \"+\")",
+          "default": ""
+        },
+        "label": {
+          "type": "string",
+          "label": "Label",
+          "description": "Label below the number",
+          "default": "Total Users"
+        },
+        "showLabel": {
+          "type": "boolean",
+          "label": "Show Label",
+          "description": "Display label",
+          "default": true
+        },
+        "subStatPrimary": {
+          "type": "string",
+          "label": "Sub Stat Primary",
+          "description": "Primary sub-stat text (e.g. \"↑ 12.5%\")"
+        },
+        "subStatSecondary": {
+          "type": "string",
+          "label": "Sub Stat Secondary",
+          "description": "Secondary sub-stat text (e.g. \"This Month\")"
+        },
+        "subStatColor": {
+          "type": "color",
+          "label": "Sub Stat Color",
+          "description": "Color for primary sub-stat",
+          "default": "#22c55e"
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duration",
+          "description": "Count animation duration in frames",
+          "default": 50
+        },
+        "numberSize": {
+          "type": "number",
+          "label": "Number Size",
+          "description": "Number font size (auto if empty)",
+          "min": 24,
+          "max": 200
         }
       }
     },
@@ -1042,6 +1397,199 @@
             "up",
             "down"
           ]
+        }
+      }
+    },
+    {
+      "name": "StyleParticleExplosion",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Burst of particles that explode outward from center with spring physics, rotation, and fade out (particle explosion / burst / confetti burst / firework / impact effect). Use for reveals, celebrations, or impact moments.",
+      "props": {
+        "particleCount": {
+          "type": "number",
+          "label": "Particle Count",
+          "description": "Number of particles",
+          "default": 150,
+          "min": 20,
+          "max": 500
+        },
+        "text": {
+          "type": "string",
+          "label": "Text",
+          "description": "Center text (empty = no text)",
+          "default": ""
+        },
+        "textFontSize": {
+          "type": "number",
+          "label": "Text Font Size",
+          "description": "Text font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
+        },
+        "textShadow": {
+          "type": "boolean",
+          "label": "Text Shadow",
+          "description": "Show text glow/shadow",
+          "default": true
+        },
+        "particleSize": {
+          "type": "number",
+          "label": "Particle Size",
+          "description": "Particle diameter in px (auto if empty)",
+          "min": 2,
+          "max": 40
+        },
+        "maxDistance": {
+          "type": "number",
+          "label": "Max Distance",
+          "description": "Max distance particles travel (auto if empty)",
+          "min": 50,
+          "max": 600
+        },
+        "hueStart": {
+          "type": "number",
+          "label": "Hue Start",
+          "description": "Start of HSL hue range",
+          "default": 200
+        },
+        "hueRange": {
+          "type": "number",
+          "label": "Hue Range",
+          "description": "Range of hues",
+          "default": 40
+        },
+        "saturation": {
+          "type": "number",
+          "label": "Saturation",
+          "description": "HSL saturation",
+          "default": 85,
+          "min": 0,
+          "max": 100
+        },
+        "lightness": {
+          "type": "number",
+          "label": "Lightness",
+          "description": "HSL lightness",
+          "default": 70,
+          "min": 0,
+          "max": 100
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Spring damping parameter",
+          "default": 12
+        },
+        "springMass": {
+          "type": "number",
+          "label": "Spring Mass",
+          "description": "Spring mass parameter",
+          "default": 0.3
+        },
+        "rotationSpeed": {
+          "type": "number",
+          "label": "Rotation Speed",
+          "description": "Particle rotation speed (radians/frame)",
+          "default": 0.02
+        },
+        "fadeDuration": {
+          "type": "number",
+          "label": "Fade Duration",
+          "description": "Frames until fully faded",
+          "default": 90
+        }
+      }
+    },
+    {
+      "name": "StylePixelTransition",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Background effect where pixels appear randomly with different colors, creating a pixelated transition/fill (pixel transition / pixel fill / mosaic reveal / digital noise). Use for tech backgrounds, transitions, or digital mood.",
+      "props": {
+        "pixelSize": {
+          "type": "number",
+          "label": "Pixel Size",
+          "description": "Size of each pixel in px",
+          "default": 20,
+          "min": 4,
+          "max": 60
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Grid area width in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Grid area height in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background Color",
+          "description": "Base background color",
+          "default": "#0f172a"
+        },
+        "hueStart": {
+          "type": "number",
+          "label": "Hue Start",
+          "description": "Start of HSL hue range",
+          "default": 200
+        },
+        "hueRange": {
+          "type": "number",
+          "label": "Hue Range",
+          "description": "Range of hues",
+          "default": 220
+        },
+        "saturationMin": {
+          "type": "number",
+          "label": "Saturation Min",
+          "description": "Minimum saturation",
+          "default": 70,
+          "min": 0,
+          "max": 100
+        },
+        "saturationMax": {
+          "type": "number",
+          "label": "Saturation Max",
+          "description": "Maximum saturation",
+          "default": 100,
+          "min": 0,
+          "max": 100
+        },
+        "lightnessMin": {
+          "type": "number",
+          "label": "Lightness Min",
+          "description": "Minimum lightness",
+          "default": 40,
+          "min": 0,
+          "max": 100
+        },
+        "lightnessMax": {
+          "type": "number",
+          "label": "Lightness Max",
+          "description": "Maximum lightness",
+          "default": 60,
+          "min": 0,
+          "max": 100
+        },
+        "maxDelay": {
+          "type": "number",
+          "label": "Max Delay",
+          "description": "Max frames before a pixel appears",
+          "default": 60
         }
       }
     },
@@ -2092,6 +2640,102 @@
       }
     },
     {
+      "name": "StyleCardFlip",
+      "category": "UI",
+      "role": "ui",
+      "description": "3D card flip animation with configurable front and back content (card flip / 3D flip / reveal card / flip animation). Use for reveals, comparisons, or before/after showcases.",
+      "props": {
+        "frontText": {
+          "type": "string",
+          "label": "Front Text",
+          "description": "Text on the front face",
+          "default": "Remotion 👋"
+        },
+        "backText": {
+          "type": "string",
+          "label": "Back Text",
+          "description": "Text on the back face",
+          "default": "Back"
+        },
+        "frontGradientStart": {
+          "type": "color",
+          "label": "Front Gradient Start",
+          "description": "Front face gradient start",
+          "default": "#1e3a8a"
+        },
+        "frontGradientEnd": {
+          "type": "color",
+          "label": "Front Gradient End",
+          "description": "Front face gradient end",
+          "default": "#3b82f6"
+        },
+        "backGradientStart": {
+          "type": "color",
+          "label": "Back Gradient Start",
+          "description": "Back face gradient start",
+          "default": "#7209b7"
+        },
+        "backGradientEnd": {
+          "type": "color",
+          "label": "Back Gradient End",
+          "description": "Back face gradient end",
+          "default": "#f72585"
+        },
+        "cardWidth": {
+          "type": "number",
+          "label": "Card Width",
+          "description": "Card width in px (auto if empty)",
+          "min": 100,
+          "max": 600
+        },
+        "cardHeight": {
+          "type": "number",
+          "label": "Card Height",
+          "description": "Card height in px (auto if empty)",
+          "min": 100,
+          "max": 800
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "min": 12,
+          "max": 100
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Border Radius",
+          "description": "Card border radius (auto if empty)",
+          "min": 0,
+          "max": 40
+        },
+        "perspective": {
+          "type": "number",
+          "label": "Perspective",
+          "description": "CSS perspective value",
+          "default": 1000
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Spring damping parameter",
+          "default": 15
+        },
+        "springMass": {
+          "type": "number",
+          "label": "Spring Mass",
+          "description": "Spring mass parameter",
+          "default": 0.5
+        },
+        "loop": {
+          "type": "boolean",
+          "label": "Loop",
+          "description": "Repeat flip animation continuously",
+          "default": false
+        }
+      }
+    },
+    {
       "name": "StyleChip",
       "category": "UI",
       "role": "ui",
@@ -2207,6 +2851,158 @@
       }
     },
     {
+      "name": "StyleComparisonChart",
+      "category": "Charts & Data",
+      "role": "dataviz",
+      "description": "Before/after comparison chart with two animated bars, values, and divider (A/B test / before vs after / performance comparison). Use for showing improvement or comparison between two states.",
+      "props": {
+        "beforeValue": {
+          "type": "number",
+          "label": "Before Value",
+          "description": "Value for the before/left bar",
+          "default": 34
+        },
+        "afterValue": {
+          "type": "number",
+          "label": "After Value",
+          "description": "Value for the after/right bar",
+          "default": 89
+        },
+        "beforeLabel": {
+          "type": "string",
+          "label": "Before Label",
+          "description": "Label for before/left bar",
+          "default": "Before"
+        },
+        "afterLabel": {
+          "type": "string",
+          "label": "After Label",
+          "description": "Label for after/right bar",
+          "default": "After"
+        },
+        "beforeColor": {
+          "type": "color",
+          "label": "Before Color",
+          "description": "Color for before/left bar",
+          "default": "#ef4444"
+        },
+        "afterColor": {
+          "type": "color",
+          "label": "After Color",
+          "description": "Color for after/right bar",
+          "default": "#4361ee"
+        },
+        "showTitle": {
+          "type": "boolean",
+          "label": "Show Title",
+          "description": "Display chart title",
+          "default": false
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Chart title text",
+          "default": "Performance Comparison"
+        },
+        "maxValue": {
+          "type": "number",
+          "label": "Max Value",
+          "description": "Maximum value for bar scaling",
+          "default": 100
+        },
+        "barWidth": {
+          "type": "number",
+          "label": "Bar Width",
+          "description": "Bar width in px (auto if empty)",
+          "min": 20,
+          "max": 200
+        }
+      }
+    },
+    {
+      "name": "StyleCountdown",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Cinematic countdown with a sequence of labels (e.g. 5-4-3-2-1-GO), each with spring entrance and fade (countdown timer / launch sequence / get ready). Use for intros and launches.",
+      "props": {
+        "labels": {
+          "type": "list",
+          "label": "Labels",
+          "description": "Sequence of labels (e.g. [\"5\",\"4\",\"3\",\"2\",\"1\",\"GO\"])",
+          "default": [
+            "5",
+            "4",
+            "3",
+            "2",
+            "1",
+            "GO"
+          ]
+        },
+        "framesPerLabel": {
+          "type": "number",
+          "label": "Frames Per Label",
+          "description": "Frames each label stays on screen",
+          "default": 24
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size for regular labels (auto if empty)",
+          "min": 24,
+          "max": 300
+        },
+        "finalFontSize": {
+          "type": "number",
+          "label": "Final Font Size",
+          "description": "Font size for the last label (auto if empty)",
+          "min": 24,
+          "max": 300
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color for regular labels",
+          "default": "#ffffff"
+        },
+        "gradientStart": {
+          "type": "color",
+          "label": "Gradient Start",
+          "description": "Gradient start for final label",
+          "default": "#3b82f6"
+        },
+        "gradientEnd": {
+          "type": "color",
+          "label": "Gradient End",
+          "description": "Gradient end for final label",
+          "default": "#7209b7"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background Color",
+          "description": "Background color",
+          "default": "#111827"
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Spring damping parameter",
+          "default": 12
+        },
+        "springStiffness": {
+          "type": "number",
+          "label": "Spring Stiffness",
+          "description": "Spring stiffness parameter",
+          "default": 200
+        },
+        "springMass": {
+          "type": "number",
+          "label": "Spring Mass",
+          "description": "Spring mass parameter",
+          "default": 0.5
+        }
+      }
+    },
+    {
       "name": "StyleDivider",
       "category": "UI",
       "role": "ui",
@@ -2269,6 +3065,72 @@
           "label": "Animate In",
           "description": "Built-in grow entry (off = use layer entry/exit)",
           "default": true
+        }
+      }
+    },
+    {
+      "name": "StyleDonutChart",
+      "category": "Charts & Data",
+      "role": "dataviz",
+      "description": "KPI donut chart with animated ring segments, background track, and animated center counter (completion rate / progress donut). Use for showing completion metrics and multi-part progress.",
+      "props": {
+        "data": {
+          "type": "list",
+          "label": "Data",
+          "description": "Array of {label, value, color} segments"
+        },
+        "showLabels": {
+          "type": "boolean",
+          "label": "Show Labels",
+          "description": "Display legend labels",
+          "default": true
+        },
+        "showTitle": {
+          "type": "boolean",
+          "label": "Show Title",
+          "description": "Display chart title",
+          "default": false
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Chart title text",
+          "default": "Completion Rate"
+        },
+        "centerValue": {
+          "type": "number",
+          "label": "Center Value",
+          "description": "Target number for center counter (auto if empty)"
+        },
+        "centerLabel": {
+          "type": "string",
+          "label": "Center Label",
+          "description": "Label below center number"
+        },
+        "centerSuffix": {
+          "type": "string",
+          "label": "Center Suffix",
+          "description": "Suffix after center number",
+          "default": "%"
+        },
+        "showBackgroundRing": {
+          "type": "boolean",
+          "label": "Background Ring",
+          "description": "Show background track ring",
+          "default": true
+        },
+        "ringColor": {
+          "type": "color",
+          "label": "Ring Color",
+          "description": "Background track color",
+          "default": "rgba(255,255,255,0.05)"
+        },
+        "strokeWidth": {
+          "type": "number",
+          "label": "Stroke Width",
+          "description": "Ring stroke width (auto if empty)",
+          "min": 1,
+          "max": 60
         }
       }
     },
@@ -2774,6 +3636,50 @@
       }
     },
     {
+      "name": "StyleMultiBar",
+      "category": "Charts & Data",
+      "role": "dataviz",
+      "description": "Card with multiple animated progress bars, each with label and percentage counter (skills overview / comparison bars / multi-metric). Use for showing multiple metrics or skill levels at once.",
+      "props": {
+        "data": {
+          "type": "list",
+          "label": "Data",
+          "description": "Array of {label, value, color} bars"
+        },
+        "showTitle": {
+          "type": "boolean",
+          "label": "Show Title",
+          "description": "Display chart title",
+          "default": false
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Chart title text",
+          "default": "Skills Overview"
+        },
+        "showValues": {
+          "type": "boolean",
+          "label": "Show Values",
+          "description": "Display percentage values",
+          "default": true
+        },
+        "barHeight": {
+          "type": "number",
+          "label": "Bar Height",
+          "description": "Bar height in px (auto if empty)",
+          "min": 4,
+          "max": 40
+        },
+        "maxValue": {
+          "type": "number",
+          "label": "Max Value",
+          "description": "Maximum value for bar scaling",
+          "default": 100
+        }
+      }
+    },
+    {
       "name": "StyleCursor",
       "category": "UI",
       "role": "ui",
@@ -3182,6 +4088,18 @@
           "description": "Display percentage values",
           "default": true
         },
+        "showTitle": {
+          "type": "boolean",
+          "label": "Show Title",
+          "description": "Display chart title",
+          "default": false
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Chart title text",
+          "default": "Market Share"
+        },
         "variant": {
           "type": "select",
           "label": "Variant",
@@ -3200,8 +4118,252 @@
         "explodeSlice": {
           "type": "number",
           "label": "Explode Slice",
-          "description": "Index of slice to explode",
-          "default": 0
+          "description": "Index of slice to explode outward (-1 = none)",
+          "default": -1
+        },
+        "centerText": {
+          "type": "string",
+          "label": "Center Text",
+          "description": "Text shown in donut center (e.g. \"100%\")"
+        }
+      }
+    },
+    {
+      "name": "StylePulseText",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Text where each character pulses (scales up/down) in a wave pattern with a glow effect behind each letter (pulsing text / wave text / glowing letters). Use for emphasis and attention-grabbing text.",
+      "props": {
+        "text": {
+          "type": "string",
+          "label": "Text",
+          "description": "Text to display",
+          "default": "PULSE"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
+        },
+        "glowColor": {
+          "type": "color",
+          "label": "Glow Color",
+          "description": "Glow background color",
+          "default": "rgba(255, 255, 255, 0.2)"
+        },
+        "cycleDuration": {
+          "type": "number",
+          "label": "Cycle Duration",
+          "description": "Frames per pulse cycle",
+          "default": 30
+        },
+        "staggerDelay": {
+          "type": "number",
+          "label": "Stagger Delay",
+          "description": "Frames between each character",
+          "default": 6
+        },
+        "pulseScale": {
+          "type": "number",
+          "label": "Pulse Scale",
+          "description": "Max scale during pulse",
+          "default": 1.2
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Font weight",
+          "default": 800
+        }
+      }
+    },
+    {
+      "name": "StyleProgressSteps",
+      "category": "Charts & Data",
+      "role": "dataviz",
+      "description": "Animated progress timeline with sequential step fill, connecting lines, and configurable direction (progress steps / timeline / roadmap / workflow / process steps). Use for showing project phases or multi-step processes.",
+      "props": {
+        "steps": {
+          "type": "list",
+          "label": "Steps",
+          "description": "Array of step labels or {label, color} objects",
+          "default": [
+            "Research",
+            "Design",
+            "Build",
+            "Launch"
+          ]
+        },
+        "framesPerStep": {
+          "type": "number",
+          "label": "Frames Per Step",
+          "description": "Frames per step animation",
+          "default": 24
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Layout direction",
+          "default": "horizontal",
+          "options": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "showTitle": {
+          "type": "boolean",
+          "label": "Show Title",
+          "description": "Display title",
+          "default": false
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Title text",
+          "default": "Project Timeline"
+        },
+        "circleSize": {
+          "type": "number",
+          "label": "Circle Size",
+          "description": "Circle diameter in px (auto if empty)",
+          "min": 20,
+          "max": 100
+        },
+        "lineLength": {
+          "type": "number",
+          "label": "Line Length",
+          "description": "Distance between circles in px (auto if empty)",
+          "min": 30,
+          "max": 300
+        },
+        "activeColor": {
+          "type": "color",
+          "label": "Active Color",
+          "description": "Color for active/completed steps",
+          "default": "#3b82f6"
+        },
+        "inactiveColor": {
+          "type": "color",
+          "label": "Inactive Color",
+          "description": "Color for pending steps",
+          "default": "#4b5563"
+        },
+        "gradientStart": {
+          "type": "color",
+          "label": "Gradient Start",
+          "description": "Gradient start for completed steps",
+          "default": "#3b82f6"
+        },
+        "gradientEnd": {
+          "type": "color",
+          "label": "Gradient End",
+          "description": "Gradient end for completed steps",
+          "default": "#7209b7"
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Spring damping parameter",
+          "default": 8
+        },
+        "springStiffness": {
+          "type": "number",
+          "label": "Spring Stiffness",
+          "description": "Spring stiffness parameter",
+          "default": 150
+        },
+        "springMass": {
+          "type": "number",
+          "label": "Spring Mass",
+          "description": "Spring mass parameter",
+          "default": 0.4
+        }
+      }
+    },
+    {
+      "name": "StyleSpringText",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Text where each character springs in with opacity, Y offset, and rotation (spring text / bounce text / character entrance). Use for dynamic text entrances with physics-based motion.",
+      "props": {
+        "text": {
+          "type": "string",
+          "label": "Text",
+          "description": "Text to display",
+          "default": "Hello Remotion"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Font weight",
+          "default": 800
+        },
+        "staggerDelay": {
+          "type": "number",
+          "label": "Stagger Delay",
+          "description": "Frames between each character",
+          "default": 5
+        },
+        "springMass": {
+          "type": "number",
+          "label": "Spring Mass",
+          "description": "Spring mass parameter",
+          "default": 0.5
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Spring damping parameter",
+          "default": 10
+        },
+        "entranceFrom": {
+          "type": "select",
+          "label": "Entrance From",
+          "description": "Direction characters come from",
+          "default": "top",
+          "options": [
+            "top",
+            "bottom",
+            "left"
+          ]
+        },
+        "maxRotation": {
+          "type": "number",
+          "label": "Max Rotation",
+          "description": "Rotation degrees during entrance (0 = no rotation)",
+          "default": -180
+        },
+        "textAlign": {
+          "type": "select",
+          "label": "Text Align",
+          "description": "Text alignment",
+          "default": "center",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
         }
       }
     },
@@ -3209,7 +4371,7 @@
       "name": "StyleLineChart",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Line chart that draws itself across the screen, with optional area fill, dots and grid (line graph / trend chart / time series). Use for trends and growth over time.",
+      "description": "Line chart that draws itself across the screen, with optional area fill, dots, grid and title (line graph / trend chart / time series). Glassmorphic card with gradient line and glow. Use for trends and growth over time.",
       "props": {
         "data": {
           "type": "list",
@@ -3234,17 +4396,47 @@
           "description": "Display x-axis labels",
           "default": true
         },
+        "showYAxisLabels": {
+          "type": "boolean",
+          "label": "Show Y-Axis Labels",
+          "description": "Display Y-axis value labels",
+          "default": false
+        },
+        "showAxisLines": {
+          "type": "boolean",
+          "label": "Show Axis Lines",
+          "description": "Display X and Y axis lines",
+          "default": false
+        },
+        "showTitle": {
+          "type": "boolean",
+          "label": "Show Title",
+          "description": "Display chart title",
+          "default": false
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Chart title text",
+          "default": "Growth Trend"
+        },
         "lineColor": {
           "type": "color",
           "label": "Line Color",
-          "description": "Line stroke color",
+          "description": "Line stroke start color",
           "default": "#00FFAB"
+        },
+        "lineColorEnd": {
+          "type": "color",
+          "label": "Line End Color",
+          "description": "Line stroke end color (gradient)",
+          "default": "#4361ee"
         },
         "fillColor": {
           "type": "color",
           "label": "Fill Color",
           "description": "Area fill color",
-          "default": "rgba(0, 255, 171, 0.1)"
+          "default": "rgba(0, 255, 171, 0.08)"
         },
         "fillArea": {
           "type": "boolean",
@@ -3258,6 +4450,24 @@
           "description": "Stroke width (auto if empty)",
           "min": 1,
           "max": 40
+        },
+        "yAxisValues": {
+          "type": "list",
+          "label": "Y-Axis Values",
+          "description": "Values to show on Y axis",
+          "default": [
+            0,
+            25,
+            50,
+            75,
+            100
+          ]
+        },
+        "yAxisFormat": {
+          "type": "string",
+          "label": "Y-Axis Format",
+          "description": "Format for Y labels (use {value})",
+          "default": "{value}"
         }
       }
     },
@@ -3348,6 +4558,94 @@
       }
     },
     {
+      "name": "StyleRotatingCarousel",
+      "category": "Layout & Containers",
+      "role": "container",
+      "description": "3D rotating carousel where all cards are visible simultaneously, rotating in a circular path with depth simulation (rotating cards / 3D carousel / feature showcase). Use for showcasing multiple features or items in a dynamic rotation.",
+      "props": {
+        "cards": {
+          "type": "list",
+          "label": "Cards",
+          "description": "Array of card labels or {label, icon, color} objects",
+          "default": [
+            "Feature 1",
+            "Feature 2",
+            "Feature 3",
+            "Feature 4"
+          ]
+        },
+        "rotationSpeed": {
+          "type": "number",
+          "label": "Rotation Speed",
+          "description": "Radians per frame",
+          "default": 0.015
+        },
+        "radius": {
+          "type": "number",
+          "label": "Carousel Radius",
+          "description": "Carousel radius in px (auto if empty)",
+          "min": 50,
+          "max": 500
+        },
+        "cardWidth": {
+          "type": "number",
+          "label": "Card Width",
+          "description": "Card width in px (auto if empty)",
+          "min": 80,
+          "max": 400
+        },
+        "cardHeight": {
+          "type": "number",
+          "label": "Card Height",
+          "description": "Card height in px (auto if empty)",
+          "min": 80,
+          "max": 400
+        },
+        "showTitle": {
+          "type": "boolean",
+          "label": "Show Title",
+          "description": "Display title",
+          "default": false
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Title text",
+          "default": "Our Features"
+        },
+        "cardGradientStart": {
+          "type": "color",
+          "label": "Card Gradient Start",
+          "description": "Card background gradient start",
+          "default": "#1f2937"
+        },
+        "cardGradientEnd": {
+          "type": "color",
+          "label": "Card Gradient End",
+          "description": "Card background gradient end",
+          "default": "#374151"
+        },
+        "cardBorderColor": {
+          "type": "color",
+          "label": "Card Border Color",
+          "description": "Card border color",
+          "default": "rgba(59, 130, 246, 0.3)"
+        },
+        "iconGradientStart": {
+          "type": "color",
+          "label": "Icon Gradient Start",
+          "description": "Icon placeholder gradient start",
+          "default": "#3b82f6"
+        },
+        "iconGradientEnd": {
+          "type": "color",
+          "label": "Icon Gradient End",
+          "description": "Icon placeholder gradient end",
+          "default": "#a855f7"
+        }
+      }
+    },
+    {
       "name": "StyleBarRace",
       "category": "Charts & Data",
       "role": "dataviz",
@@ -3394,24 +4692,12 @@
       "name": "BarChartReveal",
       "category": "Charts & Data",
       "role": "dataviz",
-      "description": "Bar/column chart whose bars pop in with a staggered spring and gradient fill (animated bar reveal). Same data as a bar chart but with an emphatic entrance — pick this when the reveal animation is the point; for a plain configurable bar chart use StyleBarChart.",
+      "description": "Bar/column chart whose bars pop in with a staggered spring (animated bar reveal). Per-bar colors, value labels on top, x-axis labels, optional title/subtitle. Pick this when the reveal animation is the point; for a plain configurable bar chart use StyleBarChart.",
       "props": {
-        "color1": {
-          "type": "color",
-          "label": "Color 1",
-          "description": "Primary bar gradient color",
-          "default": "#3b82f6"
-        },
-        "color2": {
-          "type": "color",
-          "label": "Color 2",
-          "description": "Secondary bar gradient color",
-          "default": "#0ea5e9"
-        },
         "data": {
           "type": "list",
           "label": "Data",
-          "description": "Array of bar heights (0-100)",
+          "description": "Values 0-100, or {value, label, color} per bar",
           "default": [
             30,
             50,
@@ -3419,6 +4705,98 @@
             45,
             90
           ]
+        },
+        "labels": {
+          "type": "list",
+          "label": "Labels",
+          "description": "X-axis labels (or use data[].label)"
+        },
+        "colors": {
+          "type": "list",
+          "label": "Bar Colors",
+          "description": "Per-bar colors (or use data[].color); empty = gradient"
+        },
+        "color1": {
+          "type": "color",
+          "label": "Gradient Top",
+          "description": "Bar gradient top (fallback)",
+          "default": "#3b82f6"
+        },
+        "color2": {
+          "type": "color",
+          "label": "Gradient Bottom",
+          "description": "Bar gradient bottom (fallback)",
+          "default": "#0ea5e9"
+        },
+        "maxValue": {
+          "type": "number",
+          "label": "Max Value",
+          "description": "Scale reference for heights",
+          "default": 100,
+          "min": 1,
+          "max": 100000
+        },
+        "showValues": {
+          "type": "boolean",
+          "label": "Show Values",
+          "description": "Value on top of each bar",
+          "default": true
+        },
+        "valueColor": {
+          "type": "color",
+          "label": "Value Color",
+          "description": "Value label color",
+          "default": "#ffffff"
+        },
+        "labelColor": {
+          "type": "color",
+          "label": "Label Color",
+          "description": "X-axis label color",
+          "default": "rgba(255,255,255,0.8)"
+        },
+        "axisColor": {
+          "type": "color",
+          "label": "Axis Color",
+          "description": "Axis line color",
+          "default": "rgba(255,255,255,0.2)"
+        },
+        "showAxis": {
+          "type": "boolean",
+          "label": "Show Axis",
+          "description": "Show baseline axis",
+          "default": true
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Chart title (optional)"
+        },
+        "subtitle": {
+          "type": "string",
+          "label": "Subtitle",
+          "description": "Chart subtitle (optional)"
+        },
+        "titleColor": {
+          "type": "color",
+          "label": "Title Color",
+          "description": "Title color",
+          "default": "#ffffff"
+        },
+        "barRadius": {
+          "type": "number",
+          "label": "Bar Radius",
+          "description": "Bar corner radius px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 60
+        },
+        "gap": {
+          "type": "number",
+          "label": "Gap",
+          "description": "Gap between bars px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 100
         }
       }
     },
@@ -4963,6 +6341,81 @@
       }
     },
     {
+      "name": "StyleNotificationStack",
+      "category": "UI & Social",
+      "role": "social",
+      "description": "Stack of notification cards that slide in from the right with staggered spring animations (notification feed / push notifications / alert stack / message stack). Use for showing multiple notifications or alerts in sequence.",
+      "props": {
+        "notifications": {
+          "type": "list",
+          "label": "Notifications",
+          "description": "Array of {title, body, color, delay} notifications"
+        },
+        "showTitle": {
+          "type": "boolean",
+          "label": "Show Title",
+          "description": "Display title",
+          "default": false
+        },
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Title text",
+          "default": "Notifications"
+        },
+        "cardWidth": {
+          "type": "number",
+          "label": "Card Width",
+          "description": "Card width in px (auto if empty)",
+          "min": 150,
+          "max": 600
+        },
+        "slideDistance": {
+          "type": "number",
+          "label": "Slide Distance",
+          "description": "How far cards slide from (px, auto if empty)",
+          "min": 100,
+          "max": 800
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Spring damping parameter",
+          "default": 14
+        },
+        "springStiffness": {
+          "type": "number",
+          "label": "Spring Stiffness",
+          "description": "Spring stiffness parameter",
+          "default": 180
+        },
+        "springMass": {
+          "type": "number",
+          "label": "Spring Mass",
+          "description": "Spring mass parameter",
+          "default": 0.6
+        },
+        "showBadge": {
+          "type": "boolean",
+          "label": "Show Badge",
+          "description": "Show badge on first card",
+          "default": true
+        },
+        "badgeCount": {
+          "type": "number",
+          "label": "Badge Count",
+          "description": "Badge number",
+          "default": 3
+        },
+        "badgeColor": {
+          "type": "color",
+          "label": "Badge Color",
+          "description": "Badge background color",
+          "default": "#ef4444"
+        }
+      }
+    },
+    {
       "name": "MessageBubble",
       "category": "UI",
       "role": "ui",
@@ -5028,12 +6481,12 @@
       "name": "TextBubble",
       "category": "UI",
       "role": "ui",
-      "description": "A single speech/thought bubble with a configurable pointer tail and pop entrance (speech bubble / callout / comic balloon / tooltip). Use for one quote or a pointed remark. For a chat thread use MessageBubble.",
+      "description": "A single speech/thought bubble with a configurable pointer tail and pop entrance (speech bubble / callout / comic balloon / tooltip). Editable colors, font, width (wraps) and corners. Use for one quote or a pointed remark. For a chat thread use MessageBubble.",
       "props": {
         "text": {
           "type": "text-long",
           "label": "Text",
-          "description": "Bubble content",
+          "description": "Bubble content (wraps; supports line breaks)",
           "default": "Hello World!"
         },
         "pointerPosition": {
@@ -5048,10 +6501,52 @@
             "bottom"
           ]
         },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Bubble background color",
+          "default": "#ffffff"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#0f172a"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Text size (px)",
+          "default": 40,
+          "min": 12,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max width before wrapping (px)",
+          "default": 800,
+          "min": 100,
+          "max": 1800
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Corner Radius",
+          "description": "Corner radius (px)",
+          "default": 30,
+          "min": 0,
+          "max": 200
+        },
         "shadow": {
           "type": "boolean",
           "label": "Shadow",
           "description": "Enable drop shadow",
+          "default": true
+        },
+        "animateIn": {
+          "type": "boolean",
+          "label": "Animate In",
+          "description": "Built-in pop entry (off = use layer entry/exit)",
           "default": true
         }
       }
@@ -5952,7 +7447,7 @@
       "name": "TestimonialReview",
       "category": "UI",
       "role": "ui",
-      "description": "Testimonial/review card with an animated star rating, a quote and the author (review / testimonial / rating / 5 stars / customer quote). Use for social proof and reviews.",
+      "description": "Testimonial/review card with an animated rating (stars, circles or hearts), a quote and the author (review / testimonial / rating / 5 stars / customer quote). Editable colors and shape; long text wraps. Use for social proof and reviews.",
       "props": {
         "author": {
           "type": "string",
@@ -5963,22 +7458,73 @@
         "review": {
           "type": "text-long",
           "label": "Review",
-          "description": "Review text",
+          "description": "Review text (wraps)",
           "default": "\"This tool saved our team 20 hours a week!\""
         },
         "rating": {
           "type": "number",
           "label": "Rating",
-          "description": "Star rating (1-5)",
+          "description": "Rating (1-5)",
           "default": 5,
           "min": 1,
           "max": 5
         },
+        "shape": {
+          "type": "select",
+          "label": "Shape",
+          "description": "Rating icon shape",
+          "default": "star",
+          "options": [
+            "star",
+            "circle",
+            "heart"
+          ]
+        },
         "starColor": {
           "type": "color",
-          "label": "Star Color",
-          "description": "Star fill color",
+          "label": "Rating Color",
+          "description": "Filled rating color",
           "default": "#fbbf24"
+        },
+        "emptyColor": {
+          "type": "color",
+          "label": "Empty Color",
+          "description": "Unfilled rating color",
+          "default": "#e2e8f0"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Card background",
+          "default": "#ffffff"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Review text color",
+          "default": "#334155"
+        },
+        "authorColor": {
+          "type": "color",
+          "label": "Author Color",
+          "description": "Author name color (empty = text color)",
+          "default": ""
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Review text size px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Card width px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 1600
         }
       }
     },
@@ -5986,7 +7532,7 @@
       "name": "TinderSwipeCard",
       "category": "UI",
       "role": "ui",
-      "description": "Tinder-style card that swipes left/right with a \"MATCH!\"/\"NOPE\" stamp (swipe card / dating app / Tinder / match / yes-no choice). Use for swipe/choice moments or matchmaking gags.",
+      "description": "Tinder-style card that swipes away (left/right/up/down) with a \"MATCH!\"/\"NOPE\" stamp (swipe card / dating app / Tinder / match / yes-no choice). Single card or a stack that swipes in sequence, each in its own direction. Use for swipe/choice moments or matchmaking gags.",
       "props": {
         "name": {
           "type": "string",
@@ -5999,6 +7545,18 @@
           "label": "Subtitle",
           "description": "Card subtitle",
           "default": "Looking for growth"
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Swipe direction",
+          "default": "right",
+          "options": [
+            "left",
+            "right",
+            "up",
+            "down"
+          ]
         },
         "swipeFrame": {
           "type": "number",
@@ -6015,8 +7573,21 @@
         "stampText": {
           "type": "string",
           "label": "Stamp Text",
-          "description": "Stamp overlay text",
+          "description": "Stamp text (empty = hide)",
           "default": "MATCH!"
+        },
+        "cards": {
+          "type": "list",
+          "label": "Card Stack",
+          "description": "Stack: {name, subtitle, stampText, stampColor, direction}. Overrides single card."
+        },
+        "interval": {
+          "type": "number",
+          "label": "Interval",
+          "description": "Frames between each card swipe (stack)",
+          "default": 45,
+          "min": 5,
+          "max": 200
         }
       }
     },
@@ -6024,7 +7595,7 @@
       "name": "VersusScreen",
       "category": "UI",
       "role": "ui",
-      "description": "Versus screen: two colored sides with a central \"VS\" badge (versus / vs / face-off / this vs that / battle / comparison). Use for head-to-head comparisons or matchups.",
+      "description": "Versus screen: two colored sides with a central \"VS\" badge and an animated split (versus / vs / face-off / this vs that / battle / comparison). Divider can be straight, diagonal or curved; full screen or a sized box. Use for head-to-head comparisons or matchups.",
       "props": {
         "nameA": {
           "type": "string",
@@ -6049,6 +7620,91 @@
           "label": "Color B",
           "description": "Right side background",
           "default": "#42b883"
+        },
+        "divider": {
+          "type": "select",
+          "label": "Divider",
+          "description": "Split shape",
+          "default": "diagonal",
+          "options": [
+            "straight",
+            "diagonal",
+            "curved"
+          ]
+        },
+        "curveAmount": {
+          "type": "number",
+          "label": "Curve Amount",
+          "description": "Curve intensity (curved divider)",
+          "default": 14,
+          "min": 0,
+          "max": 40
+        },
+        "vsText": {
+          "type": "string",
+          "label": "VS Text",
+          "description": "Center badge text",
+          "default": "VS"
+        },
+        "vsColor": {
+          "type": "color",
+          "label": "VS Color",
+          "description": "Badge text color",
+          "default": "#ffffff"
+        },
+        "badgeColor": {
+          "type": "color",
+          "label": "Badge Color",
+          "description": "Badge background",
+          "default": "#1e293b"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Badge border color",
+          "default": "#ffffff"
+        },
+        "showVs": {
+          "type": "boolean",
+          "label": "Show VS",
+          "description": "Show the central badge",
+          "default": true
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Name Color",
+          "description": "Side name color",
+          "default": "#ffffff"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Name size px (auto if empty)",
+          "default": 0,
+          "min": 0,
+          "max": 400
+        },
+        "cover": {
+          "type": "boolean",
+          "label": "Full Screen",
+          "description": "Cover whole canvas (off = sized box at x/y)",
+          "default": true
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Box width px (when not full screen)",
+          "default": 0,
+          "min": 0,
+          "max": 1920
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Box height px (when not full screen)",
+          "default": 0,
+          "min": 0,
+          "max": 1920
         }
       }
     },

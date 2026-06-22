@@ -6,11 +6,13 @@ health checks, and configurable settings for administrators.
 """
 
 from typing import Optional
+import io
 import os
 import time
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy import Integer, func, text
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel, ConfigDict, Field
@@ -713,3 +715,62 @@ def update_admin_settings(
     db.commit()
 
     return {"message": "Settings updated", "settings": settings_payload}
+
+
+# ---------------------------------------------------------------------------
+# Component AE (.jsx) preview — descarga el ExtendScript de UN componente para
+# probarlo en After Effects de forma aislada (Playground / galería).
+# ---------------------------------------------------------------------------
+class ComponentAEScriptRequest(BaseModel):
+    props: dict = Field(default_factory=dict)
+    text: str = ""
+    duration: float = 5.0
+    width: int = 1080
+    height: int = 1920
+    fps: int = 30
+
+
+@router.post("/components/{name}/ae-script")
+@limiter.limit("30/minute")
+def download_component_ae_script(
+    request: Request,
+    name: str,
+    body: ComponentAEScriptRequest = Body(default=ComponentAEScriptRequest()),
+    current_user: User = Depends(require_admin),
+):
+    """Genera y descarga el AE ExtendScript (.jsx) de un solo componente.
+
+    Permite verificar en After Effects que cada componente exporta bien, de forma
+    individual. Usa el generador determinista (sin LLM).
+    """
+    from app.modules.ae_export.deterministic.components_generator import generate_component_script
+
+    # Sanitizar nombre (evita rutas raras en el filename).
+    safe_name = "".join(ch for ch in name if ch.isalnum() or ch in ("_", "-")) or "component"
+
+    try:
+        script = generate_component_script(
+            components={safe_name: body.props or {}},
+            text=body.text,
+            duration=max(0.5, float(body.duration or 5.0)),
+            width=int(body.width or 1080),
+            height=int(body.height or 1920),
+            fps=int(body.fps or 30),
+        )
+    except Exception as e:  # noqa: BLE001 — devolver el error es útil para depurar en AE
+        logger.exception("AE script generation failed for component %s: %s", safe_name, e)
+        raise HTTPException(status_code=500, detail=f"AE script generation failed: {e}")
+
+    # Si el componente no tiene bloque determinista, el script es solo la cabecera.
+    header_only = script.count("\n") <= 2
+    note = (
+        f"// AnimaFlow — AE preview for component '{safe_name}'\n"
+        + ("// NOTE: this component has no dedicated AE block yet — only an empty comp is created.\n" if header_only else "")
+        + "\n"
+    )
+
+    return StreamingResponse(
+        io.BytesIO((note + script).encode("utf-8")),
+        media_type="application/javascript",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.jsx"'},
+    )

@@ -371,6 +371,101 @@ Fix transversal: **props planos** + nuevo `animateIn` (default true) que ADEMÁS
   componentes. Aplicar hover a cualquier componente sería un efecto universal (cambio mayor,
   no hecho).
 
+### Atomicidad UI + dataviz (19va ronda) — ✅
+- **TestimonialReview:** `shape` star/circle/heart, colores editables (bg/texto/autor/vacías,
+  ya estaban en código pero no en manifest), salto de línea (overflowWrap), `width`/`fontSize`.
+- **TextBubble:** colores/`fontSize`/`width`(wrap)/`borderRadius` en manifest, `animateIn`
+  (la pop dejó de ser obligatoria).
+- **TinderSwipeCard:** `direction` left/right/up/down; salto de línea en name/subtitle; **pila
+  de cartas** (`cards` lista, cada una con su dirección/stamp) que se pasan en secuencia
+  (`interval`). Stamp ocultable con texto vacío.
+- **VersusScreen:** `cover`/`width`/`height` (mitad de pantalla posible), `vsText`/`vsColor`/
+  `badgeColor`/`borderColor`, `divider` straight/diagonal/curved (+`curveAmount`), `showVs`,
+  `textColor`/`fontSize`.
+- **BarChartReveal:** adaptado el código de referencia del usuario respetando el contrato JSON:
+  **color por barra** (`data[].color` o `colors[]`), **etiquetas** (`data[].label`/`labels`),
+  valor encima (`showValues`), eje, `title`/`subtitle`, `maxValue`, `barRadius`/`gap`. **AE
+  export actualizado** para data variable + colores por barra (normaliza a maxValue).
+- Fix incidental: StylePulseText/StyleSpringText (componentes nuevos) destructuraban `style`
+  sin declararlo → añadido a su interface (rompían `tsc -b`).
+
+### AE export: refresco de los ~47 bloques placeholder viejos (23va ronda) — ✅
+- **El problema:** ~47 bloques viejos generaban una sola capa de texto literal "X Component"
+  (p.ej. "Versus Screen Component"), ignorando todas las props. Al descargar el .jsx no se
+  veía el componente, solo un cartel.
+- **Ahora leen props reales** y emiten capas representativas. Helpers nuevos: `_ae_card`
+  (rrect+título+subtítulo), `_hexc` (color HEX usable o fallback; antes `rgba()`/vacío caía a
+  gris), `_split`/`_nums` (parsear "a,b,c" / "1,2,3"). Refrescados por grupo:
+  - **Dev/tech:** TerminalHacker (bg+header+líneas), APIRequestFlow, GitCommitGraph (nodos
+    elipse), CodeBlockHighlight, NotificationToast (caja+icono+título+msg), LoadingSpinner
+    (anillo + `time*360`).
+  - **Audio:** AudioSpectrumBars/WaveformVisualizer (barras deterministas), PodcastGuestCard
+    (avatar+nombre+rol), MessageBubble (2 burbujas), QuoteBlock.
+  - **News/sports:** LowerThird (barra+bg+nombre+título), BreakingNewsTicker (barra+badge),
+    VersusScreen (2 mitades+nombres+VS), ScoreboardCounter, BreakingNewsAlert, CountdownTimer.
+  - **Data viz:** PieChartReveal/RadarSpiderChart (elipse), StockCandlestick (velas),
+    FunnelChart (rects decrecientes), HorizontalBarRace (barras horizontales), CounterNumber.
+  - **Social:** TweetCard, InstagramPost, TikTokOverlay, YouTubeEndScreen (+botón subscribe),
+    FollowerCounter, SocialSharePopup.
+  - **E-commerce:** PromoCodeBanner, SizeSelector (cajas), AppStoreButtons (2 botones),
+    FeatureUnlock, FlashSaleTimer (3 bloques H:M:S), PricingTableReveal (3 columnas).
+  - **Primitivas:** AnimatedShape (rrect/elipse en endX/endY), AnimatedLine/AnimatedArrow
+    (rect rotado por longitud), FloatingBadge (pill+texto), EmojiFloat, GradientOverlay
+    (solid+opacity), TextBubble, RippleEffect (elipse+scale+fade), MaskedReveal, ProgressPill
+    (track+fill según endPercent).
+- **0 placeholders "X Component" restantes** (verificado con regex sobre la escena combinada).
+  Smoke test: **119/119** generan .jsx; combinada genera 176 shape layers + 108 text layers
+  (antes ~todo era texto plano). Sin bloques huérfanos (todos los `if 'X' in components`
+  corresponden a componentes del manifest).
+
+### AE export: cobertura 119/119 + fix crashes individuales (22va ronda) — ✅
+- **Cierre de cobertura:** agregados los 13 bloques no-Style que faltaban (GradientText,
+  WordHighlight, IconifyIcon, KeywordPop, KenBurns, CinematicBars, Spotlight, CameraShake,
+  AnimatedChecklist, RotatingCarousel, LogoReveal, BrandOutro, GeometricShapes). Usan los
+  helpers `_ae_text`/`_ae_rrect`/`_ae_ellipse` + keyframes (pop de escala en KeywordPop,
+  zoom Ken Burns, fade de LogoReveal, spin de GeometricShapes) y un null+`wiggle()` para
+  CameraShake. **Cobertura AE real: 119/119.**
+- **2 bugs latentes arreglados** (rompían la descarga individual):
+  - `safe_text` solo se definía dentro del bloque TextReveal; 6 bloques viejos (Typewriter,
+    GlitchTitle, HighlightText, BrowserWindow, PhoneMockup, SearchEngineTyping) lo usaban
+    asumiendo que ya existía → `UnboundLocalError` al descargar solos. Fix: definir `safe_text`
+    una vez al inicio de `generate_component_script`.
+  - MediaFrame era un placeholder de texto que concatenaba `props.get('url','')` → con el
+    default `url=None` lanzaba `TypeError`. Reescrito como frame real (rrect/ellipse según
+    `shape`/`fullScreen`/`placeholderColor`).
+- Smoke test: **119/119** generan .jsx con props por defecto y la escena combinada (los 119
+  juntos) también genera OK (2548 líneas, sin colisión de variables).
+
+### AE export: limpieza + cobertura familia Style* (21va ronda) — ✅
+- **Limpieza:** eliminados los 8 bloques AE huérfanos (AnimatedIcon, CursorClick,
+  FeatureChecklist, SoundWaveCircle, Wipe/ZoomBlur/Glitch/LightLeakTransition).
+- **Cobertura Style\*:** agregados bloques AE para los ~29 `Style*` que faltaban (eran comp
+  vacía). Helpers nuevos `_ae_text`/`_ae_rrect`/`_ae_ellipse`/`_ae_bars`/`_norm_values`.
+  Representaciones: texto → text layer; badge/chip/button/card/statcard/hover → rrect+texto;
+  divider → línea; avatar/cursor/pie/donut/radar → ellipse; bar/multibar/race/line/comparison
+  → barras desde `data`; funnel → rrects decrecientes; videoplayer → frame; ticker/animatenumber
+  → texto. Probado: 10/10 generan .jsx sin error.
+- Cobertura AE real: **106/119** (faltan 13 no-Style: AnimatedChecklist, BrandOutro,
+  CameraShake, CinematicBars, GeometricShapes, GradientText, IconifyIcon, KenBurns, KeywordPop,
+  LogoReveal, RotatingCarousel, Spotlight, WordHighlight). Los 91 detectables por regex + 15
+  Style* manejados en bucles.
+- ⚠️ Pendiente (no hecho, decisión del usuario "Style* primero"): refrescar los bloques AE
+  VIEJOS para que lean las props atómicas nuevas (hoy muchos son placeholders/hardcode).
+
+### Descarga de AE (.jsx) por componente en /admin/animations (20va ronda) — ✅
+- **BUG CRÍTICO arreglado:** `generate_component_script(components,...)` referenciaba una
+  variable inexistente `parsed_components` en ~80 de sus ~85 bloques → lanzaba `NameError`
+  apenas se llamaba, y el worker lo tragaba con `except Exception` (AE export de componentes
+  parseados fallaba EN SILENCIO y caía al fallback SVG). Fix: alias `parsed_components =
+  components` al inicio de la función. Ahora TODOS los bloques funcionan.
+- **Nuevo endpoint** `POST /api/admin/components/{name}/ae-script` (require_admin): genera y
+  descarga el ExtendScript (.jsx) de UN componente con props arbitrarias (determinista, sin
+  LLM). Si el componente no tiene bloque AE, devuelve comp vacío con un comentario-aviso.
+- **Frontend:** `frontend/src/api/aeScript.ts` (fetch→blob→download). Botón "Descargar AE
+  (.jsx)" en el Playground (`AnimationPlayground`, usa las props actuales + aspect) y un
+  ícono de descarga por card en la galería (`AnimationsGallery`, usa props por defecto).
+- Sirve para verificar en After Effects, componente por componente, que el export funciona.
+
 ### Auditoría de descripciones para embeddings (5ta ronda) — ✅ COMPLETA
 Reescritas las 120 descripciones del manifest con criterio: (1) qué es en lenguaje
 llano, (2) sinónimos que un creador buscaría, (3) caso de uso, (4) qué la distingue de
