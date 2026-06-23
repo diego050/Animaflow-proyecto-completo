@@ -14,12 +14,16 @@ interface StyleLineChartProps extends UniversalProps {
   showGrid?: boolean;
   showLabels?: boolean;
   showTitle?: boolean;
+  showYAxisLabels?: boolean;
+  showAxisLines?: boolean;
   title?: string;
   lineColor?: string;
   lineColorEnd?: string;
   fillColor?: string;
   fillArea?: boolean;
   lineWidth?: number;
+  yAxisValues?: number[];
+  yAxisFormat?: string;
   style?: Record<string, unknown>;
 }
 
@@ -36,12 +40,16 @@ export const StyleLineChart: React.FC<StyleLineChartProps> = ({
   showGrid = true,
   showLabels = true,
   showTitle = false,
+  showYAxisLabels = false,
+  showAxisLines = false,
   title = 'Growth Trend',
   lineColor = '#00FFAB',
   lineColorEnd = '#4361ee',
   fillColor = 'rgba(0, 255, 171, 0.08)',
   fillArea = true,
   lineWidth,
+  yAxisValues = [0, 25, 50, 75, 100],
+  yAxisFormat = '{value}',
   style,
   delay = 0,
 }) => {
@@ -147,6 +155,14 @@ export const StyleLineChart: React.FC<StyleLineChartProps> = ({
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <clipPath id="lc-area-clip">
+            <rect
+              x={pad}
+              y={chartTop}
+              width={(cardW - pad * 2) * lineProgress}
+              height={chartH}
+            />
+          </clipPath>
         </defs>
 
         {/* Title */}
@@ -181,9 +197,53 @@ export const StyleLineChart: React.FC<StyleLineChartProps> = ({
             />
           ))}
 
-        {/* Area fill */}
+        {/* Y-axis labels */}
+        {showYAxisLabels &&
+          [0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
+            const rawValue = yAxisValues[i] ?? 0;
+            const formatted = yAxisFormat.replace('{value}', String(rawValue));
+            return (
+              <text
+                key={`y-${i}`}
+                x={pad - c.vmin(1.5)}
+                y={chartTop + pct * chartH + labelFont / 2}
+                textAnchor="end"
+                fontFamily="JetBrains Mono, monospace"
+                fontSize={labelFont}
+                fill="#64748B"
+              >
+                {formatted}
+              </text>
+            );
+          })}
+
+        {/* Axis lines */}
+        {showAxisLines && (
+          <>
+            {/* X-axis */}
+            <line
+              x1={pad}
+              y1={chartTop + chartH}
+              x2={cardW - pad}
+              y2={chartTop + chartH}
+              stroke="rgba(255,255,255,0.2)"
+              strokeWidth={c.vmin(0.3)}
+            />
+            {/* Y-axis */}
+            <line
+              x1={pad}
+              y1={chartTop}
+              x2={pad}
+              y2={chartTop + chartH}
+              stroke="rgba(255,255,255,0.2)"
+              strokeWidth={c.vmin(0.3)}
+            />
+          </>
+        )}
+
+        {/* Area fill — revealed left-to-right via clipPath */}
         {fillArea && (
-          <path d={areaPath} fill="url(#areaGrad)" opacity={lineProgress * 0.8} />
+          <path d={areaPath} fill="url(#areaGrad)" clipPath="url(#lc-area-clip)" />
         )}
 
         {/* Line */}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Palette, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Palette, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { Player } from '@remotion/player';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
 import { COMPONENT_REGISTRY } from '../../remotion/registry';
@@ -14,6 +14,7 @@ import {
   type PropDefinition,
   type PropType,
 } from '../../remotion/manifest';
+import { downloadComponentAEScript } from '../../api/aeScript';
 
 const STYLE_SYSTEM_EXAMPLES = [
   {
@@ -1198,6 +1199,13 @@ const STYLE_UNIVERSAL_PROPS: UniversalPropDef[] = [
 const STYLE_RELEVANT_ROLES = new Set(['text', 'ui']);
 const STYLE_RELEVANT_CATEGORIES = new Set(['Text', 'UI']);
 
+const ASPECTS_DIM: Record<'9:16' | '4:5' | '1:1' | '16:9', { w: number; h: number }> = {
+  '9:16': { w: 1080, h: 1920 },
+  '4:5': { w: 1080, h: 1350 },
+  '1:1': { w: 1080, h: 1080 },
+  '16:9': { w: 1920, h: 1080 },
+};
+
 /**
  * Demo para EFECTOS DE ESCENA (CameraShake/Spotlight): renderiza un sujeto de
  * muestra (fondo + ícono + texto) para que el efecto se vea. CameraShake aplica el
@@ -1542,6 +1550,24 @@ export function AnimationPlayground() {
   const [previewTransparent, setPreviewTransparent] = useState(false);
   const [previewBgColor, setPreviewBgColor] = useState('#0f172a');
 
+  // Descarga del AE ExtendScript (.jsx) del componente con las props actuales.
+  const [aeBusy, setAeBusy] = useState(false);
+  const [aeError, setAeError] = useState<string | null>(null);
+
+  const handleDownloadAE = useCallback(async () => {
+    if (!componentName) return;
+    setAeBusy(true);
+    setAeError(null);
+    try {
+      const d = ASPECTS_DIM[aspect];
+      await downloadComponentAEScript(componentName, props, { width: d.w, height: d.h });
+    } catch (e) {
+      setAeError(e instanceof Error ? e.message : 'Error al generar el .jsx');
+    } finally {
+      setAeBusy(false);
+    }
+  }, [componentName, props, aspect]);
+
   // Lote A: envuelve el componente en AnimatedWrapper para que entry/exit SÍ se
   // vean en el Playground (igual que en el render real con AnimaComposer). Las
   // props de animación se quitan del componente interno para no animar doble.
@@ -1597,12 +1623,7 @@ export function AnimationPlayground() {
     return <div className="p-8 text-white">Componente no encontrado.</div>;
   }
 
-  const ASPECTS: Record<'9:16' | '4:5' | '1:1' | '16:9', { w: number; h: number }> = {
-    '9:16': { w: 1080, h: 1920 },
-    '4:5': { w: 1080, h: 1350 },
-    '1:1': { w: 1080, h: 1080 },
-    '16:9': { w: 1920, h: 1080 },
-  };
+  const ASPECTS = ASPECTS_DIM;
   const dim = ASPECTS[aspect];
   // Aprovecha mejor el espacio (antes 16:9 quedaba diminuto).
   const previewScale = Math.min(640 / dim.w, 680 / dim.h);
@@ -1729,7 +1750,21 @@ export function AnimationPlayground() {
             className="w-8 h-8 rounded cursor-pointer border border-border-tech"
             title="Color de fondo del preview"
           />
+          <span className="mx-1 h-5 w-px bg-border-tech" />
+          {/* Descargar AE ExtendScript (.jsx) del componente con las props actuales */}
+          <button
+            onClick={handleDownloadAE}
+            disabled={aeBusy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-mint-precision/10 border border-mint-precision/30 text-mint-precision hover:bg-mint-precision/20 transition-all disabled:opacity-50"
+            title="Descarga el script de After Effects (.jsx) de este componente para probarlo en AE"
+          >
+            <Download size={14} />
+            {aeBusy ? 'Generando…' : 'Descargar AE (.jsx)'}
+          </button>
         </div>
+        {aeError && (
+          <p className="mb-2 text-xs text-red-400 text-center max-w-sm">{aeError}</p>
+        )}
         <div
           className="p-4 rounded-xl shadow-2xl border border-border-tech"
           // Tablero de ajedrez para visualizar la transparencia.

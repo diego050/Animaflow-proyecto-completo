@@ -54,6 +54,9 @@ function bgColorDistance(a: SceneLike | undefined, b: SceneLike | undefined): nu
 const VALID_TRANSITIONS = new Set([
   'FadeThroughBlack', 'ZoomBlurTransition', 'WipeTransition',
   'GlitchTransition', 'LightLeakTransition', 'GradientOverlay',
+  'ZoomThroughTransition', 'SpatialPush', 'FrostedGlassWipe',
+  'GridPixelateWipe', 'ChromaticAberrationWipe', 'WhipPanTransition',
+  'SlideWipe', 'CrossDissolve', 'MorphTransition', 'IrisTransition',
 ]);
 
 /** Transición determinista según la continuidad entre dos escenas consecutivas.
@@ -144,6 +147,46 @@ const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor,
   );
 };
 
+// CrossDissolveOut — renderiza la escena SALIENTE alineada a su propio timeline
+// (sin reiniciar animaciones) y la desvanece (opacidad 1→0) durante la ventana de
+// transición, ENCIMA de la escena entrante real. Logra transiciones reales de 2
+// escenas (las únicas que no pueden ser un velo):
+//   - CrossDissolve  → zoomTo = 1 (solo fundido).
+//   - ZoomThrough    → zoomTo > 1 (la escena saliente hace zoom-in mientras se
+//     funde, "atravesando" hacia la entrante).
+// Sin audio: el audio lo reproducen las escenas reales de abajo.
+const CrossDissolveOut: React.FC<DynamicSceneProps & {
+  holdFrames: number;
+  fadeFrames: number;
+  zoomTo?: number;
+  /** Desplazamiento final en % (push). */
+  slideXTo?: number;
+  slideYTo?: number;
+  /** Si false, no se desvanece (p.ej. push: se desliza fuera, opaco). */
+  fade?: boolean;
+}> = ({
+  holdFrames,
+  fadeFrames,
+  zoomTo = 1,
+  slideXTo = 0,
+  slideYTo = 0,
+  fade = true,
+  ...sceneProps
+}) => {
+  const f = useCurrentFrame();
+  const range: [number, number] = [holdFrames, holdFrames + fadeFrames];
+  const clampOpts = { extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const };
+  const opacity = fade ? interpolate(f, range, [1, 0], clampOpts) : 1;
+  const scale = interpolate(f, range, [1, zoomTo], clampOpts);
+  const tx = interpolate(f, range, [0, slideXTo], clampOpts);
+  const ty = interpolate(f, range, [0, slideYTo], clampOpts);
+  return (
+    <AbsoluteFill style={{ opacity, transform: `translate(${tx}%, ${ty}%) scale(${scale})` }}>
+      <DynamicScene {...sceneProps} />
+    </AbsoluteFill>
+  );
+};
+
 export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
   const { fps } = useVideoConfig();
   const token = useAuthStore.getState().token;
@@ -211,7 +254,6 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
           audio ni alteran el timing; solo es un efecto visual sobre el corte. */}
       {spec.scenes.slice(1).map((_, i) => {
         const boundaryFrame = sceneOffsets[i + 1];
-        const from = Math.max(0, boundaryFrame - Math.floor(SCENE_TRANSITION_FRAMES / 2));
         // Continuidad: el corte está entre la escena i (saliente) y la i+1 (entrante).
         // Override de la IA: la escena saliente puede fijar `transition`/`transition_color`.
         const outgoing = spec.scenes[i];
@@ -219,19 +261,91 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
         // anima_composer (donde lo emite el LLM). Si no, se elige automáticamente.
         const override = outgoing?.transition ?? outgoing?.anima_composer?.transition;
         const overrideColor = outgoing?.transition_color ?? outgoing?.anima_composer?.transition_color;
+        const transitionParams = outgoing?.transition_params ?? outgoing?.anima_composer?.transition_params;
         const transitionType = override && VALID_TRANSITIONS.has(override)
           ? override
           : pickSceneTransition(outgoing, spec.scenes[i + 1], i);
+
+        // Duración de la transición: la decide el usuario por corte vía
+        // `transition_params.durationFrames`; si no, el default global (~0.6s).
+        const tFrames = typeof transitionParams?.durationFrames === 'number' && transitionParams.durationFrames > 0
+          ? Math.round(transitionParams.durationFrames as number)
+          : SCENE_TRANSITION_FRAMES;
+        const from = Math.max(0, boundaryFrame - Math.floor(tFrames / 2));
+
+        // Transiciones de 2 escenas reales (NO velos): renderizan la escena SALIENTE
+        // (alineada a su timeline real) ENCIMA de la entrante real.
+        //  - CrossDissolve → solo fundido (zoomTo = 1)
+        //  - ZoomThrough   → zoom-in de la saliente (targetScale, default 2.5)
+        //  - Morph         → zoom-out de la saliente (scaleTo, default 0.5)
+        //  - SpatialPush   → la saliente se desliza fuera (direction), sin fundir
+        if (
+          transitionType === 'CrossDissolve' ||
+          transitionType === 'ZoomThroughTransition' ||
+          transitionType === 'MorphTransition' ||
+          transitionType === 'SpatialPush'
+        ) {
+          let zoomTo = 1;
+          let slideXTo = 0;
+          let slideYTo = 0;
+          let fade = true;
+          if (transitionType === 'ZoomThroughTransition') {
+            zoomTo = typeof transitionParams?.targetScale === 'number' ? transitionParams.targetScale : 2.5;
+          } else if (transitionType === 'MorphTransition') {
+            zoomTo = typeof transitionParams?.scaleTo === 'number' ? transitionParams.scaleTo : 0.5;
+          } else if (transitionType === 'SpatialPush') {
+            fade = false;
+            const dir = typeof transitionParams?.direction === 'string' ? transitionParams.direction : 'left';
+            if (dir === 'right') slideXTo = 100;
+            else if (dir === 'up') slideYTo = -100;
+            else if (dir === 'down') slideYTo = 100;
+            else slideXTo = -100; // 'left' (default)
+          }
+          const outScene = spec.scenes[i];
+          const outFrom = sceneOffsets[i];
+          const outDur = Math.max(1, Math.round(outScene.duration_seconds * fps));
+          const outRelWordTimestamps = (outScene.word_timestamps ?? []).map((w) => ({
+            word: w.word,
+            start: Math.max(0, w.start - outScene.start_time_seconds),
+            end: Math.max(0, w.end - outScene.start_time_seconds),
+          }));
+          return (
+            <Sequence
+              key={`transition-${i}`}
+              from={outFrom}
+              durationInFrames={outDur + tFrames}
+            >
+              <CrossDissolveOut
+                holdFrames={outDur}
+                fadeFrames={tFrames}
+                zoomTo={zoomTo}
+                slideXTo={slideXTo}
+                slideYTo={slideYTo}
+                fade={fade}
+                type={outScene.type}
+                text={outScene.text}
+                durationInFrames={outDur}
+                fallbackBg={String(outScene.remotion_props?.backgroundColor || '#000')}
+                fallbackColor={String(outScene.remotion_props?.textColor || '#fff')}
+                animaComposer={outScene.anima_composer}
+                nextSceneBackgroundColors={nextSceneColors[i]}
+                wordTimestamps={outRelWordTimestamps}
+              />
+            </Sequence>
+          );
+        }
+
         return (
           <Sequence
             key={`transition-${i}`}
             from={from}
-            durationInFrames={SCENE_TRANSITION_FRAMES}
+            durationInFrames={tFrames}
           >
             <TransitionWrapper
               type={transitionType}
-              durationFrames={SCENE_TRANSITION_FRAMES}
+              durationFrames={tFrames}
               color={overrideColor}
+              params={transitionParams}
             />
           </Sequence>
         );

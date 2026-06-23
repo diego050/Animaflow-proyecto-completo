@@ -1,7 +1,23 @@
 # AnimaFlow — Pending Work
 
-**Last Updated:** 1 Junio 2026
+**Last Updated:** 22 Junio 2026
 **Status:** MVP mostly complete. Below items are deferred to post-MVP or future versions.
+
+---
+
+## 🟣 v10 follow-ups (2026-06-22) — galería + transiciones + export AE
+
+Ver `docs/sessions/session-2026-06-22-v10-components-transitions-ae.md`.
+
+- **Re-embed / re-seed** (lo corre el usuario al final del proyecto): hasta
+  entonces el LLM NO autoselecciona los ~44 componentes/transiciones nuevos
+  (galería 119→163). Funcionan en galería/playground y por selección explícita.
+- **UI de transiciones por escena** (frontend): hoy no existe — el tipo/color/
+  duración salen del LLM o del auto-pick. Falta un panel para que el usuario los
+  elija (escribe `transition` / `transition_color` / `transition_params`).
+- **Transiciones de compositor simétricas** (opcional): CrossDissolve/ZoomThrough/
+  Morph/SpatialPush mueven solo la escena saliente; mover también la entrante
+  requiere tocar el loop de render de escenas en `MainComposition`.
 
 ---
 
