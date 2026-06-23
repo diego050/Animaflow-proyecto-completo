@@ -23,8 +23,8 @@ interface StyleClockWipeProps extends UniversalProps {
 }
 
 export const StyleClockWipe: React.FC<StyleClockWipeProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   title = 'SCENE B',
   subtitle = 'Revealed by clock wipe',
   mode = 'in',
@@ -59,8 +59,8 @@ export const StyleClockWipe: React.FC<StyleClockWipeProps> = ({
   const maskImage = `conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent ${maskAngle}deg, black ${maskAngle}deg, black 360deg)`;
 
   // --- Coordinate contract: absolute center from layoutSolver ---
-  const left = c.width / 2 + x;
-  const top = c.height / 2 + y;
+  const left = x;
+  const top = y;
 
   return (
     <div

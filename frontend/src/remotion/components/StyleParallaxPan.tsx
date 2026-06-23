@@ -33,8 +33,8 @@ export const StyleParallaxPan: React.FC<StyleParallaxPanProps> = ({
   overlayColor = '#000000',
   color1 = '#0f172a',
   color2 = '#1e293b',
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   width,
   height,
   delay = 0,
@@ -71,8 +71,8 @@ export const StyleParallaxPan: React.FC<StyleParallaxPanProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: areaWidth,
         height: areaHeight,

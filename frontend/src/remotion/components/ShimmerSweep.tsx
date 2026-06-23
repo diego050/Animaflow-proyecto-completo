@@ -4,7 +4,7 @@
  * Uses a clipped linear-gradient (base → shine → base) as the text fill and
  * animates its background-position. Great for "Generating…" / loading states.
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas() — no hardcoded structural px.
  */
 import React from 'react';
@@ -27,8 +27,8 @@ interface ShimmerSweepProps extends UniversalProps {
 }
 
 export const ShimmerSweep: React.FC<ShimmerSweepProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   text = 'Generating',
   baseColor = '#3f3f46',
   shineColor = '#fafafa',
@@ -49,8 +49,8 @@ export const ShimmerSweep: React.FC<ShimmerSweepProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         ...style,
       }}

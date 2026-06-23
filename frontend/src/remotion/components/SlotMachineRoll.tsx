@@ -5,7 +5,7 @@
  * on its target value with a spring settle. Non-digit characters ($, commas,
  * etc.) render static. One-time animation.
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas() — no hardcoded structural px.
  */
 import React from 'react';
@@ -31,8 +31,8 @@ interface SlotMachineRollProps extends UniversalProps {
 }
 
 export const SlotMachineRoll: React.FC<SlotMachineRollProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   from = '$99',
   to = '$199',
   textColor = '#ffffff',
@@ -57,8 +57,8 @@ export const SlotMachineRoll: React.FC<SlotMachineRollProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         display: 'flex',
         alignItems: 'center',

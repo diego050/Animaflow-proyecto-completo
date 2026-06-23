@@ -19,8 +19,8 @@ interface StyleStatCardProps extends UniversalProps {
 }
 
 export const StyleStatCard: React.FC<StyleStatCardProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   from = 0,
   to = 1247,
   prefix = '',
@@ -84,8 +84,8 @@ export const StyleStatCard: React.FC<StyleStatCardProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: `translate(-50%, -50%) scale(${cardScale})`,
         opacity: opacityProp,
         zIndex: 50,

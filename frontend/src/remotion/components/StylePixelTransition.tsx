@@ -26,8 +26,8 @@ export interface StylePixelTransitionProps extends UniversalProps {
 }
 
 export const StylePixelTransition: React.FC<StylePixelTransitionProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   pixelSize,
   width,
   height,
@@ -91,8 +91,8 @@ export const StylePixelTransition: React.FC<StylePixelTransitionProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: compWidth,
         height: compHeight,

@@ -41,8 +41,8 @@ export interface StyleSoundWaveProps extends UniversalProps {
 // ---------------------------------------------------------------------------
 
 export const StyleSoundWave: React.FC<StyleSoundWaveProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   variant = 'bars',
   color = '#8b5cf6',
   width,
@@ -73,8 +73,8 @@ export const StyleSoundWave: React.FC<StyleSoundWaveProps> = ({
   const compGap = gap ?? c.vmin(0.4);
 
   // --- Coordinate contract: x/y offsets from center ---
-  const centerX = c.width / 2 + x;
-  const centerY = c.height / 2 + y;
+  const centerX = x;
+  const centerY = y;
 
   // --- Opacity fade-in ---
   const opacity = Math.min(1, adjustedFrame / 12);

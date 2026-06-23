@@ -54,8 +54,8 @@ export const StyleNotificationStack: React.FC<StyleNotificationStackProps> = ({
   showBadge = true,
   badgeCount = 3,
   badgeColor = '#ef4444',
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -77,8 +77,8 @@ export const StyleNotificationStack: React.FC<StyleNotificationStackProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         display: 'flex',
         flexDirection: 'column',

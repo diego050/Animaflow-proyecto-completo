@@ -31,8 +31,8 @@ interface StyleRotatingCarouselProps extends UniversalProps {
 }
 
 export const StyleRotatingCarousel: React.FC<StyleRotatingCarouselProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   cards = ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4'],
   rotationSpeed = 0.015,
   radius,
@@ -72,8 +72,8 @@ export const StyleRotatingCarousel: React.FC<StyleRotatingCarouselProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: '100%',
         height: '100%',

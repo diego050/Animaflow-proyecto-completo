@@ -3,7 +3,7 @@
  * status bar showing agent / model / provider (AI coding agent / terminal UI /
  * CLI mockup).
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas(). Typing driven by useCurrentFrame() (deterministic).
  */
 import React from 'react';
@@ -27,8 +27,8 @@ interface OpenCodeProps extends UniversalProps {
 }
 
 export const OpenCode: React.FC<OpenCodeProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   placeholder = 'Ask anything... ',
   query = 'What is the tech stack of this project?',
   agentName = 'Build',
@@ -58,8 +58,8 @@ export const OpenCode: React.FC<OpenCodeProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: `${c.vw(86)}px`,
         backgroundColor: bgColor,

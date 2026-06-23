@@ -3,7 +3,7 @@
  * verified badge, handle, bio, meta (location / website / joined) and a Follow
  * button (X profile / Twitter card / follow card / social profile).
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas(). Entrance driven by useCurrentFrame() (deterministic).
  */
 import React from 'react';
@@ -36,8 +36,8 @@ interface XFollowCardProps extends UniversalProps {
 }
 
 export const XFollowCard: React.FC<XFollowCardProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   name = 'remocn',
   handle = 'remocn',
   bio = 'Production-ready components for Remotion — text animations, backgrounds, transitions, UI blocks.',
@@ -71,8 +71,8 @@ export const XFollowCard: React.FC<XFollowCardProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: `translate(-50%, -50%) scale(${0.96 + entrance * 0.04})`,
         opacity: entrance,
         width: `${cardWidth}px`,

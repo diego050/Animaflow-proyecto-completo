@@ -21,8 +21,8 @@ interface StyleLetterboxRevealProps extends UniversalProps {
 }
 
 export const StyleLetterboxReveal: React.FC<StyleLetterboxRevealProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   title = 'CINEMATIC',
   subtitle = 'A letterbox reveal',
   mode = 'in',
@@ -61,8 +61,8 @@ export const StyleLetterboxReveal: React.FC<StyleLetterboxRevealProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: '100%',
         height: '100%',

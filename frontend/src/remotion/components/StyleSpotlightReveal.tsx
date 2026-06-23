@@ -26,8 +26,8 @@ interface StyleSpotlightRevealProps extends UniversalProps {
 }
 
 export const StyleSpotlightReveal: React.FC<StyleSpotlightRevealProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   title = 'REVEALED',
   subtitle = 'Spotlight reveal transition',
   mode = 'in',
@@ -76,8 +76,8 @@ export const StyleSpotlightReveal: React.FC<StyleSpotlightRevealProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: '100%',
         height: '100%',

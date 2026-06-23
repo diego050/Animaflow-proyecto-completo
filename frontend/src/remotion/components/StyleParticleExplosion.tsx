@@ -30,8 +30,8 @@ export interface StyleParticleExplosionProps extends UniversalProps {
 }
 
 export const StyleParticleExplosion: React.FC<StyleParticleExplosionProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   particleCount = 150,
   text = '',
   textFontSize,
@@ -88,8 +88,8 @@ export const StyleParticleExplosion: React.FC<StyleParticleExplosionProps> = ({
   });
 
   // --- Coordinate contract: x/y offsets from center ---
-  const centerX = c.width / 2 + x;
-  const centerY = c.height / 2 + y;
+  const centerX = x;
+  const centerY = y;
 
   return (
     <div

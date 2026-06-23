@@ -4,7 +4,7 @@
  * Each word animates opacity 0→1 and translateY distance→0, offset by
  * `staggerDelay` frames. Clean, one-time entrance (no loop).
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas() — no hardcoded structural px.
  */
 import React from 'react';
@@ -29,8 +29,8 @@ interface StaggeredFadeUpProps extends UniversalProps {
 }
 
 export const StaggeredFadeUp: React.FC<StaggeredFadeUpProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   text = 'Ship faster with code',
   textColor = '#ffffff',
   fontWeight = 600,
@@ -54,8 +54,8 @@ export const StaggeredFadeUp: React.FC<StaggeredFadeUpProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: '90%',
         display: 'flex',

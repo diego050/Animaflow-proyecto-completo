@@ -45,8 +45,8 @@ export interface StyleBokehCirclesProps extends UniversalProps {
 // ---------------------------------------------------------------------------
 
 export const StyleBokehCircles: React.FC<StyleBokehCirclesProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   circleCount = 15,
   width,
   height,
@@ -73,8 +73,8 @@ export const StyleBokehCircles: React.FC<StyleBokehCirclesProps> = ({
   const areaHeight = height ?? c.height;
 
   // --- Coordinate contract: x/y offsets from center ---
-  const centerX = c.width / 2 + x;
-  const centerY = c.height / 2 + y;
+  const centerX = x;
+  const centerY = y;
 
   // =========================================================================
   // Compute circles array (deterministic, index-based)

@@ -2,7 +2,7 @@
  * StyleProgressSteps — Animated progress timeline with sequential step fill,
  * connecting lines, and configurable direction (horizontal or vertical).
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas() — no hardcoded px.
  * Deterministic: all animations from useCurrentFrame() and spring().
  */
@@ -43,8 +43,8 @@ interface StyleProgressStepsProps extends UniversalProps {
 // ---------------------------------------------------------------------------
 
 export const StyleProgressSteps: React.FC<StyleProgressStepsProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   steps = ['Research', 'Design', 'Build', 'Launch'],
   framesPerStep = 24,
   direction = 'horizontal',
@@ -83,8 +83,8 @@ export const StyleProgressSteps: React.FC<StyleProgressStepsProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         display: 'flex',
         flexDirection: 'column',

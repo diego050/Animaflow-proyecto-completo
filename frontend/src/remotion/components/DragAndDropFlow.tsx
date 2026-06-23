@@ -5,7 +5,7 @@
  * Since video has no pointer, the whole gesture plays on a deterministic
  * timeline driven by useCurrentFrame().
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas() — no hardcoded structural px.
  */
 import React from 'react';
@@ -26,8 +26,8 @@ interface DragAndDropFlowProps extends UniversalProps {
 }
 
 export const DragAndDropFlow: React.FC<DragAndDropFlowProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   accent = '#0ea5e9',
   dropzoneLabel = 'Drop file to upload',
   fileName = 'design.fig',
@@ -75,8 +75,8 @@ export const DragAndDropFlow: React.FC<DragAndDropFlowProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         fontFamily: 'Inter, system-ui, sans-serif',
         ...style,
