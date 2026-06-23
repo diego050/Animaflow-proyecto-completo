@@ -40,8 +40,8 @@ const DEFAULT_COLORS = [
 // ---------------------------------------------------------------------------
 
 export const StyleDonutChart: React.FC<StyleDonutChartProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   data = [
     { label: 'Completed', value: 40, color: '#4361ee' },
     { label: 'In Progress', value: 25, color: '#7209b7' },
@@ -116,8 +116,8 @@ export const StyleDonutChart: React.FC<StyleDonutChartProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         opacity: customOpacity,
         zIndex: 50,

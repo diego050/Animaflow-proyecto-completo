@@ -5,7 +5,7 @@
  * opacity 0→1, Y/X offset→0, and rotation→0. Staggered delay between characters.
  * ONE-TIME entrance animation (not looping).
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas() — no hardcoded px.
  */
 import React from 'react';
@@ -35,8 +35,8 @@ interface StyleSpringTextProps extends UniversalProps {
 // ---------------------------------------------------------------------------
 
 export const StyleSpringText: React.FC<StyleSpringTextProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   text = 'Hello Remotion',
   textColor = '#ffffff',
   fontWeight = 800,
@@ -67,8 +67,8 @@ export const StyleSpringText: React.FC<StyleSpringTextProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: '100%',
         textAlign,

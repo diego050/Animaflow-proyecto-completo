@@ -18,8 +18,8 @@ interface StyleComparisonChartProps extends UniversalProps {
 }
 
 export const StyleComparisonChart: React.FC<StyleComparisonChartProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   beforeValue = 34,
   afterValue = 89,
   beforeLabel = 'Before',
@@ -106,8 +106,8 @@ export const StyleComparisonChart: React.FC<StyleComparisonChartProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         opacity: opacityProp * cardOpacity,
         zIndex: 50,

@@ -115,7 +115,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'StyleTextHighlight',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Text where each word gets a colored background pill that fills in sequentially (word highlight / text reveal / sequential highlight / marker text). Use for emphasis and progressive text reveal.',
     props: [
@@ -910,7 +910,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'StyleCountdown',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Cinematic countdown with a sequence of labels (e.g. 5-4-3-2-1-GO), each with spring entrance and fade (countdown timer / launch sequence / get ready). Use for intros and launches.',
     props: [
@@ -1193,7 +1193,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'StylePulseText',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Text where each character pulses (scales up/down) in a wave pattern with a glow effect behind each letter (pulsing text / wave text / glowing letters). Use for emphasis and attention-grabbing text.',
     props: [
@@ -1231,7 +1231,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'StyleSpringText',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Text where each character springs in with opacity, Y offset, and rotation (spring text / bounce text / character entrance). Use for dynamic text entrances with physics-based motion.',
     props: [
@@ -1300,7 +1300,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'StyleRotatingCarousel',
-    category: 'Layout & Containers',
+    category: 'UI',
     role: 'container',
     description: '3D rotating carousel where all cards are visible simultaneously, rotating in a circular path with depth simulation (rotating cards / 3D carousel / feature showcase). Use for showcasing multiple features or items in a dynamic rotation.',
     props: [
@@ -1810,7 +1810,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'StyleNotificationStack',
-    category: 'UI & Social',
+    category: 'Social',
     role: 'social',
     description: 'Stack of notification cards that slide in from the right with staggered spring animations (notification feed / push notifications / alert stack / message stack). Use for showing multiple notifications or alerts in sequence.',
     props: [
@@ -1847,7 +1847,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'StaggeredFadeUp',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Words fade in and rise into place one by one with a staggered delay (staggered fade up / fade up / word reveal / rising text). Use for clean, modern headline and subtitle entrances.',
     props: [
@@ -1864,7 +1864,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'MaskedSlideReveal',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Words slide up from behind a clipping mask one by one (masked slide reveal / slide up reveal / mask text / curtain text). Use for premium, kinetic title reveals where each word emerges from a hidden line.',
     props: [
@@ -1880,7 +1880,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'TrackingIn',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Text expands from wide letter-spacing and blur into a crisp settled headline (tracking in / letter spacing in / blur in title / expand text). Use for cinematic, high-impact title intros.',
     props: [
@@ -1896,7 +1896,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'ShimmerSweep',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Text with a bright shine band that sweeps across it on a loop (shimmer / shine / loading text / generating / skeleton text). Use for loading states, AI-thinking labels, or to draw attention.',
     props: [
@@ -1911,7 +1911,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'SlotMachineRoll',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Numbers roll into place like a slot-machine reel, each digit spinning down to its target (slot machine / number roll / odometer / price reveal / digit spin). Use for prices, scores, and stat reveals.',
     props: [
@@ -1928,7 +1928,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'PerspectiveMarquee',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Infinite horizontal marquee tilted in 3D space with edge fades (perspective marquee / 3D marquee / tilted scrolling text / angled ticker). Use for dynamic backgrounds, brand loops, or stylish section breaks.',
     props: [
@@ -2274,7 +2274,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'ChapterTitle',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Section/chapter intro card: a small uppercase label, a big springing number, a decorative line+dot+line divider that draws outward, and a subtitle that rises in (chapter / section / part / episode / title card / divider). Fully atomic.',
     props: [
@@ -2300,7 +2300,7 @@ export const COMPONENT_MANIFEST: ComponentManifestEntry[] = [
   },
   {
     name: 'QuoteCard',
-    category: 'Text & Typography',
+    category: 'Text',
     role: 'text',
     description: 'Centered editorial quote card: a large serif quote mark, a centered italic quote and an attribution that slides in, revealed in sequence (quote / testimonial / pull quote / editorial / saying). Distinct from QuoteBlock (a left-bar callout). Fully atomic.',
     props: [

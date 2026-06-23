@@ -26,8 +26,8 @@ interface StyleCardFlipProps extends UniversalProps {
 }
 
 export const StyleCardFlip: React.FC<StyleCardFlipProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   frontText = 'Remotion 👋',
   backText = 'Back',
   frontGradientStart = '#1e3a8a',
@@ -66,8 +66,8 @@ export const StyleCardFlip: React.FC<StyleCardFlipProps> = ({
   });
 
   // --- Coordinate contract: absolute center from layoutSolver ---
-  const left = c.width / 2 + x;
-  const top = c.height / 2 + y;
+  const left = x;
+  const top = y;
 
   return (
     <div

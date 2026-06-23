@@ -4,7 +4,7 @@
  * migration / before-after code reveal). Complements CodeBlockHighlight /
  * TerminalHacker (which don't do diffs).
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas() — no hardcoded structural px.
  * Deterministic: wipe driven by useCurrentFrame().
  */
@@ -38,8 +38,8 @@ const DEFAULT_AFTER = `function sum(...nums: number[]) {
 }`;
 
 export const CodeDiffWipe: React.FC<CodeDiffWipeProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   before = DEFAULT_BEFORE,
   after = DEFAULT_AFTER,
   language = 'tsx',
@@ -98,8 +98,8 @@ export const CodeDiffWipe: React.FC<CodeDiffWipeProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: `${c.vw(86)}px`,
         backgroundColor: background,

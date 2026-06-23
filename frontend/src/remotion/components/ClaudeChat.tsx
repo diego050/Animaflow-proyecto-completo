@@ -3,7 +3,7 @@
  * with a prompt being typed, and a model selector chip (AI chat / assistant /
  * Claude UI mockup). Use to demo prompting an AI assistant.
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas(). Typing driven by useCurrentFrame() (deterministic).
  */
 import React from 'react';
@@ -27,8 +27,8 @@ interface ClaudeChatProps extends UniversalProps {
 }
 
 export const ClaudeChat: React.FC<ClaudeChatProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   greeting = 'Back at it, Dima',
   placeholder = 'Try: draft an email · summarize a doc · plan your week',
   prompt = 'Draft a launch tweet for our new release',
@@ -58,8 +58,8 @@ export const ClaudeChat: React.FC<ClaudeChatProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         width: `${c.vw(84)}px`,
         backgroundColor: bgColor,

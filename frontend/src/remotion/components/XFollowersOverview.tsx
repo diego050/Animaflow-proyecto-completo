@@ -2,7 +2,7 @@
  * XFollowersOverview — X (Twitter) followers summary card: avatar, handle, a big
  * animated follower count and label (followers / X stats / social proof / growth).
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas(). Count-up driven by useCurrentFrame() (deterministic).
  */
 import React from 'react';
@@ -29,8 +29,8 @@ interface XFollowersOverviewProps extends UniversalProps {
 }
 
 export const XFollowersOverview: React.FC<XFollowersOverviewProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   totalFollowers = 1709,
   startFollowers = 0,
   handle = 'remocn',
@@ -64,8 +64,8 @@ export const XFollowersOverview: React.FC<XFollowersOverviewProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: `translate(-50%, -50%) scale(${entrance})`,
         backgroundColor: bgColor,
         border: `1px solid rgba(255,255,255,0.12)`,

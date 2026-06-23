@@ -15,6 +15,8 @@ const CATEGORY_ORDER = [
   'UI',
   'Charts & Data',
   'Social',
+  'Effects & VFX',
+  'Transition',
   'General',
 ];
 

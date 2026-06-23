@@ -44,8 +44,8 @@ const DEFAULT_DATA: MultiBarData[] = [
 // ---------------------------------------------------------------------------
 
 export const StyleMultiBar: React.FC<StyleMultiBarProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   data = DEFAULT_DATA,
   showTitle = false,
   title = 'Skills Overview',
@@ -95,8 +95,8 @@ export const StyleMultiBar: React.FC<StyleMultiBarProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         opacity: customOpacity,
         zIndex: 50,

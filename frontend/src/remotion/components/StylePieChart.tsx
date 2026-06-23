@@ -39,8 +39,8 @@ const DEFAULT_COLORS = [
 // ---------------------------------------------------------------------------
 
 export const StylePieChart: React.FC<StylePieChartProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   data = [
     { label: 'Video', value: 73, color: '#00FFAB' },
     { label: 'Texto', value: 18, color: '#FF8C00' },
@@ -146,8 +146,8 @@ export const StylePieChart: React.FC<StylePieChartProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         opacity: customOpacity,
         zIndex: 50,

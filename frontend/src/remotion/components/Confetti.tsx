@@ -26,8 +26,8 @@ interface ConfettiProps extends UniversalProps {
 const DEFAULT_COLORS = ['#ff5e5e', '#ffd93d', '#6bcb77', '#4d96ff', '#c77dff', '#ff9f1c'];
 
 export const Confetti: React.FC<ConfettiProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   particleCount = 140,
   power = 17,
   gravity = 0.45,
@@ -48,8 +48,8 @@ export const Confetti: React.FC<ConfettiProps> = ({
     return v - Math.floor(v);
   };
 
-  const ox = c.width / 2 + x;
-  const oy = c.height / 2 + y;
+  const ox = x;
+  const oy = y;
   const n = Math.max(1, Math.min(400, Math.round(particleCount)));
 
   return (

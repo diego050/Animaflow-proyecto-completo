@@ -4,7 +4,7 @@
  * Each character scales up and down in a wave pattern with a blurred
  * glow circle behind it. The animation loops continuously.
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas() — no hardcoded px.
  */
 import React from 'react';
@@ -32,8 +32,8 @@ interface StylePulseTextProps extends UniversalProps {
 // ---------------------------------------------------------------------------
 
 export const StylePulseText: React.FC<StylePulseTextProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   text = 'PULSE',
   textColor = '#ffffff',
   glowColor = 'rgba(255, 255, 255, 0.2)',
@@ -59,8 +59,8 @@ export const StylePulseText: React.FC<StylePulseTextProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         display: 'flex',
         gap: `${charGap}px`,

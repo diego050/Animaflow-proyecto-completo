@@ -3,7 +3,7 @@
  * a ring, connected by lines (ecosystem / integrations / hub and spoke /
  * constellation / network). Satellites rotate continuously.
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas(). Orbit driven by useCurrentFrame() (deterministic).
  */
 import React from 'react';
@@ -28,8 +28,8 @@ interface EcosystemConstellationProps extends UniversalProps {
 }
 
 export const EcosystemConstellation: React.FC<EcosystemConstellationProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   satelliteCount = 6,
   centerLabel = 'V',
   labels,
@@ -64,8 +64,8 @@ export const EcosystemConstellation: React.FC<EcosystemConstellationProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         opacity,
         fontFamily: 'Inter, system-ui, sans-serif',

@@ -21,8 +21,8 @@ interface StyleShakeCardProps extends UniversalProps {
 }
 
 export const StyleShakeCard: React.FC<StyleShakeCardProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   title = 'IMPACT',
   subtitle = 'Camera shake with decaying amplitude',
   intensity = 15,
@@ -59,8 +59,8 @@ export const StyleShakeCard: React.FC<StyleShakeCardProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: `translate(-50%, -50%) translate(${shakeX}px, ${shakeY}px)`,
         width: '100%',
         height: '100%',

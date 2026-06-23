@@ -25,8 +25,8 @@ interface StyleTextHighlightProps extends UniversalProps {
 }
 
 export const StyleTextHighlight: React.FC<StyleTextHighlightProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   text = 'Build amazing videos with code',
   framesPerWord = 18,
   fontSize,
@@ -57,8 +57,8 @@ export const StyleTextHighlight: React.FC<StyleTextHighlightProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         display: 'flex',
         flexWrap: 'wrap',

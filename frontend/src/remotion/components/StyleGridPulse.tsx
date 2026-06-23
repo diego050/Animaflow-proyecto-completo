@@ -36,8 +36,8 @@ export interface StyleGridPulseProps extends UniversalProps {
 // ---------------------------------------------------------------------------
 
 export const StyleGridPulse: React.FC<StyleGridPulseProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   cols = 12,
   rows = 8,
   width,
@@ -64,8 +64,8 @@ export const StyleGridPulse: React.FC<StyleGridPulseProps> = ({
   const dotDiameter = dotSize ?? c.vmin(1);
 
   // --- Coordinate contract: x/y offsets from center ---
-  const centerX = c.width / 2 + x;
-  const centerY = c.height / 2 + y;
+  const centerX = x;
+  const centerY = y;
 
   // =========================================================================
   // Compute dots array (deterministic, pure math)

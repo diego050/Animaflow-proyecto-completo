@@ -2,7 +2,7 @@
  * GitHubStars — GitHub repo card with an animated star counter and star icon
  * (GitHub stars / repo card / star count / open source). Light or dark theme.
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas(). Count-up driven by useCurrentFrame() (deterministic).
  */
 import React from 'react';
@@ -27,8 +27,8 @@ interface GitHubStarsProps extends UniversalProps {
 }
 
 export const GitHubStars: React.FC<GitHubStarsProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   repo = 'kapishdima/remocn',
   totalStars = 24813,
   startStars = 0,
@@ -65,8 +65,8 @@ export const GitHubStars: React.FC<GitHubStarsProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: `translate(-50%, -50%) scale(${entrance})`,
         backgroundColor: bg,
         border: `1px solid ${border}`,

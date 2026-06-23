@@ -4,7 +4,7 @@
  * subtitle that rises in (chapter / section / part / episode title card). Fully
  * atomic: labels, colors, sizes, divider and toggles are all props.
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * Optional full-bleed background. All sizing via useCanvas(). Deterministic.
  */
 import React from 'react';
@@ -34,8 +34,8 @@ interface ChapterTitleProps extends UniversalProps {
 }
 
 export const ChapterTitle: React.FC<ChapterTitleProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   label = 'Chapter',
   number = '1',
   subtitle = 'The Beginning',
@@ -75,8 +75,8 @@ export const ChapterTitle: React.FC<ChapterTitleProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         display: 'flex',
         flexDirection: 'column',

@@ -5,7 +5,7 @@
  * letter-spacing animates startTracking·fontSize → 0, blur startBlur → 0, and
  * opacity 0 → 1. One-time entrance (no loop).
  *
- * Coordinate contract: x/y = offset from canvas center.
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%).
  * All sizing via useCanvas() — no hardcoded structural px.
  */
 import React from 'react';
@@ -29,8 +29,8 @@ interface TrackingInProps extends UniversalProps {
 }
 
 export const TrackingIn: React.FC<TrackingInProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   text = 'tracking in',
   textColor = '#ffffff',
   fontWeight = 700,
@@ -63,8 +63,8 @@ export const TrackingIn: React.FC<TrackingInProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: 'translate(-50%, -50%)',
         ...style,
       }}

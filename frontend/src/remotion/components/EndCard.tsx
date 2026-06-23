@@ -4,7 +4,7 @@
  * springing in with staggered delays (end card / outro / thanks for watching /
  * subscribe). Fully atomic: every color, label, size, delay and toggle is a prop.
  *
- * Coordinate contract: x/y = offset from canvas center (card position).
+ * Coordinate contract: x/y = absolute canvas coords (solver-resolved center of the element); centered via translate(-50%,-50%) (card position).
  * Full-bleed background gradient behind the card. All sizing via useCanvas().
  * Deterministic: springs/glow from useCurrentFrame().
  */
@@ -52,8 +52,8 @@ interface EndCardProps extends UniversalProps {
 }
 
 export const EndCard: React.FC<EndCardProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   bgColor1 = '#111827',
   bgColor2 = '#1a1a2e',
   showBackground = true,
@@ -105,8 +105,8 @@ export const EndCard: React.FC<EndCardProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${c.height / 2 + y}px`,
-        left: `${c.width / 2 + x}px`,
+        top: `${y}px`,
+        left: `${x}px`,
         transform: `translate(-50%, -50%) scale(${scale})`,
         opacity: contentOpacity,
         display: 'flex',

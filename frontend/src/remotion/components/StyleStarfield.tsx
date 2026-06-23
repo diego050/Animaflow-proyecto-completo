@@ -37,8 +37,8 @@ export interface StyleStarfieldProps extends UniversalProps {
 // ---------------------------------------------------------------------------
 
 export const StyleStarfield: React.FC<StyleStarfieldProps> = ({
-  x = 0,
-  y = 0,
+  x = 540,
+  y = 960,
   starCount = 80,
   width,
   height,
@@ -64,8 +64,8 @@ export const StyleStarfield: React.FC<StyleStarfieldProps> = ({
   const areaHeight = height ?? c.height;
 
   // --- Coordinate contract: x/y offsets from center ---
-  const centerX = c.width / 2 + x;
-  const centerY = c.height / 2 + y;
+  const centerX = x;
+  const centerY = y;
 
   // =========================================================================
   // Compute stars array (deterministic, index-based)
