@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Palette, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { Player } from '@remotion/player';
@@ -1550,6 +1550,23 @@ export function AnimationPlayground() {
   const [previewTransparent, setPreviewTransparent] = useState(false);
   const [previewBgColor, setPreviewBgColor] = useState('#0f172a');
 
+  // Mide el área disponible del preview para escalar el Player y que SIEMPRE
+  // quepa sin scroll, aprovechando el máximo espacio (en cualquier formato).
+  const [viewport, setViewport] = useState({ w: 0, h: 0 });
+  const roRef = useRef<ResizeObserver | null>(null);
+  const setViewportNode = useCallback((node: HTMLDivElement | null) => {
+    roRef.current?.disconnect();
+    if (node) {
+      const ro = new ResizeObserver((entries) => {
+        const r = entries[0].contentRect;
+        setViewport({ w: r.width, h: r.height });
+      });
+      ro.observe(node);
+      roRef.current = ro;
+      setViewport({ w: node.clientWidth, h: node.clientHeight });
+    }
+  }, []);
+
   // Descarga del AE ExtendScript (.jsx) del componente con las props actuales.
   const [aeBusy, setAeBusy] = useState(false);
   const [aeError, setAeError] = useState<string | null>(null);
@@ -1625,15 +1642,69 @@ export function AnimationPlayground() {
 
   const ASPECTS = ASPECTS_DIM;
   const dim = ASPECTS[aspect];
-  // Aprovecha mejor el espacio (antes 16:9 quedaba diminuto).
-  const previewScale = Math.min(640 / dim.w, 680 / dim.h);
+  // Formatos altos (9:16, 4:5) → controles al costado (queda ancho libre).
+  // Formatos anchos (1:1, 16:9) → controles arriba (queda alto libre).
+  const isTall = dim.h > dim.w;
+  // Escala al espacio medido (con margen para padding/borde) → llena el área y
+  // nunca obliga a scrollear.
+  const availW = Math.max(80, (viewport.w || 720) - 28);
+  const availH = Math.max(80, (viewport.h || 620) - 28);
+  const previewScale = Math.min(availW / dim.w, availH / dim.h);
   const previewW = Math.round(dim.w * previewScale);
   const previewH = Math.round(dim.h * previewScale);
+
+  const dividerCls = isTall ? 'h-px w-full my-1 bg-border-tech' : 'w-px h-5 mx-1 bg-border-tech';
+  const controls = (
+    <>
+      {(Object.keys(ASPECTS) as Array<keyof typeof ASPECTS>).map((ar) => (
+        <button
+          key={ar}
+          onClick={() => setAspect(ar)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            aspect === ar
+              ? 'bg-mint-precision/10 border border-mint-precision/30 text-mint-precision'
+              : 'bg-surface-container border border-border-tech hover:border-mint-precision/30 text-text-secondary'
+          }`}
+        >
+          {ar}
+        </button>
+      ))}
+      <span className={dividerCls} />
+      <button
+        onClick={() => setPreviewTransparent((t) => !t)}
+        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+          previewTransparent
+            ? 'bg-mint-precision/10 border border-mint-precision/30 text-mint-precision'
+            : 'bg-surface-container border border-border-tech hover:border-mint-precision/30 text-text-secondary'
+        }`}
+        title="Fondo transparente"
+      >
+        Transparente
+      </button>
+      <input
+        type="color"
+        value={previewBgColor}
+        onChange={(e) => { setPreviewBgColor(e.target.value); setPreviewTransparent(false); }}
+        className="w-8 h-8 rounded cursor-pointer border border-border-tech"
+        title="Color de fondo del preview"
+      />
+      <span className={dividerCls} />
+      <button
+        onClick={handleDownloadAE}
+        disabled={aeBusy}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-mint-precision/10 border border-mint-precision/30 text-mint-precision hover:bg-mint-precision/20 transition-all disabled:opacity-50"
+        title="Descarga el script de After Effects (.jsx) de este componente para probarlo en AE"
+      >
+        <Download size={14} />
+        {aeBusy ? 'Generando…' : 'Descargar AE (.jsx)'}
+      </button>
+    </>
+  );
 
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden">
       {/* Sidebar Controls */}
-      <div className="w-80 bg-surface-container border-r border-border-tech p-6 overflow-y-auto flex flex-col gap-6">
+      <div className="w-80 bg-surface-container border-r border-border-tech p-6 overflow-y-auto flex flex-col gap-4">
         <div>
           <button
             onClick={() => navigate('/admin/animations')}
@@ -1649,7 +1720,7 @@ export function AnimationPlayground() {
         </div>
 
         {/* Style System Examples Toggle */}
-        <div className="border-t border-border-tech pt-4">
+        <div className="pt-1">
           <button
             onClick={() => setShowStyleExamples(!showStyleExamples)}
             className="flex items-center gap-2 w-full text-left text-sm font-medium text-text-primary hover:text-mint-precision transition-colors"
@@ -1712,98 +1783,62 @@ export function AnimationPlayground() {
         )}
       </div>
 
-      {/* Player Area — scrollable y alineado arriba para que controles/caption
-          siempre se vean (antes se cortaban con previews altos). */}
-      <div className="flex-1 bg-surface-lowest p-6 flex flex-col items-center justify-start gap-1 overflow-y-auto relative">
-        {/* Controles: aspect ratio + fondo del preview */}
-        <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
-          {(Object.keys(ASPECTS) as Array<keyof typeof ASPECTS>).map((ar) => (
-            <button
-              key={ar}
-              onClick={() => setAspect(ar)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                aspect === ar
-                  ? 'bg-mint-precision/10 border border-mint-precision/30 text-mint-precision'
-                  : 'bg-surface-container border border-border-tech hover:border-mint-precision/30 text-text-secondary'
-              }`}
-            >
-              {ar}
-            </button>
-          ))}
-          <span className="mx-1 h-5 w-px bg-border-tech" />
-          {/* Fondo del preview (Lote A) */}
-          <button
-            onClick={() => setPreviewTransparent((t) => !t)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              previewTransparent
-                ? 'bg-mint-precision/10 border border-mint-precision/30 text-mint-precision'
-                : 'bg-surface-container border border-border-tech hover:border-mint-precision/30 text-text-secondary'
-            }`}
-            title="Fondo transparente"
-          >
-            Transparente
-          </button>
-          <input
-            type="color"
-            value={previewBgColor}
-            onChange={(e) => { setPreviewBgColor(e.target.value); setPreviewTransparent(false); }}
-            className="w-8 h-8 rounded cursor-pointer border border-border-tech"
-            title="Color de fondo del preview"
-          />
-          <span className="mx-1 h-5 w-px bg-border-tech" />
-          {/* Descargar AE ExtendScript (.jsx) del componente con las props actuales */}
-          <button
-            onClick={handleDownloadAE}
-            disabled={aeBusy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-mint-precision/10 border border-mint-precision/30 text-mint-precision hover:bg-mint-precision/20 transition-all disabled:opacity-50"
-            title="Descarga el script de After Effects (.jsx) de este componente para probarlo en AE"
-          >
-            <Download size={14} />
-            {aeBusy ? 'Generando…' : 'Descargar AE (.jsx)'}
-          </button>
-        </div>
-        {aeError && (
-          <p className="mb-2 text-xs text-red-400 text-center max-w-sm">{aeError}</p>
-        )}
+      {/* Player Area — llena el espacio disponible SIN scroll. Controles al
+          costado en formatos altos (9:16/4:5) y arriba en anchos (1:1/16:9). */}
+      <div className={`flex-1 bg-surface-lowest overflow-hidden flex ${isTall ? 'flex-row' : 'flex-col'}`}>
         <div
-          className="p-4 rounded-xl shadow-2xl border border-border-tech"
-          // Tablero de ajedrez para visualizar la transparencia.
-          style={previewTransparent ? {
-            backgroundColor: '#1a1a1a',
-            backgroundImage: 'linear-gradient(45deg,#2a2a2a 25%,transparent 25%),linear-gradient(-45deg,#2a2a2a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#2a2a2a 75%),linear-gradient(-45deg,transparent 75%,#2a2a2a 75%)',
-            backgroundSize: '20px 20px',
-            backgroundPosition: '0 0,0 10px,10px -10px,-10px 0',
-          } : { backgroundColor: 'var(--surface-container, #16181d)' }}
+          className={`flex items-center gap-2 shrink-0 border-border-tech ${
+            isTall ? 'flex-col w-auto p-3 border-r overflow-y-auto' : 'flex-row flex-wrap justify-center p-3 border-b'
+          }`}
         >
-          <Player
-            key={`${aspect}-${previewTransparent}`}
-            component={PreviewComponent}
-            // Respeta x/y del editor (antes se forzaban al centro y los controles
-            // Position X/Y no hacían nada). Si no hay valor, cae al centro del lienzo.
-            inputProps={{
-              ...props,
-              x: typeof props.x === 'number' ? props.x : dim.w / 2,
-              y: typeof props.y === 'number' ? props.y : dim.h / 2,
-            }}
-            durationInFrames={150} // 5 segundos
-            compositionWidth={dim.w}
-            compositionHeight={dim.h}
-            fps={30}
-            style={{
-              width: `${previewW}px`,
-              height: `${previewH}px`,
-              borderRadius: '8px',
-              overflow: 'hidden',
-              backgroundColor: previewTransparent ? 'transparent' : previewBgColor,
-            }}
-            controls
-            autoPlay
-            loop
-          />
+          {controls}
         </div>
-        <p className="mt-4 text-xs text-text-secondary/60 text-center max-w-sm">
-          Vista previa en canvas {dim.w}×{dim.h} ({aspect}), escalado a {previewW}×{previewH}. Cambia formato/fondo y prueba las animaciones de entrada/salida.
-        </p>
+
+        <div
+          ref={setViewportNode}
+          className="flex-1 min-h-0 min-w-0 flex flex-col items-center justify-center p-3 relative"
+        >
+          {aeError && (
+            <p className="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-red-400 text-center max-w-sm">{aeError}</p>
+          )}
+          <div
+            className="p-2 rounded-xl shadow-2xl border border-border-tech"
+            // Tablero de ajedrez para visualizar la transparencia.
+            style={previewTransparent ? {
+              backgroundColor: '#1a1a1a',
+              backgroundImage: 'linear-gradient(45deg,#2a2a2a 25%,transparent 25%),linear-gradient(-45deg,#2a2a2a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#2a2a2a 75%),linear-gradient(-45deg,transparent 75%,#2a2a2a 75%)',
+              backgroundSize: '20px 20px',
+              backgroundPosition: '0 0,0 10px,10px -10px,-10px 0',
+            } : { backgroundColor: 'var(--surface-container, #16181d)' }}
+          >
+            <Player
+              key={`${aspect}-${previewTransparent}`}
+              component={PreviewComponent}
+              inputProps={{
+                ...props,
+                x: typeof props.x === 'number' ? props.x : dim.w / 2,
+                y: typeof props.y === 'number' ? props.y : dim.h / 2,
+              }}
+              durationInFrames={150} // 5 segundos
+              compositionWidth={dim.w}
+              compositionHeight={dim.h}
+              fps={30}
+              style={{
+                width: `${previewW}px`,
+                height: `${previewH}px`,
+                borderRadius: '8px',
+                overflow: 'hidden',
+                backgroundColor: previewTransparent ? 'transparent' : previewBgColor,
+              }}
+              controls
+              autoPlay
+              loop
+            />
+          </div>
+          <p className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-text-secondary/50 text-center whitespace-nowrap">
+            {dim.w}×{dim.h} ({aspect}) · {previewW}×{previewH}
+          </p>
+        </div>
       </div>
     </div>
   );
