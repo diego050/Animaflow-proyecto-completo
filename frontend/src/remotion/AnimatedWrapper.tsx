@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCurrentFrame } from 'remotion';
+import { useCurrentFrame, interpolate } from 'remotion';
 import { Animated, Move, Scale, Fade } from 'remotion-animated';
 import { generateSpringKeyframes, SPRING_PRESETS } from './utils/springPhysics';
 import { SPRING } from './utils/tokens';
@@ -13,6 +13,7 @@ export type EntryType =
   | 'scale-in'
   | 'spring-in'
   | 'bounce-in'
+  | 'blur-in'
   | null;
 
 export type ExitType =
@@ -24,6 +25,7 @@ export type ExitType =
   | 'scale-out'
   | 'spring-out'
   | 'bounce-out'
+  | 'blur-out'
   | null;
 
 interface AnimatedWrapperProps {
@@ -51,7 +53,8 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
   const delayFrames = Math.round(delay * 30); // Convert seconds to frames (30fps)
 
   // Build entry animations
-  let entryAnimations: any[] = [];
+  let entryAnimations: ReturnType<typeof Fade>[] = [];
+  let blurEntryStyle: React.CSSProperties | undefined;
 
   if (entry) {
     switch (entry) {
@@ -101,13 +104,26 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
           Scale({ by: 1, initial: 0, start: delayFrames, duration: entryDuration, stiffness: SPRING.bouncy.stiffness, damping: SPRING.bouncy.damping }),
         ];
         break;
+      case 'blur-in': {
+        const blurAmount = interpolate(frame, [delayFrames, delayFrames + entryDuration], [20, 0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        const blurOpacity = interpolate(frame, [delayFrames, delayFrames + entryDuration], [0, 1], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        blurEntryStyle = { filter: `blur(${blurAmount}px)`, opacity: blurOpacity };
+        break;
+      }
       default:
         break;
     }
   }
 
   // Build exit animations
-  let exitAnimations: any[] = [];
+  let exitAnimations: ReturnType<typeof Fade>[] = [];
+  let blurExitStyle: React.CSSProperties | undefined;
 
   if (exit) {
     // v7.1: la salida debe TERMINAR justo en el corte de escena, ocupando solo
@@ -164,19 +180,42 @@ export const AnimatedWrapper: React.FC<AnimatedWrapperProps> = ({
           Scale({ by: 0, initial: 1, start: exitStart, duration: exitDuration, stiffness: 120, damping: 8 }),
         ];
         break;
+      case 'blur-out': {
+        const blurAmount = interpolate(frame, [exitStart, exitStart + exitDuration], [0, 20], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        const blurOpacity = interpolate(frame, [exitStart, exitStart + exitDuration], [1, 0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        });
+        blurExitStyle = { filter: `blur(${blurAmount}px)`, opacity: blurOpacity };
+        break;
+      }
       default:
         break;
     }
   }
 
   const allAnimations = [...entryAnimations, ...exitAnimations];
+  const blurStyle = blurEntryStyle || blurExitStyle;
 
-  if (allAnimations.length === 0) return <>{children}</>;
+  if (allAnimations.length === 0 && !blurStyle) return <>{children}</>;
 
   // v8 (Fase 4): ocultar el elemento ANTES de que empiece su entrada. Sin esto,
   // con entryDelay > 0 el elemento se mostraba a opacidad plena, luego saltaba a 0
   // y recién animaba (el "aparece → desaparece → entra" que se veía en los iconos).
   const hiddenBeforeEntry = !!entry && frame < delayFrames;
+
+  // For blur animations, we apply the CSS filter + opacity directly on a wrapper div
+  // instead of using remotion-animated's Fade (which would conflict with our manual opacity).
+  if (blurStyle) {
+    return (
+      <div style={hiddenBeforeEntry ? { opacity: 0 } : blurStyle}>
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div style={hiddenBeforeEntry ? { opacity: 0 } : undefined}>

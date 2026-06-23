@@ -29,6 +29,7 @@ export interface StyleStarfieldProps extends UniversalProps {
   movement?: 'radial' | 'random' | 'directional';
   direction?: 'left' | 'right' | 'up' | 'down';
   opacityFade?: boolean;
+  style?: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------

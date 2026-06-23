@@ -771,7 +771,7 @@ TIMING RECOMENDADO:
     exit_instructions = f"""
 ANIMACIONES DE SALIDA (exit) — OBLIGATORIO:
 CADA layer (excepto background) DEBE tener una animación de salida. Sin excepción.
-Valores válidos: "fade-out", "slide-up-out", "slide-down-out", "slide-left-out", "slide-right-out", "scale-out", "spring-out", "bounce-out"
+Valores válidos: "fade-out", "slide-up-out", "slide-down-out", "slide-left-out", "slide-right-out", "scale-out", "spring-out", "bounce-out", "blur-out"
 Agrega `exitDelay` (segundos antes de que empiece la salida) y `exitDuration` (duración en segundos).
 
 Ejemplo de layer CON exit:

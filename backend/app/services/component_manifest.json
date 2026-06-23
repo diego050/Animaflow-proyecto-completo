@@ -296,6 +296,82 @@
       }
     },
     {
+      "name": "StyleZoomPulse",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Image that pulses (zooms in and out rhythmically) in a continuous loop (zoom pulse / breathing image / rhythmic zoom / photo pulse). Use for subtle motion on static images, backgrounds, or product showcases.",
+      "props": {
+        "url": {
+          "type": "string",
+          "label": "Image URL",
+          "description": "Image URL to display",
+          "default": ""
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Area width in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Area height in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "minScale": {
+          "type": "number",
+          "label": "Min Scale",
+          "description": "Minimum zoom level",
+          "default": 1,
+          "min": 0.5,
+          "max": 2
+        },
+        "maxScale": {
+          "type": "number",
+          "label": "Max Scale",
+          "description": "Maximum zoom level",
+          "default": 1.1,
+          "min": 0.5,
+          "max": 3
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Frames per full pulse cycle",
+          "default": 60
+        },
+        "overlay": {
+          "type": "number",
+          "label": "Overlay",
+          "description": "Dark overlay opacity (0-1)",
+          "default": 0,
+          "min": 0,
+          "max": 1
+        },
+        "overlayColor": {
+          "type": "color",
+          "label": "Overlay Color",
+          "description": "Overlay color",
+          "default": "#000000"
+        },
+        "color1": {
+          "type": "color",
+          "label": "Fallback Color 1",
+          "description": "Gradient start when no image",
+          "default": "#0f172a"
+        },
+        "color2": {
+          "type": "color",
+          "label": "Fallback Color 2",
+          "description": "Gradient end when no image",
+          "default": "#1e293b"
+        }
+      }
+    },
+    {
       "name": "StyleScrambleText",
       "category": "Text",
       "role": "text",
@@ -470,6 +546,198 @@
       }
     },
     {
+      "name": "StyleShakeCard",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Card that shakes with decaying amplitude for impact/energy moments (shake card / impact card / earthquake effect / vibration). Use for emphasis, impact reveals, or energetic accents.",
+      "props": {
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Main title text",
+          "default": "IMPACT"
+        },
+        "subtitle": {
+          "type": "string",
+          "label": "Subtitle",
+          "description": "Subtitle text",
+          "default": "Camera shake with decaying amplitude"
+        },
+        "intensity": {
+          "type": "number",
+          "label": "Intensity",
+          "description": "Max shake amplitude in px",
+          "default": 15,
+          "min": 1,
+          "max": 50
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duration",
+          "description": "Frames until shake stops",
+          "default": 60
+        },
+        "frequency": {
+          "type": "number",
+          "label": "Frequency",
+          "description": "Shake speed multiplier",
+          "default": 0.8,
+          "min": 0.1,
+          "max": 3
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background Color",
+          "description": "Page background color",
+          "default": "#111827"
+        },
+        "cardBg": {
+          "type": "string",
+          "label": "Card Background",
+          "description": "Card background (supports gradient)",
+          "default": "linear-gradient(135deg, #1e293b, #0f172a)"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Card border color",
+          "default": "rgba(59, 130, 246, 0.3)"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Title text color",
+          "default": "#ffffff"
+        },
+        "subtitleColor": {
+          "type": "color",
+          "label": "Subtitle Color",
+          "description": "Subtitle text color",
+          "default": "#93c5fd"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Accent line color",
+          "default": "#3b82f6"
+        }
+      }
+    },
+    {
+      "name": "StyleSpotlightReveal",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Spotlight reveal using clip-path circle that grows to reveal content with edge glow (spotlight reveal / circle reveal / iris reveal / spotlight transition). Use for dramatic reveals, product launches, or emphasis moments.",
+      "props": {
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Main title text",
+          "default": "REVEALED"
+        },
+        "subtitle": {
+          "type": "string",
+          "label": "Subtitle",
+          "description": "Subtitle text",
+          "default": "Spotlight reveal transition"
+        },
+        "mode": {
+          "type": "select",
+          "label": "Mode",
+          "description": "Reveal direction",
+          "default": "in",
+          "options": [
+            "in",
+            "out"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duration",
+          "description": "Frames for full reveal",
+          "default": 60
+        },
+        "maxRadius": {
+          "type": "number",
+          "label": "Max Radius",
+          "description": "Maximum clip radius percentage",
+          "default": 75,
+          "min": 10,
+          "max": 100
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background Color",
+          "description": "Outer background color",
+          "default": "transparent"
+        },
+        "revealBg": {
+          "type": "string",
+          "label": "Reveal Background",
+          "description": "Revealed area background (supports gradient)",
+          "default": "linear-gradient(135deg, #111827, #1e1b4b)"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Title text color",
+          "default": "#ffffff"
+        },
+        "subtitleColor": {
+          "type": "color",
+          "label": "Subtitle Color",
+          "description": "Subtitle text color",
+          "default": "#c4b5fd"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Top accent bar color",
+          "default": "#3b82f6"
+        },
+        "accentColorEnd": {
+          "type": "color",
+          "label": "Accent End Color",
+          "description": "Bottom accent bar color",
+          "default": "#a855f7"
+        },
+        "glowColor": {
+          "type": "color",
+          "label": "Glow Color",
+          "description": "Edge glow color",
+          "default": "#8b5cf6"
+        },
+        "glowIntensity": {
+          "type": "number",
+          "label": "Glow Intensity",
+          "description": "Peak glow opacity",
+          "default": 0.6,
+          "min": 0,
+          "max": 1
+        },
+        "showAccentBars": {
+          "type": "boolean",
+          "label": "Show Accent Bars",
+          "description": "Display decorative accent bars",
+          "default": true
+        },
+        "accentWidth": {
+          "type": "number",
+          "label": "Accent Width",
+          "description": "Accent bar width in px (auto if empty)",
+          "min": 20,
+          "max": 200
+        },
+        "accentHeight": {
+          "type": "number",
+          "label": "Accent Height",
+          "description": "Accent bar height in px (auto if empty)",
+          "min": 1,
+          "max": 20
+        }
+      }
+    },
+    {
       "name": "StyleStarfield",
       "category": "Effects & VFX",
       "role": "vfx",
@@ -482,6 +750,20 @@
           "default": 80,
           "min": 10,
           "max": 500
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Starfield area width in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Starfield area height in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
         },
         "bgColor": {
           "type": "color",
@@ -1185,7 +1467,8 @@
             "slide-right",
             "scale-in",
             "spring-in",
-            "bounce-in"
+            "bounce-in",
+            "blur-in"
           ]
         },
         "exit": {
@@ -1200,7 +1483,8 @@
             "slide-right-out",
             "scale-out",
             "spring-out",
-            "bounce-out"
+            "bounce-out",
+            "blur-out"
           ]
         },
         "entryDelay": {
@@ -2736,6 +3020,180 @@
       }
     },
     {
+      "name": "StyleClockWipe",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Clock wipe transition that reveals or hides content with a circular sweep like a clock hand (clock wipe / circular wipe / radial wipe / iris transition). Use for scene transitions, dramatic reveals, or cinematic cuts.",
+      "props": {
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Main title text",
+          "default": "SCENE B"
+        },
+        "subtitle": {
+          "type": "string",
+          "label": "Subtitle",
+          "description": "Subtitle text",
+          "default": "Revealed by clock wipe"
+        },
+        "mode": {
+          "type": "select",
+          "label": "Mode",
+          "description": "Transition direction",
+          "default": "in",
+          "options": [
+            "in",
+            "out"
+          ]
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Wipe rotation direction",
+          "default": "clockwise",
+          "options": [
+            "clockwise",
+            "counter-clockwise"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duration",
+          "description": "Frames for full wipe",
+          "default": 75
+        },
+        "bgColor": {
+          "type": "string",
+          "label": "Background",
+          "description": "Scene behind (supports gradient)",
+          "default": "linear-gradient(135deg, #3b1f5e, #111827)"
+        },
+        "overlayBg": {
+          "type": "string",
+          "label": "Overlay Background",
+          "description": "Scene being wiped (supports gradient)",
+          "default": "linear-gradient(135deg, #1e3a5f, #111827)"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Title text color",
+          "default": "#ffffff"
+        },
+        "subtitleColor": {
+          "type": "color",
+          "label": "Subtitle Color",
+          "description": "Subtitle text color",
+          "default": "#c084fc"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Accent icon color",
+          "default": "#a855f7"
+        }
+      }
+    },
+    {
+      "name": "StyleBokehCircles",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Bokeh/depth-of-field effect with soft glowing circles that drift slowly and pulse in size (bokeh / soft focus / dreamy background / light orbs). Use for romantic, dreamy, or cinematic backgrounds.",
+      "props": {
+        "circleCount": {
+          "type": "number",
+          "label": "Circle Count",
+          "description": "Number of bokeh circles",
+          "default": 15,
+          "min": 3,
+          "max": 50
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Area width in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Area height in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background Color",
+          "description": "Background color",
+          "default": "#111827"
+        },
+        "colors": {
+          "type": "list",
+          "label": "Colors",
+          "description": "Array of RGB color tuples for circles",
+          "default": [
+            [
+              59,
+              130,
+              246
+            ],
+            [
+              139,
+              92,
+              246
+            ],
+            [
+              20,
+              184,
+              166
+            ]
+          ]
+        },
+        "minSize": {
+          "type": "number",
+          "label": "Min Size",
+          "description": "Minimum circle size in px",
+          "default": 40,
+          "min": 10,
+          "max": 200
+        },
+        "maxSize": {
+          "type": "number",
+          "label": "Max Size",
+          "description": "Maximum circle size in px",
+          "default": 120,
+          "min": 20,
+          "max": 400
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Drift and pulse speed multiplier",
+          "default": 1,
+          "min": 0.1,
+          "max": 5
+        },
+        "minOpacity": {
+          "type": "number",
+          "label": "Min Opacity",
+          "description": "Minimum circle opacity",
+          "default": 0.1,
+          "min": 0,
+          "max": 1
+        },
+        "maxOpacity": {
+          "type": "number",
+          "label": "Max Opacity",
+          "description": "Maximum circle opacity",
+          "default": 0.3,
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    {
       "name": "StyleChip",
       "category": "UI",
       "role": "ui",
@@ -2916,6 +3374,267 @@
           "description": "Bar width in px (auto if empty)",
           "min": 20,
           "max": 200
+        }
+      }
+    },
+    {
+      "name": "StyleGridPulse",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Grid of dots with a pulse wave traveling outward from center (grid pulse / dot matrix / wave grid / tech grid / ripple dots). Use for tech backgrounds, data visualization ambiance, or futuristic mood.",
+      "props": {
+        "cols": {
+          "type": "number",
+          "label": "Columns",
+          "description": "Number of grid columns",
+          "default": 12,
+          "min": 2,
+          "max": 40
+        },
+        "rows": {
+          "type": "number",
+          "label": "Rows",
+          "description": "Number of grid rows",
+          "default": 8,
+          "min": 2,
+          "max": 30
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Grid area width in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Grid area height in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background Color",
+          "description": "Background color",
+          "default": "#111827"
+        },
+        "dotColor": {
+          "type": "color",
+          "label": "Dot Color",
+          "description": "Dot color",
+          "default": "#3b82f6"
+        },
+        "dotSize": {
+          "type": "number",
+          "label": "Dot Size",
+          "description": "Dot diameter in px (auto if empty)",
+          "min": 2,
+          "max": 40
+        },
+        "waveSpeed": {
+          "type": "number",
+          "label": "Wave Speed",
+          "description": "Wave speed in radians/second",
+          "default": 3,
+          "min": 0.5,
+          "max": 10
+        },
+        "waveFrequency": {
+          "type": "number",
+          "label": "Wave Frequency",
+          "description": "Wave decay per grid unit",
+          "default": 0.8,
+          "min": 0.1,
+          "max": 3
+        },
+        "minOpacity": {
+          "type": "number",
+          "label": "Min Opacity",
+          "description": "Minimum dot opacity",
+          "default": 0.15,
+          "min": 0,
+          "max": 1
+        },
+        "maxOpacity": {
+          "type": "number",
+          "label": "Max Opacity",
+          "description": "Maximum dot opacity",
+          "default": 1,
+          "min": 0,
+          "max": 1
+        },
+        "minScale": {
+          "type": "number",
+          "label": "Min Scale",
+          "description": "Minimum dot scale",
+          "default": 0.4,
+          "min": 0.1,
+          "max": 1
+        },
+        "maxScale": {
+          "type": "number",
+          "label": "Max Scale",
+          "description": "Maximum dot scale",
+          "default": 1,
+          "min": 0.1,
+          "max": 2
+        }
+      }
+    },
+    {
+      "name": "StyleLiquidWave",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "SVG liquid wave with configurable amplitude, speed, frequency, gradient colors, and blur (liquid wave / sine wave / fluid background / wave animation). Use for tech backgrounds, fluid motion, or ambient effects.",
+      "props": {
+        "numberOfPoints": {
+          "type": "number",
+          "label": "Points",
+          "description": "Number of wave points",
+          "default": 50,
+          "min": 10,
+          "max": 200
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Wave area width in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Wave area height in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background Color",
+          "description": "Background color",
+          "default": "#111827"
+        },
+        "waveColorStart": {
+          "type": "color",
+          "label": "Wave Color Start",
+          "description": "Gradient start color",
+          "default": "#1e3a8a"
+        },
+        "waveColorEnd": {
+          "type": "color",
+          "label": "Wave Color End",
+          "description": "Gradient end color",
+          "default": "#3b82f6"
+        },
+        "amplitude": {
+          "type": "number",
+          "label": "Amplitude",
+          "description": "Wave height in px",
+          "default": 50,
+          "min": 5,
+          "max": 300
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Wave animation speed",
+          "default": 0.05,
+          "min": 0.01,
+          "max": 0.5
+        },
+        "frequency": {
+          "type": "number",
+          "label": "Frequency",
+          "description": "Wave tightness",
+          "default": 0.2,
+          "min": 0.05,
+          "max": 1
+        },
+        "blur": {
+          "type": "number",
+          "label": "Blur",
+          "description": "Wave blur amount in px",
+          "default": 10,
+          "min": 0,
+          "max": 50
+        },
+        "yOffset": {
+          "type": "number",
+          "label": "Y Offset",
+          "description": "Vertical offset from center (px)",
+          "default": 0,
+          "min": -500,
+          "max": 500
+        }
+      }
+    },
+    {
+      "name": "StyleLetterboxReveal",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Cinematic letterbox bars that open to reveal content or close to hide it (letterbox / cinematic bars / widescreen reveal / anamorphic). Use for cinematic transitions, dramatic reveals, or scene endings.",
+      "props": {
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Main title text",
+          "default": "CINEMATIC"
+        },
+        "subtitle": {
+          "type": "string",
+          "label": "Subtitle",
+          "description": "Subtitle text",
+          "default": "A letterbox reveal"
+        },
+        "mode": {
+          "type": "select",
+          "label": "Mode",
+          "description": "Reveal direction",
+          "default": "in",
+          "options": [
+            "in",
+            "out"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duration",
+          "description": "Frames for full transition",
+          "default": 60
+        },
+        "maxBarHeight": {
+          "type": "number",
+          "label": "Max Bar Height",
+          "description": "Maximum bar height percentage",
+          "default": 15,
+          "min": 5,
+          "max": 40
+        },
+        "barColor": {
+          "type": "color",
+          "label": "Bar Color",
+          "description": "Letterbox bar color",
+          "default": "#000000"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Title text color",
+          "default": "#ffffff"
+        },
+        "subtitleColor": {
+          "type": "color",
+          "label": "Subtitle Color",
+          "description": "Subtitle text color",
+          "default": "#93c5fd"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent Color",
+          "description": "Accent line color",
+          "default": "#3b82f6"
         }
       }
     },
@@ -6412,6 +7131,2223 @@
           "label": "Badge Color",
           "description": "Badge background color",
           "default": "#ef4444"
+        }
+      }
+    },
+    {
+      "name": "StyleParallaxPan",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "Image that pans slowly in a configurable direction with scale > 1 to avoid edge exposure (parallax pan / slow pan / image pan / cinematic pan). Use for subtle motion on static images, backgrounds, or product showcases.",
+      "props": {
+        "url": {
+          "type": "string",
+          "label": "Image URL",
+          "description": "Image URL to display",
+          "default": ""
+        },
+        "width": {
+          "type": "number",
+          "label": "Width",
+          "description": "Area width in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "height": {
+          "type": "number",
+          "label": "Height",
+          "description": "Area height in px (default: full canvas)",
+          "min": 50,
+          "max": 1920
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Pan direction",
+          "default": "left-right",
+          "options": [
+            "left-right",
+            "right-left",
+            "top-bottom",
+            "bottom-top"
+          ]
+        },
+        "scale": {
+          "type": "number",
+          "label": "Scale",
+          "description": "Image scale (must be > 1 to avoid edge exposure)",
+          "default": 1.2,
+          "min": 1.01,
+          "max": 3
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duration",
+          "description": "Frames for one full pan cycle",
+          "default": 150
+        },
+        "overlay": {
+          "type": "number",
+          "label": "Overlay",
+          "description": "Dark overlay opacity (0-1)",
+          "default": 0,
+          "min": 0,
+          "max": 1
+        },
+        "overlayColor": {
+          "type": "color",
+          "label": "Overlay Color",
+          "description": "Overlay color",
+          "default": "#000000"
+        },
+        "color1": {
+          "type": "color",
+          "label": "Fallback Color 1",
+          "description": "Gradient start when no image",
+          "default": "#0f172a"
+        },
+        "color2": {
+          "type": "color",
+          "label": "Fallback Color 2",
+          "description": "Gradient end when no image",
+          "default": "#1e293b"
+        }
+      }
+    },
+    {
+      "name": "StaggeredFadeUp",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Words fade in and rise into place one by one with a staggered delay (staggered fade up / fade up / word reveal / rising text). Use for clean, modern headline and subtitle entrances.",
+      "props": {
+        "text": {
+          "type": "string",
+          "label": "Text",
+          "description": "Text to display (space-separated words)",
+          "default": "Ship faster with code"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Font weight",
+          "default": 600
+        },
+        "staggerDelay": {
+          "type": "number",
+          "label": "Stagger Delay",
+          "description": "Frames between each word",
+          "default": 4
+        },
+        "distance": {
+          "type": "number",
+          "label": "Distance",
+          "description": "Px each word rises from",
+          "default": 20
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duration",
+          "description": "Frames each word takes to settle",
+          "default": 18
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.1,
+          "max": 5
+        },
+        "textAlign": {
+          "type": "select",
+          "label": "Text Align",
+          "description": "Text alignment",
+          "default": "center",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        }
+      }
+    },
+    {
+      "name": "MaskedSlideReveal",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Words slide up from behind a clipping mask one by one (masked slide reveal / slide up reveal / mask text / curtain text). Use for premium, kinetic title reveals where each word emerges from a hidden line.",
+      "props": {
+        "text": {
+          "type": "string",
+          "label": "Text",
+          "description": "Text to display (space-separated words)",
+          "default": "Reveal from the mask"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Font weight",
+          "default": 700
+        },
+        "staggerDelay": {
+          "type": "number",
+          "label": "Stagger Delay",
+          "description": "Frames between each word reveal",
+          "default": 3
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Spring damping (higher = less bounce)",
+          "default": 18
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.1,
+          "max": 5
+        },
+        "textAlign": {
+          "type": "select",
+          "label": "Text Align",
+          "description": "Text alignment",
+          "default": "center",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        }
+      }
+    },
+    {
+      "name": "TrackingIn",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Text expands from wide letter-spacing and blur into a crisp settled headline (tracking in / letter spacing in / blur in title / expand text). Use for cinematic, high-impact title intros.",
+      "props": {
+        "text": {
+          "type": "string",
+          "label": "Text",
+          "description": "Text to display",
+          "default": "tracking in"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Font weight",
+          "default": 700
+        },
+        "startTracking": {
+          "type": "number",
+          "label": "Start Tracking",
+          "description": "Extra letter-spacing at start, in em (0.5 = half a glyph)",
+          "default": 0.5,
+          "min": 0,
+          "max": 3
+        },
+        "startBlur": {
+          "type": "number",
+          "label": "Start Blur",
+          "description": "Blur at start, in px",
+          "default": 12,
+          "min": 0,
+          "max": 60
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duration",
+          "description": "Frames the entrance takes",
+          "default": 30
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.1,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "ShimmerSweep",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Text with a bright shine band that sweeps across it on a loop (shimmer / shine / loading text / generating / skeleton text). Use for loading states, AI-thinking labels, or to draw attention.",
+      "props": {
+        "text": {
+          "type": "string",
+          "label": "Text",
+          "description": "Text to display",
+          "default": "Generating"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "baseColor": {
+          "type": "color",
+          "label": "Base Color",
+          "description": "Resting text color",
+          "default": "#3f3f46"
+        },
+        "shineColor": {
+          "type": "color",
+          "label": "Shine Color",
+          "description": "Color of the moving shine band",
+          "default": "#fafafa"
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Font weight",
+          "default": 700
+        },
+        "cycleDuration": {
+          "type": "number",
+          "label": "Cycle Duration",
+          "description": "Frames per full sweep",
+          "default": 60
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.1,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "SlotMachineRoll",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Numbers roll into place like a slot-machine reel, each digit spinning down to its target (slot machine / number roll / odometer / price reveal / digit spin). Use for prices, scores, and stat reveals.",
+      "props": {
+        "from": {
+          "type": "string",
+          "label": "From",
+          "description": "Starting value (rolls away)",
+          "default": "$99"
+        },
+        "to": {
+          "type": "string",
+          "label": "To",
+          "description": "Final value the reels land on",
+          "default": "$199"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "min": 12,
+          "max": 300
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#ffffff"
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Font weight",
+          "default": 700
+        },
+        "spins": {
+          "type": "number",
+          "label": "Spins",
+          "description": "Extra full 0-9 rotations before landing",
+          "default": 2,
+          "min": 0,
+          "max": 8
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Spring damping (higher = less bounce)",
+          "default": 16
+        },
+        "staggerDelay": {
+          "type": "number",
+          "label": "Stagger Delay",
+          "description": "Frames between each digit settle (left to right)",
+          "default": 4
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.1,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "PerspectiveMarquee",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Infinite horizontal marquee tilted in 3D space with edge fades (perspective marquee / 3D marquee / tilted scrolling text / angled ticker). Use for dynamic backgrounds, brand loops, or stylish section breaks.",
+      "props": {
+        "text": {
+          "type": "string",
+          "label": "Text",
+          "description": "Text to repeat across the marquee",
+          "default": "ship · build · animate · "
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Text color",
+          "default": "#fafafa"
+        },
+        "fontWeight": {
+          "type": "number",
+          "label": "Font Weight",
+          "description": "Font weight",
+          "default": 700
+        },
+        "pixelsPerFrame": {
+          "type": "number",
+          "label": "Pixels Per Frame",
+          "description": "Scroll speed in px per frame",
+          "default": 2,
+          "min": 0.1,
+          "max": 30
+        },
+        "rotateY": {
+          "type": "number",
+          "label": "Rotate Y",
+          "description": "Y-axis tilt in degrees",
+          "default": -28,
+          "min": -80,
+          "max": 80
+        },
+        "rotateX": {
+          "type": "number",
+          "label": "Rotate X",
+          "description": "X-axis tilt in degrees",
+          "default": 8,
+          "min": -80,
+          "max": 80
+        },
+        "perspective": {
+          "type": "number",
+          "label": "Perspective",
+          "description": "CSS perspective in px (lower = stronger 3D)",
+          "default": 1200,
+          "min": 200,
+          "max": 4000
+        },
+        "fadeColor": {
+          "type": "color",
+          "label": "Fade Color",
+          "description": "Color the edges fade into",
+          "default": "#050505"
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.1,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "MeshGradientBg",
+      "category": "Background",
+      "role": "background",
+      "description": "Full-screen animated mesh gradient with soft color blobs that drift and blend (mesh gradient / aurora / gradient background / ambient color / blurred blobs). Use as a modern, colorful backdrop behind titles and content.",
+      "props": {
+        "background": {
+          "type": "color",
+          "label": "Background",
+          "description": "Solid base color behind the mesh",
+          "default": "#0a0a0a"
+        },
+        "color1": {
+          "type": "color",
+          "label": "Color 1",
+          "description": "First mesh color",
+          "default": "#6d28d9"
+        },
+        "color2": {
+          "type": "color",
+          "label": "Color 2",
+          "description": "Second mesh color",
+          "default": "#2563eb"
+        },
+        "color3": {
+          "type": "color",
+          "label": "Color 3",
+          "description": "Third mesh color",
+          "default": "#db2777"
+        },
+        "color4": {
+          "type": "color",
+          "label": "Color 4",
+          "description": "Fourth mesh color",
+          "default": "#0891b2"
+        },
+        "blur": {
+          "type": "number",
+          "label": "Blur",
+          "description": "Blur in px (higher = softer / more blended)",
+          "default": 80,
+          "min": 0,
+          "max": 200
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Drift speed multiplier",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "DynamicGrid",
+      "category": "Background",
+      "role": "background",
+      "description": "Flat 2D line grid that scrolls continuously in a chosen direction including diagonal (grid background / blueprint / tech grid / moving grid / graph paper). Use for clean technical or developer-themed backdrops. For a 3D floor use GridPerspective; for a dot matrix use StyleGridPulse.",
+      "props": {
+        "cellSize": {
+          "type": "number",
+          "label": "Cell Size",
+          "description": "Cell size in px (smaller = denser grid)",
+          "default": 40,
+          "min": 8,
+          "max": 400
+        },
+        "lineColor": {
+          "type": "color",
+          "label": "Line Color",
+          "description": "Grid line color",
+          "default": "#27272a"
+        },
+        "background": {
+          "type": "color",
+          "label": "Background",
+          "description": "Background color",
+          "default": "#0a0a0a"
+        },
+        "lineWidth": {
+          "type": "number",
+          "label": "Line Width",
+          "description": "Line thickness in px",
+          "default": 1,
+          "min": 1,
+          "max": 10
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Scroll speed multiplier",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        },
+        "direction": {
+          "type": "select",
+          "label": "Direction",
+          "description": "Scroll direction",
+          "default": "diagonal",
+          "options": [
+            "diagonal",
+            "up",
+            "down",
+            "left",
+            "right"
+          ]
+        }
+      }
+    },
+    {
+      "name": "SpotlightCard",
+      "category": "UI",
+      "role": "ui",
+      "description": "Dark card with a soft radial spotlight that glides across the surface grazing a micro-border, with title and body (spotlight card / glow card / hover card / feature card). Use for sleek feature highlights and product cards.",
+      "props": {
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Card title",
+          "default": "Spotlight Card"
+        },
+        "body": {
+          "type": "text-long",
+          "label": "Body",
+          "description": "Card body text",
+          "default": "Soft radial light glides across the surface, grazing the micro-border."
+        },
+        "cardWidth": {
+          "type": "number",
+          "label": "Card Width",
+          "description": "Card width in px",
+          "default": 520,
+          "min": 100,
+          "max": 1600
+        },
+        "cardHeight": {
+          "type": "number",
+          "label": "Card Height",
+          "description": "Card height in px",
+          "default": 320,
+          "min": 100,
+          "max": 1600
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Title Size",
+          "description": "Title font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "glowSize": {
+          "type": "number",
+          "label": "Glow Size",
+          "description": "Spotlight diameter in px",
+          "default": 600,
+          "min": 50,
+          "max": 2000
+        },
+        "glowOpacity": {
+          "type": "number",
+          "label": "Glow Opacity",
+          "description": "Spotlight strength (0-1)",
+          "default": 0.08,
+          "min": 0,
+          "max": 1
+        },
+        "glowColor": {
+          "type": "color",
+          "label": "Glow Color",
+          "description": "Spotlight color",
+          "default": "#ffffff"
+        },
+        "cardColor": {
+          "type": "color",
+          "label": "Card Color",
+          "description": "Card background color",
+          "default": "#0a0a0a"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Title color",
+          "default": "#fafafa"
+        },
+        "mutedColor": {
+          "type": "color",
+          "label": "Muted Color",
+          "description": "Body text color",
+          "default": "#71717a"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Micro-border color",
+          "default": "rgba(255,255,255,0.10)"
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Border Radius",
+          "description": "Corner radius in px",
+          "default": 24,
+          "min": 0,
+          "max": 80
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Orbit speed multiplier",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "DataFlowPipes",
+      "category": "UI",
+      "role": "ui",
+      "description": "Circuit-board style pipes connecting labeled nodes with colored pulses travelling along them (data flow / pipeline / ETL / architecture diagram / data pipes). Use to show how data or requests move through a system. For a proximity neural-net look use NetworkNodes.",
+      "props": {
+        "pipeColor": {
+          "type": "color",
+          "label": "Pipe Color",
+          "description": "Color of the static pipes",
+          "default": "#1f1f23"
+        },
+        "pulseColor": {
+          "type": "color",
+          "label": "Pulse Color",
+          "description": "Color of the travelling pulses",
+          "default": "#22d3ee"
+        },
+        "pulseLength": {
+          "type": "number",
+          "label": "Pulse Length",
+          "description": "Length of each travelling pulse",
+          "default": 60,
+          "min": 10,
+          "max": 400
+        },
+        "pulseDuration": {
+          "type": "number",
+          "label": "Pulse Duration",
+          "description": "Frames for a pulse to advance one spacing",
+          "default": 36,
+          "min": 4,
+          "max": 240
+        },
+        "nodeColor": {
+          "type": "color",
+          "label": "Node Color",
+          "description": "Fill color of the node boxes",
+          "default": "#0a0a0a"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Node label color",
+          "default": "#fafafa"
+        },
+        "accent": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Node border accent color",
+          "default": "#22d3ee"
+        },
+        "nodes": {
+          "type": "list",
+          "label": "Nodes",
+          "description": "Node labels (source, process, store, output)",
+          "default": [
+            "Source",
+            "Process",
+            "Store",
+            "Output"
+          ]
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Pulse speed multiplier",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "CodeDiffWipe",
+      "category": "UI",
+      "role": "ui",
+      "description": "Code editor that wipes from a before version to an after version with a sweeping handle, removed lines in red and added in green (code diff / before after code / refactor / git diff / migration reveal). Use to show code changes. For typing or line-highlight use CodeBlockHighlight; for a terminal use TerminalHacker.",
+      "props": {
+        "before": {
+          "type": "text-long",
+          "label": "Before Code",
+          "description": "Original code (removed)",
+          "default": "function sum(a, b) {\n  return a + b\n}"
+        },
+        "after": {
+          "type": "text-long",
+          "label": "After Code",
+          "description": "New code (added)",
+          "default": "function sum(...nums: number[]) {\n  return nums.reduce((a, b) => a + b, 0)\n}"
+        },
+        "language": {
+          "type": "string",
+          "label": "Language",
+          "description": "Language label in the header",
+          "default": "tsx"
+        },
+        "background": {
+          "type": "color",
+          "label": "Background",
+          "description": "Editor background color",
+          "default": "#0a0a0a"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Base text color",
+          "default": "#e2e8f0"
+        },
+        "accent": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Wipe handle color",
+          "default": "#0ea5e9"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Code font size in px (auto if empty)",
+          "min": 8,
+          "max": 100
+        },
+        "transitionStart": {
+          "type": "number",
+          "label": "Transition Start",
+          "description": "Frame the wipe starts",
+          "default": 20
+        },
+        "transitionDuration": {
+          "type": "number",
+          "label": "Transition Duration",
+          "description": "Frames the wipe takes",
+          "default": 60
+        },
+        "showHandle": {
+          "type": "boolean",
+          "label": "Show Handle",
+          "description": "Show the sweeping handle line",
+          "default": true
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "DragAndDropFlow",
+      "category": "UI",
+      "role": "ui",
+      "description": "A file card drags into a dropzone, drops, then uploads with a progress bar and success check (drag and drop / file upload / import / dropzone). Use to demo uploads, imports, or onboarding steps.",
+      "props": {
+        "accent": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Accent color (active dropzone, progress, check)",
+          "default": "#0ea5e9"
+        },
+        "dropzoneLabel": {
+          "type": "string",
+          "label": "Dropzone Label",
+          "description": "Idle dropzone label",
+          "default": "Drop file to upload"
+        },
+        "fileName": {
+          "type": "string",
+          "label": "File Name",
+          "description": "Name shown on the dragged file card",
+          "default": "design.fig"
+        },
+        "cardColor": {
+          "type": "color",
+          "label": "Card Color",
+          "description": "File card background color",
+          "default": "#18181b"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "File name / success text color",
+          "default": "#fafafa"
+        },
+        "mutedColor": {
+          "type": "color",
+          "label": "Muted Color",
+          "description": "Idle label / border color",
+          "default": "#71717a"
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "ClaudeChat",
+      "category": "UI",
+      "role": "ui",
+      "description": "Claude.ai-style AI chat landing with a centered greeting, an input box where a prompt is typed, and a model selector chip (AI chat / assistant / Claude UI / chatbot mockup). Use to demo prompting an AI assistant.",
+      "props": {
+        "greeting": {
+          "type": "string",
+          "label": "Greeting",
+          "description": "Centered greeting line",
+          "default": "Back at it, Dima"
+        },
+        "placeholder": {
+          "type": "string",
+          "label": "Placeholder",
+          "description": "Input placeholder before typing",
+          "default": "Try: draft an email · summarize a doc · plan your week"
+        },
+        "prompt": {
+          "type": "string",
+          "label": "Prompt",
+          "description": "Prompt that gets typed into the input",
+          "default": "Draft a launch tweet for our new release"
+        },
+        "modelName": {
+          "type": "string",
+          "label": "Model Name",
+          "description": "Model name in the chip",
+          "default": "Opus 4.8"
+        },
+        "modelTier": {
+          "type": "string",
+          "label": "Model Tier",
+          "description": "Tier badge (e.g. Max)",
+          "default": "Max"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Accent color (mark, chip, cursor)",
+          "default": "#D97757"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Card background color",
+          "default": "#1f1e1d"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Primary text color",
+          "default": "#f5f4ef"
+        },
+        "mutedColor": {
+          "type": "color",
+          "label": "Muted Color",
+          "description": "Placeholder / secondary color",
+          "default": "#8a8780"
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Typing speed multiplier",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "ChatGpt",
+      "category": "UI",
+      "role": "ui",
+      "description": "ChatGPT-style AI chat landing with a centered greeting and a pill input where a prompt is typed (AI chat / assistant / ChatGPT UI / chatbot mockup). Use to demo prompting an AI assistant.",
+      "props": {
+        "greeting": {
+          "type": "string",
+          "label": "Greeting",
+          "description": "Centered greeting line",
+          "default": "What's on your mind today?"
+        },
+        "placeholder": {
+          "type": "string",
+          "label": "Placeholder",
+          "description": "Input placeholder before typing",
+          "default": "Ask anything"
+        },
+        "prompt": {
+          "type": "string",
+          "label": "Prompt",
+          "description": "Prompt that gets typed into the input",
+          "default": "Make a sunset over a calm ocean"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Accent color (send button, cursor)",
+          "default": "#2F6FED"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Card background color",
+          "default": "#212121"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Primary text color",
+          "default": "#ececec"
+        },
+        "mutedColor": {
+          "type": "color",
+          "label": "Muted Color",
+          "description": "Placeholder / secondary color",
+          "default": "#9b9b9b"
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Typing speed multiplier",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "ClaudeCode",
+      "category": "UI",
+      "role": "ui",
+      "description": "Claude Code CLI mockup: a terminal with a welcome box (title, user, model, cwd) and a prompt typed into the input line (AI coding agent / terminal assistant / CLI mockup / dev tool). Use to demo an AI coding agent. For a generic terminal use TerminalHacker.",
+      "props": {
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Window title",
+          "default": "Claude Code v2.0.0"
+        },
+        "userName": {
+          "type": "string",
+          "label": "User Name",
+          "description": "Name in the welcome line",
+          "default": "Remocn"
+        },
+        "model": {
+          "type": "string",
+          "label": "Model",
+          "description": "Model line in the welcome box",
+          "default": "Opus 4.8 • Max 20x"
+        },
+        "cwd": {
+          "type": "string",
+          "label": "CWD",
+          "description": "Working directory line",
+          "default": "/users/remocn/code/apps"
+        },
+        "placeholder": {
+          "type": "string",
+          "label": "Placeholder",
+          "description": "Input placeholder before typing",
+          "default": "Try \"edit <filepath> to ...\""
+        },
+        "prompt": {
+          "type": "string",
+          "label": "Prompt",
+          "description": "Prompt that gets typed into the input",
+          "default": "edit src/theme.ts to add a dark mode toggle"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Accent color (box border, prompt, cursor)",
+          "default": "#D97757"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Terminal background color",
+          "default": "#1a1a18"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Primary text color",
+          "default": "#e8e6e1"
+        },
+        "mutedColor": {
+          "type": "color",
+          "label": "Muted Color",
+          "description": "Secondary / label color",
+          "default": "#8a8780"
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Typing speed multiplier",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "OpenCode",
+      "category": "UI",
+      "role": "ui",
+      "description": "OpenCode TUI mockup: a logo, a large query input being typed, and a status bar showing agent, model and provider (AI coding agent / terminal UI / CLI mockup / dev tool). Use to demo an AI coding agent in a terminal.",
+      "props": {
+        "placeholder": {
+          "type": "string",
+          "label": "Placeholder",
+          "description": "Input placeholder before typing",
+          "default": "Ask anything... "
+        },
+        "query": {
+          "type": "string",
+          "label": "Query",
+          "description": "Query that gets typed into the input",
+          "default": "What is the tech stack of this project?"
+        },
+        "agentName": {
+          "type": "string",
+          "label": "Agent Name",
+          "description": "Agent badge in the status bar",
+          "default": "Build"
+        },
+        "modelName": {
+          "type": "string",
+          "label": "Model Name",
+          "description": "Model in the status bar",
+          "default": "Kimi K2.5"
+        },
+        "provider": {
+          "type": "string",
+          "label": "Provider",
+          "description": "Provider in the status bar",
+          "default": "Moonshot AI"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Accent color (logo, prompt, agent badge)",
+          "default": "#2B7FFF"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Terminal background color",
+          "default": "#0d0d0f"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Primary text color",
+          "default": "#e6e6e6"
+        },
+        "mutedColor": {
+          "type": "color",
+          "label": "Muted Color",
+          "description": "Placeholder / secondary color",
+          "default": "#7d7d85"
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Typing speed multiplier",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "GitHubStars",
+      "category": "Social",
+      "role": "social",
+      "description": "GitHub repo card with an animated star counter and star icon (GitHub stars / repo card / star count / open source / dev social proof). Light or dark theme.",
+      "props": {
+        "repo": {
+          "type": "string",
+          "label": "Repo",
+          "description": "owner/name of the repository",
+          "default": "kapishdima/remocn"
+        },
+        "totalStars": {
+          "type": "number",
+          "label": "Total Stars",
+          "description": "Final star count",
+          "default": 24813
+        },
+        "startStars": {
+          "type": "number",
+          "label": "Start Stars",
+          "description": "Star count to count up from",
+          "default": 0
+        },
+        "orientation": {
+          "type": "select",
+          "label": "Orientation",
+          "description": "Layout direction",
+          "default": "horizontal",
+          "options": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "theme": {
+          "type": "select",
+          "label": "Theme",
+          "description": "Light or dark card",
+          "default": "light",
+          "options": [
+            "light",
+            "dark"
+          ]
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Star icon color",
+          "default": "#ffbb00"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Card background (auto from theme if empty)"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Primary text color (auto from theme if empty)"
+        },
+        "mutedColor": {
+          "type": "color",
+          "label": "Muted Color",
+          "description": "Label color (auto from theme if empty)"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Base font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duration",
+          "description": "Frames for the count-up",
+          "default": 60
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "XFollowCard",
+      "category": "Social",
+      "role": "social",
+      "description": "X (Twitter) profile follow card: cover band, avatar, name with verified badge, handle, bio, meta (location / website / joined) and a Follow button (X profile / Twitter card / follow card / social profile).",
+      "props": {
+        "name": {
+          "type": "string",
+          "label": "Name",
+          "description": "Display name",
+          "default": "remocn"
+        },
+        "handle": {
+          "type": "string",
+          "label": "Handle",
+          "description": "Username without @",
+          "default": "remocn"
+        },
+        "bio": {
+          "type": "text-long",
+          "label": "Bio",
+          "description": "Profile bio",
+          "default": "Production-ready components for Remotion — text animations, backgrounds, transitions, UI blocks."
+        },
+        "location": {
+          "type": "string",
+          "label": "Location",
+          "description": "Location line",
+          "default": "Ukraine"
+        },
+        "website": {
+          "type": "string",
+          "label": "Website",
+          "description": "Website line",
+          "default": "remocn.dev"
+        },
+        "joined": {
+          "type": "string",
+          "label": "Joined",
+          "description": "Joined date",
+          "default": "January 2024"
+        },
+        "verified": {
+          "type": "boolean",
+          "label": "Verified",
+          "description": "Show verified badge",
+          "default": true
+        },
+        "buttonLabel": {
+          "type": "string",
+          "label": "Button Label",
+          "description": "Follow button text",
+          "default": "Follow"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "label": "Avatar URL",
+          "description": "Optional avatar image URL",
+          "default": ""
+        },
+        "coverUrl": {
+          "type": "string",
+          "label": "Cover URL",
+          "description": "Optional cover image URL",
+          "default": ""
+        },
+        "avatarColor": {
+          "type": "color",
+          "label": "Avatar Color",
+          "description": "Avatar placeholder color",
+          "default": "#1d9bf0"
+        },
+        "coverColor": {
+          "type": "color",
+          "label": "Cover Color",
+          "description": "Cover placeholder color",
+          "default": "#16202a"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Verified badge / link color",
+          "default": "#1d9bf0"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Card background color",
+          "default": "#000000"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Primary text color",
+          "default": "#e7e9ea"
+        },
+        "mutedColor": {
+          "type": "color",
+          "label": "Muted Color",
+          "description": "Secondary text color",
+          "default": "#71767b"
+        },
+        "cardWidth": {
+          "type": "number",
+          "label": "Card Width",
+          "description": "Card width in px",
+          "default": 760,
+          "min": 200,
+          "max": 1600
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Entrance speed multiplier",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "XFollowersOverview",
+      "category": "Social",
+      "role": "social",
+      "description": "X (Twitter) followers summary card with avatar, handle and a big animated follower count (followers / X stats / social proof / growth / milestone).",
+      "props": {
+        "totalFollowers": {
+          "type": "number",
+          "label": "Total Followers",
+          "description": "Final follower count",
+          "default": 1709
+        },
+        "startFollowers": {
+          "type": "number",
+          "label": "Start Followers",
+          "description": "Count to count up from",
+          "default": 0
+        },
+        "handle": {
+          "type": "string",
+          "label": "Handle",
+          "description": "Username without @",
+          "default": "remocn"
+        },
+        "label": {
+          "type": "string",
+          "label": "Label",
+          "description": "Label under the number",
+          "default": "Followers"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "label": "Avatar URL",
+          "description": "Optional avatar image URL",
+          "default": ""
+        },
+        "avatarColor": {
+          "type": "color",
+          "label": "Avatar Color",
+          "description": "Avatar placeholder color",
+          "default": "#1d9bf0"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Label color",
+          "default": "#1d9bf0"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Card background color",
+          "default": "#000000"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Number color",
+          "default": "#e7e9ea"
+        },
+        "mutedColor": {
+          "type": "color",
+          "label": "Muted Color",
+          "description": "Handle color",
+          "default": "#71767b"
+        },
+        "orientation": {
+          "type": "select",
+          "label": "Orientation",
+          "description": "Layout direction",
+          "default": "horizontal",
+          "options": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Font Size",
+          "description": "Number font size in px (auto if empty)",
+          "min": 12,
+          "max": 300
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duration",
+          "description": "Frames for the count-up",
+          "default": 60
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "Confetti",
+      "category": "Effects & VFX",
+      "role": "vfx",
+      "description": "A burst of confetti pieces that fly up and fall under gravity, spinning (celebration / success / party / win / launch / milestone). Full-screen overlay.",
+      "props": {
+        "particleCount": {
+          "type": "number",
+          "label": "Particle Count",
+          "description": "Number of confetti pieces",
+          "default": 140,
+          "min": 10,
+          "max": 400
+        },
+        "power": {
+          "type": "number",
+          "label": "Power",
+          "description": "Initial burst velocity",
+          "default": 17,
+          "min": 1,
+          "max": 60
+        },
+        "gravity": {
+          "type": "number",
+          "label": "Gravity",
+          "description": "Downward acceleration",
+          "default": 0.45,
+          "min": 0.05,
+          "max": 3
+        },
+        "size": {
+          "type": "number",
+          "label": "Size",
+          "description": "Piece size in px",
+          "default": 13,
+          "min": 2,
+          "max": 60
+        },
+        "seed": {
+          "type": "number",
+          "label": "Seed",
+          "description": "Random seed (changes the spread)",
+          "default": 1
+        },
+        "colors": {
+          "type": "list",
+          "label": "Colors",
+          "description": "Confetti colors",
+          "default": [
+            "#ff5e5e",
+            "#ffd93d",
+            "#6bcb77",
+            "#4d96ff",
+            "#c77dff",
+            "#ff9f1c"
+          ]
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "EcosystemConstellation",
+      "category": "UI",
+      "role": "ui",
+      "description": "A central hub with satellites orbiting around it on a ring, connected by lines (ecosystem / integrations / hub and spoke / constellation / partners / network map). Satellites rotate continuously.",
+      "props": {
+        "satelliteCount": {
+          "type": "number",
+          "label": "Satellite Count",
+          "description": "Number of orbiting satellites",
+          "default": 6,
+          "min": 2,
+          "max": 12
+        },
+        "centerLabel": {
+          "type": "string",
+          "label": "Center Label",
+          "description": "Text in the central hub",
+          "default": "V"
+        },
+        "labels": {
+          "type": "list",
+          "label": "Satellite Labels",
+          "description": "Optional labels for each satellite",
+          "default": []
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Hub / border / glow color",
+          "default": "#a855f7"
+        },
+        "satelliteColor": {
+          "type": "color",
+          "label": "Satellite Color",
+          "description": "Satellite fill color",
+          "default": "#1e1b29"
+        },
+        "lineColor": {
+          "type": "color",
+          "label": "Line Color",
+          "description": "Connecting line color",
+          "default": "rgba(168,85,247,0.35)"
+        },
+        "centerColor": {
+          "type": "color",
+          "label": "Center Color",
+          "description": "Hub fill color",
+          "default": "#a855f7"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Text Color",
+          "description": "Label text color",
+          "default": "#ffffff"
+        },
+        "radius": {
+          "type": "number",
+          "label": "Radius",
+          "description": "Orbit radius in px (auto if empty)",
+          "min": 50,
+          "max": 800
+        },
+        "centerSize": {
+          "type": "number",
+          "label": "Center Size",
+          "description": "Hub diameter in px (auto if empty)",
+          "min": 20,
+          "max": 600
+        },
+        "satelliteSize": {
+          "type": "number",
+          "label": "Satellite Size",
+          "description": "Satellite diameter in px (auto if empty)",
+          "min": 10,
+          "max": 300
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Orbit speed multiplier",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "InfiniteBentoPan",
+      "category": "Background",
+      "role": "background",
+      "description": "A bento grid of cards that pans diagonally forever, looping seamlessly with a few accented cards (bento / cards background / showcase grid / infinite grid). Full-screen backdrop.",
+      "props": {
+        "panSpeed": {
+          "type": "number",
+          "label": "Pan Speed",
+          "description": "Pan speed in px per frame",
+          "default": 1,
+          "min": 0.1,
+          "max": 20
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Accented card color",
+          "default": "#7c3aed"
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Backdrop color",
+          "default": "#0a0a0a"
+        },
+        "cardColor": {
+          "type": "color",
+          "label": "Card Color",
+          "description": "Default card color",
+          "default": "#161616"
+        },
+        "cellSize": {
+          "type": "number",
+          "label": "Cell Size",
+          "description": "Card cell size in px (auto if empty)",
+          "min": 40,
+          "max": 600
+        },
+        "gap": {
+          "type": "number",
+          "label": "Gap",
+          "description": "Gap between cards in px (auto if empty)",
+          "min": 0,
+          "max": 80
+        },
+        "radiusPx": {
+          "type": "number",
+          "label": "Card Radius",
+          "description": "Card corner radius in px (auto if empty)",
+          "min": 0,
+          "max": 80
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "EndCard",
+      "category": "Branding",
+      "role": "ui",
+      "description": "Closing \"thanks for watching\" end card: a glowing bordered panel with title, CTA button, a row of social dots and a studio/credit line, springing in with staggered delays (end card / outro / thanks for watching / subscribe / closing card). Fully atomic.",
+      "props": {
+        "title": {
+          "type": "string",
+          "label": "Title",
+          "description": "Main title",
+          "default": "Thanks for Watching"
+        },
+        "titleColor": {
+          "type": "color",
+          "label": "Title Color",
+          "description": "Title color",
+          "default": "#ffffff"
+        },
+        "titleWeight": {
+          "type": "number",
+          "label": "Title Weight",
+          "description": "Title font weight",
+          "default": 700
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Title Size",
+          "description": "Title font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "showButton": {
+          "type": "boolean",
+          "label": "Show Button",
+          "description": "Show the CTA button",
+          "default": true
+        },
+        "buttonLabel": {
+          "type": "string",
+          "label": "Button Label",
+          "description": "CTA button text",
+          "default": "Subscribe for More"
+        },
+        "buttonTextColor": {
+          "type": "color",
+          "label": "Button Text Color",
+          "description": "CTA text color",
+          "default": "#ffffff"
+        },
+        "buttonGradientStart": {
+          "type": "color",
+          "label": "Button Gradient Start",
+          "description": "CTA gradient start",
+          "default": "#4361ee"
+        },
+        "buttonGradientEnd": {
+          "type": "color",
+          "label": "Button Gradient End",
+          "description": "CTA gradient end",
+          "default": "#7209b7"
+        },
+        "buttonDelay": {
+          "type": "number",
+          "label": "Button Delay",
+          "description": "Frames before the button springs in",
+          "default": 20
+        },
+        "showSocial": {
+          "type": "boolean",
+          "label": "Show Social",
+          "description": "Show the row of social dots",
+          "default": true
+        },
+        "socialColors": {
+          "type": "list",
+          "label": "Social Colors",
+          "description": "Colors of the social dots",
+          "default": [
+            "#3b82f6",
+            "#4361ee",
+            "#7209b7",
+            "#9333ea"
+          ]
+        },
+        "socialDelay": {
+          "type": "number",
+          "label": "Social Delay",
+          "description": "Frames before the social dots spring in",
+          "default": 30
+        },
+        "showStudio": {
+          "type": "boolean",
+          "label": "Show Studio",
+          "description": "Show the studio/credit line",
+          "default": true
+        },
+        "studioName": {
+          "type": "string",
+          "label": "Studio Name",
+          "description": "Studio / credit text",
+          "default": "STUDIO CREATIVE"
+        },
+        "studioColor": {
+          "type": "color",
+          "label": "Studio Color",
+          "description": "Studio text color",
+          "default": "rgba(255,255,255,0.5)"
+        },
+        "cardBg": {
+          "type": "color",
+          "label": "Card Background",
+          "description": "Panel background color",
+          "default": "rgba(17, 24, 39, 0.8)"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Panel border color (when glow off)",
+          "default": "#4361ee"
+        },
+        "borderRadius": {
+          "type": "number",
+          "label": "Border Radius",
+          "description": "Panel corner radius in px",
+          "default": 16,
+          "min": 0,
+          "max": 80
+        },
+        "glow": {
+          "type": "boolean",
+          "label": "Glow",
+          "description": "Pulsing glow border",
+          "default": true
+        },
+        "glowColor": {
+          "type": "color",
+          "label": "Glow Color",
+          "description": "Glow color",
+          "default": "#4361ee"
+        },
+        "glowSpeed": {
+          "type": "number",
+          "label": "Glow Speed",
+          "description": "Glow pulse speed multiplier",
+          "default": 1,
+          "min": 0.1,
+          "max": 5
+        },
+        "showBackground": {
+          "type": "boolean",
+          "label": "Show Background",
+          "description": "Draw the full-screen gradient backdrop",
+          "default": true
+        },
+        "bgColor1": {
+          "type": "color",
+          "label": "Background 1",
+          "description": "Backdrop gradient start",
+          "default": "#111827"
+        },
+        "bgColor2": {
+          "type": "color",
+          "label": "Background 2",
+          "description": "Backdrop gradient end",
+          "default": "#1a1a2e"
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Entrance spring damping",
+          "default": 12
+        },
+        "springMass": {
+          "type": "number",
+          "label": "Spring Mass",
+          "description": "Entrance spring mass",
+          "default": 0.6
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "ChapterTitle",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Section/chapter intro card: a small uppercase label, a big springing number, a decorative line+dot+line divider that draws outward, and a subtitle that rises in (chapter / section / part / episode / title card / divider). Fully atomic.",
+      "props": {
+        "label": {
+          "type": "string",
+          "label": "Label",
+          "description": "Small uppercase label above the number",
+          "default": "Chapter"
+        },
+        "number": {
+          "type": "string",
+          "label": "Number",
+          "description": "Big chapter number/identifier",
+          "default": "1"
+        },
+        "subtitle": {
+          "type": "string",
+          "label": "Subtitle",
+          "description": "Subtitle below the divider",
+          "default": "The Beginning"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Number Size",
+          "description": "Number font size in px (auto if empty)",
+          "min": 20,
+          "max": 400
+        },
+        "numberWeight": {
+          "type": "number",
+          "label": "Number Weight",
+          "description": "Number font weight",
+          "default": 800
+        },
+        "labelColor": {
+          "type": "color",
+          "label": "Label Color",
+          "description": "Label color",
+          "default": "#9ca3af"
+        },
+        "numberColor": {
+          "type": "color",
+          "label": "Number Color",
+          "description": "Number color",
+          "default": "#ffffff"
+        },
+        "subtitleColor": {
+          "type": "color",
+          "label": "Subtitle Color",
+          "description": "Subtitle color",
+          "default": "#d1d5db"
+        },
+        "accentColor": {
+          "type": "color",
+          "label": "Accent",
+          "description": "Divider line + dot color",
+          "default": "#3b82f6"
+        },
+        "showLabel": {
+          "type": "boolean",
+          "label": "Show Label",
+          "description": "Show the uppercase label",
+          "default": true
+        },
+        "showDivider": {
+          "type": "boolean",
+          "label": "Show Divider",
+          "description": "Show the line+dot divider",
+          "default": true
+        },
+        "showSubtitle": {
+          "type": "boolean",
+          "label": "Show Subtitle",
+          "description": "Show the subtitle",
+          "default": true
+        },
+        "dividerWidth": {
+          "type": "number",
+          "label": "Divider Width",
+          "description": "Max width of each divider line in px",
+          "default": 120,
+          "min": 0,
+          "max": 600
+        },
+        "showBackground": {
+          "type": "boolean",
+          "label": "Show Background",
+          "description": "Draw the full-screen background",
+          "default": true
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Background color",
+          "default": "#111827"
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Number entrance spring damping",
+          "default": 12
+        },
+        "springStiffness": {
+          "type": "number",
+          "label": "Spring Stiffness",
+          "description": "Number entrance spring stiffness",
+          "default": 80
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "QuoteCard",
+      "category": "Text & Typography",
+      "role": "text",
+      "description": "Centered editorial quote card: a large serif quote mark, a centered italic quote and an attribution that slides in, revealed in sequence (quote / testimonial / pull quote / editorial / saying). Distinct from QuoteBlock (a left-bar callout). Fully atomic.",
+      "props": {
+        "quote": {
+          "type": "text-long",
+          "label": "Quote",
+          "description": "The quote text",
+          "default": "Design is not just what it looks like. Design is how it works."
+        },
+        "author": {
+          "type": "string",
+          "label": "Author",
+          "description": "Attribution / author",
+          "default": "Steve Jobs"
+        },
+        "quoteMark": {
+          "type": "string",
+          "label": "Quote Mark",
+          "description": "Decorative quote mark character",
+          "default": "“"
+        },
+        "quoteMarkColor": {
+          "type": "color",
+          "label": "Quote Mark Color",
+          "description": "Quote mark color",
+          "default": "#3b82f6"
+        },
+        "quoteColor": {
+          "type": "color",
+          "label": "Quote Color",
+          "description": "Quote text color",
+          "default": "#ffffff"
+        },
+        "authorColor": {
+          "type": "color",
+          "label": "Author Color",
+          "description": "Attribution color",
+          "default": "#9ca3af"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Quote Size",
+          "description": "Quote font size in px (auto if empty)",
+          "min": 12,
+          "max": 200
+        },
+        "maxWidth": {
+          "type": "number",
+          "label": "Max Width",
+          "description": "Max quote width before wrapping (px)",
+          "default": 700,
+          "min": 100,
+          "max": 1600
+        },
+        "showQuoteMark": {
+          "type": "boolean",
+          "label": "Show Quote Mark",
+          "description": "Show the decorative quote mark",
+          "default": true
+        },
+        "showAuthor": {
+          "type": "boolean",
+          "label": "Show Author",
+          "description": "Show the attribution",
+          "default": true
+        },
+        "showBackground": {
+          "type": "boolean",
+          "label": "Show Background",
+          "description": "Draw the full-screen background",
+          "default": true
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Background color",
+          "default": "#111827"
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
+        }
+      }
+    },
+    {
+      "name": "SubscribeReminder",
+      "category": "Social",
+      "role": "social",
+      "description": "Small corner subscribe nudge that slides up: a pulsing bell, a Subscribe label and channel handle in a frosted pill (subscribe reminder / corner CTA / bell nudge / follow prompt / sub reminder). Overlays the scene. Distinct from SubscribeButton (centered button).",
+      "props": {
+        "label": {
+          "type": "string",
+          "label": "Label",
+          "description": "Main label",
+          "default": "Subscribe"
+        },
+        "handle": {
+          "type": "string",
+          "label": "Handle",
+          "description": "Channel handle",
+          "default": "@CreativeStudio"
+        },
+        "bellIcon": {
+          "type": "string",
+          "label": "Bell Icon",
+          "description": "Icon/emoji in the bell circle",
+          "default": "🔔"
+        },
+        "bellColor": {
+          "type": "color",
+          "label": "Bell Color",
+          "description": "Bell circle color",
+          "default": "#3b82f6"
+        },
+        "pillColor": {
+          "type": "color",
+          "label": "Pill Color",
+          "description": "Pill background color",
+          "default": "rgba(0, 0, 0, 0.75)"
+        },
+        "labelColor": {
+          "type": "color",
+          "label": "Label Color",
+          "description": "Label text color",
+          "default": "#ffffff"
+        },
+        "handleColor": {
+          "type": "color",
+          "label": "Handle Color",
+          "description": "Handle text color",
+          "default": "#9ca3af"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Border Color",
+          "description": "Pill border color",
+          "default": "rgba(255,255,255,0.1)"
+        },
+        "corner": {
+          "type": "select",
+          "label": "Corner",
+          "description": "Anchor corner",
+          "default": "bottom-right",
+          "options": [
+            "bottom-right",
+            "bottom-left",
+            "top-right",
+            "top-left"
+          ]
+        },
+        "margin": {
+          "type": "number",
+          "label": "Margin",
+          "description": "Distance from the edges in px (auto if empty)",
+          "min": 0,
+          "max": 400
+        },
+        "showBell": {
+          "type": "boolean",
+          "label": "Show Bell",
+          "description": "Show the bell circle",
+          "default": true
+        },
+        "showHandle": {
+          "type": "boolean",
+          "label": "Show Handle",
+          "description": "Show the channel handle",
+          "default": true
+        },
+        "showBackground": {
+          "type": "boolean",
+          "label": "Show Background",
+          "description": "Draw a full-screen background (usually off — it overlays)",
+          "default": false
+        },
+        "bgColor": {
+          "type": "color",
+          "label": "Background",
+          "description": "Background color (when shown)",
+          "default": "#111827"
+        },
+        "appearDelay": {
+          "type": "number",
+          "label": "Appear Delay",
+          "description": "Frames before it slides in",
+          "default": 10
+        },
+        "springDamping": {
+          "type": "number",
+          "label": "Spring Damping",
+          "description": "Slide-in spring damping",
+          "default": 14
+        },
+        "springStiffness": {
+          "type": "number",
+          "label": "Spring Stiffness",
+          "description": "Slide-in spring stiffness",
+          "default": 100
+        },
+        "speed": {
+          "type": "number",
+          "label": "Speed",
+          "description": "Speed multiplier (>=1 = faster)",
+          "default": 1,
+          "min": 0.05,
+          "max": 5
         }
       }
     },

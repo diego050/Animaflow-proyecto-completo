@@ -33,6 +33,7 @@ export interface StyleSoundWaveProps extends UniversalProps {
   barWidth?: number;
   maxBarHeight?: number;
   gap?: number;
+  style?: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------

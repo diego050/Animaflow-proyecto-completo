@@ -22,6 +22,7 @@ export interface StylePixelTransitionProps extends UniversalProps {
   lightnessMin?: number;
   lightnessMax?: number;
   maxDelay?: number;
+  style?: Record<string, unknown>;
 }
 
 export const StylePixelTransition: React.FC<StylePixelTransitionProps> = ({

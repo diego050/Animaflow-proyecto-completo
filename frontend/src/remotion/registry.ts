@@ -48,6 +48,7 @@ import { MusicPlayerUI } from './components/MusicPlayerUI';
 import { NetworkNodes } from './components/NetworkNodes';
 import { NotificationToast } from './components/NotificationToast';
 import { StyleNotificationStack } from './components/StyleNotificationStack';
+import { StyleParallaxPan } from './components/StyleParallaxPan';
 import { ParticleField } from './components/ParticleField';
 import { StyleParticleExplosion } from './components/StyleParticleExplosion';
 import { StylePixelTransition } from './components/StylePixelTransition';
@@ -86,8 +87,11 @@ import { StyleCallout } from './components/StyleCallout';
 import { StyleCard } from './components/StyleCard';
 import { StyleBokehCircles } from './components/StyleBokehCircles';
 import { StyleCardFlip } from './components/StyleCardFlip';
+import { StyleClockWipe } from './components/StyleClockWipe';
 import { StyleChip } from './components/StyleChip';
 import { StyleComparisonChart } from './components/StyleComparisonChart';
+import { StyleGridPulse } from './components/StyleGridPulse';
+import { StyleLiquidWave } from './components/StyleLiquidWave';
 import { StyleCountdown } from './components/StyleCountdown';
 import { StyleCursor } from './components/StyleCursor';
 import { StyleDivider } from './components/StyleDivider';
@@ -95,6 +99,7 @@ import { StyleDonutChart } from './components/StyleDonutChart';
 import { StyleFakeScroll } from './components/StyleFakeScroll';
 import { StyleMultiBar } from './components/StyleMultiBar';
 import { StyleFunnelChart } from './components/StyleFunnelChart';
+import { StyleLetterboxReveal } from './components/StyleLetterboxReveal';
 import { StyleLineChart } from './components/StyleLineChart';
 import { StylePieChart } from './components/StylePieChart';
 import { StylePulseText } from './components/StylePulseText';
@@ -103,12 +108,15 @@ import { StyleSpringText } from './components/StyleSpringText';
 import { StyleRadarChart } from './components/StyleRadarChart';
 import { StyleRotatingCarousel } from './components/StyleRotatingCarousel';
 import { StyleScrambleText } from './components/StyleScrambleText';
+import { StyleShakeCard } from './components/StyleShakeCard';
 import { StyleSimulatedHover } from './components/StyleSimulatedHover';
+import { StyleSpotlightReveal } from './components/StyleSpotlightReveal';
 import { StyleSoundWave } from './components/StyleSoundWave';
 import { StyleStatCard } from './components/StyleStatCard';
 import { StyleStarfield } from './components/StyleStarfield';
 import { StyleTextBlock } from './components/StyleTextBlock';
 import { StyleTextHighlight } from './components/StyleTextHighlight';
+import { StyleZoomPulse } from './components/StyleZoomPulse';
 import { StyleTicker } from './components/StyleTicker';
 import { StyleVideoPlayer } from './components/StyleVideoPlayer';
 import { StyleWatermark } from './components/StyleWatermark';
@@ -127,6 +135,32 @@ import { VersusScreen } from './components/VersusScreen';
 import { WaveformVisualizer } from './components/WaveformVisualizer';
 import { WordHighlight } from './components/WordHighlight';
 import { YouTubeEndScreen } from './components/YouTubeEndScreen';
+import { StaggeredFadeUp } from './components/StaggeredFadeUp';
+import { MaskedSlideReveal } from './components/MaskedSlideReveal';
+import { TrackingIn } from './components/TrackingIn';
+import { ShimmerSweep } from './components/ShimmerSweep';
+import { SlotMachineRoll } from './components/SlotMachineRoll';
+import { PerspectiveMarquee } from './components/PerspectiveMarquee';
+import { MeshGradientBg } from './components/MeshGradientBg';
+import { DynamicGrid } from './components/DynamicGrid';
+import { SpotlightCard } from './components/SpotlightCard';
+import { DataFlowPipes } from './components/DataFlowPipes';
+import { CodeDiffWipe } from './components/CodeDiffWipe';
+import { DragAndDropFlow } from './components/DragAndDropFlow';
+import { ClaudeChat } from './components/ClaudeChat';
+import { ChatGpt } from './components/ChatGpt';
+import { ClaudeCode } from './components/ClaudeCode';
+import { OpenCode } from './components/OpenCode';
+import { GitHubStars } from './components/GitHubStars';
+import { XFollowCard } from './components/XFollowCard';
+import { XFollowersOverview } from './components/XFollowersOverview';
+import { Confetti } from './components/Confetti';
+import { EcosystemConstellation } from './components/EcosystemConstellation';
+import { InfiniteBentoPan } from './components/InfiniteBentoPan';
+import { EndCard } from './components/EndCard';
+import { ChapterTitle } from './components/ChapterTitle';
+import { QuoteCard } from './components/QuoteCard';
+import { SubscribeReminder } from './components/SubscribeReminder';
 
 export const COMPONENT_NAMES = [
   'APIRequestFlow',
@@ -179,6 +213,7 @@ export const COMPONENT_NAMES = [
   'NetworkNodes',
   'NotificationToast',
   'StyleNotificationStack',
+  'StyleParallaxPan',
   'ParticleField',
   'StyleParticleExplosion',
   'StylePixelTransition',
@@ -217,8 +252,12 @@ export const COMPONENT_NAMES = [
   'StyleCard',
   'StyleBokehCircles',
   'StyleCardFlip',
+  'StyleClockWipe',
   'StyleChip',
   'StyleComparisonChart',
+  'StyleGridPulse',
+  'StyleLiquidWave',
+  'StyleLetterboxReveal',
   'StyleCountdown',
   'StyleCursor',
   'StyleDivider',
@@ -234,12 +273,15 @@ export const COMPONENT_NAMES = [
   'StyleRadarChart',
   'StyleRotatingCarousel',
   'StyleScrambleText',
+  'StyleShakeCard',
   'StyleSimulatedHover',
+  'StyleSpotlightReveal',
   'StyleSoundWave',
   'StyleStatCard',
   'StyleStarfield',
   'StyleTextBlock',
   'StyleTextHighlight',
+  'StyleZoomPulse',
   'StyleTicker',
   'StyleVideoPlayer',
   'StyleWatermark',
@@ -258,6 +300,32 @@ export const COMPONENT_NAMES = [
   'WaveformVisualizer',
   'WordHighlight',
   'YouTubeEndScreen',
+  'StaggeredFadeUp',
+  'MaskedSlideReveal',
+  'TrackingIn',
+  'ShimmerSweep',
+  'SlotMachineRoll',
+  'PerspectiveMarquee',
+  'MeshGradientBg',
+  'DynamicGrid',
+  'SpotlightCard',
+  'DataFlowPipes',
+  'CodeDiffWipe',
+  'DragAndDropFlow',
+  'ClaudeChat',
+  'ChatGpt',
+  'ClaudeCode',
+  'OpenCode',
+  'GitHubStars',
+  'XFollowCard',
+  'XFollowersOverview',
+  'Confetti',
+  'EcosystemConstellation',
+  'InfiniteBentoPan',
+  'EndCard',
+  'ChapterTitle',
+  'QuoteCard',
+  'SubscribeReminder',
 ];
 
 export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
@@ -311,6 +379,7 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   NetworkNodes,
   NotificationToast,
   StyleNotificationStack,
+  StyleParallaxPan,
   ParticleField,
   StyleParticleExplosion,
   StylePixelTransition,
@@ -349,8 +418,12 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   StyleCard,
   StyleBokehCircles,
   StyleCardFlip,
+  StyleClockWipe,
   StyleChip,
   StyleComparisonChart,
+  StyleGridPulse,
+  StyleLiquidWave,
+  StyleLetterboxReveal,
   StyleCountdown,
   StyleCursor,
   StyleDivider,
@@ -366,12 +439,15 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   StyleRadarChart,
   StyleRotatingCarousel,
   StyleScrambleText,
+  StyleShakeCard,
   StyleSimulatedHover,
+  StyleSpotlightReveal,
   StyleSoundWave,
   StyleStatCard,
   StyleStarfield,
   StyleTextBlock,
   StyleTextHighlight,
+  StyleZoomPulse,
   StyleTicker,
   StyleVideoPlayer,
   StyleWatermark,
@@ -390,6 +466,32 @@ export const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
   WaveformVisualizer,
   WordHighlight,
   YouTubeEndScreen,
+  StaggeredFadeUp,
+  MaskedSlideReveal,
+  TrackingIn,
+  ShimmerSweep,
+  SlotMachineRoll,
+  PerspectiveMarquee,
+  MeshGradientBg,
+  DynamicGrid,
+  SpotlightCard,
+  DataFlowPipes,
+  CodeDiffWipe,
+  DragAndDropFlow,
+  ClaudeChat,
+  ChatGpt,
+  ClaudeCode,
+  OpenCode,
+  GitHubStars,
+  XFollowCard,
+  XFollowersOverview,
+  Confetti,
+  EcosystemConstellation,
+  InfiniteBentoPan,
+  EndCard,
+  ChapterTitle,
+  QuoteCard,
+  SubscribeReminder,
 };
 
 // ---------------------------------------------------------------------------

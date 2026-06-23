@@ -37,6 +37,7 @@ export interface StyleBokehCirclesProps extends UniversalProps {
   minOpacity?: number;
   /** Maximum circle opacity */
   maxOpacity?: number;
+  style?: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------

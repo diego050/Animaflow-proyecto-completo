@@ -1,3 +1,5 @@
+import math
+
 from .utils import hex_to_rgb_array
 
 
@@ -132,6 +134,18 @@ def _nums(s, sep=','):
         except (TypeError, ValueError):
             pass
     return out
+
+
+def _rgb_to_hex(t, fallback='#3b82f6'):
+    """Convierte [r,g,b] (0-255) a HEX; tolera strings hex y rgba()."""
+    if isinstance(t, str):
+        return _hexc(t, fallback)
+    if isinstance(t, (list, tuple)) and len(t) >= 3:
+        try:
+            return '#%02x%02x%02x' % (int(t[0]) & 255, int(t[1]) & 255, int(t[2]) & 255)
+        except (TypeError, ValueError):
+            return fallback
+    return fallback
 
 
 def _norm_values(data):
@@ -2000,5 +2014,961 @@ def generate_component_script(
                 f'{var}Rot.setValueAtTime({max(0.1, float(duration)):.2f}, 360);',
                 '',
             ]
+
+    # ========================================================================
+    # COMPONENTES STYLE* (añadidos a la galería tras la 23va ronda).
+    # Aproximaciones nativas en AE: capas shape/text con keyframes simples.
+    # ========================================================================
+
+    if 'StyleTextHighlight' in parsed_components:
+        p = parsed_components['StyleTextHighlight']
+        x, y = p.get('x', 540), p.get('y', 960)
+        txt = p.get('text') or text or 'Highlight'
+        parts += _ae_rrect('sth', 'StyleTextHighlight_pill', 820, 130,
+                           _hexc(p.get('gradientStart'), '#3b82f6'), 16, x, y)[:-1]
+        parts += _ae_text('sthT', 'StyleTextHighlight_text', txt,
+                          int(p.get('fontSize') or 64), _hexc(p.get('textColor'), '#ffffff'), x, y)
+
+    if 'StyleZoomPulse' in parsed_components:
+        p = parsed_components['StyleZoomPulse']
+        x, y = p.get('x', 540), p.get('y', 960)
+        fw = int(p.get('width') or 720)
+        fh = int(p.get('height') or 720)
+        parts += _ae_rrect('szp', 'StyleZoomPulse_frame', fw, fh,
+                           _hexc(p.get('color1'), '#0f172a'), 16, x, y)[:-1]
+        mn = float(p.get('minScale') or 1) * 100
+        mx = float(p.get('maxScale') or 1.1) * 100
+        spd = max(1.0, float(p.get('speed') or 60)) / fps
+        parts += [
+            'var szpSc = szp.property("ADBE Transform Group").property("ADBE Scale");',
+            f'szpSc.setValueAtTime(0, [{mn:.1f}, {mn:.1f}]);',
+            f'szpSc.setValueAtTime({spd:.2f}, [{mx:.1f}, {mx:.1f}]);',
+            f'szpSc.setValueAtTime({spd * 2:.2f}, [{mn:.1f}, {mn:.1f}]);',
+            '',
+        ]
+
+    if 'StyleScrambleText' in parsed_components:
+        p = parsed_components['StyleScrambleText']
+        x, y = p.get('x', 540), p.get('y', 960)
+        txt = p.get('text') or text or 'DECODE'
+        if p.get('uppercase'):
+            txt = str(txt).upper()
+        parts += _ae_text('ssc', 'StyleScrambleText', txt,
+                          int(p.get('fontSize') or 80), _hexc(p.get('color'), '#00FFAB'), x, y)
+
+    if 'StyleSoundWave' in parsed_components:
+        p = parsed_components['StyleSoundWave']
+        x, y = p.get('x', 540), p.get('y', 960)
+        col = _hexc(p.get('color'), '#8b5cf6')
+        n = min(24, int(p.get('barCount') or 40))
+        vals = [((i * 37) % 9) + 2 for i in range(n)]
+        parts += _ae_bars('ssw', 'StyleSoundWave', vals, [], x, y, width=900, height=300, c1=col)
+
+    if 'StyleStarfield' in parsed_components:
+        p = parsed_components['StyleStarfield']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('stf', 'StyleStarfield_bg', width, height,
+                           _hexc(p.get('bgColor'), '#0a0a1a'), 0, x, y)[:-1]
+        sc = _hexc(p.get('starColor'), '#ffffff')
+        n = min(24, int(p.get('starCount') or 80))
+        for i in range(n):
+            parts += _ae_ellipse(f'stf{i}', f'StyleStarfield_star_{i}', 4, sc,
+                                 (i * 137) % width, (i * 211) % height)[:-1]
+        parts.append('')
+
+    if 'StyleParticleExplosion' in parsed_components:
+        p = parsed_components['StyleParticleExplosion']
+        x, y = p.get('x', 540), p.get('y', 960)
+        for i in range(16):
+            sx = x + ((i % 4) - 1.5) * 130
+            sy = y + ((i // 4) - 1.5) * 130
+            parts += _ae_ellipse(f'spe{i}', f'StyleParticleExplosion_p_{i}', 24, '#60a5fa', sx, sy)[:-1]
+        parts.append('')
+        if p.get('text'):
+            parts += _ae_text('speT', 'StyleParticleExplosion_text', p['text'],
+                              int(p.get('textFontSize') or 90), _hexc(p.get('textColor'), '#ffffff'), x, y)
+
+    if 'StylePixelTransition' in parsed_components:
+        p = parsed_components['StylePixelTransition']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('spx', 'StylePixelTransition_bg', width, height,
+                           _hexc(p.get('bgColor'), '#0f172a'), 0, x, y)[:-1]
+        pcols = ['#3b82f6', '#8b5cf6', '#06b6d4', '#ec4899']
+        gx, gy, cell = 5, 5, 130
+        ox = x - (gx - 1) * cell / 2
+        oy = y - (gy - 1) * cell / 2
+        k = 0
+        for r in range(gy):
+            for cc in range(gx):
+                parts += _ae_rrect(f'spx{k}', f'StylePixelTransition_px_{k}', cell - 10, cell - 10,
+                                   pcols[k % len(pcols)], 4, ox + cc * cell, oy + r * cell)[:-1]
+                k += 1
+        parts.append('')
+
+    if 'StyleBadge' in parsed_components:
+        p = parsed_components['StyleBadge']
+        x, y = p.get('x', 540), p.get('y', 960)
+        txt = p.get('text') or 'Badge'
+        if p.get('uppercase'):
+            txt = str(txt).upper()
+        parts += _ae_rrect('sbd', 'StyleBadge', int(p.get('width') or 260), 90,
+                           _hexc(p.get('bgColor'), '#334155'), int(p.get('borderRadius') or 45), x, y)[:-1]
+        parts += _ae_text('sbdT', 'StyleBadge_text', txt,
+                          int(p.get('fontSize') or 36), _hexc(p.get('textColor'), '#ffffff'), x, y)
+
+    if 'StyleButton' in parsed_components:
+        p = parsed_components['StyleButton']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('sbt', 'StyleButton', int(p.get('width') or 420), int(p.get('height') or 120),
+                           _hexc(p.get('bgColor'), '#3b82f6'), int(p.get('borderRadius') or 16), x, y)[:-1]
+        parts += _ae_text('sbtT', 'StyleButton_text', p.get('text') or 'Button',
+                          int(p.get('fontSize') or 44), _hexc(p.get('textColor'), '#ffffff'), x, y)
+
+    if 'StyleCardFlip' in parsed_components:
+        p = parsed_components['StyleCardFlip']
+        x, y = p.get('x', 540), p.get('y', 960)
+        cw = int(p.get('cardWidth') or 600)
+        ch = int(p.get('cardHeight') or 400)
+        parts += _ae_rrect('scf', 'StyleCardFlip', cw, ch,
+                           _hexc(p.get('frontGradientStart'), '#1e3a8a'), int(p.get('borderRadius') or 24), x, y)[:-1]
+        parts += _ae_text('scfT', 'StyleCardFlip_front', p.get('frontText') or 'Card',
+                          int(p.get('fontSize') or 60), '#ffffff', x, y)
+        parts += [
+            'var scfSc = scf.property("ADBE Transform Group").property("ADBE Scale");',
+            'scfSc.setValueAtTime(0, [100, 100]);',
+            'scfSc.setValueAtTime(0.5, [100, 0]);',
+            'scfSc.setValueAtTime(1.0, [100, 100]);',
+            '',
+        ]
+
+    if 'StyleBokehCircles' in parsed_components:
+        p = parsed_components['StyleBokehCircles']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('sbk', 'StyleBokehCircles_bg', width, height,
+                           _hexc(p.get('bgColor'), '#111827'), 0, x, y)[:-1]
+        raw = p.get('colors') or [[59, 130, 246], [139, 92, 246], [20, 184, 166]]
+        cols = [_rgb_to_hex(t) for t in raw] or ['#3b82f6']
+        for i in range(9):
+            sz = 80 + (i % 3) * 40
+            parts += _ae_ellipse(f'sbk{i}', f'StyleBokehCircles_c_{i}', sz,
+                                 cols[i % len(cols)], (i * 173) % width, (i * 251) % height)[:-1]
+        parts.append('')
+
+    if 'StyleChip' in parsed_components:
+        p = parsed_components['StyleChip']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('schp', 'StyleChip', int(p.get('width') or 220), 80,
+                           _hexc(p.get('bgColor'), '#3b82f6'), int(p.get('borderRadius') or 40), x, y)[:-1]
+        parts += _ae_text('schpT', 'StyleChip_text', p.get('text') or 'Chip',
+                          int(p.get('fontSize') or 34), _hexc(p.get('textColor'), '#ffffff'), x, y)
+
+    if 'StyleComparisonChart' in parsed_components:
+        p = parsed_components['StyleComparisonChart']
+        x, y = p.get('x', 540), p.get('y', 960)
+        bv = float(p.get('beforeValue') or 0)
+        av = float(p.get('afterValue') or 0)
+        parts += _ae_bars('scc', 'StyleComparisonChart', [bv, av],
+                          [_hexc(p.get('beforeColor'), '#ef4444'), _hexc(p.get('afterColor'), '#4361ee')],
+                          x, y + 40, width=600, height=480)
+        if p.get('showTitle'):
+            parts += _ae_text('sccT', 'StyleComparisonChart_title', p.get('title') or 'Comparison',
+                              52, '#ffffff', x, y - 340)
+
+    if 'StyleGridPulse' in parsed_components:
+        p = parsed_components['StyleGridPulse']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('sgp', 'StyleGridPulse_bg', width, height,
+                           _hexc(p.get('bgColor'), '#111827'), 0, x, y)[:-1]
+        dc = _hexc(p.get('dotColor'), '#3b82f6')
+        cols = min(6, int(p.get('cols') or 12))
+        rows = min(4, int(p.get('rows') or 8))
+        cell = 150
+        ox = x - (cols - 1) * cell / 2
+        oy = y - (rows - 1) * cell / 2
+        k = 0
+        for r in range(rows):
+            for cc in range(cols):
+                parts += _ae_ellipse(f'sgp{k}', f'StyleGridPulse_d_{k}', int(p.get('dotSize') or 20),
+                                     dc, ox + cc * cell, oy + r * cell)[:-1]
+                k += 1
+        parts.append('')
+
+    if 'StyleLiquidWave' in parsed_components:
+        p = parsed_components['StyleLiquidWave']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('slw', 'StyleLiquidWave_bg', width, height,
+                           _hexc(p.get('bgColor'), '#111827'), 0, x, y)[:-1]
+        parts += _ae_rrect('slwW', 'StyleLiquidWave_wave', width, int(height * 0.4),
+                           _hexc(p.get('waveColorEnd'), '#3b82f6'), 40, x, y + height * 0.3)
+
+    if 'StyleDonutChart' in parsed_components:
+        p = parsed_components['StyleDonutChart']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_ellipse('sdn', 'StyleDonutChart_ring', 460, '#3b82f6', x, y)[:-1]
+        parts += _ae_ellipse('sdnI', 'StyleDonutChart_hole', 300, '#0f172a', x, y)[:-1]
+        parts.append('')
+        cv = p.get('centerValue')
+        if cv is not None:
+            center = '%s%s' % (int(cv), p.get('centerSuffix') or '')
+        else:
+            center = p.get('centerLabel') or '75%'
+        parts += _ae_text('sdnT', 'StyleDonutChart_center', center, 90, '#ffffff', x, y)
+
+    if 'StyleMultiBar' in parsed_components:
+        p = parsed_components['StyleMultiBar']
+        x, y = p.get('x', 540), p.get('y', 960)
+        vals, cols = _norm_values(p.get('data'))
+        if not vals:
+            vals, cols = [80, 65, 90, 50], [None] * 4
+        parts += _ae_rrect('smb', 'StyleMultiBar_card', 760, 560, '#1e293b', 24, x, y)[:-1]
+        n = len(vals)
+        bh, gap = 50, 40
+        oy = y - (n - 1) * (bh + gap) / 2
+        for i, v in enumerate(vals):
+            w = max(40, (float(v) / 100.0) * 640)
+            col = _hexc(cols[i], '#3b82f6') if i < len(cols) and cols[i] else '#3b82f6'
+            parts += _ae_rrect(f'smb{i}', f'StyleMultiBar_bar_{i}', int(w), bh, col, 8,
+                               x - 320 + w / 2, oy + i * (bh + gap))[:-1]
+        parts.append('')
+
+    if 'StyleSimulatedHover' in parsed_components:
+        p = parsed_components['StyleSimulatedHover']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('shv', 'StyleSimulatedHover', int(p.get('width') or 420), 130,
+                           _hexc(p.get('bgColor'), '#2C3E50'), int(p.get('borderRadius') or 16), x, y)[:-1]
+        parts += _ae_text('shvT', 'StyleSimulatedHover_text', p.get('text') or 'Click Here',
+                          int(p.get('fontSize') or 44), _hexc(p.get('textColor'), '#FFFFFF'), x, y)
+        hf = float(p.get('hoverFrame') or 60) / fps
+        sc = 100 + float(p.get('hoverScale') or 0.05) * 100
+        parts += [
+            'var shvSc = shv.property("ADBE Transform Group").property("ADBE Scale");',
+            'shvSc.setValueAtTime(0, [100, 100]);',
+            f'shvSc.setValueAtTime({hf:.2f}, [100, 100]);',
+            f'shvSc.setValueAtTime({hf + 0.5:.2f}, [{sc:.1f}, {sc:.1f}]);',
+            '',
+        ]
+
+    if 'StyleBarChart' in parsed_components:
+        p = parsed_components['StyleBarChart']
+        x, y = p.get('x', 540), p.get('y', 960)
+        vals, cols = _norm_values(p.get('data'))
+        if not vals:
+            vals, cols = [40, 70, 55, 90, 65], [None] * 5
+        parts += _ae_bars('sbc', 'StyleBarChart', vals, cols, x, y, width=760, height=600)
+
+    if 'StylePieChart' in parsed_components:
+        p = parsed_components['StylePieChart']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_ellipse('spc', 'StylePieChart', 460, '#3b82f6', x, y)[:-1]
+        if (p.get('variant') or 'donut') == 'donut':
+            parts += _ae_ellipse('spcI', 'StylePieChart_hole', 240, '#0f172a', x, y)[:-1]
+        parts.append('')
+        if p.get('showTitle'):
+            parts += _ae_text('spcT', 'StylePieChart_title', p.get('title') or 'Pie', 52, '#ffffff', x, y - 320)
+
+    if 'StylePulseText' in parsed_components:
+        p = parsed_components['StylePulseText']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_text('spt', 'StylePulseText', p.get('text') or 'PULSE',
+                          int(p.get('fontSize') or 120), _hexc(p.get('textColor'), '#ffffff'), x, y)
+        cd = max(1.0, float(p.get('cycleDuration') or 30)) / fps
+        ps = 100 * float(p.get('pulseScale') or 1.2)
+        parts += [
+            'var sptSc = spt.property("ADBE Transform Group").property("ADBE Scale");',
+            'sptSc.setValueAtTime(0, [100, 100]);',
+            f'sptSc.setValueAtTime({cd / 2:.2f}, [{ps:.1f}, {ps:.1f}]);',
+            f'sptSc.setValueAtTime({cd:.2f}, [100, 100]);',
+            '',
+        ]
+
+    if 'StyleProgressSteps' in parsed_components:
+        p = parsed_components['StyleProgressSteps']
+        x, y = p.get('x', 540), p.get('y', 960)
+        steps = _split(p.get('steps')) or ['Step 1', 'Step 2', 'Step 3']
+        n = len(steps)
+        cell = min(260, int(1000 / max(1, n)))
+        ox = x - (n - 1) * cell / 2
+        ac = _hexc(p.get('activeColor'), '#3b82f6')
+        for i, s in enumerate(steps):
+            cx = ox + i * cell
+            parts += _ae_ellipse(f'sps{i}', f'StyleProgressSteps_c_{i}', 80, ac, cx, y)[:-1]
+            parts += _ae_text(f'sps{i}T', f'StyleProgressSteps_l_{i}', s, 32, '#ffffff', cx, y + 90)
+        parts.append('')
+
+    if 'StyleSpringText' in parsed_components:
+        p = parsed_components['StyleSpringText']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_text('sst', 'StyleSpringText', p.get('text') or text or 'Hello',
+                          int(p.get('fontSize') or 100), _hexc(p.get('textColor'), '#ffffff'), x, y)
+        parts += [
+            'var sstOp = sst.property("ADBE Transform Group").property("ADBE Opacity");',
+            'sstOp.setValueAtTime(0, 0);',
+            'sstOp.setValueAtTime(0.5, 100);',
+            '',
+        ]
+
+    if 'StyleLineChart' in parsed_components:
+        p = parsed_components['StyleLineChart']
+        x, y = p.get('x', 540), p.get('y', 960)
+        vals, _cols = _norm_values(p.get('data'))
+        if not vals:
+            vals = [20, 45, 35, 70, 60, 90]
+        lc = _hexc(p.get('lineColor'), '#00FFAB')
+        n = len(vals)
+        mx = max(vals + [1])
+        cw, chh = 760, 500
+        ox = x - cw / 2
+        base = y + chh / 2
+        for i, v in enumerate(vals):
+            px = ox + (cw / max(1, n - 1)) * i
+            py = base - (float(v) / mx) * chh
+            parts += _ae_ellipse(f'slc{i}', f'StyleLineChart_pt_{i}', 18, lc, px, py)[:-1]
+        parts.append('')
+        if p.get('showTitle'):
+            parts += _ae_text('slcT', 'StyleLineChart_title', p.get('title') or 'Trend',
+                              48, '#ffffff', x, y - chh / 2 - 60)
+
+    if 'StyleRadarChart' in parsed_components:
+        p = parsed_components['StyleRadarChart']
+        x, y = p.get('x', 540), p.get('y', 960)
+        sz = int(p.get('size') or 240) * 2
+        parts += _ae_ellipse('srd', 'StyleRadarChart_grid', sz, '#1e293b', x, y)[:-1]
+        parts += _ae_ellipse('srdF', 'StyleRadarChart_data', int(sz * 0.6),
+                             _hexc(p.get('lineColor'), '#00FFAB'), x, y)[:-1]
+        parts.append('')
+
+    if 'StyleRotatingCarousel' in parsed_components:
+        p = parsed_components['StyleRotatingCarousel']
+        x, y = p.get('x', 540), p.get('y', 960)
+        cards = _split(p.get('cards')) or ['Card 1', 'Card 2', 'Card 3']
+        cw = int(p.get('cardWidth') or 300)
+        ch = int(p.get('cardHeight') or 360)
+        n = min(5, len(cards))
+        spread = min(360, int(1000 / max(1, n)))
+        ox = x - (n - 1) * spread / 2 if n > 1 else x
+        for i in range(n):
+            cx = ox + i * spread
+            parts += _ae_rrect(f'src{i}', f'StyleRotatingCarousel_card_{i}', cw, ch,
+                               _hexc(p.get('cardGradientStart'), '#1f2937'), 20, cx, y)[:-1]
+            parts += _ae_text(f'src{i}T', f'StyleRotatingCarousel_t_{i}', cards[i], 40, '#ffffff', cx, y)
+        parts.append('')
+        if p.get('showTitle'):
+            parts += _ae_text('srcTitle', 'StyleRotatingCarousel_title', p.get('title') or 'Features',
+                              56, '#ffffff', x, y - ch / 2 - 80)
+
+    if 'StyleBarRace' in parsed_components:
+        p = parsed_components['StyleBarRace']
+        x, y = p.get('x', 540), p.get('y', 960)
+        vals, cols = _norm_values(p.get('data'))
+        if not vals:
+            vals, cols = [90, 75, 60, 45], [None] * 4
+        mx = max(vals + [1])
+        n = len(vals)
+        bh = int(p.get('barHeight') or 32) * 2
+        gap = 40
+        oy = y - (n - 1) * (bh + gap) / 2
+        palette = ['#3b82f6', '#8b5cf6', '#06b6d4', '#ec4899']
+        for i, v in enumerate(vals):
+            w = max(40, (float(v) / mx) * 700)
+            col = _hexc(cols[i], palette[i % 4]) if i < len(cols) and cols[i] else palette[i % 4]
+            parts += _ae_rrect(f'sbr{i}', f'StyleBarRace_bar_{i}', int(w), bh, col, 8,
+                               x - 350 + w / 2, oy + i * (bh + gap))[:-1]
+        parts.append('')
+
+    if 'StyleNotificationStack' in parsed_components:
+        p = parsed_components['StyleNotificationStack']
+        x, y = p.get('x', 540), p.get('y', 960)
+        notifs = p.get('notifications')
+        items = _split(notifs) if notifs else ['New follower', 'New comment', 'New like']
+        cw = int(p.get('cardWidth') or 700)
+        chh, gap = 130, 40
+        n = len(items)
+        oy = y - (n - 1) * (chh + gap) / 2
+        for i, it in enumerate(items):
+            parts += _ae_rrect(f'sns{i}', f'StyleNotificationStack_card_{i}', cw, chh, '#1e293b', 20,
+                               x, oy + i * (chh + gap))[:-1]
+            parts += _ae_text(f'sns{i}T', f'StyleNotificationStack_t_{i}', str(it), 36, '#ffffff',
+                              x, oy + i * (chh + gap))
+        parts.append('')
+        if p.get('showBadge'):
+            parts += _ae_ellipse('snsB', 'StyleNotificationStack_badge', 70,
+                                 _hexc(p.get('badgeColor'), '#ef4444'), x + cw / 2 - 40, oy - 40)[:-1]
+            parts += _ae_text('snsBT', 'StyleNotificationStack_badge_n', str(int(p.get('badgeCount') or 3)),
+                              36, '#ffffff', x + cw / 2 - 40, oy - 40)
+            parts.append('')
+
+    if 'StyleParallaxPan' in parsed_components:
+        p = parsed_components['StyleParallaxPan']
+        x, y = p.get('x', 540), p.get('y', 960)
+        fw = int(p.get('width') or width)
+        fh = int(p.get('height') or height)
+        parts += _ae_rrect('spp', 'StyleParallaxPan_frame', fw, fh,
+                           _hexc(p.get('color1'), '#0f172a'), 0, x, y)[:-1]
+        sc = float(p.get('scale') or 1.2) * 100
+        dur = max(0.5, float(p.get('duration') or 150) / fps)
+        d = (p.get('direction') or 'left-right')
+        pan = 120
+        if 'right' in d and 'left' in d:
+            dx0, dx1, dy0, dy1 = x - pan, x + pan, y, y
+        elif d in ('up-down', 'top-bottom'):
+            dx0, dx1, dy0, dy1 = x, x, y - pan, y + pan
+        else:
+            dx0, dx1, dy0, dy1 = x + pan, x - pan, y, y
+        parts += [
+            'var sppSc = spp.property("ADBE Transform Group").property("ADBE Scale");',
+            f'sppSc.setValue([{sc:.1f}, {sc:.1f}]);',
+            'var sppPos = spp.property("ADBE Transform Group").property("ADBE Position");',
+            f'sppPos.setValueAtTime(0, [{dx0:.1f}, {dy0:.1f}]);',
+            f'sppPos.setValueAtTime({dur:.2f}, [{dx1:.1f}, {dy1:.1f}]);',
+            '',
+        ]
+
+    # ========================================================================
+    # COMPONENTES DE TEXTO estilo "remocn" (fade-up, mask slide, tracking,
+    # shimmer, slot roll, marquee 3D). Aproximaciones nativas en AE.
+    # ========================================================================
+
+    if 'StaggeredFadeUp' in parsed_components:
+        p = parsed_components['StaggeredFadeUp']
+        x, y = p.get('x', 540), p.get('y', 960)
+        txt = p.get('text') or text or 'Ship faster'
+        parts += _ae_text('sfu', 'StaggeredFadeUp', txt,
+                          int(p.get('fontSize') or 70), _hexc(p.get('textColor'), '#ffffff'), x, y)
+        parts += [
+            'var sfuOp = sfu.property("ADBE Transform Group").property("ADBE Opacity");',
+            'sfuOp.setValueAtTime(0, 0);',
+            'sfuOp.setValueAtTime(0.6, 100);',
+            '',
+        ]
+
+    if 'MaskedSlideReveal' in parsed_components:
+        p = parsed_components['MaskedSlideReveal']
+        x, y = p.get('x', 540), p.get('y', 960)
+        txt = p.get('text') or text or 'Reveal'
+        parts += _ae_text('msr', 'MaskedSlideReveal', txt,
+                          int(p.get('fontSize') or 70), _hexc(p.get('textColor'), '#ffffff'), x, y)
+        parts += [
+            'var msrPos = msr.property("ADBE Transform Group").property("ADBE Position");',
+            f'msrPos.setValueAtTime(0, [{x}, {y + 60}]);',
+            f'msrPos.setValueAtTime(0.5, [{x}, {y}]);',
+            'var msrOp = msr.property("ADBE Transform Group").property("ADBE Opacity");',
+            'msrOp.setValueAtTime(0, 0);',
+            'msrOp.setValueAtTime(0.4, 100);',
+            '',
+        ]
+
+    if 'TrackingIn' in parsed_components:
+        p = parsed_components['TrackingIn']
+        x, y = p.get('x', 540), p.get('y', 960)
+        txt = p.get('text') or text or 'tracking in'
+        parts += _ae_text('trk', 'TrackingIn', txt,
+                          int(p.get('fontSize') or 90), _hexc(p.get('textColor'), '#ffffff'), x, y)
+        parts += [
+            'var trkSc = trk.property("ADBE Transform Group").property("ADBE Scale");',
+            'trkSc.setValueAtTime(0, [130, 130]);',
+            'trkSc.setValueAtTime(1.0, [100, 100]);',
+            'var trkOp = trk.property("ADBE Transform Group").property("ADBE Opacity");',
+            'trkOp.setValueAtTime(0, 0);',
+            'trkOp.setValueAtTime(0.6, 100);',
+            '',
+        ]
+
+    if 'ShimmerSweep' in parsed_components:
+        p = parsed_components['ShimmerSweep']
+        x, y = p.get('x', 540), p.get('y', 960)
+        txt = p.get('text') or text or 'Generating'
+        parts += _ae_text('shm', 'ShimmerSweep', txt,
+                          int(p.get('fontSize') or 90), _hexc(p.get('shineColor'), '#fafafa'), x, y)
+        parts += [
+            'var shmOp = shm.property("ADBE Transform Group").property("ADBE Opacity");',
+            'shmOp.setValueAtTime(0, 55);',
+            'shmOp.setValueAtTime(1.0, 100);',
+            'shmOp.setValueAtTime(2.0, 55);',
+            '',
+        ]
+
+    if 'SlotMachineRoll' in parsed_components:
+        p = parsed_components['SlotMachineRoll']
+        x, y = p.get('x', 540), p.get('y', 960)
+        val = str(p.get('to') or text or '$199')
+        parts += _ae_text('slm', 'SlotMachineRoll', val,
+                          int(p.get('fontSize') or 110), _hexc(p.get('textColor'), '#ffffff'), x, y)
+        parts += [
+            'var slmPos = slm.property("ADBE Transform Group").property("ADBE Position");',
+            f'slmPos.setValueAtTime(0, [{x}, {y - 80}]);',
+            f'slmPos.setValueAtTime(0.7, [{x}, {y}]);',
+            '',
+        ]
+
+    if 'PerspectiveMarquee' in parsed_components:
+        p = parsed_components['PerspectiveMarquee']
+        x, y = p.get('x', 540), p.get('y', 960)
+        txt = (p.get('text') or 'ship · build · animate · ') * 3
+        parts += _ae_text('pmq', 'PerspectiveMarquee', txt,
+                          int(p.get('fontSize') or 80), _hexc(p.get('textColor'), '#fafafa'), x, y)
+        ppf = float(p.get('pixelsPerFrame') or 2)
+        travel = ppf * float(duration) * fps
+        parts += [
+            'var pmqPos = pmq.property("ADBE Transform Group").property("ADBE Position");',
+            f'pmqPos.setValueAtTime(0, [{x + travel / 2:.1f}, {y}]);',
+            f'pmqPos.setValueAtTime({max(0.1, float(duration)):.2f}, [{x - travel / 2:.1f}, {y}]);',
+            '',
+        ]
+
+    # ========================================================================
+    # FONDOS / TARJETA estilo "remocn": mesh gradient, rejilla, spotlight card.
+    # ========================================================================
+
+    if 'MeshGradientBg' in parsed_components:
+        p = parsed_components['MeshGradientBg']
+        cx, cy = width / 2, height / 2
+        parts += _ae_rrect('mgb', 'MeshGradientBg_bg', width, height,
+                           _hexc(p.get('background'), '#0a0a0a'), 0, cx, cy)[:-1]
+        cols = [_hexc(p.get('color1'), '#6d28d9'), _hexc(p.get('color2'), '#2563eb'),
+                _hexc(p.get('color3'), '#db2777'), _hexc(p.get('color4'), '#0891b2')]
+        spots = [(cx - width * 0.25, cy - height * 0.2), (cx + width * 0.25, cy - height * 0.15),
+                 (cx - width * 0.2, cy + height * 0.22), (cx + width * 0.22, cy + height * 0.2)]
+        for i, (sx, sy) in enumerate(spots):
+            parts += _ae_ellipse(f'mgb{i}', f'MeshGradientBg_blob_{i}', int(min(width, height) * 0.6),
+                                 cols[i], sx, sy)[:-1]
+        parts.append('')
+
+    if 'DynamicGrid' in parsed_components:
+        p = parsed_components['DynamicGrid']
+        cx, cy = width / 2, height / 2
+        parts += _ae_rrect('dyg', 'DynamicGrid_bg', width, height,
+                           _hexc(p.get('background'), '#0a0a0a'), 0, cx, cy)[:-1]
+        line = _hexc(p.get('lineColor'), '#27272a')
+        lw = max(1, int(p.get('lineWidth') or 1)) * 2
+        cell = max(40, int(p.get('cellSize') or 40) * 3)
+        k = 0
+        gx = cell
+        while gx < width:
+            parts += _ae_rrect(f'dygV{k}', f'DynamicGrid_v_{k}', lw, height, line, 0, gx, cy)[:-1]
+            gx += cell
+            k += 1
+        gy = cell
+        k = 0
+        while gy < height:
+            parts += _ae_rrect(f'dygH{k}', f'DynamicGrid_h_{k}', width, lw, line, 0, cx, gy)[:-1]
+            gy += cell
+            k += 1
+        parts.append('')
+
+    if 'SpotlightCard' in parsed_components:
+        p = parsed_components['SpotlightCard']
+        x, y = p.get('x', 540), p.get('y', 960)
+        cw = int(p.get('cardWidth') or 520)
+        ch = int(p.get('cardHeight') or 320)
+        parts += _ae_rrect('spc', 'SpotlightCard', cw, ch,
+                           _hexc(p.get('cardColor'), '#0a0a0a'), int(p.get('borderRadius') or 24), x, y)[:-1]
+        parts += _ae_ellipse('spcG', 'SpotlightCard_glow', int(min(cw, ch) * 0.7),
+                             _hexc(p.get('glowColor'), '#ffffff'), x - cw * 0.2, y - ch * 0.2)[:-1]
+        parts += _ae_text('spcT', 'SpotlightCard_title', p.get('title') or 'Spotlight Card',
+                          int(p.get('fontSize') or 52), _hexc(p.get('textColor'), '#fafafa'), x, y - ch * 0.12)
+        if p.get('body'):
+            parts += _ae_text('spcB', 'SpotlightCard_body', p['body'], 28,
+                              _hexc(p.get('mutedColor'), '#71717a'), x, y + ch * 0.18)
+
+    if 'DataFlowPipes' in parsed_components:
+        p = parsed_components['DataFlowPipes']
+        x, y = p.get('x', 540), p.get('y', 960)
+        labels = _split(p.get('nodes')) or ['Source', 'Process', 'Store', 'Output']
+        node_col = _hexc(p.get('nodeColor'), '#0a0a0a')
+        txt_col = _hexc(p.get('textColor'), '#fafafa')
+        pipe_col = _hexc(p.get('pipeColor'), '#1f1f23')
+        # Disposición: cadena horizontal de nodos con tuberías entre ellos.
+        n = min(4, len(labels))
+        gap = 360
+        ox = x - (n - 1) * gap / 2 if n > 1 else x
+        for i in range(n):
+            nx = ox + i * gap
+            if i < n - 1:
+                parts += _ae_rrect(f'dfp_pipe{i}', f'DataFlowPipes_pipe_{i}', gap - 200, 14, pipe_col, 7,
+                                   nx + gap / 2, y)[:-1]
+            parts += _ae_rrect(f'dfp{i}', f'DataFlowPipes_node_{i}', 200, 80, node_col, 16, nx, y)[:-1]
+            parts += _ae_text(f'dfp{i}T', f'DataFlowPipes_label_{i}', labels[i], 30, txt_col, nx, y)
+        parts.append('')
+
+    if 'CodeDiffWipe' in parsed_components:
+        p = parsed_components['CodeDiffWipe']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('cdw', 'CodeDiffWipe_window', 900, 520,
+                           _hexc(p.get('background'), '#0a0a0a'), 16, x, y)[:-1]
+        before = str(p.get('before') or 'function sum(a, b) {')
+        after = str(p.get('after') or 'function sum(...nums) {')
+        parts += _ae_text('cdwB', 'CodeDiffWipe_before', '- ' + before.split('\n')[0], 30, '#fca5a5', x, y - 60)
+        parts += _ae_text('cdwA', 'CodeDiffWipe_after', '+ ' + after.split('\n')[0], 30, '#86efac', x, y + 20)
+        # Barra/handle del barrido animada horizontalmente.
+        parts += _ae_rrect('cdwH', 'CodeDiffWipe_handle', 6, 520, _hexc(p.get('accent'), '#0ea5e9'), 0, x - 400, y)[:-1]
+        parts += [
+            'var cdwHPos = cdwH.property("ADBE Transform Group").property("ADBE Position");',
+            f'cdwHPos.setValueAtTime({float(p.get("transitionStart") or 20) / fps:.2f}, [{x - 400}, {y}]);',
+            f'cdwHPos.setValueAtTime({(float(p.get("transitionStart") or 20) + float(p.get("transitionDuration") or 60)) / fps:.2f}, [{x + 400}, {y}]);',
+            '',
+        ]
+
+    if 'DragAndDropFlow' in parsed_components:
+        p = parsed_components['DragAndDropFlow']
+        x, y = p.get('x', 540), p.get('y', 960)
+        accent = _hexc(p.get('accent'), '#0ea5e9')
+        # Dropzone (marco) + tarjeta de archivo que entra animada.
+        parts += _ae_rrect('ddf', 'DragAndDropFlow_zone', 460, 460,
+                           '#111827', 24, x, y)[:-1]
+        parts += _ae_text('ddfL', 'DragAndDropFlow_label', p.get('dropzoneLabel') or 'Drop file to upload',
+                          32, _hexc(p.get('mutedColor'), '#71717a'), x, y - 140)
+        parts += _ae_rrect('ddfC', 'DragAndDropFlow_card', 320, 110,
+                           _hexc(p.get('cardColor'), '#18181b'), 16, x, y)[:-1]
+        parts += _ae_text('ddfCT', 'DragAndDropFlow_file', p.get('fileName') or 'design.fig',
+                          30, _hexc(p.get('textColor'), '#fafafa'), x, y)
+        parts += [
+            'var ddfCPos = ddfC.property("ADBE Transform Group").property("ADBE Position");',
+            f'ddfCPos.setValueAtTime(0, [{x - 280}, {y - 320}]);',
+            f'ddfCPos.setValueAtTime(1.3, [{x}, {y}]);',
+            'var ddfCTPos = ddfCT.property("ADBE Transform Group").property("ADBE Position");',
+            f'ddfCTPos.setValueAtTime(0, [{x - 280}, {y - 320}]);',
+            f'ddfCTPos.setValueAtTime(1.3, [{x}, {y}]);',
+            '',
+        ]
+        # Barra de progreso (relleno) que crece.
+        parts += _ae_rrect('ddfP', 'DragAndDropFlow_progress', 300, 18, accent, 9, x, y + 150)[:-1]
+        parts += [
+            'var ddfPSc = ddfP.property("ADBE Transform Group").property("ADBE Scale");',
+            'ddfPSc.setValueAtTime(1.7, [0, 100]);',
+            'ddfPSc.setValueAtTime(3.7, [100, 100]);',
+            '',
+        ]
+
+    # ========================================================================
+    # MOCKUPS DE IA (chat / CLI): ClaudeChat, ChatGpt, ClaudeCode, OpenCode.
+    # ========================================================================
+
+    if 'ClaudeChat' in parsed_components:
+        p = parsed_components['ClaudeChat']
+        x, y = p.get('x', 540), p.get('y', 960)
+        accent = _hexc(p.get('accentColor'), '#D97757')
+        parts += _ae_rrect('clc', 'ClaudeChat_card', 900, 700,
+                           _hexc(p.get('bgColor'), '#1f1e1d'), 28, x, y)[:-1]
+        parts += _ae_text('clcG', 'ClaudeChat_greeting', p.get('greeting') or 'Hello',
+                          56, _hexc(p.get('textColor'), '#f5f4ef'), x, y - 120)
+        parts += _ae_rrect('clcI', 'ClaudeChat_input', 760, 200, '#2b2a28', 18, x, y + 110)[:-1]
+        parts += _ae_text('clcP', 'ClaudeChat_prompt', p.get('prompt') or text or '...',
+                          30, _hexc(p.get('textColor'), '#f5f4ef'), x, y + 70)
+        parts += _ae_text('clcM', 'ClaudeChat_model',
+                          '%s  %s' % (p.get('modelName') or 'Opus', p.get('modelTier') or ''),
+                          26, accent, x + 220, y + 170)
+        parts.append('')
+
+    if 'ChatGpt' in parsed_components:
+        p = parsed_components['ChatGpt']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('cgp', 'ChatGpt_card', 900, 660,
+                           _hexc(p.get('bgColor'), '#212121'), 28, x, y)[:-1]
+        parts += _ae_text('cgpG', 'ChatGpt_greeting', p.get('greeting') or 'Ask anything',
+                          50, _hexc(p.get('textColor'), '#ececec'), x, y - 110)
+        parts += _ae_rrect('cgpI', 'ChatGpt_input', 760, 130,
+                           '#303030', 60, x, y + 120)[:-1]
+        parts += _ae_text('cgpP', 'ChatGpt_prompt', p.get('prompt') or text or '...',
+                          30, _hexc(p.get('textColor'), '#ececec'), x - 40, y + 120)
+        parts += _ae_ellipse('cgpB', 'ChatGpt_send', 70, _hexc(p.get('accentColor'), '#2F6FED'),
+                             x + 300, y + 120)[:-1]
+        parts.append('')
+
+    if 'ClaudeCode' in parsed_components:
+        p = parsed_components['ClaudeCode']
+        x, y = p.get('x', 540), p.get('y', 960)
+        accent = _hexc(p.get('accentColor'), '#D97757')
+        txt_col = _hexc(p.get('textColor'), '#e8e6e1')
+        muted = _hexc(p.get('mutedColor'), '#8a8780')
+        parts += _ae_rrect('ccd', 'ClaudeCode_window', 920, 640,
+                           _hexc(p.get('bgColor'), '#1a1a18'), 20, x, y)[:-1]
+        parts += _ae_text('ccdT', 'ClaudeCode_title', p.get('title') or 'Claude Code',
+                          26, muted, x, y - 270)
+        parts += _ae_rrect('ccdW', 'ClaudeCode_welcome', 820, 230, '#1a1a18', 14, x, y - 80)[:-1]
+        parts += _ae_text('ccdU', 'ClaudeCode_user', '* Welcome back, %s' % (p.get('userName') or 'User'),
+                          28, accent, x, y - 150)
+        parts += _ae_text('ccdM', 'ClaudeCode_model', 'model: %s' % (p.get('model') or ''),
+                          24, txt_col, x, y - 90)
+        parts += _ae_text('ccdC', 'ClaudeCode_cwd', 'cwd: %s' % (p.get('cwd') or ''),
+                          24, muted, x, y - 40)
+        parts += _ae_rrect('ccdI', 'ClaudeCode_input', 820, 120, '#1a1a18', 14, x, y + 150)[:-1]
+        parts += _ae_text('ccdP', 'ClaudeCode_prompt', '> %s' % (p.get('prompt') or text or '...'),
+                          26, txt_col, x, y + 150)
+        parts.append('')
+
+    if 'OpenCode' in parsed_components:
+        p = parsed_components['OpenCode']
+        x, y = p.get('x', 540), p.get('y', 960)
+        accent = _hexc(p.get('accentColor'), '#2B7FFF')
+        txt_col = _hexc(p.get('textColor'), '#e6e6e6')
+        parts += _ae_rrect('ocd', 'OpenCode_window', 920, 560,
+                           _hexc(p.get('bgColor'), '#0d0d0f'), 20, x, y)[:-1]
+        parts += _ae_text('ocdL', 'OpenCode_logo', 'opencode', 34, txt_col, x - 280, y - 200)
+        parts += _ae_rrect('ocdI', 'OpenCode_input', 820, 200, '#0d0d0f', 14, x, y - 20)[:-1]
+        parts += _ae_text('ocdQ', 'OpenCode_query', '> %s' % (p.get('query') or text or '...'),
+                          28, txt_col, x, y - 20)
+        parts += _ae_text('ocdS', 'OpenCode_status',
+                          '%s   %s   %s' % (p.get('agentName') or 'Build',
+                                            p.get('modelName') or '', p.get('provider') or ''),
+                          24, accent, x, y + 170)
+        parts.append('')
+
+    # ========================================================================
+    # SOCIAL / VFX / DIAGRAMA: GitHubStars, XFollowCard, XFollowersOverview,
+    # Confetti, EcosystemConstellation, InfiniteBentoPan.
+    # ========================================================================
+
+    if 'GitHubStars' in parsed_components:
+        p = parsed_components['GitHubStars']
+        x, y = p.get('x', 540), p.get('y', 960)
+        dark = (p.get('theme') or 'light') == 'dark'
+        bg = _hexc(p.get('bgColor'), '#0d1117' if dark else '#ffffff')
+        fg = _hexc(p.get('textColor'), '#e6edf3' if dark else '#1f2328')
+        stars = int(p.get('totalStars') or 0)
+        parts += _ae_rrect('ghs', 'GitHubStars_card', 560, 200, bg, 20, x, y)[:-1]
+        parts += _ae_text('ghsN', 'GitHubStars_count', '* %s' % f'{stars:,}',
+                          64, fg, x, y - 20)
+        parts += _ae_text('ghsR', 'GitHubStars_repo', p.get('repo') or 'repo', 32,
+                          _hexc(p.get('mutedColor'), '#8b949e' if dark else '#59636e'), x, y + 60)
+        parts.append('')
+
+    if 'XFollowCard' in parsed_components:
+        p = parsed_components['XFollowCard']
+        x, y = p.get('x', 540), p.get('y', 960)
+        cw = int(p.get('cardWidth') or 760)
+        bg = _hexc(p.get('bgColor'), '#000000')
+        fg = _hexc(p.get('textColor'), '#e7e9ea')
+        muted = _hexc(p.get('mutedColor'), '#71767b')
+        parts += _ae_rrect('xfc', 'XFollowCard', cw, 560, bg, 24, x, y)[:-1]
+        parts += _ae_rrect('xfcCov', 'XFollowCard_cover', cw, 150,
+                           _hexc(p.get('coverColor'), '#16202a'), 0, x, y - 205)[:-1]
+        parts += _ae_ellipse('xfcAv', 'XFollowCard_avatar', 150,
+                             _hexc(p.get('avatarColor'), '#1d9bf0'), x - cw / 2 + 110, y - 110)[:-1]
+        parts += _ae_text('xfcN', 'XFollowCard_name', p.get('name') or 'name', 48, fg, x, y + 20)
+        parts += _ae_text('xfcH', 'XFollowCard_handle', '@%s' % (p.get('handle') or 'handle'), 32, muted, x, y + 70)
+        if p.get('bio'):
+            parts += _ae_text('xfcB', 'XFollowCard_bio', p['bio'], 30, fg, x, y + 150)
+        parts.append('')
+
+    if 'XFollowersOverview' in parsed_components:
+        p = parsed_components['XFollowersOverview']
+        x, y = p.get('x', 540), p.get('y', 960)
+        followers = int(p.get('totalFollowers') or 0)
+        parts += _ae_rrect('xfo', 'XFollowersOverview_card', 760, 280,
+                           _hexc(p.get('bgColor'), '#000000'), 24, x, y)[:-1]
+        parts += _ae_ellipse('xfoAv', 'XFollowersOverview_avatar', 120,
+                             _hexc(p.get('avatarColor'), '#1d9bf0'), x - 250, y)[:-1]
+        parts += _ae_text('xfoN', 'XFollowersOverview_count', f'{followers:,}',
+                          90, _hexc(p.get('textColor'), '#e7e9ea'), x + 60, y - 20)
+        parts += _ae_text('xfoL', 'XFollowersOverview_label', p.get('label') or 'Followers',
+                          30, _hexc(p.get('accentColor'), '#1d9bf0'), x + 60, y + 60)
+        parts.append('')
+
+    if 'Confetti' in parsed_components:
+        p = parsed_components['Confetti']
+        cx, cy = width / 2, height / 2
+        palette = _split(p.get('colors')) or ['#ff5e5e', '#ffd93d', '#6bcb77', '#4d96ff', '#c77dff']
+        sz = int(p.get('size') or 13)
+        for i in range(28):
+            r1 = (i * 73) % 100 / 100.0
+            r2 = (i * 137) % 100 / 100.0
+            px = cx + (r1 - 0.5) * width
+            py = cy + (r2 - 0.5) * height
+            parts += _ae_rrect(f'cnf{i}', f'Confetti_p_{i}', sz * 2, sz, palette[i % len(palette)], 2, px, py)[:-1]
+        parts.append('')
+
+    if 'EcosystemConstellation' in parsed_components:
+        p = parsed_components['EcosystemConstellation']
+        x, y = p.get('x', 540), p.get('y', 960)
+        n = min(12, int(p.get('satelliteCount') or 6))
+        ring = int(p.get('radius') or 320)
+        accent = _hexc(p.get('accentColor'), '#a855f7')
+        sat_col = _hexc(p.get('satelliteColor'), '#1e1b29')
+        labels = _split(p.get('labels'))
+        for i in range(n):
+            ang = (i / n) * 2 * math.pi
+            sx = x + math.cos(ang) * ring
+            sy = y + math.sin(ang) * ring
+            parts += _ae_ellipse(f'ecs{i}', f'EcosystemConstellation_sat_{i}', 110, sat_col, sx, sy)[:-1]
+            if i < len(labels):
+                parts += _ae_text(f'ecs{i}T', f'EcosystemConstellation_lab_{i}', labels[i], 28, '#ffffff', sx, sy)
+        parts += _ae_ellipse('ecsC', 'EcosystemConstellation_hub', 220,
+                             _hexc(p.get('centerColor'), '#a855f7'), x, y)[:-1]
+        parts += _ae_text('ecsCT', 'EcosystemConstellation_center', p.get('centerLabel') or 'V',
+                          90, _hexc(p.get('textColor'), '#ffffff'), x, y)
+        parts.append('')
+
+    if 'InfiniteBentoPan' in parsed_components:
+        p = parsed_components['InfiniteBentoPan']
+        cx, cy = width / 2, height / 2
+        parts += _ae_rrect('ibp', 'InfiniteBentoPan_bg', width, height,
+                           _hexc(p.get('bgColor'), '#0a0a0a'), 0, cx, cy)[:-1]
+        accent = _hexc(p.get('accentColor'), '#7c3aed')
+        card = _hexc(p.get('cardColor'), '#161616')
+        cell = int(p.get('cellSize') or 240)
+        gap = int(p.get('gap') or 24)
+        k = 0
+        gy = cell / 2
+        while gy < height:
+            gx = cell / 2
+            while gx < width:
+                col = accent if (gx + gy) % 5 < 1 else card
+                parts += _ae_rrect(f'ibp{k}', f'InfiniteBentoPan_c_{k}', cell - gap, cell - gap, col, 14, gx, gy)[:-1]
+                gx += cell
+                k += 1
+            gy += cell
+        parts.append('')
+
+    if 'StyleShakeCard' in parsed_components:
+        p = parsed_components['StyleShakeCard']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('shk', 'StyleShakeCard', 760, 420,
+                           _hexc(p.get('bgColor'), '#111827'), 24, x, y)[:-1]
+        parts += _ae_text('shkT', 'StyleShakeCard_title', p.get('title') or 'IMPACT',
+                          90, _hexc(p.get('textColor'), '#ffffff'), x, y - 30)
+        if p.get('subtitle'):
+            parts += _ae_text('shkS', 'StyleShakeCard_subtitle', p['subtitle'], 34,
+                              _hexc(p.get('subtitleColor'), '#93c5fd'), x, y + 60)
+        # Camera shake: wiggle expression on the card position.
+        amp = float(p.get('intensity') or 15)
+        parts += [
+            'var shkPos = shk.property("ADBE Transform Group").property("ADBE Position");',
+            f'shkPos.expression = "wiggle(8, {amp:.0f})";',
+            '',
+        ]
+
+    if 'StyleSpotlightReveal' in parsed_components:
+        p = parsed_components['StyleSpotlightReveal']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('spr', 'StyleSpotlightReveal', 760, 420,
+                           _hexc(p.get('bgColor'), '#0a0a0a'), 24, x, y)[:-1]
+        parts += _ae_ellipse('sprG', 'StyleSpotlightReveal_glow', 360,
+                             _hexc(p.get('glowColor'), '#8b5cf6'), x, y)[:-1]
+        parts += _ae_text('sprT', 'StyleSpotlightReveal_title', p.get('title') or 'REVEALED',
+                          90, _hexc(p.get('textColor'), '#ffffff'), x, y - 20)
+        if p.get('subtitle'):
+            parts += _ae_text('sprS', 'StyleSpotlightReveal_subtitle', p['subtitle'], 34,
+                              _hexc(p.get('subtitleColor'), '#c4b5fd'), x, y + 70)
+        parts += [
+            'var sprTOp = sprT.property("ADBE Transform Group").property("ADBE Opacity");',
+            'sprTOp.setValueAtTime(0, 0);',
+            'sprTOp.setValueAtTime(0.6, 100);',
+            '',
+        ]
+
+    if 'EndCard' in parsed_components:
+        p = parsed_components['EndCard']
+        x, y = p.get('x', 540), p.get('y', 960)
+        if p.get('showBackground', True):
+            parts += _ae_rrect('ecbg', 'EndCard_bg', width, height,
+                               _hexc(p.get('bgColor1'), '#111827'), 0, width / 2, height / 2)[:-1]
+        parts += _ae_rrect('ecp', 'EndCard_panel', 780, 620,
+                           _hexc(p.get('cardBg'), '#111827'), int(p.get('borderRadius') or 16), x, y)[:-1]
+        parts += _ae_text('ecpT', 'EndCard_title', p.get('title') or 'Thanks for Watching',
+                          64, _hexc(p.get('titleColor'), '#ffffff'), x, y - 160)
+        if p.get('showButton', True):
+            parts += _ae_rrect('ecb', 'EndCard_button', 460, 96,
+                               _hexc(p.get('buttonGradientStart'), '#4361ee'), 12, x, y - 10)[:-1]
+            parts += _ae_text('ecbT', 'EndCard_button_label', p.get('buttonLabel') or 'Subscribe for More',
+                              30, _hexc(p.get('buttonTextColor'), '#ffffff'), x, y - 10)
+        if p.get('showSocial', True):
+            cols = _split(p.get('socialColors')) or ['#3b82f6', '#4361ee', '#7209b7', '#9333ea']
+            ncol = len(cols)
+            gap = 90
+            ox = x - (ncol - 1) * gap / 2
+            for i, col in enumerate(cols):
+                parts += _ae_ellipse(f'ecs{i}', f'EndCard_social_{i}', 60, _hexc(col, '#3b82f6'),
+                                     ox + i * gap, y + 120)[:-1]
+            parts.append('')
+        if p.get('showStudio', True):
+            parts += _ae_text('ecst', 'EndCard_studio', p.get('studioName') or 'STUDIO CREATIVE',
+                              28, _hexc(p.get('studioColor'), '#94a3b8'), x, y + 220)
+
+    if 'StyleClockWipe' in parsed_components:
+        p = parsed_components['StyleClockWipe']
+        x, y = p.get('x', 540), p.get('y', 960)
+        parts += _ae_rrect('scw', 'StyleClockWipe_bg', width, height,
+                           _hexc(p.get('overlayBg'), '#1e3a5f'), 0, width / 2, height / 2)[:-1]
+        parts += _ae_ellipse('scwA', 'StyleClockWipe_disc', int(min(width, height) * 0.5),
+                             _hexc(p.get('accentColor'), '#a855f7'), x, y)[:-1]
+        parts += _ae_text('scwT', 'StyleClockWipe_title', p.get('title') or 'SCENE',
+                          80, _hexc(p.get('textColor'), '#ffffff'), x, y - 20)
+        if p.get('subtitle'):
+            parts += _ae_text('scwS', 'StyleClockWipe_subtitle', p['subtitle'], 32,
+                              _hexc(p.get('subtitleColor'), '#c084fc'), x, y + 70)
+        parts.append('')
+
+    if 'StyleLetterboxReveal' in parsed_components:
+        p = parsed_components['StyleLetterboxReveal']
+        x, y = p.get('x', 540), p.get('y', 960)
+        barh = max(20, int(height * float(p.get('maxBarHeight') or 15) / 100.0))
+        bar = _hexc(p.get('barColor'), '#000000')
+        parts += _ae_rrect('slbT', 'StyleLetterboxReveal_barTop', width, barh, bar, 0, width / 2, barh / 2)[:-1]
+        parts += _ae_rrect('slbB', 'StyleLetterboxReveal_barBottom', width, barh, bar, 0, width / 2, height - barh / 2)[:-1]
+        parts += _ae_text('slbTi', 'StyleLetterboxReveal_title', p.get('title') or 'CINEMATIC',
+                          90, _hexc(p.get('textColor'), '#ffffff'), x, y - 20)
+        if p.get('subtitle'):
+            parts += _ae_text('slbS', 'StyleLetterboxReveal_subtitle', p['subtitle'], 32,
+                              _hexc(p.get('subtitleColor'), '#93c5fd'), x, y + 70)
+        parts.append('')
+
+    if 'ChapterTitle' in parsed_components:
+        p = parsed_components['ChapterTitle']
+        x, y = p.get('x', 540), p.get('y', 960)
+        if p.get('showBackground', True):
+            parts += _ae_rrect('cht', 'ChapterTitle_bg', width, height,
+                               _hexc(p.get('bgColor'), '#111827'), 0, width / 2, height / 2)[:-1]
+        if p.get('showLabel', True):
+            parts += _ae_text('chtL', 'ChapterTitle_label', (p.get('label') or 'Chapter').upper(),
+                              30, _hexc(p.get('labelColor'), '#9ca3af'), x, y - 200)
+        parts += _ae_text('chtN', 'ChapterTitle_number', str(p.get('number') or '1'),
+                          int(p.get('fontSize') or 240), _hexc(p.get('numberColor'), '#ffffff'), x, y)
+        if p.get('showDivider', True):
+            dw = int(p.get('dividerWidth') or 120)
+            acc = _hexc(p.get('accentColor'), '#3b82f6')
+            parts += _ae_rrect('chtDl', 'ChapterTitle_divider_l', dw, 4, acc, 0, x - dw / 2 - 30, y + 170)[:-1]
+            parts += _ae_ellipse('chtDot', 'ChapterTitle_dot', 14, acc, x, y + 170)[:-1]
+            parts += _ae_rrect('chtDr', 'ChapterTitle_divider_r', dw, 4, acc, 0, x + dw / 2 + 30, y + 170)[:-1]
+        if p.get('showSubtitle', True):
+            parts += _ae_text('chtS', 'ChapterTitle_subtitle', p.get('subtitle') or 'The Beginning',
+                              44, _hexc(p.get('subtitleColor'), '#d1d5db'), x, y + 250)
+        parts.append('')
+
+    if 'QuoteCard' in parsed_components:
+        p = parsed_components['QuoteCard']
+        x, y = p.get('x', 540), p.get('y', 960)
+        if p.get('showBackground', True):
+            parts += _ae_rrect('qc', 'QuoteCard_bg', width, height,
+                               _hexc(p.get('bgColor'), '#111827'), 0, width / 2, height / 2)[:-1]
+        if p.get('showQuoteMark', True):
+            parts += _ae_text('qcM', 'QuoteCard_mark', p.get('quoteMark') or '"',
+                              160, _hexc(p.get('quoteMarkColor'), '#3b82f6'), x, y - 230)
+        parts += _ae_text('qcT', 'QuoteCard_quote', p.get('quote') or text or 'Quote',
+                          int(p.get('fontSize') or 56), _hexc(p.get('quoteColor'), '#ffffff'), x, y)
+        if p.get('showAuthor', True):
+            parts += _ae_text('qcA', 'QuoteCard_author', '— %s' % (p.get('author') or 'Author'),
+                              34, _hexc(p.get('authorColor'), '#9ca3af'), x, y + 200)
+        parts.append('')
+
+    if 'SubscribeReminder' in parsed_components:
+        p = parsed_components['SubscribeReminder']
+        corner = p.get('corner') or 'bottom-right'
+        m = 140
+        px = (width - m - 260) if 'right' in corner else (m + 260)
+        py = (height - m - 70) if 'bottom' in corner else (m + 70)
+        if p.get('showBackground', False):
+            parts += _ae_rrect('srm', 'SubscribeReminder_bg', width, height,
+                               _hexc(p.get('bgColor'), '#111827'), 0, width / 2, height / 2)[:-1]
+        parts += _ae_rrect('srmP', 'SubscribeReminder_pill', 460, 120,
+                           _hexc(p.get('pillColor'), '#0a0a0a'), 60, px, py)[:-1]
+        if p.get('showBell', True):
+            parts += _ae_ellipse('srmB', 'SubscribeReminder_bell', 70,
+                                 _hexc(p.get('bellColor'), '#3b82f6'), px - 150, py)[:-1]
+        parts += _ae_text('srmL', 'SubscribeReminder_label', p.get('label') or 'Subscribe',
+                          34, _hexc(p.get('labelColor'), '#ffffff'), px + 30, py - 18)
+        if p.get('showHandle', True):
+            parts += _ae_text('srmH', 'SubscribeReminder_handle', p.get('handle') or '@channel',
+                              24, _hexc(p.get('handleColor'), '#9ca3af'), px + 30, py + 26)
+        parts.append('')
 
     return '\n'.join(parts)

@@ -26,6 +26,7 @@ export interface StyleParticleExplosionProps extends UniversalProps {
   springMass?: number;
   rotationSpeed?: number;
   fadeDuration?: number;
+  style?: Record<string, unknown>;
 }
 
 export const StyleParticleExplosion: React.FC<StyleParticleExplosionProps> = ({

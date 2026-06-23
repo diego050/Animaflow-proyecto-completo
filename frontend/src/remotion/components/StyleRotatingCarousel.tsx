@@ -27,6 +27,7 @@ interface StyleRotatingCarouselProps extends UniversalProps {
   cardBorderColor?: string;
   iconGradientStart?: string;
   iconGradientEnd?: string;
+  style?: Record<string, unknown>;
 }
 
 export const StyleRotatingCarousel: React.FC<StyleRotatingCarouselProps> = ({

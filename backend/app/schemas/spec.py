@@ -274,12 +274,12 @@ class BaseAnimaLayer(BaseModel):
     colors: Optional[List[str]] = None
     entry: Optional[Literal[
         "fade-in", "slide-up", "slide-down", "slide-left", "slide-right", 
-        "scale-in", "spring-in", "zoom-in", "zoom-out", "rotate-in", "bounce-in"
+        "scale-in", "spring-in", "zoom-in", "zoom-out", "rotate-in", "bounce-in", "blur-in"
     ]] = None
     entryDelay: float = Field(default=0)
     exit: Optional[Literal[
         "fade-out", "slide-up-out", "slide-down-out", "slide-left-out", "slide-right-out",
-        "scale-out", "spring-out", "bounce-out"
+        "scale-out", "spring-out", "bounce-out", "blur-out"
     ]] = None
     exitDelay: float = Field(default=0)
     exitDuration: float = Field(default=0.5)
@@ -491,10 +491,18 @@ class AnimaComposerSpec(BaseModel):
         description=(
             "Transición hacia la siguiente escena: FadeThroughBlack | "
             "ZoomBlurTransition | WipeTransition | GlitchTransition | "
-            "LightLeakTransition | GradientOverlay. Vacío = automática."
+            "LightLeakTransition | GradientOverlay | ZoomThroughTransition | "
+            "SpatialPush | FrostedGlassWipe | GridPixelateWipe | "
+            "ChromaticAberrationWipe | WhipPanTransition | SlideWipe | "
+            "CrossDissolve | MorphTransition | IrisTransition. "
+            "Vacío = automática."
         ),
     )
     transition_color: Optional[str] = Field(default=None)
+    transition_params: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Parámetros atómicos opcionales de la transición (dirección, blur, etc.).",
+    )
     # DEPRECATED (v7): el frontend nunca renderiza out_transition. Ya no se
     # genera (eliminado del prompt y del schema de Gemini). Se mantiene el campo
     # opcional solo para no romper la validación de specs antiguos almacenados
@@ -531,12 +539,20 @@ class Spec(BaseModel):
         description=(
             "Transición hacia la siguiente escena: FadeThroughBlack | "
             "ZoomBlurTransition | WipeTransition | GlitchTransition | "
-            "LightLeakTransition | GradientOverlay. Vacío = automática."
+            "LightLeakTransition | GradientOverlay | ZoomThroughTransition | "
+            "SpatialPush | FrostedGlassWipe | GridPixelateWipe | "
+            "ChromaticAberrationWipe | WhipPanTransition | SlideWipe | "
+            "CrossDissolve | MorphTransition | IrisTransition. "
+            "Vacío = automática."
         ),
     )
     transition_color: Optional[str] = Field(
         default=None,
         description="Color del velo/barrido para Fade/Wipe/ZoomBlur (hex o rgba).",
+    )
+    transition_params: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Parámetros atómicos opcionales de la transición (dirección, blur, etc.).",
     )
 
     @model_validator(mode="after")
