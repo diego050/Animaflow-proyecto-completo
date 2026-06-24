@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@remotion/cli": "^4.0.459",
+    "@remotion/google-fonts": "^4.0.459",
     "@remotion/player": "^4.0.459",
     "@tailwindcss/postcss": "^4.3.0",
     "framer-motion": "^12.38.0",

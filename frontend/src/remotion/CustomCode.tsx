@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react';
 import { AbsoluteFill } from 'remotion';
+import { loadFont } from '@remotion/google-fonts/Inter';
 import { compileAnimation } from './compileAnimation';
+
+// Carga Inter para que preview (Player) y render (mp4) usen LA MISMA fuente.
+const { fontFamily } = loadFont();
 
 /**
  * Composición Remotion que renderiza un componente generado por IA (code-gen).
@@ -31,5 +35,10 @@ export const CustomCode: React.FC<{
       </AbsoluteFill>
     );
   }
-  return <Comp />;
+  // Fuente por defecto = Inter (el texto que no especifique fontFamily la hereda).
+  return (
+    <AbsoluteFill style={{ fontFamily }}>
+      <Comp />
+    </AbsoluteFill>
+  );
 };

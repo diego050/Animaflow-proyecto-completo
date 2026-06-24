@@ -4,6 +4,7 @@ import { Player } from '@remotion/player';
 import { ArrowLeft, Sparkles, Wand2, AlertTriangle, Loader2, Film, Download } from 'lucide-react';
 import { api } from '../../api/client';
 import { compileAnimation } from '../../remotion/compileAnimation';
+import { CustomCode } from '../../remotion/CustomCode';
 import { useAuthStore } from '../../store/useAuthStore';
 
 interface GenResponse {
@@ -242,7 +243,13 @@ export function AnimationCreator() {
             {compiled.Comp ? (
               <Player
                 key={code}
-                component={compiled.Comp}
+                component={CustomCode}
+                inputProps={{
+                  code,
+                  durationInFrames: meta?.duration_frames ?? 180,
+                  width: meta?.width ?? 1080,
+                  height: meta?.height ?? 1920,
+                }}
                 durationInFrames={meta?.duration_frames ?? 180}
                 fps={30}
                 compositionWidth={meta?.width ?? 1080}
