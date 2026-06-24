@@ -17,10 +17,14 @@ def generate_script_from_info(
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
     target_duration_seconds: int = 30,
+    model: Optional[str] = None,
 ) -> str:
     """Usa Gemini para generar un guion narrativo basado en la información del usuario."""
     from app.core.config import settings
     from app.modules.llm.resolver import resolve_llm_credentials
+
+    # Modelo elegido explícitamente (wizard) — tiene prioridad sobre el resuelto.
+    requested_model = model
 
     # If user provided an explicit api_key, use it; otherwise resolve from DB/env
     if api_key:
@@ -39,6 +43,10 @@ def generate_script_from_info(
         creds = resolve_llm_credentials(user_id, provider_override=provider)
         api_key = creds.api_key
         model = creds.model
+
+    # El modelo elegido en el wizard manda sobre el resuelto por defecto.
+    if requested_model:
+        model = requested_model
 
     # If resolve_llm_credentials raised MissingApiKeyError, let it propagate
     # so the caller (endpoint) can return a proper 400 error.

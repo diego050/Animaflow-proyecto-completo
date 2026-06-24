@@ -191,7 +191,9 @@ async def _process_chunks_async(
             try:
                 creds = resolve_llm_credentials(user_id, provider_override="gemini")
                 api_key = creds.api_key
-                model_to_use = creds.model
+                # Preferir el modelo elegido en el job (wizard) sobre el default de cuenta.
+                # "gemini-2.0-flash" es el sentinel de "no elegido" (ver call site).
+                model_to_use = creds.model if llm_model == "gemini-2.0-flash" else llm_model
             except Exception:
                 if db:
                     gemini_api_key = _get_user_api_key(user_id, "gemini", db)
@@ -269,7 +271,8 @@ async def _regenerate_components_for_reformat(
         try:
             creds = resolve_llm_credentials(user_id, provider_override="gemini")
             api_key = creds.api_key
-            model_to_use = creds.model
+            # Preferir el modelo elegido en el job (wizard) sobre el default de cuenta.
+            model_to_use = creds.model if llm_model == "gemini-2.0-flash" else llm_model
         except Exception:
             if db:
                 gemini_api_key = _get_user_api_key(user_id, "gemini", db)

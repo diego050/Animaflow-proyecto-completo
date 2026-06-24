@@ -69,6 +69,7 @@ export function NewProjectWizard() {
         wizardData.templateId,
         wizardData.customPrompt || null,
         wizardData.targetDurationSeconds,
+        wizardData.selectedModel,
       );
       setWizardData({ script });
       setWizardStep(2);
@@ -82,6 +83,7 @@ export function NewProjectWizard() {
     wizardData.templateId,
     wizardData.customPrompt,
     wizardData.targetDurationSeconds,
+    wizardData.selectedModel,
     generateScript,
     setWizardData,
     setWizardStep,
