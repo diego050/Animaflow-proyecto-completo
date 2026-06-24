@@ -88,13 +88,20 @@ export interface UserLLMSettingsUpdate {
   available_models?: string[];
 }
 
+// Modelos que SOLO se ofrecen a usuarios admin/founder (experimentales/internos).
+// Se añaden a AVAILABLE_MODELS únicamente si el usuario tiene rol privilegiado.
+export const ADMIN_ONLY_MODELS: Record<string, string[]> = {
+  gemini: ['gemma-4-31b-it'],
+};
+
 export const AVAILABLE_MODELS: Record<string, string[]> = {
   gemini: [
-    'gemini-2.0-flash',
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
+    'gemini-3.5-flash',
     'gemini-3.1-flash',
     'gemini-3.1-flash-lite',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
     'gemini-3.1-pro',
   ],
   openai: [

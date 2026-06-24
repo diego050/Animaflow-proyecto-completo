@@ -3,17 +3,21 @@ import { Save, Loader2, ChevronDown, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { ApiKeyProvider } from '../../types/auth';
-import { AVAILABLE_MODELS, PROVIDER_LABELS } from '../../types/auth';
+import { AVAILABLE_MODELS, ADMIN_ONLY_MODELS, PROVIDER_LABELS } from '../../types/auth';
 
 const ALL_PROVIDERS: ApiKeyProvider[] = ['gemini', 'anthropic', 'openai', 'grok'];
 
 export function LLMSettingsSection() {
   const {
+    user,
     llmSettings,
     llmSettingsLoading,
     fetchLLMSettings,
     updateLLMSettings,
   } = useAuthStore();
+
+  // Modelos admin-only: solo se ofrecen a admin/founder.
+  const isPrivileged = user?.role === 'admin' || user?.role === 'founder';
 
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -26,13 +30,17 @@ export function LLMSettingsSection() {
   const providerDropdownRef = useRef<HTMLDivElement>(null);
   const modelDropdownRef = useRef<HTMLDivElement>(null);
 
-  const getAllModels = useCallback((): string[] => {
-    return Object.values(AVAILABLE_MODELS).flat();
-  }, []);
-
   const getModelsForProvider = useCallback((provider: string): string[] => {
-    return AVAILABLE_MODELS[provider] || [];
-  }, []);
+    const base = AVAILABLE_MODELS[provider] || [];
+    const adminOnly = isPrivileged ? (ADMIN_ONLY_MODELS[provider] || []) : [];
+    return [...base, ...adminOnly];
+  }, [isPrivileged]);
+
+  const getAllModels = useCallback((): string[] => {
+    const base = Object.values(AVAILABLE_MODELS).flat();
+    const adminOnly = isPrivileged ? Object.values(ADMIN_ONLY_MODELS).flat() : [];
+    return [...base, ...adminOnly];
+  }, [isPrivileged]);
 
   useEffect(() => {
     fetchLLMSettings();
