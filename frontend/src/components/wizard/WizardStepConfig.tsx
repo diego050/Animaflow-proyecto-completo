@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Sparkles, ChevronDown, Check, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UserLLMSettings } from '../../types/auth';
-import { AVAILABLE_MODELS } from '../../types/auth';
+import { AVAILABLE_MODELS, ADMIN_ONLY_MODELS } from '../../types/auth';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface AspectRatioOption {
   value: string;
@@ -168,6 +169,8 @@ export function ModelSelector({
 }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const user = useAuthStore((s) => s.user);
+  const isPrivileged = user?.role === 'admin' || user?.role === 'founder';
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -182,10 +185,13 @@ export function ModelSelector({
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const availableModels: string[] =
+  const baseModels =
     llmSettings?.available_models && llmSettings.available_models.length > 0
       ? llmSettings.available_models
       : Object.values(AVAILABLE_MODELS).flat();
+  // Modelos admin-only (ej. Gemma) solo para admin/founder.
+  const adminModels = isPrivileged ? Object.values(ADMIN_ONLY_MODELS).flat() : [];
+  const availableModels: string[] = Array.from(new Set([...baseModels, ...adminModels]));
 
   const displayModel = selectedModel || llmSettings?.default_model || 'gemini-2.0-flash (predeterminado)';
   const isDefault = !selectedModel && !!llmSettings?.default_model;
