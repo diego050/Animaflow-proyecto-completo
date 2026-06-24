@@ -3,11 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.db.session import get_db
 from app.db.models import Asset, User
-from app.core.security import get_current_active_user
+from app.core.security import get_current_user
 from app.core.storage_paths import get_storage_dir
 
 router = APIRouter()
@@ -26,14 +26,13 @@ class AssetResponse(BaseModel):
     file_size: int
     created_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 @router.get("/", response_model=list[AssetResponse])
 def list_assets(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """List all assets for the current user."""
     assets = db.query(Asset).filter(Asset.user_id == current_user.id).order_by(Asset.created_at.desc()).all()
@@ -44,7 +43,7 @@ def list_assets(
 async def upload_asset(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Upload a new image asset."""
     # Validate file type
@@ -91,7 +90,7 @@ async def upload_asset(
 def delete_asset(
     asset_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete an asset."""
     asset = db.query(Asset).filter(Asset.id == asset_id, Asset.user_id == current_user.id).first()
@@ -112,7 +111,7 @@ def delete_asset(
 def get_asset_file(
     asset_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Serve an asset file."""
     asset = db.query(Asset).filter(Asset.id == asset_id, Asset.user_id == current_user.id).first()

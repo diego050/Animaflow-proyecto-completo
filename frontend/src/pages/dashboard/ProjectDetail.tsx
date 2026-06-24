@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, AlertTriangle, FileText } from 'lucide-react';
+import { Loader2, AlertTriangle, FileText, CheckCircle2 } from 'lucide-react';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { useJobsStore } from '../../store/useJobsStore';
 import { useToastStore } from '../../store/useToastStore';
 import { isTerminalStatus, isProcessingStatus, isRenderStatus } from '../../types/job';
+import type { TimelineSpec } from '../../types/spec';
 import { ProjectHeader } from '../../components/project/ProjectHeader';
 import { ProjectStatusBanner } from '../../components/project/ProjectStatusBanner';
 import { ProjectTabs, type TabKey } from '../../components/project/ProjectTabs';
@@ -15,14 +16,25 @@ import { ExportPanel } from '../../components/project/ExportPanel';
 export function ProjectDetail() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-  const { selectedJob, selectedJobLoading, selectJob, fetchJobs, triggerRender, triggerAEExport, regenerateAEExport, startPolling, stopPolling } =
+  const { selectedJob, selectedJobLoading, selectJob, fetchJobs, triggerRender, triggerAEExport, regenerateAEExport, startPolling, stopPolling, approveScenes, retryJob } =
     useJobsStore();
   const { addToast } = useToastStore();
   const [activeTab, setActiveTab] = useState<TabKey>('script');
   const [exportLoading, setExportLoading] = useState(false);
   const [renderLoading, setRenderLoading] = useState(false);
+  const [approveLoading, setApproveLoading] = useState(false);
   const [focusSceneIndex, setFocusSceneIndex] = useState<number | null>(null);
   const [selectedSceneIndices, setSelectedSceneIndices] = useState<Set<number>>(new Set());
+
+  // Local spec state for segmented phase (user edits before approval)
+  const [localSpec, setLocalSpec] = useState<TimelineSpec | null>(null);
+
+  // Sync localSpec when selectedJob changes or status leaves segmented
+  useEffect(() => {
+    if (selectedJob?.result_spec) {
+      setLocalSpec(selectedJob.result_spec);
+    }
+  }, [selectedJob?.job_id, selectedJob?.result_spec]);
 
   const defaultName = `Proyecto ${jobId?.slice(0, 8) ?? ''}`;
   const [projectName, setProjectName] = useState(defaultName);
@@ -67,15 +79,33 @@ export function ProjectDetail() {
     selectJob(jobId);
   }, [jobId, selectJob]);
 
+  const currentJobId = selectedJob?.job_id;
+  const isTerminal = selectedJob ? isTerminalStatus(selectedJob.status) : true;
+
   useEffect(() => {
-    if (!selectedJob) return;
-    if (!isTerminalStatus(selectedJob.status)) {
-      startPolling(selectedJob.job_id);
+    if (!currentJobId) return;
+    
+    if (!isTerminal) {
+      startPolling(currentJobId);
+    } else {
+      stopPolling();
     }
+    
     return () => {
       stopPolling();
     };
-  }, [selectedJob, startPolling, stopPolling]);
+  }, [currentJobId, isTerminal, startPolling, stopPolling]);
+
+  const handleRetry = useCallback(async () => {
+    if (!jobId) return;
+    try {
+      await retryJob(jobId);
+      // Restart polling since retry puts job back in non-terminal state
+      startPolling(jobId);
+    } catch {
+      // Error already handled by store (toast)
+    }
+  }, [jobId, retryJob, startPolling]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -106,6 +136,22 @@ export function ProjectDetail() {
       setRenderLoading(false);
     }
   }, [jobId, triggerRender, addToast]);
+
+  const handleApprove = useCallback(async () => {
+    if (!jobId) return;
+    const scenesToApprove = localSpec?.scenes ?? selectedJob?.result_spec?.scenes;
+    if (!scenesToApprove) return;
+    setApproveLoading(true);
+    try {
+      await approveScenes(jobId, scenesToApprove);
+      addToast('success', 'Escenas aprobadas. Iniciando procesamiento...');
+      startPolling(jobId);
+    } catch {
+      addToast('error', 'Error al aprobar las escenas. Intenta de nuevo.');
+    } finally {
+      setApproveLoading(false);
+    }
+  }, [jobId, localSpec, selectedJob, approveScenes, startPolling, addToast]);
 
   const handleAEExport = useCallback(async () => {
     if (!jobId) return;
@@ -270,6 +316,10 @@ export function ProjectDetail() {
   const isProcessing = isProcessingStatus(selectedJob.status);
   const isFailed = selectedJob.status === 'failed' || selectedJob.status === 'failed_render';
 
+  // Calculate total duration from spec scenes
+  const totalDuration = spec?.scenes.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0) ?? 0;
+  const sceneCount = spec?.scenes.length ?? 0;
+
   return (
     <div className="p-6 lg:p-8">
       <ProjectHeader
@@ -277,7 +327,8 @@ export function ProjectDetail() {
         projectName={projectName}
         status={selectedJob.status}
         aspectRatio={selectedJob.result_spec?.aspect_ratio}
-        sceneCount={spec?.scenes.length ?? 0}
+        sceneCount={sceneCount}
+        totalDuration={totalDuration}
         selectedScenes={Array.from(selectedSceneIndices)}
         currentSceneIndex={focusSceneIndex ?? undefined}
         isEditing={isEditingName}
@@ -289,6 +340,7 @@ export function ProjectDetail() {
         onReformat={() => {
           fetchJobs();
         }}
+        thumbnailUrl={selectedJob.video_url ?? null}
       />
 
       <ProjectStatusBanner
@@ -296,18 +348,56 @@ export function ProjectDetail() {
         isProcessing={isProcessing}
         isRendering={isRendering}
         isFailed={isFailed}
+        errorMessage={selectedJob.error_message}
+        jobId={jobId}
+        onRetry={handleRetry}
       />
 
       <ProjectTabs
         activeTab={activeTab}
         onTabChange={setActiveTab}
         hasSpec={!!spec}
+        isSegmented={selectedJob.status === 'segmented'}
+        sceneCount={sceneCount}
+        isReadyToRender={isReadyToRender}
+        hasExports={selectedJob.status === 'completed_video'}
       />
 
       <div className="min-h-[400px]">
         {activeTab === 'script' && spec && (
-          <SceneTimeline
-            spec={spec}
+          <div className="space-y-4">
+            {/* Processing state after approval */}
+            {(selectedJob.status === 'queued_enrichment' || selectedJob.status === 'visuals_generating' || selectedJob.status === 'processing_scenes') && (
+              <div className="bg-mint-precision/10 border border-mint-precision/20 rounded-xl p-6 text-center">
+                <Loader2 size={32} className="animate-spin mx-auto text-mint-precision mb-3" />
+                <h3 className="text-mint-precision font-bold text-sm mb-1">Generando Audio y Visuales</h3>
+                <p className="text-text-secondary text-xs">
+                  Estamos creando el audio TTS y los componentes visuales para cada escena. Esto puede tomar unos minutos.
+                </p>
+              </div>
+            )}
+
+            {/* Scene approval banner (only when segmented) */}
+            {selectedJob.status === 'segmented' && (
+              <div className="bg-mint-precision/10 border border-mint-precision/20 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-mint-precision font-bold text-sm">Escenas pendientes de aprobación</h3>
+                  <p className="text-text-secondary text-xs mt-1">Revisa el guión y los prompts visuales. Una vez aprobados, comenzará la generación de audio y componentes.</p>
+                </div>
+                <button
+                  onClick={handleApprove}
+                  disabled={approveLoading}
+                  className="px-6 py-2 bg-mint-precision text-deep-slate rounded-lg text-sm font-bold hover:bg-white transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                >
+                  {approveLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  Aprobar y Generar Audio/Visuales
+                </button>
+              </div>
+            )}
+
+            {/* Scene timeline */}
+            <SceneTimeline
+            spec={localSpec ?? spec}
             jobId={jobId}
             onRegenerateScene={async (index, mediaQuery, text) => {
               await useJobsStore.getState().regenerateScene(jobId, index, mediaQuery, text);
@@ -318,26 +408,50 @@ export function ProjectDetail() {
             }}
             selectedScenes={selectedSceneIndices}
             onToggleSceneSelection={handleToggleSceneSelection}
+            isSegmented={selectedJob.status === 'segmented'}
+            onSpecChange={(newSpec) => setLocalSpec(newSpec)}
           />
+        </div>
         )}
         {activeTab === 'script' && !spec && (
           <div className="bg-surface-container border border-border-tech rounded-xl p-8 text-center">
-            <FileText size={32} className="mx-auto text-text-secondary/30 mb-3" />
-            <p className="text-text-secondary">
-              El guión estará disponible cuando el pipeline complete.
-            </p>
-            <p className="text-text-secondary/50 text-sm mt-1">
-              Estado actual: {selectedJob.status}
-            </p>
+            {selectedJob.status === 'segmenting' || selectedJob.status === 'pending' ? (
+              <>
+                <Loader2 size={32} className="animate-spin mx-auto text-mint-precision mb-3" />
+                <p className="text-text-primary font-bold">Preparando escenas...</p>
+                <p className="text-text-secondary/70 text-sm mt-1">El servidor está analizando el guión y segmentando la línea de tiempo.</p>
+              </>
+            ) : (
+              <>
+                <FileText size={32} className="mx-auto text-text-secondary/30 mb-3" />
+                <p className="text-text-secondary">
+                  El guión estará disponible cuando el pipeline complete.
+                </p>
+                <p className="text-text-secondary/50 text-sm mt-1">
+                  Estado actual: {selectedJob.status}
+                </p>
+              </>
+            )}
           </div>
         )}
         {activeTab === 'preview' && spec && (
           <ErrorBoundary>
             <PreviewPlayer
-              spec={spec}
+              spec={localSpec ?? spec}
+              jobId={jobId}
+              isReadyToRender={isReadyToRender}
               aspectRatio={spec.aspect_ratio}
               focusSceneIndex={focusSceneIndex}
               onClearFocus={() => setFocusSceneIndex(null)}
+              onFocusScene={(idx: number) => setFocusSceneIndex(idx)}
+              onSceneSpecChange={(sceneIndex, updatedScene) => {
+                setLocalSpec(prev => {
+                  if (!prev) return prev;
+                  const newScenes = [...prev.scenes];
+                  newScenes[sceneIndex] = updatedScene;
+                  return { ...prev, scenes: newScenes };
+                });
+              }}
             />
           </ErrorBoundary>
         )}

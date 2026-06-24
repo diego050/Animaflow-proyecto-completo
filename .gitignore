@@ -88,3 +88,17 @@ security_reports/*.md
 
 # === Temporary / Generated ===
 docs/temp/
+
+# opencode config with sensitive API tokens
+opencode.json
+
+# opencode node_modules
+.opencode/node_modules/
+
+# === Prevent resurrected temp files ===
+resultados.txt
+errores/
+scratch/
+
+# Backend local storage (Docker uses named volume instead)
+backend/storage/

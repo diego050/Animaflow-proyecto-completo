@@ -9,9 +9,12 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate:index": "tsx scripts/generate-index.ts"
+    "generate:index": "tsx scripts/generate-index.ts",
+    "generate:manifest": "tsx scripts/generate-manifest-json.ts",
+    "check:manifest": "tsx scripts/generate-manifest-json.ts --check"
   },
   "dependencies": {
+    "remotion-animated": "^1.0.0",
     "@remotion/cli": "^4.0.459",
     "@remotion/player": "^4.0.459",
     "@tailwindcss/postcss": "^4.3.0",

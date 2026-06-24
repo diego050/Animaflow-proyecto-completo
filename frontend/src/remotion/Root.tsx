@@ -22,7 +22,9 @@ const defaultSpec: TimelineSpec = {
         backgroundColor: "#1a1a1a",
         textColor: "#ffffff"
       },
-      sfx: []
+      sfx: [],
+      audio_url: null,
+      word_timestamps: null
     }
   ],
   aspect_ratio: "9:16"

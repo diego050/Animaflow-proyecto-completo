@@ -118,4 +118,4 @@ Create two environments in **Settings → Environments**:
 ## Related Documentation
 
 - [`docs/GIT_WORKFLOW.md`](GIT_WORKFLOW.md) — Branching strategy and merge procedures
-- [`docs/DEPLOYMENT.md`](DEPLOYMENT.md) — Full VPS deployment guide (Spanish)
+- [`docs/deployment-guide.md`](deployment-guide.md) — Full VPS deployment guide

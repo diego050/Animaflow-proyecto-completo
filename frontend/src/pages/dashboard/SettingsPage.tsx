@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, Palette, Key, CreditCard, Volume2 } from 'lucide-react';
+import { User, Palette, Key, CreditCard, Volume2, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SettingsLayout, type TabKey } from '../../components/settings/SettingsLayout';
 import { ProfileSection } from '../../components/settings/ProfileSection';
@@ -7,12 +7,14 @@ import { PreferencesSection } from '../../components/settings/PreferencesSection
 import { ApiKeysSection } from '../../components/settings/ApiKeysSection';
 import { LLMSettingsSection } from '../../components/settings/LLMSettingsSection';
 import { TTSProviderSection } from '../../components/settings/TTSProviderSection';
+import { DesignTemplatesSection } from '../../components/settings/DesignTemplatesSection';
 
 const TABS = [
   { key: 'profile' as const, label: 'Perfil', icon: User },
   { key: 'preferences' as const, label: 'Preferencias', icon: Palette },
   { key: 'tts' as const, label: 'Voz', icon: Volume2 },
   { key: 'api' as const, label: 'API Keys', icon: Key },
+  { key: 'designs' as const, label: 'Diseños', icon: FileText },
   { key: 'billing' as const, label: 'Facturación', icon: CreditCard },
 ];
 
@@ -94,6 +96,18 @@ export function SettingsPage() {
             <div className="mt-6">
               <LLMSettingsSection />
             </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'designs' && (
+          <motion.div
+            key="designs"
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.15 }}
+          >
+            <DesignTemplatesSection />
           </motion.div>
         )}
 

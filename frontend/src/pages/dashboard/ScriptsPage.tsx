@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, FileText, Loader2 } from 'lucide-react';
+import { Plus, Search, FileText, Loader2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useJobsStore } from '../../store/useJobsStore';
 import { useMediaStore } from '../../store/useMediaStore';
@@ -16,20 +16,27 @@ export function ScriptsPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<Script | null>(null);
+  const [viewMode, setViewMode] = useState<'plain' | 'with-direction'>('plain');
+  const [scenePrompts, setScenePrompts] = useState<string[]>([]);
 
   // New/edit form state
   const [formName, setFormName] = useState('');
   const [formContent, setFormContent] = useState('');
   const [formAspectRatio, setFormAspectRatio] = useState('9:16');
 
-  // Fetch scripts when component mounts
-  useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+  const [scriptToDelete, setScriptToDelete] = useState<string | null>(null);
 
+  // Fetch jobs on mount if store is empty
   useEffect(() => {
-    fetchScripts();
-  }, [fetchScripts, jobs]);
+    if (jobs.length === 0) {
+      fetchJobs();
+    }
+  }, [jobs.length, fetchJobs]);
+
+  // Derive scripts from jobs once jobs are available
+  useEffect(() => {
+    fetchScripts(jobs);
+  }, [jobs, fetchScripts]);
 
   // Filter scripts by search
   const filteredScripts = scripts.filter(
@@ -40,7 +47,6 @@ export function ScriptsPage() {
 
   const handleUseScript = useCallback(
     (script: Script) => {
-      // Navigate to new project wizard with pre-filled script
       navigate('/dashboard/new', {
         state: { prefillScript: script.content, prefillAspectRatio: script.aspectRatio },
       });
@@ -48,51 +54,93 @@ export function ScriptsPage() {
     [navigate],
   );
 
-  const handleEdit = useCallback((script: Script) => {
+  const handleCardClick = useCallback(async (script: Script) => {
     setEditingScript(script);
     setFormName(script.name);
     setFormContent(script.content);
     setFormAspectRatio(script.aspectRatio);
+    setViewMode('plain');
+    setScenePrompts([]); // Reset
+
+    // If derived from a project, fetch the job detail to get per-scene prompts
+    if (script.sourceJobId) {
+      try {
+        await useJobsStore.getState().selectJob(script.sourceJobId);
+        const jobDetail = useJobsStore.getState().selectedJob;
+        if (jobDetail?.result_spec?.scenes) {
+          const prompts = jobDetail.result_spec.scenes.map(
+            (s) => s.media_query || ''
+          );
+          setScenePrompts(prompts);
+        }
+      } catch {
+        // Silently fail — prompts will just be empty
+      }
+    }
+
     setModalOpen(true);
   }, []);
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      if (!confirm('¿Seguro que deseas eliminar este guion?')) return;
-      deleteScript(id);
-    },
-    [deleteScript],
-  );
+  const handleDelete = useCallback((id: string) => {
+    setScriptToDelete(id);
+  }, []);
+
+  const confirmDelete = useCallback(() => {
+    if (!scriptToDelete) return;
+    deleteScript(scriptToDelete);
+    setScriptToDelete(null);
+  }, [scriptToDelete, deleteScript]);
 
   const handleOpenNew = () => {
     setEditingScript(null);
     setFormName('');
     setFormContent('');
     setFormAspectRatio('9:16');
+    setViewMode('plain');
+    setScenePrompts([]);
     setModalOpen(true);
   };
 
   const handleSave = () => {
     if (!formName.trim() || !formContent.trim()) return;
 
-    if (editingScript) {
-      updateScript(editingScript.id, {
-        name: formName.trim(),
-        content: formContent.trim(),
-        aspectRatio: formAspectRatio,
+    if (editingScript?.sourceJobId) {
+      // DUPLICATE flow: clone script, navigate to new project
+      const cloned: Omit<Script, 'id' | 'createdAt'> = {
+        name: `${editingScript.name} (copia)`,
+        content: editingScript.content,
+        scenes: editingScript.scenes,
+        aspectRatio: editingScript.aspectRatio,
+        prompt: editingScript.prompt,
+      };
+      const newScript = addScript(cloned);
+      navigate('/dashboard/new', {
+        state: { prefillScript: newScript.content, prefillAspectRatio: newScript.aspectRatio },
       });
+      setModalOpen(false);
     } else {
-      addScript({
+      // EDIT flow: update existing manual script
+      updateScript(editingScript?.id ?? `script-manual-${Date.now()}`, {
         name: formName.trim(),
         content: formContent.trim(),
-        scenes: 1,
         aspectRatio: formAspectRatio,
       });
+      setModalOpen(false);
+      setEditingScript(null);
     }
-
-    setModalOpen(false);
-    setEditingScript(null);
   };
+
+  // Scene splitting logic for "Guion + Dirección" view
+  const scenes = useMemo(() => {
+    const content = formContent || editingScript?.content || '';
+    const split = content.split(/\n\n+/).filter((s) => s.trim());
+    if (split.length <= 1) {
+      return content.split(/\n+/).filter((s) => s.trim());
+    }
+    return split;
+  }, [formContent, editingScript?.content]);
+
+  const isDerivedFromProject = !!editingScript?.sourceJobId;
 
   return (
     <div className="p-6 lg:p-8">
@@ -171,7 +219,7 @@ export function ScriptsPage() {
                 key={script.id}
                 script={script}
                 onUse={handleUseScript}
-                onEdit={handleEdit}
+                onClick={handleCardClick}
                 onDelete={handleDelete}
               />
             ))}
@@ -182,11 +230,27 @@ export function ScriptsPage() {
       {/* New/Edit Script Modal */}
       <Modal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editingScript ? 'Editar Guion' : 'Nuevo Guion'}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingScript(null);
+        }}
+        title={
+          isDerivedFromProject
+            ? 'Guion de Proyecto'
+            : editingScript
+              ? 'Editar Guion'
+              : 'Nuevo Guion'
+        }
         size="lg"
       >
         <div className="space-y-5">
+          {/* Derived badge */}
+          {isDerivedFromProject && (
+            <span className="inline-block px-2 py-0.5 rounded-full bg-mint-precision/10 text-mint-precision text-[10px] font-semibold uppercase tracking-wider">
+              Derivado de proyecto
+            </span>
+          )}
+
           {/* Name */}
           <div>
             <label className="block text-text-secondary text-sm font-medium mb-2">
@@ -206,37 +270,113 @@ export function ScriptsPage() {
             <label className="block text-text-secondary text-sm font-medium mb-2">
               Relación de aspecto
             </label>
-            <div className="grid grid-cols-4 gap-2">
-              {['9:16', '4:5', '1:1', '16:9'].map((ratio) => (
+            {isDerivedFromProject ? (
+              <div className="px-3 py-2 rounded-lg bg-surface-lowest border border-border-tech/50 text-sm text-text-secondary">
+                Relación de aspecto:{' '}
+                <span className="text-mint-precision font-semibold">{formAspectRatio}</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {['9:16', '4:5', '1:1', '16:9'].map((ratio) => (
+                  <button
+                    key={ratio}
+                    onClick={() => setFormAspectRatio(ratio)}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                      formAspectRatio === ratio
+                        ? 'border-mint-precision bg-mint-precision/10 text-mint-precision'
+                        : 'border-border-tech bg-surface-container text-text-secondary hover:border-outline-variant'
+                    }`}
+                  >
+                    {ratio}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Toggle tabs — only show when editing an existing script with content */}
+          {(editingScript || formContent) && (
+            <div>
+              <div className="flex gap-1 p-1 bg-surface-lowest rounded-lg border border-border-tech">
                 <button
-                  key={ratio}
-                  onClick={() => setFormAspectRatio(ratio)}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                    formAspectRatio === ratio
-                      ? 'border-mint-precision bg-mint-precision/10 text-mint-precision'
-                      : 'border-border-tech bg-surface-container text-text-secondary hover:border-outline-variant'
+                  onClick={() => setViewMode('plain')}
+                  className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    viewMode === 'plain'
+                      ? 'bg-mint-precision/10 text-mint-precision'
+                      : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
-                  {ratio}
+                  Guion
                 </button>
-              ))}
+                <button
+                  onClick={() => setViewMode('with-direction')}
+                  className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    viewMode === 'with-direction'
+                      ? 'bg-mint-precision/10 text-mint-precision'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  Guion + Dirección
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Content */}
-          <div>
-            <label className="block text-text-secondary text-sm font-medium mb-2">
-              Contenido del guion
-            </label>
-            <textarea
-              value={formContent}
-              onChange={(e) => setFormContent(e.target.value)}
-              placeholder="Escribe tu guion aquí..."
-              className="w-full h-48 bg-surface-lowest border border-border-tech rounded-lg p-4 text-sm text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none resize-none transition-colors"
-            />
-          </div>
+          {/* Content — Plain text view */}
+          {viewMode === 'plain' && (
+            <div>
+              <label className="block text-text-secondary text-sm font-medium mb-2">
+                Contenido del guion
+              </label>
+              <textarea
+                value={formContent}
+                onChange={(e) => setFormContent(e.target.value)}
+                placeholder="Escribe tu guion aquí..."
+                className="w-full h-48 bg-surface-lowest border border-border-tech rounded-lg p-4 text-sm text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none resize-none transition-colors"
+              />
+            </div>
+          )}
 
-          {/* Save */}
+          {/* Content — Scene view (Guion + Dirección) */}
+          {viewMode === 'with-direction' && (
+            <div>
+              <label className="block text-text-secondary text-sm font-medium mb-2">
+                Escenas del guion
+              </label>
+              <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                {scenes.map((scene, i) => (
+                  <div
+                    key={i}
+                    className="p-3 rounded-lg bg-surface-lowest border border-border-tech/50"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-6 h-6 rounded-full bg-mint-precision/10 text-mint-precision text-[10px] font-bold flex items-center justify-center">
+                        {i + 1}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider text-text-secondary/40 font-semibold">
+                        Escena {i + 1}
+                      </span>
+                    </div>
+                    <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap mb-2">
+                      {scene}
+                    </p>
+                    {scenePrompts[i] && (
+                      <div className="mt-2 pt-2 border-t border-border-tech/30">
+                        <p className="text-[10px] uppercase tracking-wider text-emerald-400/50 font-semibold mb-1">
+                          Prompt Visual
+                        </p>
+                        <p className="text-xs text-emerald-400/80 font-mono leading-relaxed">
+                          {scenePrompts[i]}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Save / Duplicate button */}
           <button
             onClick={handleSave}
             disabled={!formName.trim() || !formContent.trim()}
@@ -246,8 +386,47 @@ export function ScriptsPage() {
                 : 'bg-surface-high text-text-secondary/40 cursor-not-allowed'
             }`}
           >
-            {editingScript ? 'Guardar Cambios' : 'Crear Guion'}
+            {isDerivedFromProject
+              ? 'Duplicar para nuevo proyecto'
+              : editingScript
+                ? 'Guardar Cambios'
+                : 'Crear Guion'}
           </button>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!scriptToDelete}
+        onClose={() => setScriptToDelete(null)}
+        title="Eliminar Guion"
+        size="sm"
+      >
+        <div className="space-y-6">
+          <div className="flex items-center gap-4 text-text-secondary">
+            <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+              <AlertTriangle className="text-error" size={24} />
+            </div>
+            <p className="text-sm">
+              ¿Estás seguro que deseas eliminar este guion de forma permanente? Esta acción no se
+              puede deshacer.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              onClick={() => setScriptToDelete(null)}
+              className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="px-4 py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors shadow-lg shadow-error/20"
+            >
+              Sí, eliminar guion
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

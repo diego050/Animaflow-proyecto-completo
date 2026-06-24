@@ -1,4 +1,5 @@
 name: CI — Test & Build
+# trigger
 
 on:
   pull_request:
@@ -14,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:15-alpine
+        image: pgvector/pgvector:pg15
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -26,13 +27,20 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-
     steps:
       - uses: actions/checkout@v4
+
+      - name: Pull pgvector image (with mirror fallback)
+        run: |
+          echo "🔄 Trying Docker Hub..."
+          if docker pull pgvector/pgvector:pg15 2>/dev/null; then
+            echo "✅ Pulled from Docker Hub"
+          else
+            echo "⚠️ Docker Hub failed, trying GitHub mirror..."
+            docker pull mirror.gcr.io/pgvector/pgvector:pg15
+            docker tag mirror.gcr.io/pgvector/pgvector:pg15 pgvector/pgvector:pg15
+            echo "✅ Pulled from GitHub mirror"
+          fi
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -82,7 +90,6 @@ jobs:
       - name: Run backend tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/animaflow_test
-          REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-not-for-production
           ENCRYPTION_KEY: test-encryption-key-not-for-production
         run: |

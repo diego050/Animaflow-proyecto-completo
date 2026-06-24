@@ -13,7 +13,13 @@ export interface WizardData {
   templateId: string;
   customPrompt: string;
   skippedReview: boolean;
-  wizardMode: 'own-script' | 'ai-generate' | null;
+  wizardMode: 'own-script' | 'ai-generate' | 'animation-only' | null;
+  ownScriptMode: 'with-prompts' | 'text-only' | null;
+  designTemplateId: string;
+  scenes: Array<{text: string; media_query: string; duration_seconds?: number}>;
+  designMd: string;
+  targetDurationSeconds: number;
+  durationUnit: 'seconds' | 'words';
 }
 
 export interface WizardState {
@@ -38,8 +44,14 @@ export const useWizardStore = create<WizardState>((set) => ({
     customHeight: 1920,
     templateId: 'viral_shorts',
     customPrompt: '',
+    designTemplateId: '',
     skippedReview: false,
     wizardMode: null,
+    ownScriptMode: null,
+    scenes: [],
+    designMd: '',
+    targetDurationSeconds: 30,
+    durationUnit: 'seconds',
   },
 
   setWizardStep: (step: number) => set({ wizardStep: step }),
@@ -64,8 +76,14 @@ export const useWizardStore = create<WizardState>((set) => ({
         customHeight: 1920,
         templateId: 'viral_shorts',
         customPrompt: '',
+        designTemplateId: '',
         skippedReview: false,
         wizardMode: null,
+        ownScriptMode: null,
+        scenes: [],
+        designMd: '',
+        targetDurationSeconds: 30,
+        durationUnit: 'seconds',
       },
     });
   },

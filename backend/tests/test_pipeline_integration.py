@@ -10,6 +10,12 @@ from unittest.mock import patch, AsyncMock, Mock
 from app.db.models import JobModel
 from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_approved
 from app.modules.llm.visual_spec import BatchVisualSpec, VisualSpecResult
+from app.schemas.spec import AnimaComposerSpec, AnimaBackground
+
+dummy_spec = AnimaComposerSpec(
+    background=AnimaBackground(type="solid", colors=["#000000"]),
+    layers=[]
+)
 
 @pytest.fixture
 def sample_script():
@@ -21,7 +27,7 @@ def sample_script():
 
 
 @pytest.fixture
-def mock_external_services(tmp_path):
+def mock_external_services(tmp_path, sample_script):
     """
     Patches all external API calls and file I/O used by the pipeline.
     Yields a dict with the mock objects for inspection if needed.
@@ -30,25 +36,19 @@ def mock_external_services(tmp_path):
     audio_storage = str(tmp_path / "audio")
     os.makedirs(audio_storage, exist_ok=True)
 
-    # Build deterministic BatchVisualSpec with enough scenes for the sample script
-    # (sample_script has 3 sentences → 3 chunks)
+    # Build a BatchVisualSpec con UNA visual por chunk real. Derivamos el número
+    # de chunks de la MISMA función de segmentación, así el test no se rompe si
+    # se ajusta el target de segmentación (p.ej. 7s→5s en A3.7). v7.4.
+    from app.modules.segmentation.service import split_text_into_chunks
+    num_chunks = len(split_text_into_chunks(sample_script))
     batch_visuals = BatchVisualSpec(
         scenes=[
             VisualSpecResult(
-                media_query="A cinematic wide shot of a futuristic landscape",
-                backgroundColor="#0f172a",
-                textColor="#38bdf8",
-            ),
-            VisualSpecResult(
-                media_query="A heart shape forming from connected dots with warm golden light",
-                backgroundColor="#1e293b",
-                textColor="#fbbf24",
-            ),
-            VisualSpecResult(
-                media_query="Water drops falling into a pool creating expanding ripple circles",
-                backgroundColor="#0f172a",
-                textColor="#38bdf8",
-            ),
+                media_query=f"Deterministic media query for scene {i}",
+                backgroundColor="#0f172a" if i % 2 == 0 else "#1e293b",
+                textColor="#38bdf8" if i % 2 == 0 else "#fbbf24",
+            )
+            for i in range(num_chunks)
         ]
     )
 
@@ -56,23 +56,19 @@ def mock_external_services(tmp_path):
         "app.modules.pipeline.orchestrator.generate_batch_visuals_with_llm",
         return_value=batch_visuals,
     ) as mock_batch, patch(
-        "app.modules.pipeline.orchestrator.generate_tts_with_timestamps",
+        "app.modules.tts.service.generate_tts_with_timestamps",
         new_callable=AsyncMock,
-        return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 5.0, "word_timestamps": []},
+        return_value={"audio_path": str(tmp_path / "audio" / "test.wav"), "duration_seconds": 5.0, "word_timestamps": []},
     ) as mock_tts, patch(
-        "app.modules.pipeline.orchestrator.generate_remotion_component",
-        new_callable=AsyncMock,
-        return_value="Scene_test",
-    ) as mock_remotion, patch(
-        "app.modules.pipeline.orchestrator.write_index_ts"
-    ) as mock_index, patch(
-        "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
+        "app.modules.pipeline.orchestrator.generate_scene_composer",
+        return_value=dummy_spec
+    ) as mock_component, patch(
+        "app.modules.tts.service.AUDIO_STORAGE", audio_storage
     ):
         yield {
             "batch": mock_batch,
             "tts": mock_tts,
-            "remotion": mock_remotion,
-            "index": mock_index,
+            "component": mock_component,
             "batch_visuals": batch_visuals,
         }
 
@@ -81,7 +77,7 @@ class TestPipelineSnapshot:
     """Snapshot tests that verify spec.json output doesn't change during refactoring."""
 
     def test_pipeline_produces_valid_spec(
-        self, db_session, sample_script, mock_external_services
+        self, db_session, test_user, sample_script, mock_external_services
     ):
         """Pipeline produces a valid TimelineSpec with expected structure."""
         # Create a test job
@@ -89,6 +85,7 @@ class TestPipelineSnapshot:
             script_text=sample_script,
             aspect_ratio="9:16",
             status="pending",
+            user_id=test_user.id,
         )
         db_session.add(job)
         db_session.commit()
@@ -120,7 +117,7 @@ class TestPipelineSnapshot:
         run_pipeline_approved(job.id, None)
         db_session.refresh(job)
 
-        # Assert: job completed
+        # Assert: job completed (render triggered on-demand via API)
         assert job.status == "completed"
 
         # Assert: each scene now has generated fields
@@ -128,12 +125,13 @@ class TestPipelineSnapshot:
         for i, scene in enumerate(spec["scenes"]):
             assert scene["duration_seconds"] > 0, f"Scene {i} duration must be positive"
 
-    def test_pipeline_spec_snapshot(self, db_session, sample_script, mock_external_services):
+    def test_pipeline_spec_snapshot(self, db_session, test_user, sample_script, mock_external_services):
         """Compare spec output against deterministic mock values."""
         job = JobModel(
             script_text=sample_script,
             aspect_ratio="9:16",
             status="pending",
+            user_id=test_user.id,
         )
         db_session.add(job)
         db_session.commit()
@@ -157,7 +155,8 @@ class TestPipelineSnapshot:
         for i, (actual, expected) in enumerate(zip(spec["scenes"], expected_scenes)):
             assert actual["text"] and len(actual["text"]) > 0, f"Scene {i} text is empty"
             assert actual["media_query"] == expected.media_query, f"Scene {i} media_query mismatch"
-            assert actual["type"] == "Scene_test", f"Scene {i} type mismatch"
+            assert actual["type"] == "custom", f"Scene {i} type mismatch"
+            assert "anima_composer" in actual, f"Scene {i} missing anima_composer JSON"
             assert actual["remotion_props"] == {
                 "backgroundColor": expected.backgroundColor,
                 "textColor": expected.textColor,
@@ -192,22 +191,19 @@ class TestPipelineIdempotency:
             "app.modules.pipeline.orchestrator.generate_batch_visuals_with_llm",
             return_value=batch_visuals,
         ), patch(
-            "app.modules.pipeline.orchestrator.generate_tts_with_timestamps",
+            "app.modules.tts.service.generate_tts_with_timestamps",
             new_callable=AsyncMock,
-            return_value={"audio_path": "http://test/audio.mp3", "duration_seconds": 3.0, "word_timestamps": []},
+            return_value={"audio_path": str(tmp_path / "audio" / "test.wav"), "duration_seconds": 3.0, "word_timestamps": []},
         ), patch(
-            "app.modules.pipeline.orchestrator.generate_remotion_component",
-            new_callable=AsyncMock,
-            return_value="Scene_test",
+            "app.modules.pipeline.orchestrator.generate_scene_composer",
+            return_value=dummy_spec
         ), patch(
-            "app.modules.pipeline.orchestrator.write_index_ts"
-        ), patch(
-            "app.modules.pipeline.orchestrator.AUDIO_STORAGE", audio_storage
+            "app.modules.tts.service.AUDIO_STORAGE", audio_storage
         ):
             yield
 
     def test_rerun_pipeline_same_output(
-        self, db_session, mock_external_services_idempotency
+        self, db_session, test_user, mock_external_services_idempotency
     ):
         """Running pipeline twice on same job should not change spec."""
         script = "Test script for idempotency. Second sentence for segmentation."
@@ -215,6 +211,7 @@ class TestPipelineIdempotency:
             script_text=script,
             aspect_ratio="9:16",
             status="pending",
+            user_id=test_user.id,
         )
         db_session.add(job)
         db_session.commit()

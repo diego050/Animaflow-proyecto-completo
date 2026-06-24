@@ -2,7 +2,7 @@
 
 Índice maestro para navegación técnica y comprensión de arquitectura (Humanos & IA).
 
-> **Última actualización:** Mayo 2026 | **Sprints cubiertos:** 1–7+
+> **Última actualización:** 1 Junio 2026 (Completo) | **Sprints cubiertos:** 1–7+
 
 ---
 
@@ -15,7 +15,7 @@ AnimaFlow es una plataforma SaaS que convierte texto/audio en proyectos de video
 **Stack técnico:**
 - **Frontend:** React 18 + TypeScript, Vite, TailwindCSS, Zustand, Remotion
 - **Backend:** FastAPI (Python 3.11+), Pydantic v2, SQLAlchemy 2.0 + Alembic (PostgreSQL)
-- **Async Workers:** RQ + Redis (TTS, LLM, renderizado)
+- **Async Workers:** DB-driven scheduler (asyncio) + Render Server (Node.js)
 - **Auth:** JWT nativo (FastAPI + python-jose), roles (founder, agency, user, admin)
 
 ---
@@ -24,7 +24,7 @@ AnimaFlow es una plataforma SaaS que convierte texto/audio en proyectos de video
 
 ```bash
 # 1. Infraestructura
-docker-compose up -d postgres redis
+docker-compose -f docker-compose.prod.yml up -d postgres redis
 
 # 2. Backend
 cd backend && pip install -r requirements.txt
@@ -54,7 +54,7 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [`qa/`](qa/) | Guía de testing, checklist manual |
 | [`adr/`](adr/) | Architecture Decision Records |
 | [`sprints/`](sprints/) | Reportes por sprint |
-| [`temp/`](temp/) | Archivos temporales de desarrollo |
+| [`sessions/`](sessions/) | Session reports de desarrollo |
 
 ---
 
@@ -67,6 +67,10 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [5–6](sprints/sprint-5-6-report.md) | May 2026 | Authentication System + Voice Endpoints + User-Job FK | ✅ Completado |
 | [7](sprints/sprint-7-report.md) | May 2026 | Backend Modularization + Production Hardening | ✅ Completado |
 | [7+](sprints/sprint-7-plus-report.md) | May 2026 | Frontend Refactor + Audit Resolution + Toast System | ✅ Completado |
+| [Post-Production](session-2026-05-25-llm-stability-dashboard-fixes.md) | May 2026 | LLM Stability + Positioning Engine + Dashboard UX | ✅ Completado |
+| [Backend Critical Fixes](sessions/session-2026-05-31-backend-critical-fixes.md) | May 2026 | 8 Critical Security & Stability Fixes | ✅ Completado |
+| [Backend Refactor Batches A-C](sessions/session-2026-06-01-backend-refactor-batches-abc.md) | Jun 2026 | 14 Fixes: Cleanup, Consistency, Refactor | ✅ Completado |
+| [Backend Batch D](sessions/session-2026-06-01-backend-batch-d.md) | Jun 2026 | 5 Final Bug Fixes & Optimizations | ✅ Completado |
 
 ---
 
@@ -93,7 +97,6 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [`backend/auth-system.md`](backend/auth-system.md) | Sistema de autenticación JWT |
 | [`backend/voice-management.md`](backend/voice-management.md) | Gestión de voces TTS |
 | [`backend/pipeline-overview.md`](backend/pipeline-overview.md) | Pipeline completo con RQ workers |
-| [`backend/estado_actual.md`](backend/estado_actual.md) | Estado actual de la API |
 | [`backend/pipeline_narrative_animation.md`](backend/pipeline_narrative_animation.md) | Pipeline de animación narrativa |
 | [`backend/ae_export_fixes_sesion6.md`](backend/ae_export_fixes_sesion6.md) | Fixes de exportación AE |
 | [`backend/modularization.md`](backend/modularization.md) | Guía de modularización del backend (7 dominios) |
@@ -107,7 +110,6 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 |---|---|
 | [`frontend/dashboard-architecture.md`](frontend/dashboard-architecture.md) | Arquitectura del dashboard, Zustand, routing |
 | [`frontend/auth-integration.md`](frontend/auth-integration.md) | Integración de autenticación |
-| [`frontend/estado_actual.md`](frontend/estado_actual.md) | Estado actual del frontend |
 | [`frontend/remotion_generated_components.md`](frontend/remotion_generated_components.md) | Componentes Remotion generados |
 | [`frontend/frontend-audit.md`](frontend/frontend-audit.md) | Resultado del audit y acciones tomadas |
 | [`frontend/component-structure.md`](frontend/component-structure.md) | Estructura de componentes extraídos (ProjectDetail, Settings, Wizard) |
@@ -138,4 +140,42 @@ python scripts/create_admin.py --email admin@animaflow.com --name "Admin"
 | [ADR-008](adr/008-voice-management-approach.md) | Voice Management Approach | ✅ Implementado |
 | [ADR-009](adr/009-after-effects-deterministic-fidelity.md) | Deterministic AE Script Generator | ✅ Implementado |
 | [ADR-010](adr/010-backend-modularization.md) | Backend Modularization — Monolith to Modular Monolith | ✅ Implementado |
+| [ADR-012](adr/012-critical-backend-fixes.md) | Critical Backend Security & Stability Fixes | ✅ Implementado |
+
+### Calidad Visual (linaje visual-quality)
+Plan vivo y ADRs sobre la calidad de los videos generados (composición, posicionamiento, selección de componentes, animación):
+
+| Documento | Estado | Descripción |
+|---|---|---|
+| [**PLAN-MEJORA-CALIDAD.md**](../PLAN-MEJORA-CALIDAD.md) | 🟡 En curso | **Plan canónico vivo** — roadmap por fases (0a→5) para llevar la calidad a nivel profesional |
+| [ADR-011 v8](adr-011-visual-quality-v8.md) | 🟡 0a/0b/1 + Fase 2 parcial + Fase 3 en curso | Infra + wins visuales + **manifest** + responsividad (parcial) + **de-solapamiento por bounding box** y bugs de texto (Fase 3) |
+| [ADR-010 v7](adr-010-visual-quality-v7.md) | ✅ Implementado | Posicionamiento (contrato de coordenadas), selección, animación sincronizada (karaoke) |
+| [ADR-009 v5](adr-009-visual-quality-v5.md) | ✅ Implementado | Calidad visual v5 |
+| [ADR-008 v4](adr-008-visual-quality-v4.md) | ✅ Implementado | Calidad visual v4 |
+| [coordinate-contract.md](coordinate-contract.md) | ✅ Vigente | Contrato de coordenadas (LEER antes de crear/editar un componente) |
+| [responsive-contract.md](responsive-contract.md) | ✅ Vigente (Fase 2) | Contrato de responsividad: dimensionar con `useCanvas()` (vmin/vw/vh) y layout por orientación |
+| [component-audit-v8.md](component-audit-v8.md) | 🟡 En curso (Fase 4) | Tracker de auditoría de componentes: tokens, responsividad, idle motion, props |
+
+---
+
+## Session Reports
+
+| Documento | Fecha | Descripción |
+|---|---|---|
+| [Session 2026-05-25 (Scheduler & UX)](sessions/session-2026-05-25-scheduler-ux-design-templates.md) | 2026-05-25 | Scheduler Optimization, UX Overhaul & Design Templates |
+| [Session 2026-05-25 (LLM & UX)](sessions/session-2026-05-25-llm-stability-dashboard-fixes.md) | 2026-05-25 | LLM Stability, Positioning Engine & Dashboard UX Overhaul |
+| [Session 2026-05-25 (Transitions)](sessions/session-2026-05-25-transitions-vector-search.md) | 2026-05-25 | Transitions, Vector Search & Component Intelligence |
+| [Session 2026-05-23](sessions/session-2026-05-23-transparency-animations.md) | 2026-05-23 | Transparencia, Playground y Continuidad |
+| [Session 2026-05-22](sessions/session-2026-05-22-component-architecture-v2.md) | 2026-05-22 | Component Architecture v2 (33 componentes) |
+| [Session 2026-05-20](sessions/cleanup-session-2026-05-20.md) | 2026-05-20 | Limpieza y Corrección (36 fixes) |
+| [Session 2026-05-31 (Backend Fixes)](sessions/session-2026-05-31-backend-critical-fixes.md) | 2026-05-31 | 8 Critical Backend Security & Stability Fixes |
+| [Session 2026-06-01 (Refactor Batches)](sessions/session-2026-06-01-backend-refactor-batches-abc.md) | 2026-06-01 | 14 Backend Refactor Fixes (Batches A, B, C) |
+| [Session 2026-06-01 (Batch D)](sessions/session-2026-06-01-backend-batch-d.md) | 2026-06-01 | 5 Final Backend Bug Fixes & Optimizations |
+
+### New ADRs
+| ADR | Título | Estado |
+|---|---|---|
+| [ADR-011](adr/011-deterministic-positioning-engine.md) | Deterministic Backend Positioning over Secondary LLM | ✅ Implementado |
+| [ADR-012](adr/012-integer-linewidth-schema.md) | Integer-only lineWidth Schema for Gemini | ✅ Implementado |
+| [ADR-013](adr/013-graceful-degradation-strategy.md) | Per-scene Fallback to "Fade Text" on LLM Failure | ✅ Implementado |
 

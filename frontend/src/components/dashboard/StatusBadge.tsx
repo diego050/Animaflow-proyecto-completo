@@ -27,15 +27,15 @@ const STATUS_MAP: Record<string, { label: string; category: StatusCategory }> = 
 
 const CATEGORY_STYLES: Record<StatusCategory, string> = {
   processing:
-    'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    'bg-steel-blue/20 text-text-secondary border-steel-blue/30',
   ready:
-    'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+    'bg-cadmium-orange/10 text-cadmium-orange border-cadmium-orange/20',
   rendering:
-    'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    'bg-cadmium-orange/10 text-cadmium-orange border-cadmium-orange/20',
   completed:
-    'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    'bg-mint-precision/10 text-mint-precision border-mint-precision/20',
   failed:
-    'bg-red-500/10 text-red-400 border-red-500/20',
+    'bg-error/10 text-error border-error/20',
 };
 
 const CATEGORY_ICONS: Record<StatusCategory, React.ComponentType<{ size?: number; className?: string }>> = {

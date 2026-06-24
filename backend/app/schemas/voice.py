@@ -29,11 +29,11 @@ class VoiceResponse(BaseModel):
     id: str
     user_id: str
     name: str
-    voicebox_profile_id: Optional[str]
     gender: str
     language: str
     is_default: bool
     is_active: bool
+    audio_sample_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

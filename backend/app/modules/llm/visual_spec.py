@@ -27,21 +27,57 @@ class BatchVisualSpec(BaseModel):
     scenes: list[VisualSpecResult]
 
 
+def _generate_fallback(chunks: list[str]) -> BatchVisualSpec:
+    """Generate a default BatchVisualSpec when the LLM fails."""
+    fallback_queries = [
+        "A plant leaf growing from bottom center with organic curves and glowing particles",
+        "A heart shape forming from connected dots with warm golden light",
+        "Water drops falling into a pool creating expanding ripple circles",
+        "Sun rays expanding from center with warm gradient transitions",
+        "Mountain peaks emerging from fog with layered parallax movement",
+        "A tree branching upward with leaves appearing one by one",
+    ]
+    return BatchVisualSpec(
+        scenes=[
+            VisualSpecResult(
+                media_query=fallback_queries[i % len(fallback_queries)],
+                backgroundColor="#0f172a",
+                textColor="#38bdf8",
+            )
+            for i, _ in enumerate(chunks)
+        ]
+    )
+
+
 def generate_batch_visuals_with_llm(
     chunks: list[str],
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
     design_md: Optional[str] = None,
     system_prompt: Optional[str] = None,
+    llm_model_override: Optional[str] = None,
 ) -> BatchVisualSpec:
     """Usa Gemini para generar un arreglo de escenas visuales para cada bloque de texto."""
+    from typing import Tuple
+
     from app.core.config import settings
-    from app.core.resolutions import get_resolution
     from app.modules.llm.resolver import resolve_llm_credentials
+
+    ASPECT_RATIOS = {
+        "9:16": (1080, 1920),
+        "4:5": (1080, 1350),
+        "3:4": (1080, 1440),
+        "1:1": (1080, 1080),
+        "16:9": (1920, 1080),
+    }
+    DEFAULT_ASPECT_RATIO = "9:16"
+
+    def get_resolution(aspect_ratio: str) -> Tuple[int, int]:
+        return ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS[DEFAULT_ASPECT_RATIO])
 
     creds = resolve_llm_credentials(user_id)
     api_key = creds.api_key
-    model = creds.model
+    model = llm_model_override or creds.model or settings.GEMINI_MODEL
 
     if not api_key:
         logger.warning("GEMINI_API_KEY no encontrada. Fallback a escenas genéricas.")
@@ -71,44 +107,33 @@ def generate_batch_visuals_with_llm(
             custom_instructions += f"\n\nSYSTEM PROMPT DEL USUARIO:\n{system_prompt}\n"
 
         prompt = f"""
-Eres el director de animación SENIOR de AnimaFlow. Analiza este guion y crea descripciones visuales DETALLADAS para animaciones SVG 2D complejas.
+Eres el Director de Arte SENIOR de AnimaFlow. Analiza este guion y crea instrucciones visuales de alto nivel (media_query) para configurar los componentes de nuestra librería.
 
-CANVAS: {aspect_ratio} ({w}x{h} píxeles). TODAS las posiciones y tamaños deben caber en este canvas.
+CANVAS: {aspect_ratio} ({w}x{h} píxeles).
 
 {scenes_context}
 {custom_instructions}
 
-TU TAREA: Para cada escena, describe una animación SVG 2D única y contextual que refleje el mensaje del texto.
+TU TAREA: Para cada escena, define el "mood", la paleta de colores, y el estilo de animación de texto y fondo que mejor refleje el mensaje.
 
 REQUISITOS CRÍTICOS:
 
-1. ANIMACIÓN COMPLEJA:
-   - Describe una animación SVG 2D específica (NO abstracta).
-   - Puede incluir: colisiones, morphing, partículas, conexiones, revelaciones, construcciones, etc.
-   - Usa easing curves: bounce, spring, ease-in-out, elastic.
-   - Incluye transiciones de entrada, desarrollo y salida.
-   - Ejemplos: "Dos bloques chocan y generan destello", "Calendario aparece con bounce", "Nodos se conectan en secuencia"
+1. DESCRIPCIÓN CONCEPTUAL (media_query):
+   - NO describas "formas SVG", "coordenadas X,Y", ni "radios".
+   - Describe la **Atmósfera**, **Paleta de Colores**, y **Estilo de Animación**.
+   - **CONTINUIDAD VISUAL Y TRANSICIONES**: Si una escena es la continuación lógica de la anterior, INDICA EXPLÍCITAMENTE que mantenga la misma paleta y fondo, y si debe usar un "fade out" o "seamless transition". Si cambia radicalmente, indica que debe usar una transición de choque (glitch, wipe, blur) y cambiar la paleta.
+   - Ejemplo 1: "Cyberpunk theme with neon pink and cyan kinetic background. Text uses a fast slide-up reveal."
+   - Ejemplo 2: "Corporate elegant style. Dark slate background shifting to deep indigo. Seamless transition from previous scene."
 
-2. ELEMENTOS SVG CONCRETOS:
-   - Especifica formas: calendarios, cuadrados, círculos, líneas, partículas, etc.
-   - Mínimo 3-5 elementos visuales por escena.
-   - Describe tamaños, posiciones relativas y colores.
-   - POSICIONES: X debe estar entre 0 y {w}, Y entre 0 y {h}.
+2. ESTILO VISUAL Y COLORES:
+   - Elige un `backgroundColor` oscuro y elegante (Hexadecimal).
+   - Elige un `textColor` contrastante y vibrante (Hexadecimal).
+   - **IMPORTANTE**: Mantén ESTRICTA cohesión cromática (`backgroundColor` y `textColor`) entre escenas consecutivas a menos que haya un giro dramático en el guion. Evita cambiar de fondo claro a oscuro bruscamente.
 
-3. ESTILO VISUAL:
-   - Minimalista 2D, sin elementos 3D.
-   - Colores vibrantes, sombras, glows, gradientes.
-   - Paleta oscura y premium.
-
-4. MEDIA_QUERY EN INGLÉS:
-   - Debe ser una descripción narrativa detallada de la animación completa.
-   - Cada escena debe tener un media_query DIFERENTE y contextual al texto.
-   - Ejemplo escenas distintas: "Two rectangular blocks slide from opposite sides, collide at center creating a bright flash burst..." vs "A leaf grows from bottom center, branches extend outward with organic curves..."
-
-5. COHERENCIA:
-   - Mantén coherencia visual entre escenas (misma familia de colores).
+3. REGLAS ABSOLUTAS:
+   - El `media_query` DEBE estar en INGLÉS.
+   - NUNCA uses frases genéricas como "generic abstract background" o "particle effects".
    - Devuelve exactamente {len(chunks)} escenas en el mismo orden.
-   - NUNCA uses "generic abstract background" o "particle effects" como media_query.
 
 Responde SOLO con JSON válido.
 """
@@ -120,7 +145,7 @@ Responde SOLO con JSON válido.
             try:
                 response = _call_llm_sync(
                     client,
-                    model=settings.GEMINI_MODEL,
+                    model=model,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
@@ -150,22 +175,6 @@ Responde SOLO con JSON válido.
                 logger.exception("Batch visuals LLM call failed after %d attempts", attempt + 1)
                 raise
 
-        if response is None:
-            logger.warning(
-                "Modelo principal %s saturado para batch visuals. Usando fallback.", model
-            )
-            response = _call_llm_sync(
-                client,
-                model=model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=BatchVisualSpec,
-                    temperature=0.7,
-                ),
-                label="LLM Visuals",
-            )
-
         # Parsear JSON con limpieza
         raw_text = response.text.strip()
         # Extraer JSON de bloques markdown si existen
@@ -194,43 +203,8 @@ Responde SOLO con JSON válido.
         return BatchVisualSpec(**data)
     except (json.JSONDecodeError, ValueError, TimeoutError) as e:
         logger.error("Error processing LLM response: %s", e)
-        # Fallback con escenas diferenciadas
-        fallback_queries = [
-            "A plant leaf growing from bottom center with organic curves and glowing particles",
-            "A heart shape forming from connected dots with warm golden light",
-            "Water drops falling into a pool creating expanding ripple circles",
-            "Sun rays expanding from center with warm gradient transitions",
-            "Mountain peaks emerging from fog with layered parallax movement",
-            "A tree branching upward with leaves appearing one by one",
-        ]
-        return BatchVisualSpec(
-            scenes=[
-                VisualSpecResult(
-                    media_query=fallback_queries[i % len(fallback_queries)],
-                    backgroundColor="#0f172a",
-                    textColor="#38bdf8",
-                )
-                for i, _ in enumerate(chunks)
-            ]
-        )
+        return _generate_fallback(chunks)
     except Exception as e:
         # Fallback: return generic scenes on any unexpected LLM error
         logger.exception("Error conectando con Gemini: %s", e)
-        fallback_queries = [
-            "A plant leaf growing from bottom center with organic curves and glowing particles",
-            "A heart shape forming from connected dots with warm golden light",
-            "Water drops falling into a pool creating expanding ripple circles",
-            "Sun rays expanding from center with warm gradient transitions",
-            "Mountain peaks emerging from fog with layered parallax movement",
-            "A tree branching upward with leaves appearing one by one",
-        ]
-        return BatchVisualSpec(
-            scenes=[
-                VisualSpecResult(
-                    media_query=fallback_queries[i % len(fallback_queries)],
-                    backgroundColor="#0f172a",
-                    textColor="#38bdf8",
-                )
-                for i, _ in enumerate(chunks)
-            ]
-        )
+        return _generate_fallback(chunks)

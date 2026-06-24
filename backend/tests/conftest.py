@@ -37,3 +37,19 @@ def db_session():
 
     session.close()
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def test_user(db_session):
+    """Create a test user for pipeline tests."""
+    from app.db.models import User
+    user = User(
+        email="test@animaflow.test",
+        hashed_password="test_hashed_password",
+        name="Test User",
+        role="user",
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user

@@ -7,12 +7,33 @@ import { useToastStore } from '../../store/useToastStore';
 import { JsonViewer } from '../../components/dashboard/JsonViewer';
 import { isCompletedStatus } from '../../types/job';
 import type { JobSummary } from '../../types/job';
+import { API_BASE } from '../../api/client';
 
-interface DownloadGroup {
-  job: JobSummary;
-  mp4Size: string;
-  aeSize: string;
-  specSize: string;
+// ---------------------------------------------------------------------------
+// localStorage helpers for tracking downloaded jobs
+// ---------------------------------------------------------------------------
+const STORAGE_KEY = 'animaflow_downloaded_jobs';
+
+const getDownloadedIds = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const markAsDownloaded = (jobId: string): string[] => {
+  const ids = getDownloadedIds();
+  if (!ids.includes(jobId)) {
+    ids.push(jobId);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+  }
+  return ids;
+};
+
+interface JobFamily {
+  rootId: string;
+  jobs: JobSummary[];
 }
 
 export function DownloadsPage() {
@@ -23,34 +44,48 @@ export function DownloadsPage() {
   const [jsonViewerOpen, setJsonViewerOpen] = useState(false);
   const [viewingSpec, setViewingSpec] = useState<Record<string, unknown> | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  const [downloadedIds, setDownloadedIds] = useState<string[]>(getDownloadedIds);
 
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
 
-  // Filter to completed jobs only
-  const completedJobs = jobs.filter((j) => isCompletedStatus(j.status));
+  // Show every completed job so finished videos appear here automatically.
+  // (Previously this was gated on `downloadedIds`, which only listed files the
+  // user had already downloaded once — so freshly rendered videos never showed.)
+  const downloadedJobs = jobs.filter((j) => isCompletedStatus(j.status));
 
   // Filter by search
-  const filteredJobs = completedJobs.filter(
+  const filteredJobs = downloadedJobs.filter(
     (j) =>
       j.script_text.toLowerCase().includes(search.toLowerCase()) ||
       j.job_id.toLowerCase().includes(search.toLowerCase()),
   );
 
-  // Group downloads by project
-  const downloadGroups: DownloadGroup[] = filteredJobs.map((job) => ({
-    job,
-    mp4Size: estimateMp4Size(job.script_text),
-    aeSize: estimateAeSize(job.script_text),
-    specSize: estimateSpecSize(job.script_text),
-  }));
+  // Group downloads by project families
+  const familiesMap = new Map<string, JobSummary[]>();
+  filteredJobs.forEach((job) => {
+    const rootId = job.parent_job_id || job.job_id;
+    if (!familiesMap.has(rootId)) {
+      familiesMap.set(rootId, []);
+    }
+    familiesMap.get(rootId)!.push(job);
+  });
+
+  const jobFamilies: JobFamily[] = Array.from(familiesMap.entries()).map(([rootId, jobs]) => {
+    jobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return { rootId, jobs };
+  });
+
+  jobFamilies.sort((a, b) => new Date(b.jobs[0].created_at).getTime() - new Date(a.jobs[0].created_at).getTime());
 
   const handleDownloadAE = useCallback(
     async (jobId: string) => {
       setDownloadingId(jobId);
       try {
         await downloadAEExport(jobId);
+        setDownloadedIds(markAsDownloaded(jobId));
         addToast('success', 'Exportación iniciada. Se descargará automáticamente.');
       } catch {
         addToast('error', 'Error al descargar la exportación para After Effects.');
@@ -66,6 +101,7 @@ export function DownloadsPage() {
       setDownloadingId(jobId);
       try {
         await downloadSpecJson(jobId);
+        setDownloadedIds(markAsDownloaded(jobId));
         addToast('success', 'Descarga de spec.json iniciada');
       } catch {
         addToast('error', 'Error al descargar el spec.json.');
@@ -88,11 +124,31 @@ export function DownloadsPage() {
     }
   }, [addToast]);
 
-  const handleDownloadMp4 = useCallback((job: JobSummary) => {
-    if (job.video_url) {
-      window.open(job.video_url, '_blank');
+  const handleDownloadMp4 = useCallback(async (job: JobSummary) => {
+    if (!job.video_url) return;
+    try {
+      const url = job.video_url.startsWith('http')
+        ? job.video_url
+        : `${API_BASE}${job.video_url}`;
+      const token = localStorage.getItem('animaflow_token');
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `animaflow_${job.job_id}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      setDownloadedIds(markAsDownloaded(job.job_id));
+    } catch {
+      addToast('error', 'Error descargando el video MP4.');
     }
-  }, []);
+  }, [addToast]);
 
   return (
     <div className="p-6 lg:p-8">
@@ -128,7 +184,7 @@ export function DownloadsPage() {
           <div className="flex items-center justify-center py-20">
             <Loader2 size={28} className="animate-spin text-mint-precision" />
           </div>
-        ) : downloadGroups.length === 0 ? (
+        ) : jobFamilies.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -142,139 +198,175 @@ export function DownloadsPage() {
             </h2>
             <p className="text-text-secondary text-sm max-w-sm">
               {search
-                ? 'No se encontraron proyectos con ese término de búsqueda.'
-                : 'Los proyectos completados aparecerán aquí con sus archivos descargables.'}
+                ? 'No se encontraron proyectos descargados con ese término de búsqueda.'
+                : 'Descarga archivos de proyectos completados y aparecerán aquí.'}
             </p>
           </motion.div>
         ) : (
           <div className="space-y-6">
             <AnimatePresence>
-              {downloadGroups.map((group) => (
-                <motion.div
-                  key={group.job.job_id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-surface-container border border-border-tech rounded-xl overflow-hidden"
-                >
-                  {/* Project header */}
-                  <div className="px-5 py-3 border-b border-border-tech/50 bg-surface-lowest/50">
-                    <h3 className="text-sm font-semibold text-text-primary truncate">
-                      Proyecto: {group.job.script_text.slice(0, 50)}
-                      {group.job.script_text.length > 50 ? '...' : ''}
-                    </h3>
-                    <p className="text-[11px] text-text-secondary/40 font-mono mt-0.5">
-                      {group.job.job_id.slice(0, 8)} · {formatDate(group.job.created_at)}
-                    </p>
-                  </div>
+              {jobFamilies.map((family) => {
+                const selectedJobId = selectedVariants[family.rootId] || family.jobs[0].job_id;
+                const activeJob = family.jobs.find((j) => j.job_id === selectedJobId) || family.jobs[0];
+                const mp4Size = estimateMp4Size(activeJob.aspect_ratio || '9:16');
+                const aeSize = estimateAeSize(activeJob.script_text);
+                const specSize = estimateSpecSize(activeJob.script_text);
 
-                  {/* Download items */}
-                  <div className="divide-y divide-border-tech/30">
-                    {/* MP4 */}
-                    <div className="px-5 py-4 flex items-center gap-4">
-                      <div className="w-9 h-9 rounded-lg bg-surface-high flex items-center justify-center shrink-0">
-                        <Film size={18} className="text-mint-precision/70" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text-primary">
-                          video_{group.job.job_id.slice(0, 8)}.mp4
+                return (
+                  <motion.div
+                    key={family.rootId}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-surface-container border border-border-tech rounded-xl overflow-hidden"
+                  >
+                    {/* Project header */}
+                    <div className="px-5 py-3 border-b border-border-tech/50 bg-surface-lowest/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-text-primary truncate max-w-md">
+                          Proyecto: {activeJob.script_text.slice(0, 50)}
+                          {activeJob.script_text.length > 50 ? '...' : ''}
+                        </h3>
+                        <p className="text-[11px] text-text-secondary/40 font-mono mt-0.5">
+                          {activeJob.job_id.slice(0, 8)} · {formatDate(activeJob.created_at)}
                         </p>
-                        <p className="text-[11px] text-text-secondary/40">
-                          Renderizado: {formatDate(group.job.created_at)} ·{' '}
-                          {group.job.aspect_ratio || '9:16'}
-                        </p>
                       </div>
-                      <span className="text-xs text-text-secondary/50 font-mono shrink-0">
-                        {group.mp4Size}
-                      </span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => handleDownloadMp4(group.job)}
-                          className="p-2 rounded-lg text-text-secondary/50 hover:text-mint-precision hover:bg-mint-precision/10 transition-colors"
-                          title="Preview"
-                        >
-                          <Play size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDownloadMp4(group.job)}
-                          className="p-2 rounded-lg text-text-secondary/50 hover:text-text-primary hover:bg-surface-high transition-colors"
-                          title="Descargar"
-                        >
-                          <Download size={14} />
-                        </button>
-                      </div>
+                      
+                      {/* Variants Selector */}
+                      {family.jobs.length > 1 && (
+                        <div className="flex bg-surface-high rounded-lg p-1 shrink-0">
+                          {family.jobs.map((job) => (
+                            <button
+                              key={job.job_id}
+                              onClick={() => setSelectedVariants(prev => ({ ...prev, [family.rootId]: job.job_id }))}
+                              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                                selectedJobId === job.job_id
+                                  ? 'bg-mint-precision text-deep-slate shadow-sm'
+                                  : 'text-text-secondary hover:text-text-primary'
+                              }`}
+                            >
+                              {job.aspect_ratio || '9:16'}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    {/* AE Export */}
-                    <div className="px-5 py-4 flex items-center gap-4">
-                      <div className="w-9 h-9 rounded-lg bg-surface-high flex items-center justify-center shrink-0">
-                        <FileArchive size={18} className="text-secondary/70" />
+                    {/* Download items */}
+                    <div className="divide-y divide-border-tech/30">
+                      {/* MP4 */}
+                      <div className="px-5 py-4 flex items-center gap-4">
+                        <div className="w-9 h-9 rounded-lg bg-surface-high flex items-center justify-center shrink-0">
+                          <Film size={18} className="text-mint-precision/70" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-text-primary">
+                            video_{activeJob.job_id.slice(0, 8)}.mp4
+                          </p>
+                          <p className="text-[11px] text-text-secondary/40">
+                            Renderizado: {formatDate(activeJob.created_at)} ·{' '}
+                            {activeJob.aspect_ratio || '9:16'}
+                          </p>
+                        </div>
+                        <span className="text-xs text-text-secondary/50 font-mono shrink-0">
+                          {mp4Size}
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => {
+                              if (activeJob.video_url) {
+                                const url = activeJob.video_url.startsWith('http')
+                                  ? activeJob.video_url
+                                  : `${API_BASE}${activeJob.video_url}`;
+                                window.open(url, '_blank');
+                              }
+                            }}
+                            className="p-2 rounded-lg text-text-secondary/50 hover:text-mint-precision hover:bg-mint-precision/10 transition-colors"
+                            title="Preview"
+                          >
+                            <Play size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadMp4(activeJob)}
+                            className="p-2 rounded-lg text-text-secondary/50 hover:text-text-primary hover:bg-surface-high transition-colors"
+                            title="Descargar"
+                          >
+                            <Download size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text-primary">
-                          AE_Project_{group.job.job_id.slice(0, 8)}.zip
-                        </p>
-                        <p className="text-[11px] text-text-secondary/40">
-                          Exportado: {formatDate(group.job.created_at)}
-                        </p>
-                      </div>
-                      <span className="text-xs text-text-secondary/50 font-mono shrink-0">
-                        {group.aeSize}
-                      </span>
-                      <button
-                        onClick={() => handleDownloadAE(group.job.job_id)}
-                        disabled={downloadingId === group.job.job_id}
-                        className="p-2 rounded-lg text-text-secondary/50 hover:text-text-primary hover:bg-surface-high transition-colors disabled:opacity-40"
-                        title="Descargar"
-                      >
-                        {downloadingId === group.job.job_id ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <Download size={14} />
-                        )}
-                      </button>
-                    </div>
 
-                    {/* spec.json */}
-                    <div className="px-5 py-4 flex items-center gap-4">
-                      <div className="w-9 h-9 rounded-lg bg-surface-high flex items-center justify-center shrink-0">
-                        <FileJson size={18} className="text-text-secondary/50" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text-primary">
-                          spec_{group.job.job_id.slice(0, 8)}.json
-                        </p>
-                        <p className="text-[11px] text-text-secondary/40">
-                          Generado: {formatDate(group.job.created_at)}
-                        </p>
-                      </div>
-                      <span className="text-xs text-text-secondary/50 font-mono shrink-0">
-                        {group.specSize}
-                      </span>
-                      <div className="flex items-center gap-1 shrink-0">
+                      {/* AE Export */}
+                      <div className="px-5 py-4 flex items-center gap-4">
+                        <div className="w-9 h-9 rounded-lg bg-surface-high flex items-center justify-center shrink-0">
+                          <FileArchive size={18} className="text-secondary/70" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-text-primary">
+                            AE_Project_{activeJob.job_id.slice(0, 8)}.zip
+                          </p>
+                          <p className="text-[11px] text-text-secondary/40">
+                            Exportado: {formatDate(activeJob.created_at)}
+                          </p>
+                        </div>
+                        <span className="text-xs text-text-secondary/50 font-mono shrink-0">
+                          {aeSize}
+                        </span>
                         <button
-                          onClick={() => handleViewSpec(group.job.job_id)}
-                          className="p-2 rounded-lg text-text-secondary/50 hover:text-text-primary hover:bg-surface-high transition-colors"
-                          title="Ver"
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDownloadSpec(group.job.job_id)}
-                          disabled={downloadingId === group.job.job_id}
+                          onClick={() => handleDownloadAE(activeJob.job_id)}
+                          disabled={downloadingId === activeJob.job_id}
                           className="p-2 rounded-lg text-text-secondary/50 hover:text-text-primary hover:bg-surface-high transition-colors disabled:opacity-40"
                           title="Descargar"
                         >
-                          {downloadingId === group.job.job_id ? (
+                          {downloadingId === activeJob.job_id ? (
                             <Loader2 size={14} className="animate-spin" />
                           ) : (
                             <Download size={14} />
                           )}
                         </button>
                       </div>
+
+                      {/* spec.json */}
+                      <div className="px-5 py-4 flex items-center gap-4">
+                        <div className="w-9 h-9 rounded-lg bg-surface-high flex items-center justify-center shrink-0">
+                          <FileJson size={18} className="text-text-secondary/50" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-text-primary">
+                            spec_{activeJob.job_id.slice(0, 8)}.json
+                          </p>
+                          <p className="text-[11px] text-text-secondary/40">
+                            Generado: {formatDate(activeJob.created_at)}
+                          </p>
+                        </div>
+                        <span className="text-xs text-text-secondary/50 font-mono shrink-0">
+                          {specSize}
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => handleViewSpec(activeJob.job_id)}
+                            className="p-2 rounded-lg text-text-secondary/50 hover:text-text-primary hover:bg-surface-high transition-colors"
+                            title="Ver"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadSpec(activeJob.job_id)}
+                            disabled={downloadingId === activeJob.job_id}
+                            className="p-2 rounded-lg text-text-secondary/50 hover:text-text-primary hover:bg-surface-high transition-colors disabled:opacity-40"
+                            title="Descargar"
+                          >
+                            {downloadingId === activeJob.job_id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Download size={14} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           </div>
         )}
@@ -311,23 +403,16 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function estimateMp4Size(scriptText: string): string {
-  // Rough estimate: ~1MB per 100 chars of script for 9:16
-  const chars = scriptText.length;
-  const mb = Math.max(2, Math.round((chars / 100) * 1.2));
-  return mb >= 1000 ? `${(mb / 1000).toFixed(1)} GB` : `${mb} MB`;
+function estimateMp4Size(aspectRatio: string): string {
+  // 9:16 ~5-15MB, 16:9 ~10-30MB, 1:1 ~8-20MB
+  const base = aspectRatio === '16:9' ? 15 : aspectRatio === '1:1' ? 10 : 8;
+  return `${base}-${base * 2} MB`;
 }
 
-function estimateAeSize(scriptText: string): string {
-  // AE project is typically smaller than rendered video
-  const chars = scriptText.length;
-  const mb = Math.max(1, Math.round((chars / 100) * 0.5));
-  return mb >= 1000 ? `${(mb / 1000).toFixed(1)} GB` : `${mb} MB`;
+function estimateAeSize(_scriptText: string): string {
+  return '2-8 MB';
 }
 
-function estimateSpecSize(scriptText: string): string {
-  // spec.json is typically a few KB
-  const chars = scriptText.length;
-  const kb = Math.max(2, Math.round(chars / 50));
-  return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`;
+function estimateSpecSize(_scriptText: string): string {
+  return '4-12 KB';
 }

@@ -5,7 +5,7 @@ from datetime import datetime
 
 class ApiKeyCreate(BaseModel):
     """Schema for creating a new API key."""
-    provider: str = Field(..., pattern="^(gemini|openai|anthropic|grok)$")
+    provider: str = Field(..., pattern="^(gemini|openai|anthropic|grok|groq)$")
     api_key: str = Field(..., min_length=10)
 
 

@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Music, FileCode, Film, MoreVertical } from 'lucide-react';
+import { Music, FileCode, MoreVertical } from 'lucide-react';
 import { API_BASE } from '../../api/client';
 import { useToastStore } from '../../store/useToastStore';
 
 const SCENE_DOWNLOADS = [
   { id: 'audio', label: 'Audio', icon: Music, endpoint: '/audio' },
   { id: 'spec', label: 'Spec JSON', icon: FileCode, endpoint: '/spec' },
-  { id: 'video', label: 'Video', icon: Film, endpoint: '/video' },
 ];
 
 interface SceneDownloadMenuProps {

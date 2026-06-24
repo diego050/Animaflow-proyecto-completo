@@ -11,20 +11,26 @@ import { WizardStepInfo } from '../../components/wizard/WizardStepInfo';
 import { WizardSummary } from '../../components/wizard/WizardSummary';
 import { WizardStepProcessing } from '../../components/wizard/WizardStepProcessing';
 import { WizardStepDone } from '../../components/wizard/WizardStepDone';
+import { WizardStepReviewScenes } from '../../components/wizard/WizardStepReviewScenes';
 
 export function NewProjectWizard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { wizardStep, wizardData, setWizardStep, setWizardData, resetWizard } =
     useWizardStore();
-  const { generateScript, createJob, startPolling, selectedJob } = useJobsStore();
+  const { generateScript, createJob, startPolling, selectedJob, approveScenes } = useJobsStore();
   const { voices, voicesLoading, fetchVoices } = useVoicesStore();
   const { settings } = useSettingsStore();
   const { fetchLLMSettings, llmSettings } = useAuthStore();
 
   const [scriptLoading, setScriptLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [approveLoading, setApproveLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleUnitChange = useCallback((unit: 'seconds' | 'words') => {
+    setWizardData({ durationUnit: unit });
+  }, [setWizardData]);
 
   // Fetch voices and LLM settings on mount
   useEffect(() => {
@@ -62,6 +68,8 @@ export function NewProjectWizard() {
         wizardData.info,
         wizardData.templateId,
         wizardData.customPrompt || null,
+        wizardData.targetDurationSeconds,
+        wizardData.selectedModel,
       );
       setWizardData({ script });
       setWizardStep(2);
@@ -74,13 +82,17 @@ export function NewProjectWizard() {
     wizardData.info,
     wizardData.templateId,
     wizardData.customPrompt,
+    wizardData.targetDurationSeconds,
+    wizardData.selectedModel,
     generateScript,
     setWizardData,
     setWizardStep,
   ]);
 
   const handleCreateProject = useCallback(async () => {
-    if (!wizardData.script.trim()) {
+    const isAnimationOnly = wizardData.wizardMode === 'animation-only';
+    const scriptToUse = isAnimationOnly ? "Solo Animación" : wizardData.script;
+    if (!isAnimationOnly && !scriptToUse.trim()) {
       setError('El guión no puede estar vacío.');
       return;
     }
@@ -88,14 +100,18 @@ export function NewProjectWizard() {
     setCreateLoading(true);
     try {
       const jobId = await createJob(
-        wizardData.script,
+        scriptToUse,
         wizardData.aspectRatio,
         wizardData.voiceId || undefined,
         wizardData.selectedModel,
+        wizardData.scenes,
+        wizardData.designMd,
+        wizardData.customPrompt,
+        isAnimationOnly,
+        wizardData.designTemplateId || undefined,
       );
-      setWizardData({ generatedJobId: jobId });
-      setWizardStep(3);
-      startPolling(jobId);
+      resetWizard();
+      navigate(`/dashboard/project/${jobId}`);
     } catch {
       setError('Error creando el proyecto. Intenta de nuevo.');
     } finally {
@@ -106,23 +122,64 @@ export function NewProjectWizard() {
     wizardData.aspectRatio,
     wizardData.voiceId,
     wizardData.selectedModel,
+    wizardData.designTemplateId,
+    wizardData.scenes,
+    wizardData.designMd,
+    wizardData.customPrompt,
+    wizardData.wizardMode,
     createJob,
-    setWizardData,
-    setWizardStep,
-    startPolling,
+    resetWizard,
+    navigate,
   ]);
 
-  // Auto-advance when job completes
-  if (wizardStep === 3 && selectedJob) {
-    const status = selectedJob.status;
-    if (status === 'completed' || status === 'completed_video') {
-      setWizardStep(4);
+  // Auto-advance based on job status
+  useEffect(() => {
+    if (selectedJob) {
+      const status = selectedJob.status;
+      if (wizardStep === 3) {
+        if (status === 'segmented') {
+          setWizardStep(4);
+        } else if (status === 'completed' || status === 'completed_video') {
+          setWizardStep(6);
+        }
+        // On failure, stay on step 3 — WizardStepProcessing shows retry button
+      } else if (wizardStep === 5) {
+        if (status === 'completed' || status === 'completed_video' || status === 'queued_render') {
+          setWizardStep(6);
+        }
+        // On failure, stay on step 5 — WizardStepProcessing shows retry button
+      }
     }
-  }
+  }, [selectedJob?.status, wizardStep, setWizardStep]);
+
+  const handleApproveScenes = async (scenes: Array<{
+    text: string;
+    media_query: string;
+    start_time_seconds: number;
+    duration_seconds: number;
+  }>) => {
+    if (!wizardData.generatedJobId) return;
+    setApproveLoading(true);
+    setError(null);
+    try {
+      await approveScenes(wizardData.generatedJobId, scenes);
+      setWizardStep(5);
+    } catch {
+      setError('Error aprobando las escenas. Intenta de nuevo.');
+    } finally {
+      setApproveLoading(false);
+    }
+  };
 
   const handleBack = () => {
     if (wizardStep === 3 && wizardData.skippedReview) {
       setWizardStep(1);
+    } else if (wizardStep === 4) {
+      // From scene review, go back to script review (step 2)
+      setWizardStep(2);
+    } else if (wizardStep === 5 || wizardStep === 6) {
+      // From processing continuation or done, go to dashboard
+      navigate('/dashboard');
     } else if (wizardStep > 1) {
       setWizardStep(wizardStep - 1);
     } else {
@@ -169,6 +226,9 @@ export function NewProjectWizard() {
               customHeight={wizardData.customHeight}
               templateId={wizardData.templateId}
               customPrompt={wizardData.customPrompt}
+              targetDurationSeconds={wizardData.targetDurationSeconds}
+              durationUnit={wizardData.durationUnit}
+              designTemplateId={wizardData.designTemplateId}
               onInfoChange={(info) => setWizardData({ info })}
               onAspectRatioChange={(aspectRatio) =>
                 setWizardData({ aspectRatio })
@@ -187,6 +247,11 @@ export function NewProjectWizard() {
               onCustomPromptChange={(customPrompt) =>
                 setWizardData({ customPrompt })
               }
+              onDurationChange={(targetDurationSeconds) =>
+                setWizardData({ targetDurationSeconds })
+              }
+              onUnitChange={handleUnitChange}
+              onDesignTemplateChange={(id) => setWizardData({ designTemplateId: id })}
               onGenerate={handleGenerateScript}
               onCreate={handleCreateProject}
               loading={scriptLoading}
@@ -221,13 +286,44 @@ export function NewProjectWizard() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
           >
-            <WizardStepProcessing status={selectedJob?.status} />
+            <WizardStepProcessing status={selectedJob?.status} jobId={selectedJob?.job_id} />
           </motion.div>
         )}
 
         {wizardStep === 4 && (
           <motion.div
             key="step4"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <WizardStepReviewScenes
+              scenes={selectedJob?.result_spec?.scenes || []}
+              onApprove={handleApproveScenes}
+              loading={approveLoading}
+            />
+          </motion.div>
+        )}
+
+        {wizardStep === 5 && (
+          <motion.div
+            key="step5"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <WizardStepProcessing 
+              status={selectedJob?.status} 
+              jobId={selectedJob?.job_id}
+              title="Generando Preview Interactivo"
+              description="Creando componentes visuales y audio para tu previsualización."
+            />
+          </motion.div>
+        )}
+
+        {wizardStep === 6 && (
+          <motion.div
+            key="step6"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}

@@ -1,7 +1,7 @@
 import { Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-export type TabKey = 'profile' | 'preferences' | 'tts' | 'api' | 'billing';
+export type TabKey = 'profile' | 'preferences' | 'tts' | 'api' | 'billing' | 'designs';
 
 interface TabDef {
   key: TabKey;
@@ -31,7 +31,7 @@ export function SettingsLayout({ activeTab, onTabChange, tabs, children }: Setti
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-surface-container rounded-lg p-1 mb-6 max-w-2xl mx-auto">
+      <div className="flex gap-1 bg-surface-container rounded-lg p-1 mb-6 max-w-4xl mx-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -53,7 +53,7 @@ export function SettingsLayout({ activeTab, onTabChange, tabs, children }: Setti
       </div>
 
       {/* Tab content */}
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {children}
       </div>
     </div>

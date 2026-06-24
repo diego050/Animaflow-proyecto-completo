@@ -9,6 +9,10 @@ their own API key.
 from typing import Optional
 from dataclasses import dataclass
 
+from app.core.config import settings
+from app.db.session import get_db_context
+from app.db.models import User, ApiKey
+
 
 class MissingApiKeyError(Exception):
     """Raised when an authenticated user has no configured API key."""
@@ -49,10 +53,6 @@ def resolve_llm_credentials(
     Raises:
         MissingApiKeyError: If the user is authenticated but has no active API key.
     """
-    from app.core.config import settings
-    from app.db.session import get_db_context
-    from app.db.models import User, ApiKey
-
     # Default fallback to global Gemini config (unauthenticated only)
     fallback_api_key = getattr(settings, "GEMINI_API_KEY", None)
     fallback_model = getattr(settings, "GEMINI_MODEL", "gemini-2.0-flash")
@@ -84,7 +84,7 @@ def resolve_llm_credentials(
             .filter(
                 ApiKey.user_id == user_id,
                 ApiKey.provider == provider,
-                ApiKey.is_active == True,
+                ApiKey.is_active.is_(True),
             )
             .first()
         )

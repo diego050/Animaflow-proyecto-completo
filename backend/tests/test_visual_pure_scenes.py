@@ -1,0 +1,66 @@
+"""Tests para el refuerzo determinista de 'texto opcional por escena' (Fase 5)."""
+from app.modules.llm.component_strategy import (
+    _visual_pure_indices,
+    apply_visual_pure_strip,
+)
+
+
+def _scene_with_text_and_icon():
+    return {
+        "version": "1.0",
+        "background": {"type": "linear-gradient", "colors": ["#111", "#222"]},
+        "layers": [
+            {"type": "component", "componentName": "ParticleField", "x": 0, "y": 0},
+            {"type": "component", "componentName": "IconifyIcon", "x": 0, "y": 250,
+             "icon": "mdi:rocket", "size": 120},
+            {"type": "component", "componentName": "StyleTextBlock", "x": 0, "y": -100,
+             "text": "Texto de la escena", "fontSize": 80},
+        ],
+    }
+
+
+# ── selección determinista de índices ────────────────────────────────────────
+
+def test_less_than_three_scenes_never_stripped():
+    assert _visual_pure_indices(1) == set()
+    assert _visual_pure_indices(2) == set()
+
+
+def test_three_scenes_picks_the_single_middle():
+    assert _visual_pure_indices(3) == {1}
+
+
+def test_never_first_or_last():
+    for total in range(3, 25):
+        chosen = _visual_pure_indices(total)
+        assert 0 not in chosen
+        assert (total - 1) not in chosen
+        assert chosen, f"al menos una visual-pura para total={total}"
+
+
+def test_scales_roughly_one_third():
+    assert len(_visual_pure_indices(10)) == 2   # 8 del medio // 3 = 2
+    assert len(_visual_pure_indices(20)) == 6   # 18 del medio // 3 = 6
+
+
+def test_deterministic():
+    assert _visual_pure_indices(17) == _visual_pure_indices(17)
+
+
+# ── strip DESACTIVADO (jun 2026): apply_visual_pure_strip es ahora no-op ──────
+# Decisión del usuario: NO forzar ninguna escena a visual-pura; la IA decide por
+# escena según el contenido (el prompt es el único driver). La función conserva su
+# firma pero nunca quita texto. _visual_pure_indices se mantiene para una posible
+# red de seguridad futura, por eso sus tests de arriba siguen vigentes.
+
+def test_strip_is_now_a_noop_keeps_text():
+    spec, stripped = apply_visual_pure_strip(_scene_with_text_and_icon(), 1, 3, "9:16")
+    assert stripped is False
+    names = [l.get("componentName") for l in spec["layers"]]
+    assert "StyleTextBlock" in names   # el texto YA NO se quita (la IA decide)
+
+
+def test_strip_noop_for_any_index():
+    for idx in range(4):
+        _spec, stripped = apply_visual_pure_strip(_scene_with_text_and_icon(), idx, 4, "9:16")
+        assert stripped is False

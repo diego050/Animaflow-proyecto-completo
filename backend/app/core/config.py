@@ -1,4 +1,4 @@
-﻿from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings
 from pydantic import model_validator
 from typing import Optional
 import os
@@ -18,14 +18,10 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql://user:password@localhost:5432/animaflow"
 
-    # SQLAlchemy compatibility
+    # SQLAlchemy compatibility — used by alembic/env.py and app/db/session.py
     @property
     def sqlalchemy_database_uri(self) -> str:
         return self.DATABASE_URL
-
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379"
-
     # LLM - Google Gemini API (Free Tier)
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_MODEL: str = "gemini-3.1-flash"
@@ -34,9 +30,6 @@ class Settings(BaseSettings):
     # Resend (contact form emails)
     RESEND_API_KEY: Optional[str] = None
     RESEND_TO_EMAIL: Optional[str] = None
-
-    # Voicebox (TTS)
-    VOICEBOX_URL: str = "http://127.0.0.1:17493"
 
     # Storage
     STORAGE_PATH: str = "./storage"
@@ -58,8 +51,19 @@ class Settings(BaseSettings):
         "CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"
     )
 
+    # Render Server
+    RENDER_MODE: str = os.getenv("RENDER_MODE", "local")
+    RENDER_SERVER_URL: str = os.getenv("RENDER_SERVER_URL", "http://render-server:3001")
+
     # Encryption
     ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
+
+    # Gmail SMTP (for password reset emails)
+    GMAIL_EMAIL: Optional[str] = None
+    GMAIL_APP_PASSWORD: Optional[str] = None
+
+    # Frontend URL (for password reset links, CORS, etc.)
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
     @model_validator(mode="after")
     def validate_secrets(self):
@@ -78,7 +82,6 @@ class Settings(BaseSettings):
         1. FRONTEND_DIR environment variable
         2. Auto-detection from this file's location
         """
-        import os
         if self.FRONTEND_DIR:
             path = os.path.abspath(self.FRONTEND_DIR)
             if os.path.isdir(path):

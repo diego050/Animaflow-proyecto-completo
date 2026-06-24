@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Key, Plus, Trash2, Loader2, X } from 'lucide-react';
+import { Key, Plus, Trash2, Loader2, X, ChevronDown, ChevronUp, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useToastStore } from '../../store/useToastStore';
 import type { ApiKeyProvider } from '../../types/auth';
 import { PROVIDER_LABELS } from '../../types/auth';
 
-const ALL_PROVIDERS: ApiKeyProvider[] = ['gemini', 'anthropic', 'openai', 'grok'];
+const ALL_PROVIDERS: ApiKeyProvider[] = ['gemini', 'anthropic', 'openai', 'grok', 'groq'];
 
 export function ApiKeysSection() {
   const { apiKeys, fetchApiKeys, createApiKey, deleteApiKey } = useAuthStore();
+  const { addToast } = useToastStore();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [addProvider, setAddProvider] = useState<ApiKeyProvider>('gemini');
@@ -17,6 +19,9 @@ export function ApiKeysSection() {
   const [addError, setAddError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchApiKeys();
@@ -185,6 +190,76 @@ export function ApiKeysSection() {
         <p className="text-xs text-text-secondary/50 mt-3">
           Por seguridad, solo mostramos los últimos 4 caracteres. Guarda tus API keys en un lugar seguro.
         </p>
+      </div>
+
+      {/* Advanced Configuration */}
+      <div className="mt-6 pt-6 border-t border-border-tech/50">
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center justify-between w-full text-sm font-semibold text-text-primary hover:text-mint-precision transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            <Settings size={14} />
+            Configuración Avanzada
+          </span>
+          {showAdvanced ? <ChevronUp size={16} className="text-text-secondary/50" /> : <ChevronDown size={16} className="text-text-secondary/50" />}
+        </button>
+
+        <AnimatePresence>
+          {showAdvanced && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-4 space-y-4 p-4 bg-surface-lowest rounded-lg border border-border-tech/50">
+                {/* Model selector */}
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary/70 mb-2">
+                    Modelo para edición de escenas
+                  </label>
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary focus:border-mint-precision outline-none appearance-none"
+                  >
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash (recomendado)</option>
+                    <option value="gemini-3.1-flash">Gemini 3.1 Flash</option>
+                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (económico)</option>
+                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="claude-sonnet-4">Claude Sonnet 4</option>
+                  </select>
+                  <p className="text-[10px] text-text-secondary/50 mt-1">
+                    Este modelo se usará para el router de intención y la edición de escenas.
+                  </p>
+                </div>
+
+                {/* Save button */}
+                <button
+                  onClick={async () => {
+                    setSaving(true);
+                    try {
+                      // TODO: Call API to save model preference
+                      // await saveLLMSettings({ model: selectedModel });
+                      addToast('success', 'Configuración guardada');
+                    } catch {
+                      addToast('error', 'Error al guardar la configuración');
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                  className="w-full px-4 py-2 rounded-lg text-sm font-semibold bg-mint-precision text-deep-slate hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? 'Guardando...' : 'Guardar configuración'}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Add API Key Modal */}

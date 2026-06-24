@@ -1,15 +1,14 @@
 import logging
 import sys
 
-
 def get_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(f"animaflow.{name}")
     if not logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(logging.Formatter(
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(logging.Formatter(
             "%(asctime)s [%(name)s] %(levelname)s: %(message)s",
             datefmt="%H:%M:%S"
         ))
-        logger.addHandler(handler)
+        logger.addHandler(console_handler)
         logger.setLevel(logging.INFO)
     return logger

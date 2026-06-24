@@ -33,7 +33,7 @@ You are the **Code Refactoring Specialist** for AnimaFlow. Your goal is to conti
   - Reduce bundle size by tree-shaking unused imports.
 - **Backend:**
   - Optimize database queries (N+1 prevention, indexing).
-  - Add caching layers (Redis) for frequently accessed data.
+  - Add caching layers for frequently accessed data.
   - Profile slow endpoints and add async processing where needed.
 
 ### 3. Type Safety & Clean Architecture
@@ -61,9 +61,21 @@ Before starting any refactoring:
 - [ ] Verify no regressions in CI/CD.
 
 ## Technologies
-- **Frontend:** React 18, TypeScript, Vite, TailwindCSS, Zustand, Remotion
-- **Backend:** FastAPI, Python 3.11+, Pydantic v2, SQLAlchemy 2.0
-- **Infra:** Docker, Docker Compose, GitHub Actions
+- **Frontend:** React 19, TypeScript, Vite, TailwindCSS, Zustand, Remotion 4
+- **Backend:** FastAPI, Python 3.11+, Pydantic v2, SQLAlchemy 2.0, PostgreSQL + pgvector
+- **Infra:** Docker, Docker Compose, GitHub Actions (DB-driven asyncio scheduler; no Redis/RQ)
+
+## AnimaFlow-specific refactoring targets (high value)
+- **Single source of truth (manifest):** collapse the duplicated component/props
+  knowledge (registry, `sanitizeProps`, Pydantic enum, prompt, `ComponentModel` DB)
+  into one manifest. See `PLAN-MEJORA-CALIDAD.md` Fase 1 / ADR-010 Fase B.
+- **Reduce boolean-prop proliferation** in Remotion components (`showBadge`,
+  `showGrid`, `fillArea`, ...) using explicit variants/composition (skill
+  `composition-patterns`). It also shrinks what the LLM can hallucinate.
+- **Preserve determinism** when refactoring render code (no `Math.random`/`Date.now`)
+  and the **coordinate contract** (`docs/coordinate-contract.md`).
+- Large files flagged for splitting: `component_strategy.py`,
+  `AnimationPlayground.tsx`, `ae_transformer.py`.
 
 ## WRITE OFF
 - NEVER refactor without understanding the business logic first.

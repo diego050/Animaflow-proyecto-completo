@@ -1,9 +1,8 @@
-import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import JSONResponse
-from app.api import jobs, exports, audio, auth, voices, api_keys, assets, admin, contact
+from app.api import jobs_crud, jobs_pipeline, exports, audio, auth, voices, api_keys, assets, admin, contact, scenes, design_templates, stream
 from app.core.config import settings
 from app.core.limiter import limiter, RateLimitExceeded
 from app.core.storage_paths import get_storage_dir
@@ -30,7 +29,9 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
-app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])
+app.include_router(jobs_crud.router, prefix="/api/jobs", tags=["Jobs"])
+app.include_router(jobs_pipeline.router, prefix="/api/jobs", tags=["Jobs Pipeline"])
+app.include_router(stream.router, prefix="/api/jobs", tags=["Jobs Stream"])
 app.include_router(exports.router, tags=["Exports"])
 app.include_router(audio.router, tags=["Audio"])
 app.include_router(voices.router)  # Voice management endpoints
@@ -38,6 +39,8 @@ app.include_router(api_keys.router)  # API key management endpoints
 app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(contact.router)
+app.include_router(scenes.router, tags=["scenes"])
+app.include_router(design_templates.router, prefix="/api/design-templates", tags=["Design Templates"])
 
 # Serve video files from storage/videos directory
 VIDEO_DIR = get_storage_dir("videos")
@@ -50,6 +53,10 @@ async def startup_event():
             "FATAL: SECRET_KEY not configured for production"
         assert settings.ENCRYPTION_KEY, \
             "FATAL: ENCRYPTION_KEY not configured for production"
+            
+    from app.core.scheduler import scheduler
+    import asyncio
+    asyncio.create_task(scheduler.run_forever())
 
 @app.get("/health")
 async def health_check():

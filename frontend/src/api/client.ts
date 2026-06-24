@@ -24,6 +24,7 @@ async function fetchWithTimeout(
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
+  timeoutMs?: number,
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   const token = localStorage.getItem('animaflow_token');
@@ -36,7 +37,7 @@ export async function apiFetch<T>(
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
-    });
+    }, timeoutMs);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -45,7 +46,14 @@ export async function apiFetch<T>(
         throw new Error('Session expired');
       }
       const data = await response.json().catch(() => ({}));
-      throw new Error(data.detail || `API error: ${response.status}`);
+      
+      // Handle FastAPI validation error array
+      let errorMessage = data.detail;
+      if (Array.isArray(data.detail)) {
+        errorMessage = data.detail.map((e: { msg: string }) => e.msg).join(', ');
+      }
+      
+      throw new Error(errorMessage || `API error: ${response.status}`);
     }
 
     // Handle no-content responses
@@ -95,7 +103,14 @@ export async function apiUpload<T>(
         throw new Error('Session expired');
       }
       const data = await response.json().catch(() => ({}));
-      throw new Error(data.detail || `API error: ${response.status}`);
+      
+      // Handle FastAPI validation error array
+      let errorMessage = data.detail;
+      if (Array.isArray(data.detail)) {
+        errorMessage = data.detail.map((e: { msg: string }) => e.msg).join(', ');
+      }
+      
+      throw new Error(errorMessage || `API error: ${response.status}`);
     }
 
     if (response.status === 204) return {} as T;
@@ -112,11 +127,11 @@ export async function apiUpload<T>(
 export const api = {
   get: <T>(endpoint: string, options?: { signal?: AbortSignal }) =>
     apiFetch<T>(endpoint, { method: 'GET', ...options }),
-  post: <T>(endpoint: string, body?: unknown) =>
+  post: <T>(endpoint: string, body?: unknown, options?: { timeoutMs?: number }) =>
     apiFetch<T>(endpoint, {
       method: 'POST',
       body: body ? JSON.stringify(body) : undefined,
-    }),
+    }, options?.timeoutMs),
   put: <T>(endpoint: string, body?: unknown) =>
     apiFetch<T>(endpoint, {
       method: 'PUT',

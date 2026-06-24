@@ -1,6 +1,0 @@
-DEFAULT_TTS_PROVIDER = "local_piper"
-DEFAULT_TTS_VOICE_ID = "es_ES-carlfm-x_low"
-DEFAULT_ASPECT_RATIO = "9:16"
-DEFAULT_FPS = 30
-
-AVAILABLE_ASPECT_RATIOS = ["9:16", "4:5", "3:4", "1:1", "16:9"]

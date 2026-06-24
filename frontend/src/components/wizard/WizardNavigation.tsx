@@ -10,7 +10,9 @@ const STEPS = [
   { num: 1, label: 'Guión' },
   { num: 2, label: 'Revisar' },
   { num: 3, label: 'Procesando' },
-  { num: 4, label: 'Listo' },
+  { num: 4, label: 'Escenas' },
+  { num: 5, label: 'Preview' },
+  { num: 6, label: 'Preview Listo' },
 ];
 
 export function WizardNavigation({ wizardStep, onBack }: WizardNavigationProps) {
@@ -35,7 +37,7 @@ export function WizardNavigation({ wizardStep, onBack }: WizardNavigationProps) 
         {/* Progress line (filled portion) */}
         <div
           className="absolute top-4 left-0 h-0.5 bg-mint-precision/40 transition-all"
-          style={{ width: `${((wizardStep - 1) / 3) * 100}%` }}
+          style={{ width: `${((wizardStep - 1) / (STEPS.length - 1)) * 100}%` }}
         />
 
         {STEPS.map((item) => (

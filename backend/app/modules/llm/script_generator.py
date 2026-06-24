@@ -16,10 +16,15 @@ def generate_script_from_info(
     language: str = "es",
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
+    target_duration_seconds: int = 30,
+    model: Optional[str] = None,
 ) -> str:
     """Usa Gemini para generar un guion narrativo basado en la información del usuario."""
     from app.core.config import settings
     from app.modules.llm.resolver import resolve_llm_credentials
+
+    # Modelo elegido explícitamente (wizard) — tiene prioridad sobre el resuelto.
+    requested_model = model
 
     # If user provided an explicit api_key, use it; otherwise resolve from DB/env
     if api_key:
@@ -39,15 +44,27 @@ def generate_script_from_info(
         api_key = creds.api_key
         model = creds.model
 
+    # El modelo elegido en el wizard manda sobre el resuelto por defecto.
+    if requested_model:
+        model = requested_model
+
     # If resolve_llm_credentials raised MissingApiKeyError, let it propagate
     # so the caller (endpoint) can return a proper 400 error.
 
     template = get_template(template_id)
     system_prompt = custom_system_prompt or template.system_prompt
 
+    target_words = int(target_duration_seconds * 2.17)
+
     prompt = f"""{system_prompt}
 
 ESTILO SELECCIONADO: {template.name}
+
+REQUISITO DE DURACIÓN:
+- Duración objetivo: {target_duration_seconds} segundos
+- Esto equivale a aproximadamente {target_words} palabras
+- El guion debe tener EXACTAMENTE esta duración al leerse en voz alta
+- Si necesitas menos contenido, sé conciso. Si necesitas más, desarrolla ideas relacionadas.
 
 EJEMPLOS DE HOOKS PARA ESTE ESTILO:
 {chr(10).join(f"- {h}" for h in template.hook_examples)}
@@ -58,17 +75,21 @@ GUÍAS DE ESTILO:
 TEMA DEL USUARIO:
 {info}
 
-INSTRUCCIÓN: Genera un guion completo dividido en escenas de aproximadamente 7 segundos cada una.
-Cada escena debe tener un texto narrativo y una indicación visual.
+INSTRUCCIÓN: Genera un guion narrativo completo que dure aproximadamente {target_duration_seconds} segundos.
+Devuelve ÚNICAMENTE el texto que se leerá en voz alta (narración). NO incluyas indicaciones visuales, NO numeres las escenas, NO agregues título, introducción ni notas al pie.
 
 FORMATO DE RESPUESTA:
-Escena 1: [texto narrativo]
-Visual: [descripción de lo que se muestra]
+- Solo texto narrativo, escena por escena, separado por líneas en blanco.
+- Cada párrafo representa una escena de ~7 segundos.
+- Nada de "Escena 1:", "Visual:", "Título:", etc.
+- El texto debe ser fluido y natural, listo para leerse en voz alta por un TTS.
 
-Escena 2: [texto narrativo]
-Visual: [descripción de lo que se muestra]
+Ejemplo de formato correcto:
+¿Sabías que tu perro te manipula con la mirada? Y no, no es por comida... es algo mucho más profundo.
 
-... etc
+La ciencia confirma que, al mirarse, ambos liberan oxitocina. La misma hormona que sentimos al abrazar a alguien que amamos.
+
+No es solo su cara bonita... es que están diseñados biológicamente para entender lo que sientes, incluso antes que tú.
 """
 
     try:
@@ -79,7 +100,39 @@ Visual: [descripción de lo que se muestra]
             contents=prompt,
             label="LLM Script",
         )
-        return response.text.strip()
+        script = response.text.strip()
+
+        # Validación post-generación
+        word_count = len(script.split())
+        estimated_seconds = word_count / 2.17
+
+        min_acceptable = target_duration_seconds * 0.8
+        max_acceptable = target_duration_seconds * 1.2
+
+        if not (min_acceptable <= estimated_seconds <= max_acceptable):
+            logger.warning(
+                "Script length mismatch: estimated %.1fs, target %ds. Regenerating...",
+                estimated_seconds,
+                target_duration_seconds,
+            )
+            if estimated_seconds > max_acceptable:
+                correction = f"El guion anterior fue demasiado largo ({estimated_seconds:.0f}s). Reduce drásticamente a {target_duration_seconds}s (~{target_words} palabras). Sé extremadamente conciso."
+            else:
+                correction = f"El guion anterior fue demasiado corto ({estimated_seconds:.0f}s). Expande a {target_duration_seconds}s (~{target_words} palabras). Añade más detalles o ejemplos."
+
+            response = _call_llm_sync(
+                client,
+                model=model,
+                contents=prompt + "\n\n" + correction,
+                label="LLM Script (retry)",
+            )
+            script = response.text.strip()
+
+            word_count = len(script.split())
+            estimated_seconds = word_count / 2.17
+            logger.info("Retry result: %.1fs (target: %ds)", estimated_seconds, target_duration_seconds)
+
+        return script
     except (TimeoutError, ValueError) as e:
         logger.error("Error generando guion: %s", e)
         return "Error al generar guion. Por favor, intenta de nuevo o escríbelo manualmente."

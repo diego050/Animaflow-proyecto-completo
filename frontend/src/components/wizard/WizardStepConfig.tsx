@@ -1,15 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, ChevronDown, Check } from 'lucide-react';
+import { Sparkles, ChevronDown, Check, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UserLLMSettings } from '../../types/auth';
-import { AVAILABLE_MODELS } from '../../types/auth';
+import { AVAILABLE_MODELS, ADMIN_ONLY_MODELS } from '../../types/auth';
+import { useAuthStore } from '../../store/useAuthStore';
 
-const ASPECT_RATIOS = [
-  { value: '9:16', label: '9:16', description: 'Stories / Reels / TikTok' },
-  { value: '4:5', label: '4:5', description: 'Instagram Feed' },
-  { value: '1:1', label: '1:1', description: 'Cuadrado' },
-  { value: '16:9', label: '16:9', description: 'YouTube / Landscape' },
-  { value: '3:4', label: '3:4', description: 'Pinterest / Portrait' },
+interface AspectRatioOption {
+  value: string;
+  label: string;
+  description: string;
+  silhouette: { width: string; height: string };
+}
+
+const ASPECT_RATIOS: AspectRatioOption[] = [
+  { value: '9:16', label: '9:16', description: 'Stories / Reels / TikTok', silhouette: { width: 'w-3.5', height: 'h-6' } },
+  { value: '4:5', label: '4:5', description: 'Instagram Feed', silhouette: { width: 'w-4', height: 'h-5' } },
+  { value: '1:1', label: '1:1', description: 'Cuadrado', silhouette: { width: 'w-5', height: 'h-5' } },
+  { value: '16:9', label: '16:9', description: 'YouTube / Landscape', silhouette: { width: 'w-6', height: 'h-3.5' } },
+  { value: '3:4', label: '3:4', description: 'Pinterest / Portrait', silhouette: { width: 'w-4', height: 'h-5.5' } },
 ];
 
 // ---------------------------------------------------------------------------
@@ -39,47 +47,65 @@ export function AspectRatioSelector({
         Relación de aspecto
       </label>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
-        {ASPECT_RATIOS.map((ratio) => (
-          <button
-            key={ratio.value}
-            onClick={() => onChange(ratio.value)}
-            className={`p-3 rounded-lg border text-left transition-colors ${
-              value === ratio.value
-                ? 'border-mint-precision bg-mint-precision/5'
-                : 'border-border-tech bg-surface-container hover:border-outline-variant'
-            }`}
-          >
-            <span
-              className={`text-sm font-semibold ${
-                value === ratio.value
-                  ? 'text-mint-precision'
-                  : 'text-text-primary'
+        {ASPECT_RATIOS.map((ratio) => {
+          const isSelected = value === ratio.value;
+          return (
+            <button
+              key={ratio.value}
+              onClick={() => onChange(ratio.value)}
+              className={`flex flex-col items-center gap-2 p-3 rounded-lg border text-center transition-all duration-200 ${
+                isSelected
+                  ? 'border-mint-precision/40 bg-mint-precision/5 shadow-[0_0_12px_rgba(0,255,171,0.06)]'
+                  : 'border-border-tech bg-surface-container hover:border-outline-variant hover:bg-surface-high'
               }`}
             >
-              {ratio.label}
-            </span>
-            <p className="text-[10px] text-text-secondary/50 mt-0.5">
-              {ratio.description}
-            </p>
-          </button>
-        ))}
+              {/* Visual silhouette */}
+              <div className={`flex items-center justify-center h-8 ${isSelected ? 'text-mint-precision' : 'text-text-secondary/60'}`}>
+                <div
+                  className={`${ratio.silhouette.width} ${ratio.silhouette.height} rounded-sm border-2 transition-colors ${
+                    isSelected
+                      ? 'border-mint-precision bg-mint-precision/10'
+                      : 'border-text-secondary/40 bg-transparent'
+                  }`}
+                />
+              </div>
+
+              <span
+                className={`text-sm font-semibold ${
+                  isSelected ? 'text-mint-precision' : 'text-text-primary'
+                }`}
+              >
+                {ratio.label}
+              </span>
+              <p className="text-[10px] text-text-secondary/50 leading-tight">
+                {ratio.description}
+              </p>
+            </button>
+          );
+        })}
+
         {/* Custom option */}
         <button
           onClick={() => onChange('custom')}
-          className={`min-w-0 p-3 rounded-lg border text-left transition-colors ${
+          className={`flex flex-col items-center gap-2 p-3 rounded-lg border text-center transition-all duration-200 ${
             isCustom
-              ? 'border-mint-precision bg-mint-precision/5'
-              : 'border-border-tech bg-surface-container hover:border-outline-variant'
+              ? 'border-mint-precision/40 bg-mint-precision/5 shadow-[0_0_12px_rgba(0,255,171,0.06)]'
+              : 'border-border-tech bg-surface-container hover:border-outline-variant hover:bg-surface-high'
           }`}
         >
+          {/* Settings icon as silhouette */}
+          <div className={`flex items-center justify-center h-8 ${isCustom ? 'text-mint-precision' : 'text-text-secondary/60'}`}>
+            <Settings size={18} />
+          </div>
+
           <span
-            className={`break-words text-sm font-semibold ${
+            className={`text-sm font-semibold ${
               isCustom ? 'text-mint-precision' : 'text-text-primary'
             }`}
           >
             Personalizado
           </span>
-          <p className="text-[10px] text-text-secondary/50 mt-0.5">
+          <p className="text-[10px] text-text-secondary/50">
             Ancho × Alto
           </p>
         </button>
@@ -143,6 +169,8 @@ export function ModelSelector({
 }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const user = useAuthStore((s) => s.user);
+  const isPrivileged = user?.role === 'admin' || user?.role === 'founder';
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -157,10 +185,13 @@ export function ModelSelector({
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const availableModels: string[] =
+  const baseModels =
     llmSettings?.available_models && llmSettings.available_models.length > 0
       ? llmSettings.available_models
       : Object.values(AVAILABLE_MODELS).flat();
+  // Modelos admin-only (ej. Gemma) solo para admin/founder.
+  const adminModels = isPrivileged ? Object.values(ADMIN_ONLY_MODELS).flat() : [];
+  const availableModels: string[] = Array.from(new Set([...baseModels, ...adminModels]));
 
   const displayModel = selectedModel || llmSettings?.default_model || 'gemini-2.0-flash (predeterminado)';
   const isDefault = !selectedModel && !!llmSettings?.default_model;

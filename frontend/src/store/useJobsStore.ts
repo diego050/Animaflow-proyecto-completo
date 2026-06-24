@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import type { JobSummary, JobDetail } from '../types/job';
+import type { JobSummary, JobDetail, SceneData } from '../types/job';
 import type { TimelineSpec } from '../types/spec';
 import { isTerminalStatus } from '../types/job';
 import { api } from '../api/client';
 import { useToastStore } from './useToastStore';
 import { useSettingsStore } from './useSettingsStore';
+import { subscribeToJob, type JobStreamEvent } from '../api/jobStream';
 
 export interface JobsState {
   jobs: JobSummary[];
@@ -13,19 +14,32 @@ export interface JobsState {
   selectedJob: JobDetail | null;
   selectedJobLoading: boolean;
   pollingJobId: string | null;
+  formats: Array<{ job_id: string; aspect_ratio: string; status: string; name: string | null; is_current: boolean }>;
 
   fetchJobs: () => Promise<void>;
   selectJob: (jobId: string) => Promise<void>;
+  fetchFormats: (jobId: string) => Promise<void>;
   createJob: (
     scriptText: string,
     aspectRatio: string,
     voiceId?: string,
     model?: string | null,
+    scenes?: any[],
+    designMd?: string | null,
+    systemPrompt?: string | null,
+    animationOnly?: boolean,
+    designTemplateId?: string | null,
   ) => Promise<string>;
+  saveDraft: (
+    jobId: string | null,
+    draftData: Record<string, any>,
+  ) => Promise<{ job_id: string; status: string }>;
   generateScript: (
     info: string,
     templateId?: string,
     customPrompt?: string | null,
+    targetDurationSeconds?: number,
+    model?: string | null,
   ) => Promise<string>;
   deleteJob: (jobId: string) => Promise<void>;
   triggerRender: (jobId: string) => Promise<void>;
@@ -46,28 +60,36 @@ export interface JobsState {
       current_scene_index?: number;
     },
   ) => Promise<void>;
+  approveScenes: (
+    jobId: string,
+    scenes: SceneData[],
+  ) => Promise<{
+    job_id: string;
+    status: string;
+    result_spec: Record<string, unknown> | null;
+  }>;
+  retryJob: (jobId: string) => Promise<void>;
   startPolling: (jobId: string) => void;
   stopPolling: () => void;
   refreshSelectedJob: () => Promise<void>;
 }
 
-let pollingInterval: ReturnType<typeof setTimeout> | null = null;
-let abortController: AbortController | null = null;
-let visibilityHandler: (() => void) | null = null;
+let unsubscribeStream: (() => void) | null = null;
 
 export const useJobsStore = create<JobsState>((set, get) => ({
   jobs: [],
-  jobsLoading: false,
+  jobsLoading: true,
   jobsError: null,
   selectedJob: null,
   selectedJobLoading: false,
   pollingJobId: null,
+  formats: [],
 
   fetchJobs: async () => {
     set({ jobsLoading: true, jobsError: null });
     try {
-      const data = await api.get<JobSummary[]>('/api/jobs');
-      set({ jobs: data, jobsLoading: false });
+      const data = await api.get<{ jobs: JobSummary[]; total: number; page: number; per_page: number; total_pages: number }>('/api/jobs');
+      set({ jobs: data.jobs, jobsLoading: false });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Error fetching jobs';
@@ -88,6 +110,17 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
+  fetchFormats: async (jobId: string) => {
+    try {
+      const data = await api.get<Array<{ job_id: string; aspect_ratio: string; status: string; name: string | null; is_current: boolean }>>(
+        `/api/jobs/${jobId}/formats`
+      );
+      set({ formats: data });
+    } catch {
+      // Ignore errors silently
+    }
+  },
+
   refreshSelectedJob: async () => {
     const { selectedJob } = get();
     if (!selectedJob) return;
@@ -99,6 +132,11 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     aspectRatio: string,
     _voiceId?: string,
     model?: string | null,
+    scenes?: any[],
+    designMd?: string | null,
+    systemPrompt?: string | null,
+    animationOnly?: boolean,
+    designTemplateId?: string | null,
   ) => {
     void _voiceId;
     const settings = useSettingsStore.getState().settings;
@@ -114,6 +152,22 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     if (settings.ttsApiKey) {
       body.tts_api_key = settings.ttsApiKey;
     }
+    if (scenes && scenes.length > 0) {
+      body.scenes = scenes;
+    }
+    if (designMd) {
+      body.design_md = designMd;
+    }
+    if (systemPrompt) {
+      body.system_prompt = systemPrompt;
+    }
+    if (animationOnly) {
+      body.animation_only = true;
+    }
+    if (designTemplateId) {
+      body.design_template_id = designTemplateId;
+    }
+    
     const data = await api.post<{ job_id: string; status: string }>(
       '/api/jobs/',
       body,
@@ -122,10 +176,29 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     return data.job_id;
   },
 
+  saveDraft: async (jobId: string | null, draftData: Record<string, any>) => {
+    let data;
+    if (jobId) {
+      data = await api.put<{ job_id: string; status: string }>(
+        `/api/jobs/${jobId}/draft`,
+        { draft_data: draftData }
+      );
+    } else {
+      data = await api.post<{ job_id: string; status: string }>(
+        '/api/jobs/draft',
+        { draft_data: draftData }
+      );
+    }
+    await get().fetchJobs();
+    return data;
+  },
+
   generateScript: async (
     info: string,
     templateId?: string,
     customPrompt?: string | null,
+    targetDurationSeconds?: number,
+    model?: string | null,
   ) => {
     const body: Record<string, unknown> = { info };
     if (templateId) {
@@ -134,9 +207,16 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     if (customPrompt) {
       body.custom_prompt = customPrompt;
     }
+    if (targetDurationSeconds) {
+      body.target_duration_seconds = targetDurationSeconds;
+    }
+    if (model) {
+      body.model = model;
+    }
     const data = await api.post<{ script_text: string }>(
       '/api/jobs/generate-script',
       body,
+      { timeoutMs: 90000 },
     );
     return data.script_text;
   },
@@ -211,81 +291,90 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
+  approveScenes: async (jobId: string, scenes: SceneData[]) => {
+    const data = await api.post<{
+      job_id: string;
+      status: string;
+      result_spec: Record<string, unknown> | null;
+    }>(`/api/jobs/${jobId}/approve-scenes`, {
+      scenes,
+    });
+    await get().refreshSelectedJob();
+    await get().fetchJobs();
+    return data;
+  },
+
+  retryJob: async (jobId: string) => {
+    try {
+      const data = await api.post<{
+        job_id: string;
+        status: string;
+        result_spec: Record<string, unknown> | null;
+        error_message: string | null;
+      }>(`/api/jobs/${jobId}/retry`);
+      
+      // Update selected job in store
+      set((state) => ({
+        selectedJob: state.selectedJob?.job_id === jobId
+          ? { ...state.selectedJob, status: data.status, error_message: data.error_message ?? undefined, result_spec: data.result_spec as TimelineSpec | null }
+          : state.selectedJob,
+        jobs: state.jobs.map((j) =>
+          j.job_id === jobId ? { ...j, status: data.status, error_message: data.error_message ?? undefined } : j,
+        ),
+      }));
+      
+      useToastStore.getState().addToast('success', 'Proceso reintentado exitosamente');
+      
+      // Restart polling if the job is now in a non-terminal state
+      const { startPolling } = get();
+      startPolling(jobId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al reintentar';
+      useToastStore.getState().addToast('error', message);
+      throw err;
+    }
+  },
+
   startPolling: (jobId: string) => {
+    if (get().pollingJobId === jobId) return;
+    
     get().stopPolling();
     set({ pollingJobId: jobId });
 
-    let backoffMs = 3000;
-    const maxBackoffMs = 30000;
+    unsubscribeStream = subscribeToJob(jobId, {
+      onStatusChange: (data: JobStreamEvent) => {
+        set((state) => {
+          const newSelectedJob = state.selectedJob?.job_id === jobId 
+            ? { ...state.selectedJob, status: data.status, video_url: data.video_url || state.selectedJob.video_url, error_message: data.error_message || state.selectedJob.error_message } 
+            : state.selectedJob;
+            
+          const newJobs = state.jobs.map((j) =>
+            j.job_id === jobId ? { ...j, status: data.status, video_url: data.video_url || j.video_url } : j,
+          );
 
-    const poll = async () => {
-      if (abortController) abortController.abort();
-      abortController = new AbortController();
-
-      try {
-        const data = await api.get<JobDetail>(`/api/jobs/${jobId}`, {
-          signal: abortController.signal,
+          return { selectedJob: newSelectedJob, jobs: newJobs };
         });
 
-        const { selectedJob } = get();
-        if (selectedJob?.job_id === jobId) {
-          set({ selectedJob: data });
+        // When status becomes 'segmented', fetch full job data (includes result_spec with scenes)
+        if (data.status === 'segmented') {
+          get().selectJob(jobId);
         }
-
-        set((state) => ({
-          jobs: state.jobs.map((j) =>
-            j.job_id === jobId ? { ...j, status: data.status } : j,
-          ),
-        }));
-
-        if (isTerminalStatus(data.status)) {
-          get().stopPolling();
-          return;
-        }
-
-        // Reset backoff on success
-        backoffMs = 3000;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return;
-        // Increase backoff on error
-        backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
-      }
-
-      // Schedule next poll with dynamic backoff
-      pollingInterval = setTimeout(() => {
-        const { pollingJobId: currentId } = get();
-        if (currentId === jobId) {
-          poll();
-        }
-      }, backoffMs);
-    };
-
-    // Start immediately
-    poll();
-
-    // Pause when tab hidden
-    visibilityHandler = () => {
-      if (document.hidden) {
+      },
+      onComplete: () => {
+        get().refreshSelectedJob();
         get().stopPolling();
-      } else {
-        poll();
+      },
+      onError: (errMessage: string) => {
+        useToastStore.getState().addToast('error', `Stream error: ${errMessage}`);
+        get().stopPolling();
       }
-    };
-    document.addEventListener('visibilitychange', visibilityHandler);
+    });
   },
 
   stopPolling: () => {
-    if (pollingInterval) {
-      clearTimeout(pollingInterval);
-      pollingInterval = null;
-    }
-    if (abortController) {
-      abortController.abort();
-      abortController = null;
-    }
-    if (visibilityHandler) {
-      document.removeEventListener('visibilitychange', visibilityHandler);
-      visibilityHandler = null;
+    if (unsubscribeStream) {
+      unsubscribeStream();
+      unsubscribeStream = null;
     }
     set({ pollingJobId: null });
   },

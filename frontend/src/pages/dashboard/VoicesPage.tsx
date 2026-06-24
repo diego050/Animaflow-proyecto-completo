@@ -3,6 +3,7 @@ import { Plus, Loader2, Upload, X, AlertCircle, Mic, Search } from 'lucide-react
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVoicesStore } from '../../store/useVoicesStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { VoiceRow } from '../../components/dashboard/VoiceCard';
 import { VoiceInspector } from '../../components/dashboard/VoiceInspector';
 import { Modal } from '../../components/dashboard/Modal';
@@ -125,7 +126,9 @@ export function VoicesPage() {
 
       try {
         const { audio_url } = await previewVoice(voice.id, 'Hola, esta es una prueba de voz.');
-        const audio = new Audio(audio_url);
+        const token = useAuthStore.getState().token;
+        const audioUrlWithToken = token ? `${audio_url}?token=${token}` : audio_url;
+        const audio = new Audio(audioUrlWithToken);
         previewAudioRef.current = audio;
 
         audio.onended = () => {

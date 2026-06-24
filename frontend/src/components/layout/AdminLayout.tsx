@@ -12,6 +12,8 @@ import {
   LogOut,
   Shield,
   ArrowLeft,
+  Palette,
+  ShoppingBag,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -21,7 +23,9 @@ const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/users', label: 'Usuarios', icon: Users },
   { to: '/admin/jobs', label: 'Jobs', icon: Briefcase },
+  { to: '/admin/marketplace', label: 'Marketplace', icon: ShoppingBag },
   { to: '/admin/system', label: 'Sistema', icon: Activity },
+  { to: '/admin/animations', label: 'Animaciones', icon: Palette },
   { to: '/admin/settings', label: 'Configuración', icon: Settings },
 ];
 
@@ -186,6 +190,7 @@ function AdminBreadcrumb() {
     admin: 'Admin',
     users: 'Usuarios',
     jobs: 'Jobs',
+    marketplace: 'Marketplace',
     system: 'Sistema',
     settings: 'Configuración',
   };

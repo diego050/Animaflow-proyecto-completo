@@ -25,10 +25,10 @@ export function WizardStepDone({
 
       <div>
         <h2 className="text-2xl font-display font-bold text-text-primary mb-2">
-          ¡Proyecto completado!
+          ¡Preview generado!
         </h2>
         <p className="text-text-secondary text-sm max-w-md mx-auto">
-          Tu video ha sido generado exitosamente. Puedes verlo, editarlo o exportarlo.
+          Tu previsualización interactiva está lista. Puedes verla, editarla y luego exportar el video final.
         </p>
       </div>
 
@@ -47,7 +47,7 @@ export function WizardStepDone({
           }}
           className="flex items-center justify-center gap-2 px-6 py-3 bg-mint-precision text-deep-slate rounded-lg text-sm font-bold hover:bg-white hover:-translate-y-0.5 transition-all duration-300 shadow-[0_0_20px_rgba(0,255,171,0.2)]"
         >
-          Ver Proyecto
+          Abrir Preview Interactivo
         </button>
         <button
           onClick={onCreateAnother}
@@ -56,6 +56,10 @@ export function WizardStepDone({
           Crear otro proyecto
         </button>
       </div>
+
+      <p className="text-xs text-text-secondary/40 pt-2">
+        Exportar MP4 disponible dentro del proyecto.
+      </p>
     </div>
   );
 }

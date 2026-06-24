@@ -1,21 +1,23 @@
 """
 Security utilities for AnimaFlow - JWT, password hashing, auth dependencies.
 """
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.db.models import User
+from app.db.models import User, TokenBlacklist
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)  # Don't auto-raise 401 when no header
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -25,6 +27,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """Hash a plain-text password using bcrypt."""
+    # Bcrypt has a 72-byte hard limit. Truncate if necessary.
+    if len(password.encode("utf-8")) > 72:
+        password = password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
     return pwd_context.hash(password)
 
 
@@ -34,51 +39,60 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    """
-    Extract and validate the Bearer token, return the associated User.
+def decode_access_token(token: str) -> Optional[dict]:
+    """Decode a JWT token and return its payload. Returns None if invalid."""
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+    except JWTError:
+        return None
 
-    TODO: Future - add token blacklist / refresh token rotation for enhanced security.
-    """
+
+def _decode_token_and_get_user(token: str, db: Session) -> User:
+    """Shared helper to decode JWT token, check blacklist, and fetch user from database."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(
-            credentials.credentials, settings.SECRET_KEY, algorithms=["HS256"]
-        )
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    user = db.query(User).filter(User.id == user_id, User.is_deleted.is_(False)).first()
     if user is None or not user.is_active:
         raise credentials_exception
+
+    # Check token blacklist
+    jti = payload.get("jti")
+    if jti:
+        blacklisted = db.query(TokenBlacklist).filter(
+            TokenBlacklist.jti == jti,
+            TokenBlacklist.expires_at > datetime.now(timezone.utc),
+        ).first()
+        if blacklisted:
+            raise credentials_exception
+
     return user
 
 
-def get_current_active_user(
-    current_user: User = Depends(get_current_user),
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
 ) -> User:
-    """Ensure the authenticated user is active."""
-    if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
+    """Extract and validate the Bearer token, return the associated User."""
+    return _decode_token_and_get_user(credentials.credentials, db)
 
 
 def require_admin(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ) -> User:
     """Ensure the authenticated user has the admin role."""
     if current_user.role != "admin":
@@ -87,3 +101,22 @@ def require_admin(
             detail="Admin access required",
         )
     return current_user
+
+
+def get_current_user_from_token(
+    token: Optional[str] = Query(None),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+    db: Session = Depends(get_db),
+) -> User:
+    """Extract and validate token from either query param or Bearer header."""
+    raw_token = token or (credentials.credentials if credentials else None)
+    if not raw_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return _decode_token_and_get_user(raw_token, db)
+
+
+

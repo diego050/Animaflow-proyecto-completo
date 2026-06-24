@@ -3,20 +3,27 @@ import shutil
 import asyncio
 import copy
 from typing import Optional
+
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
+
+from app.core.logging import get_logger
+from app.core.file_logger import JobFileLogger
 from app.db.session import SessionLocal, get_db_context
 from app.db.models import JobModel, ApiKey
 from app.schemas.spec import TimelineSpec
-from app.core.logging import get_logger
-from sqlalchemy.orm.attributes import flag_modified
+from app.modules.tts.service import AUDIO_STORAGE
+from app.modules.segmentation.service import split_text_into_chunks
+from app.modules.llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
+from app.modules.llm.component_strategy import generate_scene_composer, apply_visual_pure_strip
+from app.core.async_utils import run_async
 
 logger = get_logger("pipeline")
 
-from ..tts.service import generate_tts_with_timestamps, AUDIO_STORAGE
-from ..segmentation.service import split_text_into_chunks
-from ..llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
-from ..remotion.component_generator import generate_remotion_component
-from ..remotion.index_writer import write_index_ts
+# Audio duration padding to prevent truncation at scene boundaries
+AUDIO_PADDING = 0.3  # seconds
+MIN_SCENE_DURATION = 3.0  # seconds
+WORDS_PER_SECOND = 2.17  # Average speech rate
 
 
 def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]:
@@ -24,131 +31,215 @@ def _get_user_api_key(user_id: str, provider: str, db: Session) -> Optional[str]
     key_entry = db.query(ApiKey).filter(
         ApiKey.user_id == user_id,
         ApiKey.provider == provider,
-        ApiKey.is_active == True,
+        ApiKey.is_active.is_(True),
     ).first()
     return key_entry.api_key if key_entry else None
 
 
+def run_pipeline_approved(job_id: str, user_id: Optional[str] = None):
+    """Fase 2: Enriquecimiento sincrónico (TTS + animaciones).
+    
+    Prepara el job para renderizado on-demand. No renderiza MP4 automáticamente;
+    el render se triggera cuando el usuario solicita descargar el video.
+    En producción el scheduler maneja el renderizado vía _phase_render().
+    """
+    with get_db_context() as db:
+        job = db.query(JobModel).filter(JobModel.id == job_id).first()
+        if not job:
+            logger.warning("Job %s not found in approved pipeline", job_id)
+            return
+
+        if job.status not in ["segmented"]:
+            logger.warning(
+                "Job %s is in status '%s', expected 'segmented'",
+                job_id, job.status,
+            )
+            return
+
+        # Phase 2: Enrichment (reutiliza la función existente)
+        run_pipeline_enrichment(
+            job_id=job_id,
+            user_id=user_id,
+        )
+        db.refresh(job)
+
+        if job.status != "completed":
+            return
+
+
 async def _process_chunks_async(
     job_id: str,
-    chunks: list[str],
-    batch_visuals,
+    timeline_scenes: list[dict],
     aspect_ratio: str = "9:16",
     user_id: Optional[str] = None,
-    tts_provider: str = "local_piper",
-    tts_voice_id: str = "es_ES-carlfm-x_low",
-    tts_api_key: Optional[str] = None,
-    user_scenes: Optional[list[dict]] = None,
+    llm_model: str = "gemini-2.0-flash",
+    db: Optional[Session] = None,
 ) -> list[dict]:
-    from app.core.resolutions import get_resolution
+    """Fase 2: Genera TTS por escena + componentes visuales (anima_composer)."""
+    from app.modules.tts.service import generate_tts_with_timestamps
+    from app.modules.llm.resolver import resolve_llm_credentials
 
-    w, h = get_resolution(aspect_ratio)
-    timeline_scenes = []
-    current_start_time = 0.0
+    previous_scene_tsx = None
+    current_offset = 0.0
+    GAP_MS = 300  # 300ms gap between scenes
 
-    for i, chunk in enumerate(chunks):
-        logger.info(
-            "Generating TTS for scene %d with provider %s...",
-            i + 1,
-            tts_provider,
-            extra={"job_id": job_id},
-        )
-
-        try:
-            tts_result = await generate_tts_with_timestamps(
-                text=chunk,
-                provider_name=tts_provider,
-                voice_id=tts_voice_id,
-                api_key=tts_api_key,
-                language="es",
-            )
-            audio_path = tts_result["audio_path"]
-            word_timestamps = tts_result["word_timestamps"]
-            duration = tts_result["duration_seconds"]
-        except Exception as e:
-            logger.exception(
-                "TTS failed for scene %d, using estimated duration fallback: %s",
-                i + 1,
-                e,
-                extra={"job_id": job_id},
-            )
-            audio_path = None
-            word_timestamps = []
-            duration = max(3.0, len(chunk) / 15.0)
-
-        # Copy/symlink audio to standard location for serving
-        if audio_path and os.path.exists(audio_path):
-            os.makedirs(AUDIO_STORAGE, exist_ok=True)
-            ext = os.path.splitext(audio_path)[1]
-            if not ext:
-                ext = ".mp3"
-            standard_name = f"{job_id}_{i}{ext}"
-            standard_path = os.path.join(AUDIO_STORAGE, standard_name)
-            try:
-                shutil.copy2(audio_path, standard_path)
-                audio_url = f"/api/audio/{standard_name}"
-                logger.info(
-                    "Audio copied to standard location: %s",
-                    standard_path,
-                    extra={"job_id": job_id},
-                )
-            except OSError as copy_err:
-                logger.error(
-                    "Error copying audio: %s", copy_err, extra={"job_id": job_id}
-                )
-                audio_url = None
+    # Resolve TTS credentials once
+    tts_provider = "local_piper"
+    tts_voice_id = "es_ES-carlfm-x_low"
+    tts_key = None
+    groq_api_key = None
+    if user_id:
+        if db:
+            tts_key = _get_user_api_key(user_id, tts_provider, db)
+            groq_api_key = _get_user_api_key(user_id, "groq", db)
         else:
-            audio_url = None
+            with SessionLocal() as temp_session:
+                tts_key = _get_user_api_key(user_id, tts_provider, temp_session)
+                groq_api_key = _get_user_api_key(user_id, "groq", temp_session)
 
-        visual_spec = (
-            batch_visuals.scenes[i]
-            if i < len(batch_visuals.scenes)
-            else batch_visuals.scenes[-1]
-        )
+    for i, scene in enumerate(timeline_scenes):
+        JobFileLogger.log(job_id, "INFO", f"Procesando escena {i+1}/{len(timeline_scenes)}...")
 
-        # Override media_query if user provided it in pre-defined scenes
-        if user_scenes and i < len(user_scenes) and user_scenes[i].get("media_query"):
-            visual_spec.media_query = user_scenes[i]["media_query"]
+        # ── Step 1: Generate TTS for this scene ──
+        scene_text = scene.get("text", "")
+        if scene_text and not scene.get("audio_url"):
+            logger.info("  Scene %d/%d: generating TTS...", i + 1, len(timeline_scenes))
+            try:
+                tts_result = await generate_tts_with_timestamps(
+                    text=scene_text,
+                    provider_name=tts_provider,
+                    voice_id=tts_voice_id,
+                    api_key=tts_key,
+                    language="es",
+                    groq_api_key=groq_api_key,
+                )
 
-        logger.info(
-            "Generating Remotion TSX code for scene %d...",
-            i + 1,
-            extra={"job_id": job_id},
-        )
-        component_type_name = await generate_remotion_component(
-            i, visual_spec, chunk, duration, job_id, aspect_ratio, user_id
-        )
+                duration = tts_result.get("duration_seconds", 0)
+                # Add padding to prevent audio truncation at scene boundary
+                scene["duration_seconds"] = round(duration + AUDIO_PADDING, 2)
+                scene["start_time_seconds"] = round(current_offset, 2)
 
-        if i < len(chunks) - 1:
+                # Save audio file and set URL
+                audio_path = tts_result.get("audio_path")
+                if audio_path and os.path.exists(audio_path):
+                    os.makedirs(AUDIO_STORAGE, exist_ok=True)
+                    ext = os.path.splitext(audio_path)[1] or ".mp3"
+                    chunk_name = f"{job_id}_{i}{ext}"
+                    chunk_path = os.path.join(AUDIO_STORAGE, chunk_name)
+                    shutil.copy2(audio_path, chunk_path)
+                    scene["audio_url"] = f"/api/audio/{chunk_name}"
+
+                # Offset word timestamps to global timeline
+                scene_wts = []
+                for wt in tts_result.get("word_timestamps", []):
+                    scene_wts.append({
+                        "word": wt["word"],
+                        "start": round(wt["start"] + current_offset, 3),
+                        "end": round(wt["end"] + current_offset, 3),
+                    })
+                scene["word_timestamps"] = scene_wts
+
+                current_offset += duration + (GAP_MS / 1000)
+
+                # v7: NO extender la duración por conteo de palabras.
+                # La duración real del TTS (duration + AUDIO_PADDING, ya asignada
+                # arriba) ES la duración correcta de la escena. Extender por una
+                # estimación de palabras (WORDS_PER_SECOND=2.17) ignoraba el audio
+                # real (~3.7 wps en Piper) y dejaba segundos de silencio al final
+                # (p.ej. audio 4.30s → escena 7.67s → 3.37s de silencio).
+                # Si un texto es demasiado largo para una escena, la solución es
+                # segmentarlo en más escenas, no estirar la duración.
+                # Solo se garantiza un mínimo de seguridad si el TTS devuelve casi 0.
+                if scene["duration_seconds"] < 1.5:
+                    scene["duration_seconds"] = round(1.5 + AUDIO_PADDING, 2)
+                    current_offset = scene["start_time_seconds"] + scene["duration_seconds"] + (GAP_MS / 1000)
+
+            except Exception as e:
+                error_msg = str(e)
+                if error_msg.startswith("[TTS_"):
+                    # Preserve the error code for the frontend to display the right message
+                    JobFileLogger.log(job_id, "ERROR", f"TTS error: {error_msg}")
+                    scene["tts_error_code"] = error_msg.split("]")[0].lstrip("[")
+                else:
+                    logger.warning("TTS failed for scene %d: %s. Using estimated duration.", i + 1, e)
+                word_count = len(scene_text.split())
+                estimated_duration = max(3.0, word_count / 2.17)
+                scene["duration_seconds"] = round(estimated_duration + AUDIO_PADDING, 2)
+                scene["start_time_seconds"] = round(current_offset, 2)
+                scene["audio_url"] = None
+                scene["word_timestamps"] = []
+                current_offset += estimated_duration + AUDIO_PADDING + (GAP_MS / 1000)
+        else:
+            # Scene already has audio_url (e.g., from manual upload or previous run) — skip TTS
+            logger.info("Scene %d already has audio, skipping TTS", i + 1)
+            duration = scene.get("duration_seconds", 3.0)
+            scene["start_time_seconds"] = round(current_offset, 2)
+            current_offset += duration + (GAP_MS / 1000)
+
+        # ── Step 2: Generate anima_composer (visual component spec) ──
+        if scene.get("anima_composer"):
+            logger.info("Scene %d already has animation spec, skipping LLM call", i + 1)
+        else:
+            visual_spec = VisualSpecResult(
+                media_query=scene.get("media_query", ""),
+                backgroundColor=scene.get("remotion_props", {}).get("backgroundColor", "#0f172a"),
+                textColor=scene.get("remotion_props", {}).get("textColor", "#38bdf8"),
+            )
+
+            logger.info("Deciding component strategy for scene %d...", i + 1, extra={"job_id": job_id})
+
+            try:
+                creds = resolve_llm_credentials(user_id, provider_override="gemini")
+                api_key = creds.api_key
+                # Preferir el modelo elegido en el job (wizard) sobre el default de cuenta.
+                # "gemini-2.0-flash" es el sentinel de "no elegido" (ver call site).
+                model_to_use = creds.model if llm_model == "gemini-2.0-flash" else llm_model
+            except Exception:
+                if db:
+                    gemini_api_key = _get_user_api_key(user_id, "gemini", db)
+                else:
+                    with SessionLocal() as temp_session:
+                        gemini_api_key = _get_user_api_key(user_id, "gemini", temp_session)
+                api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
+                model_to_use = llm_model
+
+            composer_spec = generate_scene_composer(
+                text=scene.get("text", ""),
+                media_query=scene.get("media_query", ""),
+                api_key=api_key,
+                model=model_to_use,
+                db=db,
+                aspect_ratio=aspect_ratio,
+                duration_seconds=scene.get("duration_seconds", 0.0),
+                suggested_bg_color=visual_spec.backgroundColor,
+                suggested_text_color=visual_spec.textColor,
+                seed=job_id,  # semilla por video → variedad entre videos
+            )
+
+            scene["type"] = "custom"
+            scene["quality_status"] = "passed"
+            composer_dict = composer_spec.model_dump(exclude_none=True)
+
+            # Fase 5: refuerzo determinista de "texto opcional". Una proporción de
+            # las escenas del medio se vuelve visual-pura (sin texto), escalando con
+            # el nº de escenas. El prompt solo no basta (regla blanda → texto en
+            # todas). No toca la 1ra (gancho) ni la última (CTA).
+            composer_dict, stripped = apply_visual_pure_strip(
+                composer_dict, i, len(timeline_scenes), aspect_ratio
+            )
+            if stripped:
+                logger.info(
+                    "Fase 5: escena %d/%d convertida a VISUAL PURA (texto removido)",
+                    i + 1, len(timeline_scenes), extra={"job_id": job_id},
+                )
+
+            scene["anima_composer"] = composer_dict
+
+        # Pausa para evitar límites de RPM (Requests Per Minute) del plan gratuito de Gemini
+        if i < len(timeline_scenes) - 1:
             await asyncio.sleep(4)
 
-        # AE script generation deferred to export step (saves tokens during iteration)
-        logger.info(
-            "AE script generation deferred to export step (scene %d)",
-            i + 1,
-            extra={"job_id": job_id},
-        )
-
-        timeline_scenes.append(
-            {
-                "start_time_seconds": round(current_start_time, 2),
-                "duration_seconds": round(duration, 2),
-                "text": chunk,
-                "type": component_type_name,
-                "media_query": visual_spec.media_query,
-                "remotion_props": {
-                    "backgroundColor": visual_spec.backgroundColor,
-                    "textColor": visual_spec.textColor,
-                },
-                "sfx": [],
-                "audio_url": audio_url,
-                "word_timestamps": word_timestamps,
-                "ae_script_code": None,
-            }
-        )
-        current_start_time += duration
-
-    write_index_ts(job_id, timeline_scenes)
+    JobFileLogger.log(job_id, "INFO", "Componentes generados. Finalizando...")
     return timeline_scenes
 
 
@@ -158,6 +249,8 @@ async def _regenerate_components_for_reformat(
     aspect_ratio: str,
     user_id: Optional[str] = None,
     scene_indices: Optional[list[int]] = None,
+    llm_model: str = "gemini-2.0-flash",
+    db: Optional[Session] = None,
 ) -> list[dict]:
     """Regenerate Remotion components for specified scenes with a new aspect ratio.
     If scene_indices is None, regenerate all scenes.
@@ -173,17 +266,38 @@ async def _regenerate_components_for_reformat(
             backgroundColor=remotion_props.get("backgroundColor", "#0f172a"),
             textColor=remotion_props.get("textColor", "#38bdf8"),
         )
-        new_type = await generate_remotion_component(
-            scene_index=i,
-            visual_spec=visual_spec,
+        from app.modules.llm.resolver import resolve_llm_credentials
+        
+        try:
+            creds = resolve_llm_credentials(user_id, provider_override="gemini")
+            api_key = creds.api_key
+            # Preferir el modelo elegido en el job (wizard) sobre el default de cuenta.
+            model_to_use = creds.model if llm_model == "gemini-2.0-flash" else llm_model
+        except Exception:
+            if db:
+                gemini_api_key = _get_user_api_key(user_id, "gemini", db)
+            else:
+                with SessionLocal() as temp_session:
+                    gemini_api_key = _get_user_api_key(user_id, "gemini", temp_session)
+            api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
+            model_to_use = llm_model
+        
+        composer_spec = generate_scene_composer(
             text=scene.get("text", ""),
-            duration=scene.get("duration_seconds", 5.0),
-            job_id=job_id,
+            media_query=scene.get("media_query", ""),
+            api_key=api_key,
+            model=model_to_use,
+            db=db,
             aspect_ratio=aspect_ratio,
-            user_id=user_id,
+            duration_seconds=scene.get("duration_seconds", 0.0),
+            suggested_bg_color=visual_spec.backgroundColor,
+            suggested_text_color=visual_spec.textColor,
+            seed=job_id,  # semilla por video → variedad entre videos
         )
-        scene["type"] = new_type
-    write_index_ts(job_id, timeline_scenes)
+
+        scene["type"] = "custom"
+        scene["quality_status"] = "passed"
+        scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
     return timeline_scenes
 
 
@@ -200,14 +314,17 @@ def run_pipeline(
     scenes: Optional[list[dict]] = None,
     design_md: Optional[str] = None,
     system_prompt: Optional[str] = None,
+    animation_only: bool = False,
 ):
-    """Fase 1: Segmenta el guion y pausa en 'segmented' para aprobación del usuario."""
+    """Fase 1: Segmentación de texto + prompts visuales (SIN TTS).
+
+    El TTS se genera después de la aprobación del usuario (Fase 2).
+    """
     with get_db_context() as db:
         job = db.query(JobModel).filter(JobModel.id == job_id).first()
         if not job:
             return
 
-        # Actualizar aspect_ratio del job
         job.aspect_ratio = aspect_ratio
         db.commit()
 
@@ -215,93 +332,70 @@ def run_pipeline(
         if reformatted_from:
             original = db.query(JobModel).filter(JobModel.id == reformatted_from).first()
             if original and original.result_spec:
-                logger.info(
-                    "Reformatting job %s from %s to aspect ratio %s",
-                    job_id,
-                    reformatted_from,
-                    aspect_ratio,
-                    extra={"job_id": job_id},
-                )
                 spec = copy.deepcopy(original.result_spec)
                 spec["aspect_ratio"] = aspect_ratio
-
                 timeline_scenes = spec.get("scenes", [])
                 if timeline_scenes:
-                    indices = None
-                    selection = "all"
-                    if scenes_to_reformat:
-                        indices = scenes_to_reformat.get("indices")
-                        selection = scenes_to_reformat.get("selection", "all")
-
-                    asyncio.run(
-                        _regenerate_components_for_reformat(
-                            job_id, timeline_scenes, aspect_ratio, user_id, indices
-                        )
-                    )
-
-                    # Add metadata about reformat
-                    spec["reformat_metadata"] = {
-                        "original_job_id": reformatted_from,
-                        "scene_selection": selection,
-                        "reformatted_scenes": indices if indices is not None else list(range(len(timeline_scenes))),
-                        "aspect_ratio": aspect_ratio,
-                    }
-
+                    indices = scenes_to_reformat.get("indices") if scenes_to_reformat else None
+                    coro = _regenerate_components_for_reformat(job_id, timeline_scenes, aspect_ratio, user_id, indices, job.llm_model or "gemini-2.0-flash", db=db)
+                    timeline_scenes = run_async(coro)
                 spec_obj = TimelineSpec(**spec)
                 job.result_spec = spec_obj.model_dump()
                 flag_modified(job, "result_spec")
                 job.status = "completed"
                 db.commit()
-                logger.info(
-                    "Reformat completed for job %s",
-                    job_id,
-                    extra={"job_id": job_id},
-                )
                 return
 
         try:
-            # Estado 1: Segmentación
             job.status = "segmenting"
             db.commit()
+            JobFileLogger.log(job_id, "INFO", "Segmentando texto...")
 
-            # 1. Fragmentación Lógica (Multi-Scene) — or use user-provided scenes
-            if scenes:
-                chunks = [s["text"] for s in scenes]
-                logger.info(
-                    "Using %d user-provided scenes (skipping auto-segmentation)",
-                    len(chunks),
-                    extra={"job_id": job_id},
-                )
-            else:
+            # 1. Split text into ~7s chunks (~15 words each)
+            if not animation_only and not scenes:
                 chunks = split_text_into_chunks(script_text)
-                if not chunks:
-                    chunks = [script_text]
+            else:
+                chunks = [s["text"] for s in scenes] if scenes else split_text_into_chunks(script_text)
 
-                logger.info(
-                    "Script segmented into %d scenes (aspect_ratio: %s, tts_provider: %s)",
-                    len(chunks),
-                    aspect_ratio,
-                    tts_provider,
-                    extra={"job_id": job_id},
-                )
+            logger.info("Text split into %d chunks for job %s", len(chunks), job_id)
+            JobFileLogger.log(job_id, "INFO", f"Texto segmentado en {len(chunks)} escenas")
 
-            # Create preliminary scenes with empty media_query for user review
+            # 2. Generate visual prompts (media_query) via LLM — NO TTS yet
+            logger.info("Generating batch visual prompts for %d scenes...", len(chunks))
+            JobFileLogger.log(job_id, "INFO", "Generando prompts visuales...")
+            batch_visuals = generate_batch_visuals_with_llm(
+                chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt, llm_model_override=job.llm_model
+            )
+
+            # 3. Build scenes with estimated durations (no real audio yet)
+            #    ~2.17 words/sec → duration = word_count / 2.17, minimum 3s
+            ESTIMATED_WPS = 2.17
+            GAP_SECONDS = 0.3  # 300ms gap between scenes
             preliminary_scenes = []
+            current_start = 0.0
+
             for i, chunk in enumerate(chunks):
-                preliminary_scenes.append(
-                    {
-                        "start_time_seconds": 0.0,
-                        "duration_seconds": 0.0,
-                        "text": chunk,
-                        "type": "pending",
-                        "media_query": scenes[i].get("media_query", "") if scenes else "",
-                        "remotion_props": {},
-                        "sfx": [],
-                        "audio_url": None,
-                        "word_timestamps": [],
-                        "ae_script_code": None,
-                    }
-                )
+                word_count = len(chunk.split())
+                estimated_duration = max(3.0, word_count / ESTIMATED_WPS)
+                visual = batch_visuals.scenes[i] if i < len(batch_visuals.scenes) else None
+
+                preliminary_scenes.append({
+                    "start_time_seconds": round(current_start, 2),
+                    "duration_seconds": round(estimated_duration, 2),
+                    "text": chunk,
+                    "type": "pending",
+                    "media_query": visual.media_query if visual else "",
+                    "remotion_props": {
+                        "backgroundColor": visual.backgroundColor if visual else "#0f172a",
+                        "textColor": visual.textColor if visual else "#38bdf8",
+                    },
+                    "sfx": [],
+                    "audio_url": None,
+                    "word_timestamps": [],
+                    "ae_script_code": None,
+                })
+
+                current_start += estimated_duration + GAP_SECONDS
 
             # Save preliminary spec and pause for user approval
             preliminary_spec = {
@@ -310,27 +404,25 @@ def run_pipeline(
                 "user_scenes": scenes,
                 "design_md": design_md,
                 "system_prompt": system_prompt,
+                "animation_only": animation_only,
             }
             job.result_spec = preliminary_spec
             flag_modified(job, "result_spec")
             job.status = "segmented"
+            JobFileLogger.log(job_id, "INFO", "Esperando aprobación del usuario...")
             db.commit()
 
-            logger.info(
-                "Job %s paused at 'segmented' status awaiting user scene approval (%d scenes)",
-                job_id,
-                len(chunks),
-                extra={"job_id": job_id},
-            )
+            logger.info("Job %s paused at 'segmented' status awaiting user approval", job_id)
 
         except Exception as e:
             logger.exception("Pipeline segmentation failed: %s", e, extra={"job_id": job_id})
+            db.rollback()
             job.status = "failed"
             job.error_message = str(e)
             db.commit()
 
 
-def run_pipeline_approved(
+def run_pipeline_enrichment(
     job_id: str,
     user_id: Optional[str] = None,
     tts_provider: str = "local_piper",
@@ -345,9 +437,9 @@ def run_pipeline_approved(
         if not job:
             return
 
-        if job.status != "segmented":
+        if job.status not in ["segmented", "visuals_generating", "queued_enrichment"]:
             logger.warning(
-                "Job %s is not in 'segmented' status (current: %s), skipping approval pipeline",
+                "Job %s is not in 'segmented', 'visuals_generating', or 'queued_enrichment' status (current: %s), skipping approval pipeline",
                 job_id,
                 job.status,
                 extra={"job_id": job_id},
@@ -368,49 +460,41 @@ def run_pipeline_approved(
         user_scenes = spec.get("user_scenes")  # preserved from initial creation if provided
         design_md = design_md or spec.get("design_md")
         system_prompt = system_prompt or spec.get("system_prompt")
+        animation_only = spec.get("animation_only", False)
 
         # Si no se proporcionó API key explícita, intentar buscarla en DB
         if tts_api_key is None and user_id is not None:
             tts_api_key = _get_user_api_key(user_id, tts_provider, db)
+            
+        groq_api_key = None
+        if user_id is not None:
+            groq_api_key = _get_user_api_key(user_id, "groq", db)
 
         try:
-            # Estado 2: Generando visuales con Gemini
-            job.status = "visuals_generating"
-            db.commit()
-
-            logger.info(
-                "Generating visual prompts in batch with Gemini...",
-                extra={"job_id": job_id},
-            )
-            batch_visuals = generate_batch_visuals_with_llm(
-                chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt
-            )
+            # (Visuals were already generated in phase 1 and approved by the user)
 
             # Estado 3: Procesando escenas (TTS + TSX)
             job.status = "processing_scenes"
             db.commit()
+            JobFileLogger.log(job_id, "INFO", "Procesando escenas (TTS + Componentes)...")
 
-            timeline_scenes = asyncio.run(
-                _process_chunks_async(
-                    job_id,
-                    chunks,
-                    batch_visuals,
-                    aspect_ratio,
-                    user_id,
-                    tts_provider,
-                    tts_voice_id,
-                    tts_api_key,
-                    user_scenes=user_scenes,
-                )
+            JobFileLogger.log(job_id, "INFO", "Iniciando generación de componentes con IA...")
+            coro = _process_chunks_async(
+                job_id=job_id,
+                timeline_scenes=scenes,
+                aspect_ratio=aspect_ratio,
+                user_id=user_id,
+                llm_model=job.llm_model or "gemini-2.0-flash",
+                db=db,
             )
+            timeline_scenes = run_async(coro)
 
-            # Guardamos el timeline completo y lo validamos con Pydantic
+            # Limpiar archivos TSX de jobs anteriores para evitar errores de compilación
+
+            # Fase 2 finalizada, job está listo para preview. El MP4 se renderiza a demanda vía API.
             final_spec = {"scenes": timeline_scenes, "aspect_ratio": aspect_ratio}
-            spec_obj = TimelineSpec(**final_spec)
-            job.result_spec = spec_obj.model_dump()
+            job.result_spec = final_spec
             flag_modified(job, "result_spec")
-
-            # Estado 4: Completado
             job.status = "completed"
             db.commit()
 
@@ -419,6 +503,9 @@ def run_pipeline_approved(
             logger.exception(
                 "Approved pipeline failed unexpectedly: %s", e, extra={"job_id": job_id}
             )
+            db.rollback()
             job.status = "failed"
             job.error_message = str(e)
             db.commit()
+
+

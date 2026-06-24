@@ -1,20 +1,21 @@
-import asyncio
 import os
 import shutil
 from typing import Optional
+from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.db.models import JobModel
 from app.core.logging import get_logger
 from app.core.storage_paths import get_storage_dir
+from app.core.async_utils import run_async
 
 logger = get_logger("pipeline")
 
 AUDIO_STORAGE = get_storage_dir("audio")
 
-from ..tts.service import generate_tts_with_timestamps
-from ..llm.visual_spec import VisualSpecResult
-from ..remotion.component_generator import generate_remotion_component
-from ..remotion.index_writer import write_index_ts
+
+from app.modules.tts.service import generate_tts_with_timestamps
+from app.modules.llm.visual_spec import VisualSpecResult
+from app.modules.llm.component_strategy import generate_scene_composer
 
 
 async def _regenerate_scene_async(
@@ -24,8 +25,21 @@ async def _regenerate_scene_async(
     new_media_query: str,
     new_text: str,
     user_id: Optional[str] = None,
+    db: Optional[Session] = None,
 ) -> dict:
-    from app.core.resolutions import get_resolution
+    from typing import Tuple
+
+    ASPECT_RATIOS = {
+        "9:16": (1080, 1920),
+        "4:5": (1080, 1350),
+        "3:4": (1080, 1440),
+        "1:1": (1080, 1080),
+        "16:9": (1920, 1080),
+    }
+    DEFAULT_ASPECT_RATIO = "9:16"
+
+    def get_resolution(aspect_ratio: str) -> Tuple[int, int]:
+        return ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS[DEFAULT_ASPECT_RATIO])
 
     scene = spec["scenes"][scene_index]
     aspect_ratio = spec.get("aspect_ratio", "9:16")
@@ -60,19 +74,32 @@ async def _regenerate_scene_async(
         textColor=scene.get("remotion_props", {}).get("textColor", "#ffffff"),
     )
 
-    logger.info("Regenerando TSX para escena %d...", scene_index, extra={"job_id": job_id})
-    component_type_name = await generate_remotion_component(
-        scene_index, visual_spec, new_text, scene["duration_seconds"], job_id, aspect_ratio, user_id
+    logger.info("Regenerando JSON para escena %d...", scene_index, extra={"job_id": job_id})
+    
+    from app.modules.pipeline.orchestrator import _get_user_api_key
+    with SessionLocal() as temp_session:
+        groq_api_key = _get_user_api_key(user_id, "groq", temp_session)
+    api_key = groq_api_key or os.getenv("GROQ_API_KEY") or ""
+    
+    composer_spec = generate_scene_composer(
+        text=new_text,
+        media_query=new_media_query,
+        api_key=api_key,
+        model="gemini-2.0-flash",
+        db=db,
+        suggested_bg_color=visual_spec.backgroundColor,
+        suggested_text_color=visual_spec.textColor,
+        seed=job_id,  # semilla por video → variedad entre videos
     )
 
-    scene["type"] = component_type_name
+    scene["type"] = "custom"
+    scene["quality_status"] = "passed"
+    scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
 
     # AE script generation deferred to export step
     scene["ae_script_code"] = None
 
     spec["scenes"][scene_index] = scene
-
-    write_index_ts(job_id, spec["scenes"])
 
     return spec
 
@@ -85,6 +112,33 @@ def regenerate_single_scene_sync(
     new_text: str,
     user_id: Optional[str] = None,
 ) -> dict:
-    return asyncio.run(
-        _regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text, user_id)
-    )
+    """Sync wrapper that also persists changes to DB."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    # Open DB session first so vector search can use it during regeneration
+    db = SessionLocal()
+    try:
+        coro = _regenerate_scene_async(job_id, spec, scene_index, new_media_query, new_text, user_id, db=db)
+        updated_spec = run_async(coro)
+
+        # Persist to DB — the RQ worker receives a serialized copy, so we must
+        # write back using the same session.
+        job = db.query(JobModel).filter(JobModel.id == job_id).first()
+        if job:
+            job.result_spec = updated_spec
+            flag_modified(job, "result_spec")
+            job.status = "completed"
+            db.commit()
+            logger.info(
+                "Scene %d regenerated and persisted for job %s",
+                scene_index,
+                job_id,
+                extra={"job_id": job_id},
+            )
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+    return updated_spec

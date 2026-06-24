@@ -12,8 +12,11 @@ from sqlalchemy.orm import Session
 
 from app.db.models import User, JobModel
 from app.db.session import get_db
-from app.core.security import get_current_active_user
+from app.core.security import get_current_user_from_token
 from app.core.storage_paths import get_storage_dir
+from app.core.logging import get_logger
+
+logger = get_logger("animaflow.audio")
 
 router = APIRouter(prefix="/api", tags=["audio"])
 
@@ -43,7 +46,7 @@ def get_media_type(ext: str) -> str:
 async def get_audio(
     filename: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user_from_token),
 ):
     """
     Serves cached audio files for Remotion preview and rendering.
@@ -51,21 +54,20 @@ async def get_audio(
     """
     sanitized = sanitize_filename(filename)
 
-    # Extract job_id and scene_id from filename for ownership check
-    # Expected patterns: {job_id}_{scene_id}.mp3 or {job_id}_{scene_id}.wav
+    # Check if it's a job-scene format (e.g., job_123_0.wav)
     match = re.match(r"^([a-zA-Z0-9\-]+)_(\d+)\.[a-zA-Z0-9]+$", sanitized)
-    if not match:
-        raise HTTPException(status_code=400, detail="Invalid filename format")
+    if match:
+        # Ownership check for job audio
+        job_id = match.group(1)
+        job = db.query(JobModel).filter(
+            JobModel.id == job_id,
+            JobModel.user_id == current_user.id,
+        ).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Audio not found")
 
-    job_id = match.group(1)
-
-    # Ownership check
-    job = db.query(JobModel).filter(
-        JobModel.id == job_id,
-        JobModel.user_id == current_user.id,
-    ).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Audio not found")
+    # For preview audio (e.g., 966143287418.wav), no job ownership check needed
+    # The user is already authenticated
 
     # Look for exact filename
     local_path = os.path.abspath(os.path.join(AUDIO_STORAGE, sanitized))
@@ -73,33 +75,19 @@ async def get_audio(
         raise HTTPException(status_code=400, detail="Invalid path")
 
     if not os.path.exists(local_path):
-        # Fallback: try other common extensions
+        logger.debug("Audio not found at %s, searching subdirs...", local_path)
+        logger.debug("AUDIO_STORAGE resolved to: %s", AUDIO_STORAGE)
+
+        from app.services.audio_finder import find_audio_file
+
         base = os.path.splitext(sanitized)[0]
-        found = False
-        for ext in [".mp3", ".wav", ".ogg", ".m4a"]:
-            candidate = os.path.abspath(os.path.join(AUDIO_STORAGE, base + ext))
-            if candidate.startswith(AUDIO_STORAGE + os.sep) and os.path.exists(candidate):
-                local_path = candidate
-                found = True
-                break
-        if not found:
+        found_path = find_audio_file(base)
+
+        if not found_path:
+            logger.warning("Audio file not found: %s in %s", sanitized, AUDIO_STORAGE)
             raise HTTPException(status_code=404, detail="Audio not found")
+
+        local_path = found_path
 
     ext = os.path.splitext(local_path)[1]
     return FileResponse(local_path, media_type=get_media_type(ext))
-
-
-# Keep old route for backward compatibility during transition
-@router.get("/audio/{job_id}_{scene_id}.mp3")
-async def get_audio_legacy(
-    job_id: str,
-    scene_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    """Legacy endpoint - redirects to generic filename handler."""
-    return await get_audio(
-        f"{job_id}_{scene_id}.mp3",
-        db=db,
-        current_user=current_user,
-    )

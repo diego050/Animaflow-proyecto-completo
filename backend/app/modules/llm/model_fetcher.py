@@ -5,20 +5,21 @@ Fetches available models from provider APIs or returns static lists
 for providers that don't expose a models endpoint.
 """
 from typing import Optional
-import requests
+import httpx
 from app.core.logging import get_logger
 
 logger = get_logger("llm")
 
-# Static model lists for providers without a public models endpoint
+# Static model lists for providers without a public models endpoint.
+# Mantener alineado con el catálogo central (app/services/model_catalog.py).
 GEMINI_MODELS = [
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-2.0-pro-exp-02-05",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
+    "gemini-3.5-flash",
     "gemini-3.1-flash",
+    "gemini-3.1-flash-lite",
     "gemini-3.1-flash-lite-preview",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
 ]
 
 ANTHROPIC_MODELS = [
@@ -30,16 +31,17 @@ ANTHROPIC_MODELS = [
 ]
 
 
-def fetch_openai_models(api_key: str) -> list[str]:
+async def fetch_openai_models(api_key: str) -> list[str]:
     """Fetch available models from OpenAI API, filtering for GPT models."""
     try:
-        response = requests.get(
-            "https://api.openai.com/v1/models",
-            headers={"Authorization": f"Bearer {api_key}"},
-            timeout=15,
-        )
-        response.raise_for_status()
-        data = response.json()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.openai.com/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=15,
+            )
+            response.raise_for_status()
+            data = response.json()
 
         allowed_prefixes = ("gpt-", "o1", "o3")
         models = []
@@ -81,7 +83,7 @@ def fetch_anthropic_models(api_key: str | None = None) -> list[str]:
     return sorted(ANTHROPIC_MODELS)
 
 
-def fetch_available_models(provider: str, api_key: Optional[str] = None) -> list[str]:
+async def fetch_available_models(provider: str, api_key: Optional[str] = None) -> list[str]:
     """
     Return a list of available models for a given provider.
 
@@ -107,7 +109,7 @@ def fetch_available_models(provider: str, api_key: Optional[str] = None) -> list
                 "o1-mini",
                 "o3-mini",
             ])
-        return fetch_openai_models(api_key)
+        return await fetch_openai_models(api_key)
 
     if provider == "gemini":
         return fetch_gemini_models()

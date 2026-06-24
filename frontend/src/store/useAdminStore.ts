@@ -6,6 +6,8 @@ import type {
   SystemHealth,
   AdminSettingsConfig,
   AdminSettingsUpdate,
+  PaginatedUsersResponse,
+  PaginatedJobsResponse,
 } from '../types/admin';
 import { api } from '../api/client';
 
@@ -17,11 +19,13 @@ interface AdminState {
   usersLoading: boolean;
   usersPage: number;
   usersTotal: number;
+  usersPerPage: number;
 
   jobs: AdminJobDetail[];
   jobsLoading: boolean;
   jobsPage: number;
   jobsTotal: number;
+  jobsPerPage: number;
 
   systemHealth: SystemHealth | null;
   systemHealthLoading: boolean;
@@ -51,10 +55,12 @@ export const useAdminStore = create<AdminState>((set) => ({
   usersLoading: false,
   usersPage: 1,
   usersTotal: 0,
+  usersPerPage: 20,
   jobs: [],
   jobsLoading: false,
   jobsPage: 1,
   jobsTotal: 0,
+  jobsPerPage: 20,
   systemHealth: null,
   systemHealthLoading: false,
   settings: null,
@@ -73,12 +79,12 @@ export const useAdminStore = create<AdminState>((set) => ({
   fetchUsers: async (page = 1, search = '') => {
     set({ usersLoading: true, usersPage: page });
     try {
-      const params = new URLSearchParams({ page: String(page), limit: '20' });
+      const params = new URLSearchParams({ page: String(page), per_page: '20' });
       if (search) params.set('search', search);
-      const data = await api.get<{ users: AdminUserDetail[]; total: number }>(
+      const data = await api.get<PaginatedUsersResponse>(
         `/api/admin/users?${params.toString()}`,
       );
-      set({ users: data.users, usersTotal: data.total, usersLoading: false });
+      set({ users: data.users, usersTotal: data.total, usersPerPage: data.per_page, usersLoading: false });
     } catch {
       set({ usersLoading: false });
     }
@@ -102,12 +108,12 @@ export const useAdminStore = create<AdminState>((set) => ({
   fetchJobs: async (page = 1, status = '') => {
     set({ jobsLoading: true, jobsPage: page });
     try {
-      const params = new URLSearchParams({ page: String(page), limit: '20' });
+      const params = new URLSearchParams({ page: String(page), per_page: '20' });
       if (status) params.set('status', status);
-      const data = await api.get<{ jobs: AdminJobDetail[]; total: number }>(
+      const data = await api.get<PaginatedJobsResponse>(
         `/api/admin/jobs?${params.toString()}`,
       );
-      set({ jobs: data.jobs, jobsTotal: data.total, jobsLoading: false });
+      set({ jobs: data.jobs, jobsTotal: data.total, jobsPerPage: data.per_page, jobsLoading: false });
     } catch {
       set({ jobsLoading: false });
     }

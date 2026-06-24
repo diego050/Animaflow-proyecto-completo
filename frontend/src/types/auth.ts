@@ -42,7 +42,6 @@ export interface BackendVoice {
   id: string;
   user_id: string;
   name: string;
-  voicebox_profile_id: string | null;
   gender: 'male' | 'female' | 'neutral';
   language: string;
   is_default: boolean;
@@ -62,7 +61,7 @@ export interface VoicePreviewResponse {
 // API Keys & LLM Settings — matches backend Pydantic schemas 1:1
 // ---------------------------------------------------------------------------
 
-export type ApiKeyProvider = 'gemini' | 'openai' | 'anthropic' | 'grok';
+export type ApiKeyProvider = 'gemini' | 'openai' | 'anthropic' | 'grok' | 'groq';
 
 export interface ApiKeyEntry {
   id: string;
@@ -89,13 +88,20 @@ export interface UserLLMSettingsUpdate {
   available_models?: string[];
 }
 
+// Modelos que SOLO se ofrecen a usuarios admin/founder (experimentales/internos).
+// Se añaden a AVAILABLE_MODELS únicamente si el usuario tiene rol privilegiado.
+export const ADMIN_ONLY_MODELS: Record<string, string[]> = {
+  gemini: ['gemma-4-31b-it'],
+};
+
 export const AVAILABLE_MODELS: Record<string, string[]> = {
   gemini: [
-    'gemini-2.0-flash',
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
+    'gemini-3.5-flash',
     'gemini-3.1-flash',
     'gemini-3.1-flash-lite',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
     'gemini-3.1-pro',
   ],
   openai: [
@@ -123,4 +129,5 @@ export const PROVIDER_LABELS: Record<ApiKeyProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Claude',
   grok: 'Grok',
+  groq: 'Groq',
 };

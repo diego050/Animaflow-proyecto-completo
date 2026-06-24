@@ -6,28 +6,102 @@ health checks, and configurable settings for administrators.
 """
 
 from typing import Optional
-import datetime
+import io
+import os
+import time
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
-from sqlalchemy.orm import Session
-from rq import Queue, Retry
-from redis import Redis
+from fastapi.responses import StreamingResponse
+from sqlalchemy import Integer, func, text
+from sqlalchemy.orm import Session, joinedload
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.session import get_db
-from app.db.models import User, JobModel
+from app.db.models import User, JobModel, Voice, AdminSettings
 from app.core.security import require_admin, get_password_hash
 from app.core.config import settings
 from app.core.limiter import limiter
+from app.core.storage_paths import get_storage_dir
+from app.core.audit import log_audit_event
+from app.core.logging import get_logger
+from app.services.job_cleanup import delete_job_files
 
 router = APIRouter()
-redis_conn = Redis.from_url(settings.REDIS_URL)
-queue = Queue("default", connection=redis_conn)
+logger = get_logger("admin")
+
+# Track app start time for uptime calculation
+_APP_START_TIME = time.time()
+
+
+# ---------------------------------------------------------------------------
+# Response Models
+# ---------------------------------------------------------------------------
+class AdminUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    email: str
+    name: str
+    role: str
+    is_active: bool
+    created_at: Optional[str] = None
+    last_login: Optional[str] = None
+    total_jobs: int = 0
+    completed_jobs: int = 0
+
+
+class AdminJobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    job_id: str
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    status: str
+    script_text: Optional[str] = None
+    aspect_ratio: Optional[str] = None
+    created_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    video_url: Optional[str] = None
+    error_message: Optional[str] = None
+
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    active_users: int
+    total_jobs: int
+    completed_jobs: int
+    failed_jobs: int
+    rendering_jobs: int
+    pending_jobs: int
+    total_storage_mb: float
+    avg_render_time_seconds: Optional[float] = None
+    success_rate: float
+
+
+class PaginatedUsersResponse(BaseModel):
+    users: list[AdminUserResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class PaginatedJobsResponse(BaseModel):
+    jobs: list[AdminJobResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class AdminUserCreate(BaseModel):
+    email: str
+    password: str = Field(min_length=8, max_length=72)
+    name: str = Field(min_length=1, max_length=100)
+    role: str = Field(pattern=r"^(founder|agency|user|admin)$")
 
 
 # ---------------------------------------------------------------------------
 # Stats
 # ---------------------------------------------------------------------------
-@router.get("/stats")
+@router.get("/stats", response_model=AdminStatsResponse)
 @limiter.limit("30/minute")
 def get_admin_stats(
     request: Request,
@@ -35,74 +109,113 @@ def get_admin_stats(
     current_user: User = Depends(require_admin),
 ):
     """Return dashboard stats for admin panel."""
+    # Single aggregated query for all job stats (was 5 separate queries)
+    job_stats = db.query(
+        func.count(JobModel.id).label("total"),
+        func.sum(func.cast(JobModel.status == "completed", Integer)).label("completed"),
+        func.sum(func.cast(JobModel.status.in_(["failed", "failed_render"]), Integer)).label("failed"),
+        func.sum(func.cast(JobModel.status == "rendering", Integer)).label("rendering"),
+        func.sum(func.cast(JobModel.status == "pending", Integer)).label("pending"),
+    ).first()
+
+    total_jobs = job_stats.total or 0
+    completed_jobs = job_stats.completed or 0
+    failed_jobs = job_stats.failed or 0
+    rendering_jobs = job_stats.rendering or 0
+    pending_jobs = job_stats.pending or 0
+
+    # User stats (2 queries is fine for this)
     total_users = db.query(User).count()
-    active_users = db.query(User).filter(User.is_active == True).count()
-    total_jobs = db.query(JobModel).count()
-    completed_jobs = db.query(JobModel).filter(JobModel.status == "completed").count()
-    failed_jobs = db.query(JobModel).filter(JobModel.status.in_(["failed", "failed_render"])).count()
-    rendering_jobs = db.query(JobModel).filter(JobModel.status == "rendering").count()
-    pending_jobs = db.query(JobModel).filter(JobModel.status == "pending").count()
+    active_users = db.query(User).filter(User.is_active.is_(True)).count()
 
     # Calculate success rate
     finished_jobs = completed_jobs + failed_jobs
     success_rate = (completed_jobs / finished_jobs * 100) if finished_jobs > 0 else 0
 
     # Calculate storage (sum of video file sizes)
-    import os
-    from app.core.storage_paths import get_storage_dir
     videos_dir = get_storage_dir("videos")
     total_storage_mb = sum(
         os.path.getsize(os.path.join(videos_dir, f)) / (1024 * 1024)
         for f in os.listdir(videos_dir) if os.path.isfile(os.path.join(videos_dir, f))
     ) if os.path.exists(videos_dir) else 0
 
-    # Avg render time (placeholder for now)
-    avg_render_time_seconds = 0
-
-    return {
-        "total_users": total_users,
-        "active_users": active_users,
-        "total_jobs": total_jobs,
-        "completed_jobs": completed_jobs,
-        "failed_jobs": failed_jobs,
-        "rendering_jobs": rendering_jobs,
-        "pending_jobs": pending_jobs,
-        "total_storage_mb": total_storage_mb,
-        "avg_render_time_seconds": avg_render_time_seconds,
-        "success_rate": success_rate,
-    }
+    return AdminStatsResponse(
+        total_users=total_users,
+        active_users=active_users,
+        total_jobs=total_jobs,
+        completed_jobs=completed_jobs,
+        failed_jobs=failed_jobs,
+        rendering_jobs=rendering_jobs,
+        pending_jobs=pending_jobs,
+        total_storage_mb=total_storage_mb,
+        success_rate=success_rate,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Users
 # ---------------------------------------------------------------------------
-@router.get("/users")
+@router.get("/users", response_model=PaginatedUsersResponse)
 @limiter.limit("30/minute")
 def list_admin_users(
     request: Request,
+    page: int = 1,
+    per_page: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """List all users with stats."""
-    users = db.query(User).filter(User.is_deleted == False).all()
-    total = len(users)
-    return {
-        "users": [
-            {
-                "id": u.id,
-                "email": u.email,
-                "name": u.name,
-                "role": u.role,
-                "is_active": u.is_active,
-                "created_at": u.created_at.isoformat() if u.created_at else None,
-                "last_login": None,  # TODO: track last login
-                "total_jobs": db.query(JobModel).filter(JobModel.user_id == u.id).count(),
-                "completed_jobs": db.query(JobModel).filter(JobModel.user_id == u.id, JobModel.status == "completed").count(),
-            }
-            for u in users
-        ],
-        "total": total,
-    }
+    """List all users with stats, with pagination."""
+
+    # Get paginated users first
+    users = (
+        db.query(User)
+        .filter(User.is_deleted.is_(False))
+        .order_by(User.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    total = db.query(User).filter(User.is_deleted.is_(False)).count()
+
+    # Get job counts for these users only (1 query instead of N*2)
+    user_ids = [u.id for u in users]
+    if user_ids:
+        job_stats = (
+            db.query(
+                JobModel.user_id,
+                func.count(JobModel.id).label("total"),
+                func.sum(func.cast(JobModel.status == "completed", Integer)).label("completed"),
+            )
+            .filter(JobModel.user_id.in_(user_ids))
+            .group_by(JobModel.user_id)
+            .all()
+        )
+        stats_map = {row.user_id: {"total": row.total, "completed": row.completed or 0} for row in job_stats}
+    else:
+        stats_map = {}
+
+    user_responses = []
+    for u in users:
+        stats = stats_map.get(u.id, {"total": 0, "completed": 0})
+        user_responses.append(AdminUserResponse(
+            id=u.id,
+            email=u.email,
+            name=u.name,
+            role=u.role,
+            is_active=u.is_active,
+            created_at=u.created_at.isoformat() if u.created_at else None,
+            last_login=None,
+            total_jobs=stats["total"],
+            completed_jobs=stats["completed"],
+        ))
+
+    return PaginatedUsersResponse(
+        users=user_responses,
+        total=total,
+        page=page,
+        per_page=per_page,
+    )
 
 
 @router.put("/users/{user_id}/toggle")
@@ -119,6 +232,7 @@ def toggle_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     user.is_active = not user.is_active
     db.commit()
+    log_audit_event(db, current_user.id, "user_toggle", ip_address=request.client.host if request.client else None, details={"target_user_id": user_id, "new_status": user.is_active})
     return {"id": user.id, "is_active": user.is_active}
 
 
@@ -139,6 +253,7 @@ def change_user_role(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     user.role = role
     db.commit()
+    log_audit_event(db, current_user.id, "role_change", ip_address=request.client.host if request.client else None, details={"target_user_id": user_id, "new_role": role})
     return {"id": user.id, "role": user.role}
 
 
@@ -151,9 +266,6 @@ def delete_user(
     current_user: User = Depends(require_admin),
 ):
     """Delete user permanently with cascade (jobs, voices, files)."""
-    import os
-    from app.db.models import JobModel, Voice
-    from app.core.storage_paths import get_storage_dir
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -168,8 +280,8 @@ def delete_user(
             if os.path.exists(video_path):
                 try:
                     os.remove(video_path)
-                except OSError:
-                    pass
+                except OSError as e:
+                    logger.warning("Failed to delete video file %s: %s", video_path, e)
         # Delete audio files if referenced in result_spec
         if job.result_spec:
             for scene in job.result_spec.get("scenes", []):
@@ -179,8 +291,8 @@ def delete_user(
                     if os.path.exists(audio_path):
                         try:
                             os.remove(audio_path)
-                        except OSError:
-                            pass
+                        except OSError as e:
+                            logger.warning("Failed to delete audio file %s: %s", audio_path, e)
         db.delete(job)
 
     # 2. Delete user's voices and their audio files
@@ -189,36 +301,30 @@ def delete_user(
         if voice.audio_sample_path and os.path.exists(voice.audio_sample_path):
             try:
                 os.remove(voice.audio_sample_path)
-            except OSError:
-                pass
+            except OSError as e:
+                logger.warning("Failed to delete voice sample file %s: %s", voice.audio_sample_path, e)
         db.delete(voice)
 
     # 3. Delete user
     db.delete(user)
     db.commit()
+    log_audit_event(db, current_user.id, "user_delete", ip_address=request.client.host if request.client else None, details={"target_user_id": user_id, "target_email": user.email})
     return {"message": "User and all associated data deleted permanently"}
 
 
-@router.post("/users")
+@router.post("/users", response_model=AdminUserResponse)
 @limiter.limit("30/minute")
 def create_user(
     request: Request,
-    data: dict = Body(...),
+    data: AdminUserCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """Create a new user from admin panel."""
-    email = data.get("email")
-    password = data.get("password")
-    name = data.get("name", "User")
-    role = data.get("role", "user")
-
-    # Validate
-    if not email or not password:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email and password required")
-
-    if role not in ["founder", "agency", "user", "admin"]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
+    email = data.email
+    password = data.password
+    name = data.name
+    role = data.role
 
     # Check if exists
     existing = db.query(User).filter(User.email == email).first()
@@ -236,51 +342,64 @@ def create_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+    log_audit_event(db, current_user.id, "user_create", ip_address=request.client.host if request.client else None, details={"new_user_id": user.id, "new_user_email": user.email})
 
-    return {
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
-        "role": user.role,
-    }
+    return AdminUserResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at.isoformat() if user.created_at else None,
+        last_login=None,
+        total_jobs=0,
+        completed_jobs=0,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Jobs
 # ---------------------------------------------------------------------------
-@router.get("/jobs")
+@router.get("/jobs", response_model=PaginatedJobsResponse)
 @limiter.limit("30/minute")
 def list_admin_jobs(
     request: Request,
-    status: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """List all jobs with optional status filter."""
-    query = db.query(JobModel)
-    if status:
-        query = query.filter(JobModel.status == status)
-    jobs = query.order_by(JobModel.created_at.desc()).all()
-    total = len(jobs)
+    """List all jobs with optional status filter and pagination."""
 
-    return {
-        "jobs": [
-            {
-                "job_id": j.id,
-                "user_id": j.user_id,
-                "user_email": j.user.email if j.user else "Unknown",
-                "status": j.status,
-                "script_text": (j.script_text[:100] + "...") if j.script_text else None,
-                "aspect_ratio": j.aspect_ratio or "9:16",
-                "created_at": j.created_at.isoformat() if j.created_at else None,
-                "completed_at": None,  # TODO: track completion time
-                "video_url": j.video_url,
-                "error_message": None,  # TODO: track errors
-            }
-            for j in jobs
-        ],
-        "total": total,
-    }
+    query = db.query(JobModel).options(joinedload(JobModel.user))
+    if status_filter:
+        query = query.filter(JobModel.status == status_filter)
+
+    total = query.count()
+    jobs = query.order_by(JobModel.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+
+    job_responses = []
+    for j in jobs:
+        job_responses.append(AdminJobResponse(
+            job_id=j.id,
+            user_id=j.user_id,
+            user_email=j.user.email if j.user else "Unknown",
+            status=j.status,
+            script_text=(j.script_text[:100] + "...") if j.script_text else None,
+            aspect_ratio=j.aspect_ratio or "9:16",
+            created_at=j.created_at.isoformat() if j.created_at else None,
+            completed_at=None,
+            video_url=j.video_url,
+            error_message=j.error_message,
+        ))
+
+    return PaginatedJobsResponse(
+        jobs=job_responses,
+        total=total,
+        page=page,
+        per_page=per_page,
+    )
 
 
 @router.post("/jobs/{job_id}/retry")
@@ -301,23 +420,11 @@ def retry_job(
             detail="Only failed jobs can be retried",
         )
 
-    from app.modules.pipeline.orchestrator import run_pipeline
-
     job.status = "pending"
     db.commit()
+    log_audit_event(db, current_user.id, "job_retry", ip_address=request.client.host if request.client else None, details={"job_id": job_id})
 
-    # Re-enqueue to the default RQ queue
-    queue.enqueue(
-        run_pipeline,
-        job.id,
-        job.script_text,
-        job.aspect_ratio,
-        job.user_id,
-        job_timeout="10m",
-        retry=Retry(max=3),
-    )
-
-    return {"message": "Job queued for retry", "job_id": job_id}
+    return {"message": "Job queued for retry (picked up by scheduler)", "job_id": job_id}
 
 
 @router.post("/jobs/{job_id}/cancel")
@@ -340,6 +447,7 @@ def cancel_job(
     job.status = "failed"
     job.error_message = "Job cancelled by admin"
     db.commit()
+    log_audit_event(db, current_user.id, "job_cancel", ip_address=request.client.host if request.client else None, details={"job_id": job_id})
     return {"message": "Job cancelled", "job_id": job_id}
 
 
@@ -351,12 +459,17 @@ def delete_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Delete a job."""
+    """Delete a job and all associated files from disk."""
+
     job = db.query(JobModel).filter(JobModel.id == job_id).first()
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    delete_job_files(job_id, job.user_id)
+
     db.delete(job)
     db.commit()
+    log_audit_event(db, current_user.id, "job_delete", ip_address=request.client.host if request.client else None, details={"job_id": job_id})
     return {"message": "Job deleted"}
 
 
@@ -371,21 +484,11 @@ def system_health(
     current_user: User = Depends(require_admin),
 ):
     """Return system health status."""
-    # Check Redis
-    redis_connected = False
-    redis_queue_length = 0
-    try:
-        redis_connected = redis_conn.ping()
-        redis_queue_length = len(queue.get_job_ids())
-    except Exception:
-        pass
-
     # Check Database
     database_connected = False
     database_pool_size = 0
     database_pool_used = 0
     try:
-        from sqlalchemy import text
         db.execute(text("SELECT 1"))
         database_connected = True
         # Get actual pool info from SQLAlchemy engine
@@ -396,39 +499,19 @@ def system_health(
         else:
             database_pool_size = 10
             database_pool_used = 0
-    except Exception:
-        pass
-
-    # Workers info (from RQ)
-    workers_active = 0
-    workers_idle = 0
-    try:
-        from rq import Worker
-        workers = Worker.all(connection=redis_conn)
-        workers_active = sum(1 for w in workers if w.get_state() == 'busy')
-        workers_idle = sum(1 for w in workers if w.get_state() == 'idle')
-    except Exception:
-        pass
+    except Exception as e:
+        logger.exception("Database health check failed: %s", e)
 
     # Uptime (process start time approximation)
-    import time
-    uptime_seconds = time.time() - getattr(system_health, '_start_time', time.time())
-    if not hasattr(system_health, '_start_time'):
-        system_health._start_time = time.time()
+    uptime_seconds = time.time() - _APP_START_TIME
 
     return {
-        "redis_connected": redis_connected,
-        "redis_queue_length": redis_queue_length,
-        "workers_active": workers_active,
-        "workers_idle": workers_idle,
-        "workers_connected": (workers_active + workers_idle) > 0,
         "database_connected": database_connected,
         "database_pool_size": database_pool_size,
         "database_pool_used": database_pool_used,
         "uptime_seconds": uptime_seconds,
-        "last_worker_heartbeat": None,
         "status": "healthy",
-        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -443,9 +526,8 @@ def get_business_metrics(
     current_user: User = Depends(require_admin),
 ):
     """Return business metrics for the admin dashboard."""
-    from datetime import datetime, timedelta
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     week_ago = now - timedelta(days=7)
     two_weeks_ago = now - timedelta(days=14)
     month_ago = now - timedelta(days=30)
@@ -454,35 +536,77 @@ def get_business_metrics(
     users_this_week = db.query(User).filter(User.created_at >= week_ago).count()
 
     # 2. Tasa de activación (usuarios nuevos que crearon video en primeros 7 días)
-    new_users = db.query(User).filter(User.created_at >= week_ago).all()
-    activated_users = 0
-    for u in new_users:
-        first_job = db.query(JobModel).filter(
-            JobModel.user_id == u.id,
-            JobModel.created_at >= u.created_at,
-            JobModel.created_at <= u.created_at + timedelta(days=7),
-            JobModel.status.in_(["completed", "completed_video"])
-        ).first()
-        if first_job:
-            activated_users += 1
-    activation_rate = (activated_users / len(new_users) * 100) if new_users else 0
+    # Fixed N+1: single grouped query instead of per-user loop
+    new_user_ids = {u[0] for u in db.query(User.id).filter(User.created_at >= week_ago).all()}
 
-    # 3. Tiempo promedio registro -> primer export
-    avg_time_to_first_export = 0  # TODO: implement when tracking export events
+    if new_user_ids:
+        first_jobs = (
+            db.query(JobModel.user_id, func.min(JobModel.created_at).label("first_job"))
+            .filter(
+                JobModel.user_id.in_(new_user_ids),
+                JobModel.user_id.isnot(None),
+                JobModel.status.in_(["completed", "completed_video"]),
+            )
+            .group_by(JobModel.user_id)
+            .all()
+        )
+        first_job_user_ids = {row.user_id for row in first_jobs}
+        activated_users = len(first_job_user_ids)
+    else:
+        activated_users = 0
+    activation_rate = (activated_users / len(new_user_ids) * 100) if new_user_ids else 0
+
+    # 3. Tiempo promedio registro -> primer export (en horas)
+    # Calculate average time from user registration to first completed job
+    first_export_times = (
+        db.query(
+            func.min(JobModel.created_at - User.created_at).label("time_to_first_export")
+        )
+        .join(User, JobModel.user_id == User.id)
+        .filter(
+            JobModel.user_id.isnot(None),
+            JobModel.status.in_(["completed", "completed_video"]),
+        )
+        .group_by(JobModel.user_id)
+        .all()
+    )
+
+    if first_export_times:
+        total_hours = sum(
+            row.time_to_first_export.total_seconds() / 3600
+            for row in first_export_times
+            if row.time_to_first_export is not None
+        )
+        avg_time_to_first_export = round(total_hours / len(first_export_times), 1)
+    else:
+        avg_time_to_first_export = 0
 
     # 4. Tasa de retención semanal (usuarios que renderizaron semana pasada Y esta semana)
-    last_week_jobs = db.query(JobModel).filter(
-        JobModel.created_at >= two_weeks_ago,
-        JobModel.created_at < week_ago,
-        JobModel.status.in_(["completed", "completed_video"])
-    ).all()
-    last_week_user_ids = {j.user_id for j in last_week_jobs}
+    # Fixed N+1: fetch only distinct user_ids instead of full JobModel rows
+    last_week_user_ids = {
+        row[0] for row in
+        db.query(JobModel.user_id)
+        .filter(
+            JobModel.created_at >= two_weeks_ago,
+            JobModel.created_at < week_ago,
+            JobModel.status.in_(["completed", "completed_video"]),
+            JobModel.user_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    }
 
-    this_week_jobs = db.query(JobModel).filter(
-        JobModel.created_at >= week_ago,
-        JobModel.status.in_(["completed", "completed_video"])
-    ).all()
-    this_week_user_ids = {j.user_id for j in this_week_jobs}
+    this_week_user_ids = {
+        row[0] for row in
+        db.query(JobModel.user_id)
+        .filter(
+            JobModel.created_at >= week_ago,
+            JobModel.status.in_(["completed", "completed_video"]),
+            JobModel.user_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    }
 
     retained_users = len(last_week_user_ids & this_week_user_ids)
     retention_rate = (retained_users / len(last_week_user_ids) * 100) if last_week_user_ids else 0
@@ -492,8 +616,35 @@ def get_business_metrics(
     active_this_month = db.query(User).filter(User.created_at >= month_ago).count()  # Simplification
     churn_rate = ((total_users - active_this_month) / total_users * 100) if total_users else 0
 
-    # 6. Usuarios reactivados
-    reactivated_users = 0  # TODO: implement when tracking login events
+    # 6. Usuarios reactivados (inactivos >30 días pero con actividad en los últimos 7 días)
+    # Find users who had no completed jobs between 30-7 days ago, but have completed jobs in last 7 days
+    recently_active_user_ids = {
+        row[0] for row in
+        db.query(JobModel.user_id)
+        .filter(
+            JobModel.created_at >= week_ago,
+            JobModel.status.in_(["completed", "completed_video"]),
+            JobModel.user_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    }
+
+    previously_active_user_ids = {
+        row[0] for row in
+        db.query(JobModel.user_id)
+        .filter(
+            JobModel.created_at >= month_ago,
+            JobModel.created_at < week_ago,
+            JobModel.status.in_(["completed", "completed_video"]),
+            JobModel.user_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    }
+
+    # Reactivated = active now but NOT active in the previous period (30-7 days ago)
+    reactivated_users = len(recently_active_user_ids - previously_active_user_ids)
 
     # 7. MRR (Monthly Recurring Revenue) - placeholder
     mrr = 0
@@ -516,15 +667,25 @@ def get_business_metrics(
 @limiter.limit("30/minute")
 def get_admin_settings(
     request: Request,
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Return admin-configurable settings."""
-    return {
+    """Return admin-configurable settings from the database."""
+    # Default settings
+    defaults = {
         "site_name": "AnimaFlow",
         "max_jobs_per_user": 10,
         "default_voice": "es_ES-carlfm-x_low",
         "maintenance_mode": False,
     }
+
+    # Override with DB values
+    settings_rows = db.query(AdminSettings).all()
+    for s in settings_rows:
+        if s.key in defaults:
+            defaults[s.key] = s.value
+
+    return defaults
 
 
 @router.put("/settings")
@@ -532,11 +693,84 @@ def get_admin_settings(
 def update_admin_settings(
     request: Request,
     settings_payload: dict = Body(...),
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Update admin settings.
+    """Update admin settings in the database."""
+    allowed_keys = {"site_name", "max_jobs_per_user", "default_voice", "maintenance_mode"}
 
-    For MVP, settings are not persisted to DB.
-    In production, these would be stored in a settings table or config store.
-    """
+    for key, value in settings_payload.items():
+        if key not in allowed_keys:
+            continue
+
+        # Upsert: update existing or create new
+        setting = db.query(AdminSettings).filter(AdminSettings.key == key).first()
+        if setting:
+            setting.value = value
+            setting.updated_at = datetime.now(timezone.utc)
+        else:
+            setting = AdminSettings(key=key, value=value)
+            db.add(setting)
+
+    db.commit()
+
     return {"message": "Settings updated", "settings": settings_payload}
+
+
+# ---------------------------------------------------------------------------
+# Component AE (.jsx) preview — descarga el ExtendScript de UN componente para
+# probarlo en After Effects de forma aislada (Playground / galería).
+# ---------------------------------------------------------------------------
+class ComponentAEScriptRequest(BaseModel):
+    props: dict = Field(default_factory=dict)
+    text: str = ""
+    duration: float = 5.0
+    width: int = 1080
+    height: int = 1920
+    fps: int = 30
+
+
+@router.post("/components/{name}/ae-script")
+@limiter.limit("30/minute")
+def download_component_ae_script(
+    request: Request,
+    name: str,
+    body: ComponentAEScriptRequest = Body(default=ComponentAEScriptRequest()),
+    current_user: User = Depends(require_admin),
+):
+    """Genera y descarga el AE ExtendScript (.jsx) de un solo componente.
+
+    Permite verificar en After Effects que cada componente exporta bien, de forma
+    individual. Usa el generador determinista (sin LLM).
+    """
+    from app.modules.ae_export.deterministic.components_generator import generate_component_script
+
+    # Sanitizar nombre (evita rutas raras en el filename).
+    safe_name = "".join(ch for ch in name if ch.isalnum() or ch in ("_", "-")) or "component"
+
+    try:
+        script = generate_component_script(
+            components={safe_name: body.props or {}},
+            text=body.text,
+            duration=max(0.5, float(body.duration or 5.0)),
+            width=int(body.width or 1080),
+            height=int(body.height or 1920),
+            fps=int(body.fps or 30),
+        )
+    except Exception as e:  # noqa: BLE001 — devolver el error es útil para depurar en AE
+        logger.exception("AE script generation failed for component %s: %s", safe_name, e)
+        raise HTTPException(status_code=500, detail=f"AE script generation failed: {e}")
+
+    # Si el componente no tiene bloque determinista, el script es solo la cabecera.
+    header_only = script.count("\n") <= 2
+    note = (
+        f"// AnimaFlow — AE preview for component '{safe_name}'\n"
+        + ("// NOTE: this component has no dedicated AE block yet — only an empty comp is created.\n" if header_only else "")
+        + "\n"
+    )
+
+    return StreamingResponse(
+        io.BytesIO((note + script).encode("utf-8")),
+        media_type="application/javascript",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.jsx"'},
+    )

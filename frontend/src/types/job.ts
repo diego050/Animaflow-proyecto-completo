@@ -8,6 +8,7 @@ export interface JobSummary {
   video_url: string | null;
   created_at: string;
   aspect_ratio?: string;
+  parent_job_id?: string;
 }
 
 export interface JobDetail {
@@ -15,6 +16,7 @@ export interface JobDetail {
   status: string;
   result_spec: TimelineSpec | null;
   video_url: string | null;
+  error_message?: string;
 }
 
 export interface JobCreateRequest {
@@ -34,6 +36,7 @@ export interface ScriptGenerateRequest {
   info: string;
   template_id?: string;
   custom_prompt?: string | null;
+  target_duration_seconds?: number;
 }
 
 export interface ScriptGenerateResponse {
@@ -50,15 +53,35 @@ export interface SceneRegenerateResponse {
   result_spec: TimelineSpec | null;
 }
 
+export interface SceneData {
+  text: string;
+  media_query: string;
+  start_time_seconds: number;
+  duration_seconds: number;
+  estimated_duration?: number;
+}
+
+export interface SceneApproveRequest {
+  scenes: SceneData[];
+}
+
+export interface SceneApproveResponse {
+  job_id: string;
+  status: string;
+  result_spec: TimelineSpec | null;
+}
+
 // Status type guard helpers
 export const PROCESSING_STATUSES = [
   'pending',
   'segmenting',
+  'segmented',
   'visuals_generating',
   'processing_scenes',
 ] as const;
 
 export const RENDER_STATUSES = [
+  'rendering_scenes',
   'queued_render',
   'rendering',
 ] as const;
@@ -142,6 +165,8 @@ export interface Script {
   aspectRatio: string;
   createdAt: string;
   sourceJobId?: string;
+  /** Visual direction / media_query derived from the job's result_spec scenes. */
+  prompt?: string;
 }
 
 export interface UserSettings {
@@ -160,7 +185,7 @@ export const AVAILABLE_TTS_PROVIDERS = [
   { id: 'local_piper', name: 'Voz Local (Piper) — Carl (Español) — Gratis, más lento', requiresKey: false },
   { id: 'elevenlabs', name: 'ElevenLabs - Mejor calidad', requiresKey: true },
   { id: 'google_tts', name: 'Google Cloud TTS - Económico', requiresKey: true },
-  { id: 'gemini_tts', name: 'Gemini TTS - Experimental', requiresKey: true },
+  { id: 'openai_tts', name: 'OpenAI TTS - Alta calidad', requiresKey: true },
 ] as const;
 
 export type TTSProviderId = (typeof AVAILABLE_TTS_PROVIDERS)[number]['id'];
