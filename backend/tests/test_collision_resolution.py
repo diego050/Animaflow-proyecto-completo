@@ -11,6 +11,40 @@ def _y(spec, name):
     return next(l["y"] for l in spec["layers"] if l.get("componentName") == name)
 
 
+def test_side_by_side_not_stacked():
+    """Dos elementos en columnas distintas (mismo y) NO deben apilarse: se respeta
+    el layout lado-a-lado (x-aware)."""
+    spec = {
+        "layers": [
+            {"type": "component", "componentName": "IconifyIcon", "x": -300, "y": 0,
+             "icon": "mdi:heart", "size": 120},
+            {"type": "component", "componentName": "StyleBadge", "x": 300, "y": 0,
+             "text": "Hola", "fontSize": 48},
+        ]
+    }
+    _resolve_vertical_overlaps(spec, 1080, 1920)
+    # Ambos siguen en y≈0 (no se separaron verticalmente porque no se solapan en X).
+    assert abs(_y(spec, "IconifyIcon")) <= 5
+    assert abs(_y(spec, "StyleBadge")) <= 5
+
+
+def test_near_center_x_snaps_to_zero():
+    """x casi-centrado se alinea a 0 (limpia jitter), offsets grandes se respetan."""
+    spec = {
+        "layers": [
+            {"type": "component", "componentName": "StyleTextBlock", "x": 18, "y": -200,
+             "text": "Titulo", "fontSize": 80},
+            {"type": "component", "componentName": "IconifyIcon", "x": -360, "y": 200,
+             "icon": "mdi:star", "size": 120},
+        ]
+    }
+    _resolve_vertical_overlaps(spec, 1080, 1920)
+    tb = next(l for l in spec["layers"] if l.get("componentName") == "StyleTextBlock")
+    icon = next(l for l in spec["layers"] if l.get("componentName") == "IconifyIcon")
+    assert tb["x"] == 0          # jitter centrado → 0
+    assert icon["x"] == -360     # offset intencional intacto
+
+
 def test_fill_components_not_moved():
     spec = {
         "layers": [

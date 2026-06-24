@@ -4,7 +4,9 @@
  * for a soft glow effect.
  *
  * Deterministic: all animations driven by useCurrentFrame(), no Math.random().
- * Coordinate contract: x/y are offsets from canvas center.
+ * Full-bleed background effect: fills the canvas (ignores x/y; the solver's
+ * default width/height would otherwise shrink it to a box). Transparent bg by
+ * default so it overlays the scene background instead of painting over it.
  * Uses useCanvas() for responsive sizing.
  */
 import React, { useMemo } from 'react';
@@ -47,10 +49,10 @@ export interface StyleBokehCirclesProps extends UniversalProps {
 export const StyleBokehCircles: React.FC<StyleBokehCirclesProps> = ({
   x = 540,
   y = 960,
-  circleCount = 15,
   width,
   height,
-  bgColor = '#111827',
+  circleCount = 15,
+  bgColor = 'transparent',
   colors = [
     [59, 130, 246],   // blue
     [139, 92, 246],   // purple
@@ -68,13 +70,10 @@ export const StyleBokehCircles: React.FC<StyleBokehCirclesProps> = ({
   const adjustedFrame = Math.max(0, frame - delay);
   const c = useCanvas();
 
-  // --- Responsive sizing via useCanvas ---
+  // --- Full-bleed by default; honor an explicit smaller size as a region ---
   const areaWidth = width ?? c.width;
   const areaHeight = height ?? c.height;
-
-  // --- Coordinate contract: x/y offsets from center ---
-  const centerX = x;
-  const centerY = y;
+  const isRegion = areaWidth < c.width - 1 || areaHeight < c.height - 1;
 
   // =========================================================================
   // Compute circles array (deterministic, index-based)
@@ -124,9 +123,9 @@ export const StyleBokehCircles: React.FC<StyleBokehCirclesProps> = ({
     <div
       style={{
         position: 'absolute',
-        left: `${centerX}px`,
-        top: `${centerY}px`,
-        transform: 'translate(-50%, -50%)',
+        left: isRegion ? `${x}px` : 0,
+        top: isRegion ? `${y}px` : 0,
+        transform: isRegion ? 'translate(-50%, -50%)' : undefined,
         width: areaWidth,
         height: areaHeight,
         backgroundColor: bgColor,

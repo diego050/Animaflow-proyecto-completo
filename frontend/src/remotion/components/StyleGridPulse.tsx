@@ -38,11 +38,11 @@ export interface StyleGridPulseProps extends UniversalProps {
 export const StyleGridPulse: React.FC<StyleGridPulseProps> = ({
   x = 540,
   y = 960,
-  cols = 12,
-  rows = 8,
   width,
   height,
-  bgColor = '#111827',
+  cols = 12,
+  rows = 8,
+  bgColor = 'transparent',
   dotColor = '#3b82f6',
   dotSize,
   waveSpeed = 3,
@@ -58,14 +58,11 @@ export const StyleGridPulse: React.FC<StyleGridPulseProps> = ({
   const adjustedFrame = Math.max(0, frame - delay);
   const c = useCanvas();
 
-  // --- Responsive sizing via useCanvas ---
+  // --- Full-bleed by default; honor an explicit smaller size as a region ---
   const areaWidth = width ?? c.width;
   const areaHeight = height ?? c.height;
+  const isRegion = areaWidth < c.width - 1 || areaHeight < c.height - 1;
   const dotDiameter = dotSize ?? c.vmin(1);
-
-  // --- Coordinate contract: x/y offsets from center ---
-  const centerX = x;
-  const centerY = y;
 
   // =========================================================================
   // Compute dots array (deterministic, pure math)
@@ -120,9 +117,9 @@ export const StyleGridPulse: React.FC<StyleGridPulseProps> = ({
     <div
       style={{
         position: 'absolute',
-        left: `${centerX}px`,
-        top: `${centerY}px`,
-        transform: 'translate(-50%, -50%)',
+        left: isRegion ? `${x}px` : 0,
+        top: isRegion ? `${y}px` : 0,
+        transform: isRegion ? 'translate(-50%, -50%)' : undefined,
         width: areaWidth,
         height: areaHeight,
         backgroundColor: bgColor,

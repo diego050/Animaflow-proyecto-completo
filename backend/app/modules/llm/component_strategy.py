@@ -224,6 +224,11 @@ _FILL_COMPONENTS = {
     "GridPerspective",
     # v8 (Fase 5): efectos cinematográficos full-screen.
     "CinematicBars", "Spotlight", "CameraShake",
+    # v10: familia de fondos/efectos de área (ahora full-bleed). Son backdrop,
+    # NO el sujeto de la escena → no se reposicionan y no cuentan como "visual
+    # real" en la Fase 5 (evita que una escena con solo un fondo pierda su texto).
+    "StyleBokehCircles", "StyleGridPulse", "StyleStarfield", "StyleLiquidWave",
+    "StyleParallaxPan", "StyleZoomPulse", "MeshGradientBg", "DynamicGrid",
 }
 _TEXT_COMPONENTS_BB = {
     "Typewriter", "TextReveal", "StyleTextBlock", "StyleScrambleText",
@@ -276,8 +281,45 @@ def _estimate_layer_height(layer: dict, canvas_w: int, canvas_h: int) -> float:
     return 160.0
 
 
+def _estimate_layer_width(layer: dict, canvas_w: int, canvas_h: int) -> float:
+    """Estimación CONSERVADORA del ANCHO de una capa (para detectar solapes en X)."""
+    comp = layer.get("componentName", "")
+    ltype = layer.get("type", "")
+
+    def _num(v, default):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return float(default)
+
+    if ltype == "text" or comp in _TEXT_COMPONENTS_BB:
+        w = layer.get("width")
+        if w is not None:
+            return _num(w, canvas_w * 0.85)
+        fs = _num(layer.get("fontSize"), 84)
+        text = str(layer.get("text", "") or "")
+        return min(canvas_w * 0.85, max(fs * 4, len(text) * fs * 0.55))
+    if comp in ("IconifyIcon", "AnimatedIcon"):
+        return _num(layer.get("size"), 120) * 1.1
+    if comp in ("StyleBadge", "StyleButton", "StyleChip", "SubscribeButton", "FloatingBadge", "StyleCallout"):
+        fs = layer.get("fontSize")
+        fs = _num(fs, 42) if fs is not None else _SIZE_FONT.get(str(layer.get("size", "md")), 42)
+        label = str(layer.get("text", "") or layer.get("label", "") or "")
+        return max(fs * 4, len(label) * fs * 0.65)
+    if comp == "StyleCard":
+        return _num(layer.get("width"), canvas_w * 0.5)
+    return _num(layer.get("width"), canvas_w * 0.4)
+
+
 def _resolve_vertical_overlaps(spec: dict, canvas_w: int, canvas_h: int) -> dict:
-    """Separa verticalmente las capas de contenido que se solapan (Fase 3)."""
+    """Separa capas de contenido que se solapan, RESPETANDO layouts lado-a-lado (Fase 3).
+
+    x-aware: dos capas solo se consideran en conflicto si sus cajas se solapan en X
+    Y en Y. Así, elementos en columnas distintas (un ícono a la izquierda, texto a la
+    derecha) NO se apilan a la fuerza — se respeta la libertad de composición. Además:
+    - snap de jitter: x casi-centrado (±2.5% del ancho) → x=0 (alinea sin matar offsets).
+    - cada capa se mantiene dentro de la zona segura vertical.
+    """
     layers = spec.get("layers", [])
     content = [
         l for l in layers
@@ -287,45 +329,55 @@ def _resolve_vertical_overlaps(spec: dict, canvas_w: int, canvas_h: int) -> dict
     if len(content) < 2:
         return spec
 
-    items = []  # [layer, y_center, height]
-    for l in content:
-        y = l.get("y", 0)
+    def _f(v, default=0.0):
         try:
-            y = float(y)
+            return float(v)
         except (TypeError, ValueError):
-            y = 0.0
-        items.append([l, y, _estimate_layer_height(l, canvas_w, canvas_h)])
+            return float(default)
 
-    items.sort(key=lambda it: it[1])
+    # Snap de jitter horizontal: lo casi-centrado se centra (limpia desalineaciones).
+    snap_x = canvas_w * 0.025
+    for l in content:
+        if abs(_f(l.get("x"))) < snap_x:
+            l["x"] = 0
+
+    items = []  # [layer, x, y, w, h]
+    for l in content:
+        items.append([
+            l, _f(l.get("x")), _f(l.get("y")),
+            _estimate_layer_width(l, canvas_w, canvas_h),
+            _estimate_layer_height(l, canvas_w, canvas_h),
+        ])
+
+    items.sort(key=lambda it: it[2])  # por y ascendente
     min_gap = max(40.0, canvas_h * 0.03)
 
-    # Empujar hacia abajo cada capa que invada la anterior.
+    # Empujar hacia abajo la capa que invade a una previa CON LA QUE se solapa en X.
     for i in range(1, len(items)):
-        prev_bottom = items[i - 1][1] + items[i - 1][2] / 2
-        cur_top = items[i][1] - items[i][2] / 2
-        if cur_top < prev_bottom + min_gap:
-            items[i][1] += (prev_bottom + min_gap) - cur_top
+        for j in range(i):
+            xi, wi = items[i][1], items[i][3]
+            xj, wj = items[j][1], items[j][3]
+            if abs(xi - xj) >= (wi + wj) / 2 - 1:
+                continue  # columnas distintas → no es solape real
+            prev_bottom = items[j][2] + items[j][4] / 2
+            cur_top = items[i][2] - items[i][4] / 2
+            if cur_top < prev_bottom + min_gap:
+                items[i][2] += (prev_bottom + min_gap) - cur_top
 
-    # Mantener la pila dentro de la zona segura sin perder el orden/intención.
-    safe_top = -canvas_h * 0.43
-    safe_bottom = canvas_h * 0.43
-    top = items[0][1] - items[0][2] / 2
-    bottom = items[-1][1] + items[-1][2] / 2
-    shift = 0.0
-    if bottom > safe_bottom:
-        shift = safe_bottom - bottom
-    if top + shift < safe_top:
-        shift = safe_top - top  # priorizar que el tope entre en pantalla
-
+    # Cada capa dentro de la zona segura vertical (sin recortar fuera de pantalla).
+    safe_top = -canvas_h * 0.45
+    safe_bottom = canvas_h * 0.45
     moved = 0
-    for layer, y, _h in items:
-        new_y = int(round(y + shift))
-        if new_y != layer.get("y"):
+    for _l, _x, y, _w, h in items:
+        y = min(y, safe_bottom - h / 2)
+        y = max(y, safe_top + h / 2)
+        new_y = int(round(y))
+        if new_y != _l.get("y"):
             moved += 1
-        layer["y"] = new_y
+        _l["y"] = new_y
 
     if moved:
-        logger.info("Fase 3: de-solapadas %d capas de contenido (gap=%.0f)", moved, min_gap)
+        logger.info("Fase 3: de-solapadas %d capas (x-aware, gap=%.0f)", moved, min_gap)
     return spec
 
 
@@ -360,6 +412,47 @@ def _tame_decorative_backgrounds(spec: dict) -> dict:
             if new != l.get("opacity"):
                 l["opacity"] = new
                 logger.info("Fase 4: atenuado decorativo %s a opacity=%.2f", l.get("componentName"), new)
+    return spec
+
+
+def _clamp_camera_shake(spec: dict) -> dict:
+    """Modera el cameraShake (el LLM tiende a abusarlo y a ponérselo al texto).
+
+    - Lo QUITA de capas de texto (sacudir texto lo vuelve borroso/ilegible).
+    - Limita intensidad a <=8 y fuerza decay=true.
+    - Deja como mucho UN cameraShake por escena (el más intenso); quita el resto.
+    """
+    def _f(v, default=6.0):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return default
+
+    shakes: list[tuple[float, dict]] = []
+
+    def _walk(nodes: list) -> None:
+        for l in nodes:
+            if not isinstance(l, dict):
+                continue
+            cs = l.get("cameraShake")
+            if isinstance(cs, dict):
+                if _is_text_layer(l):
+                    l.pop("cameraShake", None)
+                else:
+                    cs["intensity"] = min(_f(cs.get("intensity")), 8.0)
+                    cs["decay"] = True
+                    shakes.append((cs["intensity"], l))
+            children = l.get("children")
+            if isinstance(children, list):
+                _walk(children)
+
+    _walk(spec.get("layers", []))
+
+    if len(shakes) > 1:
+        shakes.sort(key=lambda s: s[0], reverse=True)
+        for _, owner in shakes[1:]:
+            owner.pop("cameraShake", None)
+        logger.info("cameraShake: reducido a 1 acento por escena (de %d)", len(shakes))
     return spec
 
 
@@ -514,15 +607,16 @@ def apply_visual_pure_strip(
     total_scenes: int,
     aspect_ratio: str = "9:16",
 ) -> tuple[dict, bool]:
-    """Si esta escena toca ser visual-pura (determinista), le quita el texto.
+    """DESACTIVADO (decisión del usuario, jun 2026): ya NO se fuerza ninguna escena
+    a ser visual-pura. La IA decide 100% por escena qué conviene (puede ser todo
+    componentes, mezcla, o texto estilizado) según el contenido — sin patrón mecánico.
+    El prompt (regla 4) es ahora el único driver. Si en el futuro la IA recae en meter
+    subtítulos en TODAS las escenas, reactivar como red de seguridad SUAVE (solo cuando
+    todas tienen texto) usando los helpers _strip_text_for_visual_scene / _visual_pure_indices.
 
-    Devuelve (spec, did_strip). No-op si el índice no fue elegido o si quitar el
-    texto dejaría la escena sin contenido visual.
+    Se mantiene la firma para no tocar los call sites; siempre es no-op.
     """
-    if scene_index not in _visual_pure_indices(total_scenes):
-        return composer_dict, False
-    cw, ch = _get_canvas_dimensions(aspect_ratio)
-    return _strip_text_for_visual_scene(composer_dict, cw, ch)
+    return composer_dict, False
 
 
 # ── Catálogo de componentes disponibles ──────────────────────────────────────
@@ -722,12 +816,16 @@ REGLAS DE LAYOUT:
 4. NO uses coordenadas x/y dentro de un grupo flex — el layout las calcula automáticamente.
 5. El texto y los iconos son OPCIONALES. Usa solo lo que la escena necesite.
 6. Puedes anidar grupos flex dentro de otros grupos para layouts complejos.
-7. TEMBLOR (camera shake) EN UN GRUPO: para sacudir SOLO un conjunto de elementos
-   (p.ej. un título + una onda en un momento de impacto) sin afectar el resto de
-   la escena, agrúpalos y añade "cameraShake" al grupo. Para sacudir TODA la
-   escena, usa en cambio el componente CameraShake como capa suelta.
+7. TEMBLOR (camera shake) — ÚSALO CON MODERACIÓN, es un acento, no el default:
+   - NO le pongas cameraShake a CADA capa. La mayoría de las escenas NO llevan ninguno.
+   - NUNCA sacudas el texto principal legible (lo vuelve borroso e ilegible). El
+     cameraShake es para momentos de IMPACTO puntual (un "¡BOOM!", un dato fuerte).
+   - Como mucho 1 cameraShake por escena, y con `decay: true` para que se calme rápido.
+   - Intensidad razonable: 3-8 (NO 10-15). Frecuencia 5-10.
+   - Para sacudir SOLO un conjunto, agrúpalos y pon "cameraShake" al grupo. Para
+     sacudir TODA la escena, usa el componente CameraShake como capa suelta.
    { "type": "group", "layout": "flex", "direction": "column", "alignItems": "center",
-     "cameraShake": { "intensity": 14, "frequency": 8, "decay": true },
+     "cameraShake": { "intensity": 6, "frequency": 8, "decay": true },
      "children": [ { "type": "text", "text": "¡BOOM!" }, { "type": "component", "componentName": "AbstractWave" } ] }
 """
 
@@ -737,6 +835,27 @@ REGLAS DE LAYOUT:
 - Para texto principal: usa y: {int(-half_h * 0.2)} a y: {int(half_h * 0.2)} (zona central, legible).
 - Para elementos decorativos: distribúyelos en y: {int(-half_h * 0.6)} a y: {int(half_h * 0.6)}, x: {int(-half_w * 0.5)} a x: {int(half_w * 0.5)}.
 - Usa transform: "translate(x, y)" o las propiedades x/y del layer para posicionar.
+
+VARIEDAD ESPACIAL (IMPORTANTE — no centres todo):
+- NO apiles todos los elementos en x: 0 (columna central). Eso se ve plano y aburrido.
+- Usa TODO el lienzo: coloca iconos/elementos decorativos en las esquinas o los
+  laterales (p.ej. x: {int(-half_w * 0.55)} y: {int(-half_h * 0.55)}, o x: {int(half_w * 0.55)} y: {int(half_h * 0.45)}).
+- Una palabra o cifra de impacto PUEDE ir descentrada (arriba-izquierda, abajo-derecha)
+  si compone mejor. La asimetría intencional se ve más pro.
+- Regla práctica: si una escena tiene 3+ elementos, que al menos uno NO esté en x: 0.
+- AGRUPA lo relacionado (ícono + texto, título + subtítulo, badge + cifra) en un `group`
+  flex y mueve el GRUPO como una CAJA: lo posicionas en cualquier lado con un solo x/y y
+  el flex alinea los hijos limpio (no se desalinean). Reparte con x/y "a ojo" SOLO los
+  elementos sueltos/decorativos, no los que deberían ir juntos.
+- El texto principal largo sí va centrado en X para legibilidad; la libertad espacial
+  es sobre todo para iconos, cifras cortas, badges y decorativos.
+
+FONDOS/EFECTOS DE ÁREA (StyleBokehCircles, StyleGridPulse, StyleStarfield, StyleLiquidWave,
+StyleParallaxPan, StyleZoomPulse, MeshGradientBg, DynamicGrid):
+- Por DEFAULT llenan toda la pantalla (no les pongas width/height para fondo completo).
+- Puedes apilar VARIOS como capas para combinar efectos (p.ej. un gradiente + estrellas).
+- Si quieres uno PARCIAL (solo una zona), dale `width`/`height` menores al lienzo y
+  posiciónalo con `x`/`y` (p.ej. width: {int(half_w)}, height: {int(half_h)}, x: {int(-half_w * 0.4)} → media pantalla a la izquierda).
 {text_safe_zone}
 """
 
@@ -806,21 +925,46 @@ Si la dirección sugiere un tono (cálido, tech, minimalista, etc.), refléjalo 
 - Variantes de componentes
 - Tipografía y tamaños
 {timing_context}
-PASO 1 - IDENTIFICA EL SUJETO: Lee el texto y la descripción visual. ¿Cuál es el objeto/sujeto/tema principal de esta escena? (ej: un perro, una manzana, el dinero, un corazón, un planeta, etc.)
+PIENSA ANTES DE ESCRIBIR EL JSON (design brief mental, NO lo imprimas):
+PASO 1 - LA IDEA: ¿cuál es la ÚNICA idea/sujeto principal de esta escena? (un perro,
+   el dinero, la velocidad, un corazón roto…). Una escena = una idea clara.
+PASO 2 - EL PROTAGONISTA: decide UN elemento central que comunique esa idea (un visual
+   fuerte, o un texto cinético corto). Todo lo demás es SOPORTE de ese protagonista.
+PASO 3 - SOPORTE COHERENTE: agrega SOLO lo que refuerza la idea y que se relaciona con
+   el protagonista Y entre sí. Menos es más: 2-4 elementos bien elegidos > 8 inconexos.
 
-PASO 2 - COMPOSICIÓN LIBRE: Selecciona TODOS los componentes necesarios para representar visualmente el sujeto y el mensaje de la escena. NO hay límite de componentes. Puedes usar 1 componente o 15 — lo que la escena necesite.
+COHERENCIA (CRÍTICO — evita el error típico):
+- NO apiles cosas que no tienen relación entre sí (ej. un ícono + un texto + un componente
+   random que no pega). Si un elemento no sirve a LA IDEA de la escena, NO lo pongas.
+- Todos los componentes de la escena deben "conversar": misma idea, mismo tono, misma
+   paleta. Un mockup de chat no va con un gráfico de barras a menos que el guion lo pida.
+- Prefiere POCOS elementos intencionales. El relleno se nota y resta profesionalismo.
 
-Ejemplos de composiciones válidas:
-- Simple: 1 background + 1 texto (escena minimalista)
-- Media: 1 background + 2 botones + 1 texto arriba + 1 badge (CTA con contexto)
-- Compleja: 1 background + 3 cards en grid + 2 badges + 1 texto título + 1 ícono decorativo (comparativa)
-- Rica: 1 background + 1 gráfico + 2 textos + 1 progress bar + 2 íconos + 1 watermark (data-driven)
+Ejemplos de composiciones COHERENTES (no recetas obligatorias):
+- Minimalista: 1 fondo + 1 texto cinético corto.
+- Concepto: 1 fondo con movimiento + 1 ícono grande del sujeto (sin texto).
+- Con apoyo: 1 fondo + [ícono + texto] AGRUPADOS + (opcional) 1 badge de acento.
+- Data real: 1 fondo + 1 gráfico con datos del guion + 1 texto con la cifra clave.
 
-REGLA: Usa grupos flex/grid para organizar múltiples elementos. Cada componente debe tener un propósito claro en la escena.
+REGLA: Usa grupos flex/grid para lo que va junto. Cada componente DEBE tener un propósito
+claro; si no se lo encuentras, sóbralo.
 
 REGLA CRÍTICA: SOLO usa type: "component" para elementos visuales y type: "text" para el texto hablado. NO uses type: "path", "rect", "circle". Esos tipos están PROHIBIDOS.
 
-Tienes acceso a componentes de nuestra Standard Library.
+CÓMO USAR EL CATÁLOGO (guía de oficio — para elegir bien, no solo "algo que encaje"):
+- FONDO (background): SIEMPRE 1, full-bleed, acorde al tono. Da ambiente, NO compite con
+  el contenido (movimiento/opacidad sutiles).
+- TEXTO (text): elige el efecto por la EMOCIÓN (ver regla 4.2), pocas palabras, resalta lo clave.
+- UI / mockups (ui): úsalos cuando el tema es producto/app/web/chat/código (ClaudeChat o
+  ChatGpt para "IA", BrowserWindow/PhoneMockup para web/app, TerminalHacker para código…).
+  Cuando aparecen son el PROTAGONISTA; no los mezcles con cosas ajenas al tema.
+- DATOS (dataviz): SOLO si el guion trae una cifra/porcentaje/dato REAL. Un chart sin datos confunde.
+- SOCIAL (social): para CTAs/redes (seguidores, like, suscribir) — normalmente en la escena de cierre.
+- DECORATIVO/VFX (decorative/vfx): acentos AMBIENTALES detrás del contenido, opacidad baja; nunca tapan el sujeto.
+- ¿Un objeto concreto sin componente dedicado? → un ícono (IconifyIcon) grande y limpio.
+- REVISA LOS PROPS de cada componente en la lista (colores, velocidad, tamaño, variante, etc.):
+  ajústalos al tono de la escena en vez de dejar todo por defecto. Ahí está lo que puedes editar.
+
 COMPONENTES DISPONIBLES PARA ESTA ESCENA (organizados por rol):
 {components_list}
 {icon_section}
@@ -833,9 +977,20 @@ REGLAS DE ORO PARA EL DISEÑO:
 2. **COHERENCIA TEMÁTICA ESTRICTA:** Solo elige componentes de la Standard Library si tienen una relación DIRECTA y LÓGICA con el guion. Si el video es un documental sobre peces, NO uses un "SubscribeButton" o "TinderSwipeCard". Usa tu juicio semántico: si no encaja perfecto con la vibra de la escena, no lo uses.
 2.1. **NO METAS COMPONENTES DE DATOS SIN DATOS:** barras de progreso (ProgressPill, SocialProgressBar), charts, contadores, rings, etc. SOLO si la escena presenta un dato/porcentaje/cifra REAL y relevante del guion. NUNCA los uses como relleno decorativo — una barra "Progress 18%" sin contexto no aporta y confunde. Si dudas, no lo pongas.
 3. **NO APILES ELEMENTOS UNO ENCIMA DEL OTRO EN EL CENTRO**. Usa la propiedad `y` (ejemplo: `y: -300` para arriba, `y: 0` para el centro, `y: 300` para abajo) o la propiedad `x` para distribuir las capas y evitar superposiciones.
-4. **EL TEXTO EN PANTALLA ES OPCIONAL — decídelo por escena (MUY IMPORTANTE):**
-   El audio YA narra todo el guion, así que NO hace falta repetir el texto en CADA
-   escena. Un video que es puro texto en todas las escenas es aburrido. Decide por escena:
+4. **EL TEXTO EN PANTALLA NO ES EL DEFAULT — decide por lo que quede MEJOR (MUY IMPORTANTE):**
+   El audio YA narra todo el guion, así que la pantalla NO tiene que llevar subtítulos.
+   NO hay un patrón obligatorio (NO es "una con texto, otra sin"): elige escena por escena
+   lo que MEJOR comunique según el contenido. Puede que el video entero se vea mejor SOLO
+   con componentes/animaciones; puede ser una mezcla; tú decides — es criterio, no una regla
+   mecánica. Opciones, combínalas como convenga:
+   - Solo VISUAL/animación, SIN texto (o con 1-2 palabras de acento).
+   - TEXTO como protagonista pero ESTILIZADO/cinético (GlitchTitle, WordHighlight palabra
+     por palabra, SplitText…), con POCAS palabras (gancho, cifra, 1-3 clave), NUNCA la
+     oración entera.
+   - Subtítulos (la frase COMPLETA) SOLO en momentos puntuales (una cita textual, un dato
+     exacto que hay que leer al pie de la letra) — raro, no la norma.
+   Lo ÚNICO que debes evitar: subtítulos de la oración completa en CADA escena (karaoke).
+   Decide por escena:
    - **MUESTRA el texto** (con `"text": "{{text}}"`) cuando la frase es un GANCHO, una
      CIFRA/dato clave, un CTA, o una frase de IMPACTO que gana fuerza leída — idealmente
      resaltando 1-2 palabras (WordHighlight).
@@ -845,12 +1000,16 @@ REGLAS DE ORO PARA EL DISEÑO:
    - Regla práctica (video de ~3-5 escenas): la 1ª (gancho) y la del CTA casi siempre
      llevan texto; **al menos una escena del medio debe ser VISUAL pura o con muy poco
      texto**. VARÍA — no pongas el texto completo en todas.
-4.1. **JERARQUÍA VISUAL (cuando SÍ hay texto):** una escena con texto NO debe ser solo
-   un bloque de texto. Acompáñalo con AL MENOS un elemento visual relevante:
-   - Un **ícono** que represente literalmente el concepto/sujeto de la escena (usa los íconos sugeridos abajo).
-   - Y/o un **fondo con movimiento** (ej: KineticBackground, ParticleField, RaysOfLight, FloatingBlobs) acorde a la dirección artística.
-   - Composición ideal de una escena hablada: 1 fondo + el texto (tamaño moderado, NO gigante que llene la pantalla) + 1 ícono o acento visual relacionado con una palabra clave del texto.
-   - NO uses fontSize enorme para "rellenar"; deja aire. El texto debe convivir con el visual, no taparlo.
+4.1. **EL ÍCONO ES OPCIONAL — NO lo fuerces; si lo usas, AGRÚPALO con el texto:**
+   Una escena con texto NO obliga a poner un ícono. El soporte visual puede ser SOLO un
+   fondo con movimiento (KineticBackground, ParticleField, RaysOfLight, MeshGradientBg…)
+   o el propio texto estilizado. Pon un ícono SOLO si de verdad aporta al concepto; si no
+   aporta, NO lo pongas — mejor nada que un ícono de relleno gigante en el centro.
+   - Cuando combines ícono + texto, AGRÚPALOS en un `group` flex (`direction: "row"` para
+     ícono al costado del texto, o `"column"` para ícono arriba/abajo) con
+     `alignItems: "center"` y un `gap`. Así se leen como UNA unidad y se mueven juntos —
+     NUNCA un ícono enorme suelto en el centro, separado del texto.
+   - NO uses fontSize enorme para "rellenar"; deja aire. El texto convive con el visual, no lo tapa.
    - Si la escena es un CTA ("sígueme", "comenta"), añade el botón/badge correspondiente además del texto.
    - **CONTRASTE SOBRE FONDOS DE COLOR:** si usas un componente de fondo con
      color/movimiento (KineticBackground, GridPerspective, FloatingBlobs,
@@ -863,6 +1022,17 @@ REGLAS DE ORO PARA EL DISEÑO:
      que repita esa misma frase. O lo dices en el texto, o lo pones en el botón —
      no ambos. El botón/badge debe aportar algo distinto o más corto (ej.
      "Sígueme", "Link en bio"), nunca repetir literalmente lo narrado.
+4.2. **ELIGE EL EFECTO DE TEXTO QUE PEGUE CON EL TONO — y VÁRIALO (no siempre el mismo):**
+   No caigas por defecto en Typewriter/WordHighlight. Mira los componentes de TEXTO que
+   te dieron en la lista de esta escena y escoge el que refuerza la EMOCIÓN de la frase:
+   - WordHighlight → resaltar 1-2 palabras clave (énfasis tipo karaoke).
+   - MaskedSlideReveal / SplitText / StaggeredFadeUp → revelado premium/elegante.
+   - TrackingIn / ChapterTitle → intro cinematográfica, peso, título de capítulo.
+   - GlitchTitle / StyleScrambleText → tecnológico, edgy, intriga/misterio.
+   - Typewriter → algo "se está escribiendo" (terminal, mensaje, búsqueda).
+   Asigna el efecto a la frase concreta (ej. una cita íntima con MaskedSlideReveal, un
+   dato impactante con GlitchTitle). Si el video tiene varias escenas con texto, NO repitas
+   el mismo efecto en todas — varía según el momento.
 5. **POSICIONAMIENTO OBLIGATORIO:** ABSOLUTAMENTE TODOS los layers DEBEN tener `x` e `y`. Si los omites, el JSON será inválido.
     - `"x": 0, "y": 0` = centro del canvas
     - `"x": 0, "y": -200` = arriba del centro
@@ -2460,6 +2630,10 @@ def generate_scene_composer(
                     # Post-validation 3c (Fase 4): atenuar decorativos ruidosos
                     # para que no compitan con el texto.
                     result = _tame_decorative_backgrounds(result)
+
+                    # Post-validation 3d (Fase 5): moderar cameraShake (nunca en
+                    # texto, intensidad <=8, máximo 1 acento por escena).
+                    result = _clamp_camera_shake(result)
 
                     # Final validation pass — catch anything missed by post-processing
                     result = validate_and_fix(result, aspect_ratio)
