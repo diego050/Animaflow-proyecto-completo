@@ -9,6 +9,35 @@ logger = get_logger("llm")
 LLM_TIMEOUT = 580  # Justo debajo del timeout de RQ (600s)
 
 
+def _log_token_usage(response, label: str = "LLM") -> None:
+    """Loguea tokens de ENTRADA (prompt) y SALIDA (respuesta) de la llamada.
+
+    Lee `usage_metadata` del SDK de Gemini (si está disponible). `thinking` son los
+    tokens de razonamiento interno; `cache` los servidos desde context-cache.
+    """
+    try:
+        um = getattr(response, "usage_metadata", None)
+        if not um:
+            return
+        in_tok = getattr(um, "prompt_token_count", None) or 0
+        out_tok = getattr(um, "candidates_token_count", None) or 0
+        think_tok = getattr(um, "thoughts_token_count", None) or 0
+        cached = getattr(um, "cached_content_token_count", None) or 0
+        total = getattr(um, "total_token_count", None) or (in_tok + out_tok + think_tok)
+        extra = ""
+        if think_tok:
+            extra += f" thinking={think_tok}"
+        if cached:
+            extra += f" cache={cached}"
+        logger.info(
+            "Tokens [%s]: in=%d out=%d total=%d%s",
+            label, in_tok, out_tok, total, extra,
+            extra={"label": label},
+        )
+    except Exception:  # noqa: BLE001 — el logging de tokens nunca debe romper la llamada
+        pass
+
+
 def _call_llm_sync(
     client, model: str, contents: str, config=None, label: str = "LLM", max_retries: int = 3
 ):
@@ -54,6 +83,7 @@ def _call_llm_sync(
                 len(response.text) if response.text else 0,
                 extra={"label": label},
             )
+            _log_token_usage(response, label)
             return response
         except Exception as e:
             error_str = str(e)
@@ -108,6 +138,7 @@ async def _call_gemini_with_retry(
                 contents=prompt,
                 config=config,
             )
+            _log_token_usage(response, label="LLM async")
             return response
         except Exception as e:
             error_str = str(e)
