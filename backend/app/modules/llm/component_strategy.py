@@ -439,7 +439,10 @@ def _clamp_camera_shake(spec: dict) -> dict:
                 if _is_text_layer(l):
                     l.pop("cameraShake", None)
                 else:
-                    cs["intensity"] = min(_f(cs.get("intensity")), 8.0)
+                    cs["intensity"] = round(min(max(_f(cs.get("intensity")), 0.0), 8.0), 2)
+                    # frequency a rango sano (un modelo débil a veces escupe floats
+                    # degenerados, p.ej. 0.0156250000...miles de dígitos).
+                    cs["frequency"] = round(min(max(_f(cs.get("frequency"), 5.0), 0.5), 20.0), 2)
                     cs["decay"] = True
                     shakes.append((cs["intensity"], l))
             children = l.get("children")
