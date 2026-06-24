@@ -64,12 +64,12 @@ export const TextReveal: React.FC<TextRevealProps> = ({
         width: `${effectiveWidth}px`,
         display: 'flex',
         flexWrap: 'wrap',
-        justifyContent: 'flex-start',
+        justifyContent: 'center',
         alignItems: 'center',
         alignContent: 'center',
         gap: `${Math.max(10, actualFontSize * 0.3)}px`,
         zIndex: 10,
-        textAlign: 'left',
+        textAlign: 'center',
       }}
     >
       {words.map((word, index) => {
