@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Player } from '@remotion/player';
 import { ArrowLeft, Sparkles, Wand2, AlertTriangle, Loader2, Film, Download } from 'lucide-react';
 import { api } from '../../api/client';
-import { compileAnimation } from '../../lib/compileAnimation';
+import { compileAnimation } from '../../remotion/compileAnimation';
 import { useAuthStore } from '../../store/useAuthStore';
 
 interface GenResponse {

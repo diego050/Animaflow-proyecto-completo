@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AbsoluteFill } from 'remotion';
-import { compileAnimation } from '../lib/compileAnimation';
+import { compileAnimation } from './compileAnimation';
 
 /**
  * Composición Remotion que renderiza un componente generado por IA (code-gen).
