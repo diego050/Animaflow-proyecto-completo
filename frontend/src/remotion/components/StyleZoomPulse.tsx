@@ -44,9 +44,10 @@ export const StyleZoomPulse: React.FC<StyleZoomPulseProps> = ({
   const pulse = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 - Math.PI / 2); // starts at 0, peaks at 1
   const scale = minScale + (maxScale - minScale) * pulse;
 
-  // --- Sizing via useCanvas ---
+  // --- Full-bleed by default; honor an explicit smaller size as a region ---
   const areaWidth = width ?? c.width;
   const areaHeight = height ?? c.height;
+  const isRegion = areaWidth < c.width - 1 || areaHeight < c.height - 1;
 
   const background = url
     ? undefined
@@ -56,9 +57,9 @@ export const StyleZoomPulse: React.FC<StyleZoomPulseProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${y}px`,
-        left: `${x}px`,
-        transform: 'translate(-50%, -50%)',
+        top: isRegion ? `${y}px` : 0,
+        left: isRegion ? `${x}px` : 0,
+        transform: isRegion ? 'translate(-50%, -50%)' : undefined,
         width: areaWidth,
         height: areaHeight,
         overflow: 'hidden',

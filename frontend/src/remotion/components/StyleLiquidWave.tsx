@@ -27,7 +27,7 @@ export const StyleLiquidWave: React.FC<StyleLiquidWaveProps> = ({
   x = 540,
   y = 960,
   numberOfPoints = 50,
-  bgColor = '#111827',
+  bgColor = 'transparent',
   waveColorStart = '#1e3a8a',
   waveColorEnd = '#3b82f6',
   amplitude = 50,
@@ -42,9 +42,10 @@ export const StyleLiquidWave: React.FC<StyleLiquidWaveProps> = ({
   const frame = useCurrentFrame();
   const c = useCanvas();
 
-  // --- Layout sizing via useCanvas ---
+  // --- Full-bleed by default; honor an explicit smaller size as a region ---
   const compWidth = width ?? c.width;
   const compHeight = height ?? c.height;
+  const isRegion = compWidth < c.width - 1 || compHeight < c.height - 1;
 
   // --- Deterministic wave path ---
   const adjustedFrame = frame;
@@ -61,9 +62,9 @@ export const StyleLiquidWave: React.FC<StyleLiquidWaveProps> = ({
   // --- Coordinate contract: center + offset ---
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
-    top: `${y}px`,
-    left: `${x}px`,
-    transform: 'translate(-50%, -50%)',
+    top: isRegion ? `${y}px` : 0,
+    left: isRegion ? `${x}px` : 0,
+    transform: isRegion ? 'translate(-50%, -50%)' : undefined,
     ...style,
   };
 

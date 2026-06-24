@@ -45,6 +45,15 @@ const DEFAULT_ALIGN = "flex-start";
 const DEFAULT_LAYER_HEIGHT = 100;
 const DEFAULT_LAYER_WIDTH = 200;
 
+// Fondos/efectos de área full-bleed: si NO traen width/height explícito, su
+// default es el LIENZO COMPLETO (no 200×100). Así, sin tamaño llenan la pantalla
+// y con tamaño explícito se comportan como una región. Debe coincidir con
+// _FILL_COMPONENTS del backend (component_strategy.py).
+const FULL_BLEED_COMPONENTS = new Set<string>([
+  "StyleBokehCircles", "StyleGridPulse", "StyleStarfield", "StyleLiquidWave",
+  "StyleParallaxPan", "StyleZoomPulse", "MeshGradientBg", "DynamicGrid",
+]);
+
 /**
  * Resolve padding and margin from a layer's style.
  * Returns [paddingTop, paddingRight, paddingBottom, paddingLeft, marginTop, marginRight, marginBottom, marginLeft]
@@ -302,8 +311,12 @@ function applyDefault(
 
   const offsetX = (layer.x as number) ?? 0;
   const offsetY = (layer.y as number) ?? 0;
-  const width = getDimension(layer, "width", DEFAULT_LAYER_WIDTH);
-  const height = getDimension(layer, "height", DEFAULT_LAYER_HEIGHT);
+  // Fondos full-bleed sin tamaño explícito → default = lienzo completo (no 200×100).
+  const isFullBleed =
+    layer.type === "component" &&
+    FULL_BLEED_COMPONENTS.has(layer.componentName as string);
+  const width = getDimension(layer, "width", isFullBleed ? parentWidth : DEFAULT_LAYER_WIDTH);
+  const height = getDimension(layer, "height", isFullBleed ? parentHeight : DEFAULT_LAYER_HEIGHT);
 
   layer.x = Math.floor(centerX + offsetX);
   layer.y = Math.floor(centerY + offsetY);

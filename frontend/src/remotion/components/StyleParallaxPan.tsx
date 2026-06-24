@@ -59,9 +59,10 @@ export const StyleParallaxPan: React.FC<StyleParallaxPanProps> = ({
   else if (direction === 'top-bottom') translateY = interpolate(p, [0, 1], [0, -panAmount]);
   else translateY = interpolate(p, [0, 1], [-panAmount, 0]);
 
-  // --- Sizing via useCanvas ---
+  // --- Full-bleed by default; honor an explicit smaller size as a region ---
   const areaWidth = width ?? c.width;
   const areaHeight = height ?? c.height;
+  const isRegion = areaWidth < c.width - 1 || areaHeight < c.height - 1;
 
   const background = url
     ? undefined
@@ -71,9 +72,9 @@ export const StyleParallaxPan: React.FC<StyleParallaxPanProps> = ({
     <div
       style={{
         position: 'absolute',
-        top: `${y}px`,
-        left: `${x}px`,
-        transform: 'translate(-50%, -50%)',
+        top: isRegion ? `${y}px` : 0,
+        left: isRegion ? `${x}px` : 0,
+        transform: isRegion ? 'translate(-50%, -50%)' : undefined,
         width: areaWidth,
         height: areaHeight,
         overflow: 'hidden',

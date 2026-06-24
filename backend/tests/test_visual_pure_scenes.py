@@ -47,58 +47,20 @@ def test_deterministic():
     assert _visual_pure_indices(17) == _visual_pure_indices(17)
 
 
-# ── strip real del texto ─────────────────────────────────────────────────────
+# ── strip DESACTIVADO (jun 2026): apply_visual_pure_strip es ahora no-op ──────
+# Decisión del usuario: NO forzar ninguna escena a visual-pura; la IA decide por
+# escena según el contenido (el prompt es el único driver). La función conserva su
+# firma pero nunca quita texto. _visual_pure_indices se mantiene para una posible
+# red de seguridad futura, por eso sus tests de arriba siguen vigentes.
 
-def test_strip_removes_text_and_centers_icon_hero():
+def test_strip_is_now_a_noop_keeps_text():
     spec, stripped = apply_visual_pure_strip(_scene_with_text_and_icon(), 1, 3, "9:16")
-    assert stripped is True
+    assert stripped is False
     names = [l.get("componentName") for l in spec["layers"]]
-    assert "StyleTextBlock" not in names           # texto removido
-    assert "IconifyIcon" in names                   # visual conservado
-    assert "ParticleField" in names                 # fondo conservado
-    hero = next(l for l in spec["layers"] if l.get("componentName") == "IconifyIcon")
-    assert hero["x"] == 0 and hero["y"] == 0        # centrado
-    assert hero["size"] > 120                        # agrandado a héroe
+    assert "StyleTextBlock" in names   # el texto YA NO se quita (la IA decide)
 
 
-def test_rich_component_is_not_heroified_as_icon():
-    """Un componente rico (carousel) que usa íconos como parte NO debe convertirse
-    en 'ícono héroe' (sin size forzado). El ícono no siempre es el protagonista."""
-    spec = {
-        "background": {"type": "solid", "colors": ["#000"]},
-        "layers": [
-            {"type": "component", "componentName": "KineticBackground", "x": 0, "y": 0},
-            {"type": "component", "componentName": "RotatingCarousel", "x": 0, "y": 0,
-             "items": [{"icon": "mdi:coffee", "label": "Espresso"}]},
-            {"type": "component", "componentName": "StyleTextBlock", "x": 0, "y": -200,
-             "text": "Café", "fontSize": 80},
-        ],
-    }
-    out, stripped = apply_visual_pure_strip(spec, 1, 3, "9:16")
-    assert stripped is True
-    names = [l.get("componentName") for l in out["layers"]]
-    assert "StyleTextBlock" not in names
-    assert "RotatingCarousel" in names
-    carousel = next(l for l in out["layers"] if l.get("componentName") == "RotatingCarousel")
-    assert "size" not in carousel  # NO se heroificó como ícono
-
-
-def test_non_selected_scene_is_untouched():
-    spec, stripped = apply_visual_pure_strip(_scene_with_text_and_icon(), 0, 3, "9:16")
-    assert stripped is False
-    assert any(l.get("componentName") == "StyleTextBlock" for l in spec["layers"])
-
-
-def test_text_only_scene_not_stripped_to_empty():
-    """Si lo único no-fondo es texto, NO se quita (dejaría pantalla vacía)."""
-    spec = {
-        "background": {"type": "solid", "colors": ["#000"]},
-        "layers": [
-            {"type": "component", "componentName": "KineticBackground", "x": 0, "y": 0},
-            {"type": "component", "componentName": "StyleTextBlock", "x": 0, "y": 0,
-             "text": "Solo texto", "fontSize": 80},
-        ],
-    }
-    out, stripped = apply_visual_pure_strip(spec, 1, 3, "9:16")
-    assert stripped is False
-    assert any(l.get("componentName") == "StyleTextBlock" for l in out["layers"])
+def test_strip_noop_for_any_index():
+    for idx in range(4):
+        _spec, stripped = apply_visual_pure_strip(_scene_with_text_and_icon(), idx, 4, "9:16")
+        assert stripped is False

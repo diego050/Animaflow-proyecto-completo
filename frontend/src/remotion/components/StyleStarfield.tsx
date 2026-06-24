@@ -42,7 +42,7 @@ export const StyleStarfield: React.FC<StyleStarfieldProps> = ({
   starCount = 80,
   width,
   height,
-  bgColor = '#0a0a1a',
+  bgColor = 'transparent',
   starColor = '#ffffff',
   colorVariation = false,
   minSize = 1,
@@ -59,13 +59,14 @@ export const StyleStarfield: React.FC<StyleStarfieldProps> = ({
   const adjustedFrame = Math.max(0, frame - delay);
   const c = useCanvas();
 
-  // --- Responsive sizing via useCanvas ---
+  // --- Full-bleed by default; honor an explicit smaller size as a region ---
   const areaWidth = width ?? c.width;
   const areaHeight = height ?? c.height;
+  const isRegion = areaWidth < c.width - 1 || areaHeight < c.height - 1;
 
-  // --- Coordinate contract: x/y offsets from center ---
-  const centerX = x;
-  const centerY = y;
+  // Radial origin = center of the area (container-relative → works full-bleed o región).
+  const centerX = areaWidth / 2;
+  const centerY = areaHeight / 2;
 
   // =========================================================================
   // Compute stars array (deterministic, index-based)
@@ -146,9 +147,9 @@ export const StyleStarfield: React.FC<StyleStarfieldProps> = ({
     <div
       style={{
         position: 'absolute',
-        left: `${centerX}px`,
-        top: `${centerY}px`,
-        transform: 'translate(-50%, -50%)',
+        left: isRegion ? `${x}px` : 0,
+        top: isRegion ? `${y}px` : 0,
+        transform: isRegion ? 'translate(-50%, -50%)' : undefined,
         width: areaWidth,
         height: areaHeight,
         backgroundColor: bgColor,
