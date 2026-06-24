@@ -28,6 +28,9 @@ class ModelInfo:
     # ¿Soporta el parámetro thinking_config de la API de Gemini? Los modelos abiertos
     # (Gemma) y algunos viejos NO → mandárselo da 400 INVALID_ARGUMENT.
     supports_thinking: bool = True
+    # ¿Soporta el modo JSON estricto (response_mime_type=application/json + response_schema)?
+    # Gemma/abiertos NO → se omite y el JSON sale del prompt + extractor de respaldo.
+    supports_structured_output: bool = True
 
 
 # ── Registro explícito de modelos ────────────────────────────────────────────
@@ -42,8 +45,9 @@ _MODELS = [
     ModelInfo("gemini-2.5-pro", "gemini", TIER_PRO),
     ModelInfo("gemini-3-pro", "gemini", TIER_PRO),
     # Gemma (modelo abierto, vía API de Gemini). Más chico → tier lite (ajustable).
-    # Solo se OFRECE al admin en el frontend (ADMIN_ONLY_MODELS). NO soporta thinking.
-    ModelInfo("gemma-4-31b-it", "gemini", TIER_LITE, supports_thinking=False),
+    # Solo se OFRECE al admin (ADMIN_ONLY_MODELS). NO soporta thinking ni JSON estricto.
+    ModelInfo("gemma-4-31b-it", "gemini", TIER_LITE,
+              supports_thinking=False, supports_structured_output=False),
 
     # Anthropic (Claude)
     ModelInfo("claude-haiku-4-5-20251001", "anthropic", TIER_LITE),
@@ -98,3 +102,9 @@ def supports_thinking(model: Optional[str]) -> bool:
     """¿El modelo acepta thinking_config? (Gemma/abiertos NO.) Desconocido → True."""
     info = get_model_info(model)
     return info.supports_thinking if info else True
+
+
+def supports_structured_output(model: Optional[str]) -> bool:
+    """¿El modelo acepta response_schema / JSON estricto? (Gemma NO.) Desconocido → True."""
+    info = get_model_info(model)
+    return info.supports_structured_output if info else True
