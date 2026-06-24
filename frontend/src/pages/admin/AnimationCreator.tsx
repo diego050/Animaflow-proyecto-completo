@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Player } from '@remotion/player';
-import * as Remotion from 'remotion';
-import { transform } from 'sucrase';
-import { ArrowLeft, Sparkles, Wand2, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Wand2, AlertTriangle, Loader2, Film, Download } from 'lucide-react';
 import { api } from '../../api/client';
+import { compileAnimation } from '../../remotion/compileAnimation';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface GenResponse {
   code: string;
@@ -14,32 +14,6 @@ interface GenResponse {
   width: number;
   height: number;
   duration_frames: number;
-}
-
-// Transpila el TSX (string) y lo evalúa a un componente React, inyectando
-// react + remotion en el scope. Es eval en el navegador del admin (riesgo bajo).
-function compileComponent(tsx: string): React.FC {
-  const { code } = transform(tsx, {
-    transforms: ['typescript', 'jsx', 'imports'],
-    jsxRuntime: 'classic',
-    production: true,
-  });
-  const moduleObj: { exports: Record<string, unknown> } = { exports: {} };
-  const requireShim = (name: string) => {
-    if (name === 'react') return React;
-    if (name === 'remotion') return Remotion;
-    throw new Error(`Import no permitido en runtime: ${name}`);
-  };
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
-  const factory = new Function('require', 'module', 'exports', code);
-  factory(requireShim, moduleObj, moduleObj.exports);
-  const exp = moduleObj.exports;
-  const comp =
-    (exp.default as React.FC | undefined) ||
-    (exp.Animation as React.FC | undefined) ||
-    (Object.values(exp).find((v) => typeof v === 'function') as React.FC | undefined);
-  if (!comp) throw new Error('El código no exporta ningún componente.');
-  return comp;
 }
 
 export function AnimationCreator() {
@@ -55,15 +29,44 @@ export function AnimationCreator() {
   const [genErrors, setGenErrors] = useState<string[]>([]);
   const [editInstruction, setEditInstruction] = useState('');
 
+  const [rendering, setRendering] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
+
   // Compila el código actual a un componente (o devuelve el error de compilación).
   const compiled = useMemo(() => {
     if (!code) return { Comp: null as React.FC | null, error: null as string | null };
     try {
-      return { Comp: compileComponent(code), error: null };
+      return { Comp: compileAnimation(code), error: null };
     } catch (e) {
       return { Comp: null, error: e instanceof Error ? e.message : String(e) };
     }
   }, [code]);
+
+  const handleRender = useCallback(async () => {
+    if (!code || !meta) return;
+    setRendering(true);
+    setRenderError(null);
+    setVideoUrl(null);
+    try {
+      const data = await api.post<{ video_url: string; anim_id: string }>(
+        '/api/admin/animations/render',
+        { code, width: meta.width, height: meta.height, duration_frames: meta.duration_frames },
+        { timeoutMs: 600000 },
+      );
+      // Descarga autenticada del mp4 → blob → objectURL.
+      const token = useAuthStore.getState().token;
+      const resp = await fetch(data.video_url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!resp.ok) throw new Error(`No se pudo cargar el video (${resp.status})`);
+      setVideoUrl(URL.createObjectURL(await resp.blob()));
+    } catch (e) {
+      setRenderError(e instanceof Error ? e.message : 'Error renderizando el mp4.');
+    } finally {
+      setRendering(false);
+    }
+  }, [code, meta]);
 
   const callGenerate = useCallback(
     async (body: Record<string, unknown>) => {
@@ -263,6 +266,36 @@ export function AnimationCreator() {
               </div>
             )}
           </div>
+
+          {/* Render a mp4 */}
+          {compiled.Comp && (
+            <button
+              onClick={handleRender}
+              disabled={rendering}
+              className="mt-4 flex items-center justify-center gap-2 bg-surface-high border border-border-tech text-text-primary px-5 py-2.5 rounded-lg hover:border-mint-precision disabled:opacity-50 text-sm font-medium"
+              style={{ width: previewW }}
+            >
+              {rendering ? <Loader2 size={16} className="animate-spin" /> : <Film size={16} />}
+              {rendering ? 'Renderizando mp4… (puede tardar)' : 'Renderizar a mp4'}
+            </button>
+          )}
+
+          {renderError && (
+            <div className="mt-2 text-xs text-red-400 text-center" style={{ width: previewW }}>{renderError}</div>
+          )}
+
+          {videoUrl && (
+            <div className="mt-4 flex flex-col items-center gap-2" style={{ width: previewW }}>
+              <video src={videoUrl} controls className="rounded-xl border border-border-tech w-full" />
+              <a
+                href={videoUrl}
+                download="animacion.mp4"
+                className="flex items-center gap-2 text-sm text-mint-precision hover:underline"
+              >
+                <Download size={15} /> Descargar mp4
+              </a>
+            </div>
+          )}
         </div>
       </div>
     </div>
