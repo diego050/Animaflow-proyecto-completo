@@ -38,6 +38,9 @@ _MODELS = [
     ModelInfo("gemini-3.5-flash", "gemini", TIER_STANDARD),
     ModelInfo("gemini-2.5-pro", "gemini", TIER_PRO),
     ModelInfo("gemini-3-pro", "gemini", TIER_PRO),
+    # Gemma (modelo abierto, vía API de Gemini). Más chico → tier lite (ajustable).
+    # Solo se OFRECE al admin en el frontend (ADMIN_ONLY_MODELS); aquí solo define su tier.
+    ModelInfo("gemma-4-31b-it", "gemini", TIER_LITE),
 
     # Anthropic (Claude)
     ModelInfo("claude-haiku-4-5-20251001", "anthropic", TIER_LITE),

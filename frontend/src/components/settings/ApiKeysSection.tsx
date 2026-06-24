@@ -20,7 +20,7 @@ export function ApiKeysSection() {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -224,7 +224,9 @@ export function ApiKeysSection() {
                     onChange={(e) => setSelectedModel(e.target.value)}
                     className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary focus:border-mint-precision outline-none appearance-none"
                   >
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (recomendado)</option>
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash (recomendado)</option>
+                    <option value="gemini-3.1-flash">Gemini 3.1 Flash</option>
+                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (económico)</option>
                     <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                     <option value="gpt-4o-mini">GPT-4o Mini</option>
                     <option value="gpt-4o">GPT-4o</option>
