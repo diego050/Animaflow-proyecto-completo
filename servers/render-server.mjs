@@ -16,9 +16,12 @@ let serveUrl = null;
 app.post("/render", async (req, res) => {
   try {
     const { jobId, scenes, aspectRatio } = req.body;
-    
-    if (!jobId || !scenes) {
-      return res.status(400).json({ error: "jobId and scenes are required" });
+
+    // `inputProps` explícito (ej. animaciones code-gen con compositionId="CustomCode")
+    // o el spec de escenas del pipeline normal.
+    const hasInputProps = req.body.inputProps && typeof req.body.inputProps === "object";
+    if (!jobId || (!scenes && !hasInputProps)) {
+      return res.status(400).json({ error: "jobId and scenes (or inputProps) are required" });
     }
 
     if (!serveUrl) {
@@ -32,8 +35,10 @@ app.post("/render", async (req, res) => {
     const browser = await getBrowser();
     
     // Fallback to "AnimaFlow-Main" if the composition ID isn't provided
-    const compositionId = req.body.compositionId || "AnimaFlow-Main"; 
-    const inputProps = { spec: { scenes, aspect_ratio: aspectRatio } };
+    const compositionId = req.body.compositionId || "AnimaFlow-Main";
+    const inputProps = hasInputProps
+      ? req.body.inputProps
+      : { spec: { scenes, aspect_ratio: aspectRatio } };
 
     console.log(`Selecting composition for job ${jobId}...`);
     const composition = await selectComposition({

@@ -1,5 +1,6 @@
 import { Composition, registerRoot } from "remotion";
 import { MainComposition } from "./MainComposition";
+import { CustomCode } from "./CustomCode";
 import type { TimelineSpec } from "../types/spec";
 
 const ASPECT_DIMS: Record<string, { w: number; h: number }> = {
@@ -52,6 +53,25 @@ export const RemotionRoot = () => {
         width={1080}
         height={1920}
         defaultProps={{ spec: defaultSpec }}
+      />
+
+      {/* Animaciones generadas por IA (code-gen). El componente llega como string `code`. */}
+      <Composition
+        id="CustomCode"
+        component={CustomCode}
+        calculateMetadata={({ props }) => {
+          const p = props as { durationInFrames?: number; width?: number; height?: number };
+          return {
+            durationInFrames: Math.max(1, Math.round(p.durationInFrames || 180)),
+            props,
+            width: p.width || 1080,
+            height: p.height || 1920,
+          };
+        }}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={{ code: "", durationInFrames: 180, width: 1080, height: 1920 }}
       />
     </>
   );
