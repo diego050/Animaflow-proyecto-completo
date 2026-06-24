@@ -25,6 +25,9 @@ class ModelInfo:
     id: str
     provider: str   # "gemini" | "anthropic" | "openai" | ...
     tier: str       # TIER_LITE | TIER_STANDARD | TIER_PRO
+    # ¿Soporta el parámetro thinking_config de la API de Gemini? Los modelos abiertos
+    # (Gemma) y algunos viejos NO → mandárselo da 400 INVALID_ARGUMENT.
+    supports_thinking: bool = True
 
 
 # ── Registro explícito de modelos ────────────────────────────────────────────
@@ -39,8 +42,8 @@ _MODELS = [
     ModelInfo("gemini-2.5-pro", "gemini", TIER_PRO),
     ModelInfo("gemini-3-pro", "gemini", TIER_PRO),
     # Gemma (modelo abierto, vía API de Gemini). Más chico → tier lite (ajustable).
-    # Solo se OFRECE al admin en el frontend (ADMIN_ONLY_MODELS); aquí solo define su tier.
-    ModelInfo("gemma-4-31b-it", "gemini", TIER_LITE),
+    # Solo se OFRECE al admin en el frontend (ADMIN_ONLY_MODELS). NO soporta thinking.
+    ModelInfo("gemma-4-31b-it", "gemini", TIER_LITE, supports_thinking=False),
 
     # Anthropic (Claude)
     ModelInfo("claude-haiku-4-5-20251001", "anthropic", TIER_LITE),
@@ -89,3 +92,9 @@ def tier_for_model(model: Optional[str]) -> str:
 def shortlist_size_for_model(model: Optional[str]) -> int:
     """Tamaño del shortlist de componentes a mostrar al LLM, según su tier."""
     return SHORTLIST_BY_TIER[tier_for_model(model)]
+
+
+def supports_thinking(model: Optional[str]) -> bool:
+    """¿El modelo acepta thinking_config? (Gemma/abiertos NO.) Desconocido → True."""
+    info = get_model_info(model)
+    return info.supports_thinking if info else True
