@@ -15,6 +15,7 @@ from google.genai import types
 from app.core.logging import get_logger
 from app.schemas.spec import AnimaComposerSpec, AnimaBackground, AnimaLayer
 from app.services.iconify_search import find_best_icons
+from app.services.model_catalog import supports_thinking
 from app.modules.llm.spec_validator import validate_and_fix
 
 logger = get_logger("llm.strategy")
@@ -1884,13 +1885,18 @@ def generate_scene_composer(
                 temperature=0.3,
                 max_output_tokens=6000,
             )
-            try:
-                gen_config = types.GenerateContentConfig(
-                    **_config_kwargs,
-                    thinking_config=types.ThinkingConfig(thinking_budget=0),
-                )
-            except (AttributeError, TypeError, ValueError):
-                # SDK sin soporte de thinking_config → comportamiento original.
+            # Solo modelos que SOPORTAN thinking (Gemini 2.5/3.x). Gemma y abiertos lo
+            # rechazan con 400 "Thinking budget is not supported for this model".
+            if supports_thinking(model):
+                try:
+                    gen_config = types.GenerateContentConfig(
+                        **_config_kwargs,
+                        thinking_config=types.ThinkingConfig(thinking_budget=0),
+                    )
+                except (AttributeError, TypeError, ValueError):
+                    # SDK sin soporte de thinking_config → comportamiento original.
+                    gen_config = types.GenerateContentConfig(**_config_kwargs)
+            else:
                 gen_config = types.GenerateContentConfig(**_config_kwargs)
 
             response = _call_llm_sync(
