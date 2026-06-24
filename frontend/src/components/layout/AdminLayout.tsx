@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Palette,
   ShoppingBag,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -26,6 +27,7 @@ const navItems = [
   { to: '/admin/marketplace', label: 'Marketplace', icon: ShoppingBag },
   { to: '/admin/system', label: 'Sistema', icon: Activity },
   { to: '/admin/animations', label: 'Animaciones', icon: Palette },
+  { to: '/admin/animations/create', label: 'Crear Animación', icon: Sparkles },
   { to: '/admin/settings', label: 'Configuración', icon: Settings },
 ];
 
