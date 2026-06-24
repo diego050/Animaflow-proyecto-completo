@@ -8,6 +8,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import exc
 from app.db.models import ComponentModel
+from app.services.model_catalog import shortlist_size_for_model
 from app.core.logging import get_logger
 
 logger = get_logger("embedding")
@@ -117,6 +118,9 @@ def _format_component(comp: ComponentModel) -> dict:
 _ROLE_FLOORS = {"background": 1, "text": 2, "ui": 2, "decorative": 1, "dataviz": 0, "social": 0, "general": 0}
 _ROLE_CAPS = {"background": 3, "text": 6, "ui": 12, "decorative": 6, "dataviz": 8, "social": 4, "general": 2}
 
+# El tamaño del shortlist por modelo vive en el catálogo central (multi-proveedor),
+# no se hardcodea aquí. Ver app/services/model_catalog.py.
+
 
 def _mmr_select(scored, k, rng, lambda_=0.7, explore_pool=3):
     """Selección MMR (relevancia − redundancia) con exploración sembrada.
@@ -153,10 +157,11 @@ def get_relevant_components(
     db: Session,
     scene_text: str,
     media_query: str,
-    top_k: int = 10,
+    top_k: Optional[int] = None,
     category_filter: Optional[str] = None,
     api_key: Optional[str] = None,
     seed: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> list[dict]:
     """Find components with role diversity and return structured data.
 
@@ -168,6 +173,10 @@ def get_relevant_components(
       3. Exploración: `seed` (p.ej. job_id) → determinista dentro de un video pero
          distinto entre videos, para que roten los componentes buenos.
     """
+    # Tamaño del shortlist según el modelo (si no se forzó top_k explícito).
+    if top_k is None:
+        top_k = shortlist_size_for_model(model)
+
     # Query enriquecido: enmarca la escena hacia el dominio de los componentes
     # (las descripciones describen QUÉ es y para qué sirve cada componente, así que
     # el query debe describir QUÉ necesita la escena), mejorando el match.
@@ -233,6 +242,24 @@ def get_relevant_components(
         return (sum(top) / len(top)) if top else 0.0
     weights = {r: max(0.0, _role_relevance(s)) ** 2 for r, s in by_role.items()}
 
+    # "Pro" / catálogo chico: si el shortlist pedido cubre TODO lo disponible, manda la
+    # lista COMPLETA ordenada por relevancia (sin recortar por rol). El modelo ve todo.
+    if top_k >= len(all_components):
+        ranked = sorted(
+            (sc for scored in by_role.values() for sc in scored),
+            key=lambda sc: sc[0], reverse=True,
+        )
+        logger.info("Retriever: catálogo completo (%d comps, top_k=%d)", len(ranked), top_k)
+        return [_format_component(c) for _s, c in ranked]
+
+    # Topes por rol escalados al tamaño del shortlist (los _ROLE_CAPS estaban tuneados
+    # para ~28; con shortlists de 70-170 hay que escalarlos o nunca se llenarían).
+    cap_factor = max(1.0, top_k / 28.0)
+    def _role_cap(r: str) -> int:
+        base = _ROLE_CAPS.get(r)
+        scaled = round(base * cap_factor) if base is not None else top_k
+        return min(scaled, len(by_role[r]))
+
     # ── Asignación BLANDA: piso mínimo + reparto proporcional greedy (respeta tope
     # por rol y stock disponible). Adapta el shortlist a lo que pide la escena.
     alloc = {r: min(_ROLE_FLOORS.get(r, 0), len(by_role[r])) for r in by_role}
@@ -240,7 +267,7 @@ def get_relevant_components(
     while remaining > 0:
         best_role, best_score = None, -1.0
         for r in by_role:
-            cap = min(_ROLE_CAPS.get(r, top_k), len(by_role[r]))
+            cap = _role_cap(r)
             if alloc[r] >= cap:
                 continue
             score = weights[r] / (alloc[r] + 1)  # favorece relevantes y sub-asignados
