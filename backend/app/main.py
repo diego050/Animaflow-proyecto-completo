@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import JSONResponse
-from app.api import jobs_crud, jobs_pipeline, exports, audio, auth, voices, api_keys, assets, admin, contact, scenes, design_templates, stream
+from app.api import jobs_crud, jobs_pipeline, exports, audio, auth, voices, api_keys, assets, admin, contact, scenes, design_templates, stream, admin_animations
 from app.core.config import settings
 from app.core.limiter import limiter, RateLimitExceeded
 from app.core.storage_paths import get_storage_dir
@@ -38,6 +38,7 @@ app.include_router(voices.router)  # Voice management endpoints
 app.include_router(api_keys.router)  # API key management endpoints
 app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(admin_animations.router, prefix="/api/admin/animations", tags=["admin"])
 app.include_router(contact.router)
 app.include_router(scenes.router, tags=["scenes"])
 app.include_router(design_templates.router, prefix="/api/design-templates", tags=["Design Templates"])

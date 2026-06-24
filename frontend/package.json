@@ -14,7 +14,6 @@
     "check:manifest": "tsx scripts/generate-manifest-json.ts --check"
   },
   "dependencies": {
-    "remotion-animated": "^1.0.0",
     "@remotion/cli": "^4.0.459",
     "@remotion/player": "^4.0.459",
     "@tailwindcss/postcss": "^4.3.0",
@@ -25,6 +24,8 @@
     "react-helmet-async": "^3.0.0",
     "react-router-dom": "^7.15.1",
     "remotion": "^4.0.459",
+    "remotion-animated": "^1.0.0",
+    "sucrase": "^3.35.1",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
