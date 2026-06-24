@@ -22,6 +22,8 @@ pytest-asyncio>=0.24.0
 # Rate limiting and AI
 slowapi==0.1.9
 google-genai==1.18.0
+# Reparación determinista de JSON malformado de LLMs (cascada de robustez del spec)
+json-repair>=0.30.0,<1.0.0
 
 # TTS
 piper-tts==1.4.2

@@ -15,7 +15,7 @@ from google.genai import types
 from app.core.logging import get_logger
 from app.schemas.spec import AnimaComposerSpec, AnimaBackground, AnimaLayer
 from app.services.iconify_search import find_best_icons
-from app.services.model_catalog import supports_thinking
+from app.services.model_catalog import supports_thinking, supports_structured_output
 from app.modules.llm.spec_validator import validate_and_fix
 
 logger = get_logger("llm.strategy")
@@ -24,6 +24,65 @@ logger = get_logger("llm.strategy")
 def _sanitize_llm_json(raw: str) -> str:
     """Truncate numbers with excessive decimal places from LLM output."""
     return re.sub(r'(\d+\.\d{6})\d+', r'\1', raw)
+
+
+def _robust_json_loads(text: str) -> Optional[dict]:
+    """Cascada de robustez del JSON (Capa 1 — DETERMINISTA y QUIRÚRGICA).
+
+    json estándar → `json_repair` (determinista): corrige coma faltante/sobrante,
+    comillas simples, llaves sin cerrar, True/False/None de Python, fences ```json y
+    texto alrededor — PRESERVANDO el contenido (NO regenera). Agnóstico al modelo:
+    blinda CUALQUIER salida (Gemini sin modo estricto, Gemma, Claude, OpenAI…).
+    Devuelve un dict o None.
+    """
+    if not text or not text.strip():
+        return None
+    cleaned = _sanitize_llm_json(text)
+    try:
+        parsed = json.loads(cleaned)
+        return parsed if isinstance(parsed, dict) else None
+    except (json.JSONDecodeError, ValueError):
+        pass
+    try:
+        from json_repair import repair_json
+        repaired = repair_json(cleaned, return_objects=True)
+        return repaired if isinstance(repaired, dict) and repaired else None
+    except Exception as e:  # noqa: BLE001
+        logger.warning("json_repair no pudo reparar el JSON: %s", e)
+        return None
+
+
+def _llm_repair_json(client, model: str, broken: str) -> Optional[dict]:
+    """Cascada de robustez del JSON (Capa 3 — ÚLTIMO recurso, IA QUIRÚRGICA).
+
+    Solo si la reparación determinista falló. Pide al modelo CORREGIR la sintaxis
+    SIN cambiar/agregar/quitar contenido (no regenera, así no "arregla una cosa y
+    rompe otra"). Devuelve dict o None.
+    """
+    try:
+        from app.modules.llm.client import _call_llm_sync
+        from google.genai import types as _types
+        prompt = (
+            "El siguiente texto DEBERÍA ser un JSON válido pero tiene errores de SINTAXIS "
+            "(comas, comillas, llaves). Devuélvelo corregido. REGLAS ESTRICTAS:\n"
+            "- NO cambies, agregues ni quites ningún valor, campo ni capa: SOLO arregla la sintaxis.\n"
+            "- Devuelve ÚNICAMENTE el JSON, sin explicaciones ni ```.\n\n"
+            f"{broken}"
+        )
+        resp = _call_llm_sync(
+            client=client,
+            model=model,
+            contents=prompt,
+            config=_types.GenerateContentConfig(temperature=0, max_output_tokens=6000),
+            label="LLM JSON Repair (Capa 3)",
+        )
+        repaired = _robust_json_loads(resp.text or "")
+        if repaired is not None:
+            logger.info("Capa 3: JSON recuperado por re-llamada de corrección.")
+        return repaired
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Capa 3 (LLM repair) falló: %s", e)
+        return None
 
 
 # ── Numeric coercion helper ──────────────────────────────────────────────────
@@ -1880,11 +1939,14 @@ def generate_scene_composer(
             # warnings 'thought_signature' y de valores partidos como size:"color1").
             # La composición no necesita razonamiento extenso → thinking_budget=0.
             _config_kwargs = dict(
-                response_mime_type="application/json",
-                response_schema=gemini_schema,
                 temperature=0.3,
                 max_output_tokens=6000,
             )
+            # Modo JSON estricto solo en modelos que lo soportan. Gemma/abiertos lo
+            # rechazan con 400 "invalid argument" → el JSON sale del prompt + extractor.
+            if supports_structured_output(model):
+                _config_kwargs["response_mime_type"] = "application/json"
+                _config_kwargs["response_schema"] = gemini_schema
             # Solo modelos que SOPORTAN thinking (Gemini 2.5/3.x). Gemma y abiertos lo
             # rechazan con 400 "Thinking budget is not supported for this model".
             if supports_thinking(model):
@@ -1952,15 +2014,20 @@ def generate_scene_composer(
                 if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
                     json_candidate = raw_text[first_brace:last_brace + 1]
                     logger.info("Extracted JSON candidate (%d chars) from raw_text", len(json_candidate))
-                    try:
-                        result = json.loads(_sanitize_llm_json(json_candidate))
-                        logger.info("Successfully parsed extracted JSON")
-                    except json.JSONDecodeError as e:
-                        logger.warning("Extracted JSON still invalid: %s", e)
-                        if attempt < max_retries:
-                            continue  # Retry
-                        logger.warning("All retries failed. Defaulting to fallback.")
-                        return default_fallback
+                    # Capa 1: parseo robusto determinista (json estándar → json_repair).
+                    result = _robust_json_loads(json_candidate)
+                    if result is not None:
+                        logger.info("JSON parseado (robusto/json-repair)")
+                    else:
+                        # Capa 3 (solo en el último intento): IA correctora de SINTAXIS,
+                        # sin regenerar. Si tampoco, fallback.
+                        if attempt >= max_retries:
+                            result = _llm_repair_json(client, model, json_candidate)
+                        if result is None:
+                            if attempt < max_retries:
+                                continue  # Retry de la generación
+                            logger.warning("JSON irreparable (Capas 1-3). Usando fallback.")
+                            return default_fallback
                 else:
                     if attempt < max_retries:
                         continue  # Retry
