@@ -117,16 +117,32 @@ def generate_animation(
     width, height = _DIMS.get(aspect_ratio, _DIMS["9:16"])
     duration_frames = int(duration_seconds * _FPS)
 
-    client = genai.Client(api_key=api_key)
     full_prompt = _build_prompt(prompt, width, height, duration_frames, previous_code, edit_instruction)
+    code, errors = _run_codegen(full_prompt, api_key, use_model)
+    return {
+        "code": code,
+        "valid": len(errors) == 0,
+        "errors": errors,
+        "model": use_model,
+        "width": width,
+        "height": height,
+        "duration_frames": duration_frames,
+    }
 
-    # Sin response_schema (es código, no JSON). Sin thinking_config (dejamos el default
-    # del modelo: a Gemini el thinking le ayuda a programar; a Gemma no se le manda).
+
+def _run_codegen(full_prompt: str, api_key: str, use_model: str) -> tuple[str, list[str]]:
+    """Llama al LLM, saca el código, valida; 1 retry con feedback. Devuelve (code, errors)."""
+    from app.modules.llm.client import _call_llm_sync
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=api_key)
+    # Sin response_schema (es código, no JSON). Sin thinking_config (default del modelo).
     config = types.GenerateContentConfig(temperature=0.4, max_output_tokens=12000)
 
     code = ""
     errors: list[str] = []
-    for attempt in range(2):  # 1 intento + 1 retry con feedback
+    for attempt in range(2):
         resp = _call_llm_sync(
             client=client, model=use_model, contents=full_prompt,
             config=config, label="LLM Animation",
@@ -140,7 +156,61 @@ def generate_animation(
             f"\n\nEl código que diste tuvo estos PROBLEMAS: {errors}. "
             "Corrígelos y devuelve el componente completo, solo código."
         )
+    return code, errors
 
+
+def generate_scene_animation(
+    text: str,
+    duration_seconds: float,
+    word_timestamps: Optional[list] = None,
+    bg_hint: Optional[str] = None,
+    user_id: Optional[str] = None,
+    model: Optional[str] = None,
+    aspect_ratio: str = "9:16",
+) -> dict:
+    """Fase 3: genera el componente de UNA escena (consciente del guion + timing del audio).
+
+    El audio ya narra `text`, así que la animación lo ILUSTRA (visual protagonista, poco
+    texto). `word_timestamps` (relativos a la escena, en segundos) se pasan como frames
+    para que la IA pueda sincronizar reveals con la voz.
+    """
+    from app.modules.llm.resolver import resolve_llm_credentials
+
+    creds = resolve_llm_credentials(user_id)
+    api_key = creds.api_key
+    use_model = model or creds.model
+    if not api_key:
+        raise ValueError("No hay API key de LLM configurada.")
+
+    width, height = _DIMS.get(aspect_ratio, _DIMS["9:16"])
+    duration_frames = int(duration_seconds * _FPS)
+
+    timing = ""
+    if word_timestamps:
+        parts = []
+        for w in word_timestamps[:40]:
+            try:
+                f0 = int(float(w.get("start", 0)) * _FPS)
+                parts.append(f'"{w.get("word", "")}"@f{f0}')
+            except (TypeError, ValueError):
+                continue
+        if parts:
+            timing = (
+                "Frame en que se dice cada palabra: " + ", ".join(parts)
+                + ". Si muestras texto, sincronízalo con esos frames."
+            )
+    bg = f"Color de fondo sugerido (úsalo o uno coherente): {bg_hint}." if bg_hint else ""
+
+    full_prompt = (
+        f"{_SYSTEM_RULES}\n\n{_FEWSHOT}\n\n"
+        f"Lienzo {width}x{height} (9:16, reel) a {_FPS}fps, duración EXACTA {duration_frames} frames "
+        f"(toda la animación debe ocurrir dentro de ese rango).\n"
+        f'Esta es UNA escena de un video; el AUDIO YA narra esta frase, NO la repitas entera en pantalla: "{text}"\n'
+        f"{bg} {timing}\n\n"
+        "Crea una animación que ILUSTRE visualmente la idea de esa frase (el VISUAL es el "
+        "protagonista; si pones texto, pocas palabras clave). Devuelve SOLO el código."
+    )
+    code, errors = _run_codegen(full_prompt, api_key, use_model)
     return {
         "code": code,
         "valid": len(errors) == 0,

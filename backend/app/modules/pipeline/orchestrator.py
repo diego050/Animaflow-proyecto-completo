@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.logging import get_logger
+from app.core.config import settings
 from app.core.file_logger import JobFileLogger
 from app.db.session import SessionLocal, get_db_context
 from app.db.models import JobModel, ApiKey
@@ -203,37 +204,59 @@ async def _process_chunks_async(
                 api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
                 model_to_use = llm_model
 
-            composer_spec = generate_scene_composer(
-                text=scene.get("text", ""),
-                media_query=scene.get("media_query", ""),
-                api_key=api_key,
-                model=model_to_use,
-                db=db,
-                aspect_ratio=aspect_ratio,
-                duration_seconds=scene.get("duration_seconds", 0.0),
-                suggested_bg_color=visual_spec.backgroundColor,
-                suggested_text_color=visual_spec.textColor,
-                seed=job_id,  # semilla por video → variedad entre videos
-            )
-
-            scene["type"] = "custom"
-            scene["quality_status"] = "passed"
-            composer_dict = composer_spec.model_dump(exclude_none=True)
-
-            # Fase 5: refuerzo determinista de "texto opcional". Una proporción de
-            # las escenas del medio se vuelve visual-pura (sin texto), escalando con
-            # el nº de escenas. El prompt solo no basta (regla blanda → texto en
-            # todas). No toca la 1ra (gancho) ni la última (CTA).
-            composer_dict, stripped = apply_visual_pure_strip(
-                composer_dict, i, len(timeline_scenes), aspect_ratio
-            )
-            if stripped:
+            if settings.SCENE_ENGINE == "codegen":
+                # FASE 3 — CODE-GEN: la IA escribe el componente Remotion de la escena
+                # (consciente del guion + timing del audio). Reemplaza la orquestación.
+                from app.modules.llm.animation_generator import generate_scene_animation
+                anim = generate_scene_animation(
+                    text=scene.get("text", ""),
+                    duration_seconds=scene.get("duration_seconds", 0.0),
+                    word_timestamps=scene.get("word_timestamps"),
+                    bg_hint=visual_spec.backgroundColor,
+                    user_id=user_id,
+                    model=model_to_use,
+                    aspect_ratio=aspect_ratio,
+                )
+                scene["type"] = "custom_code"
+                scene["custom_code"] = anim["code"]
+                scene["quality_status"] = "passed" if anim["valid"] else "warning"
                 logger.info(
-                    "Fase 5: escena %d/%d convertida a VISUAL PURA (texto removido)",
-                    i + 1, len(timeline_scenes), extra={"job_id": job_id},
+                    "Code-gen escena %d/%d (valid=%s, %d chars, model=%s)",
+                    i + 1, len(timeline_scenes), anim["valid"], len(anim["code"]),
+                    anim["model"], extra={"job_id": job_id},
+                )
+            else:
+                composer_spec = generate_scene_composer(
+                    text=scene.get("text", ""),
+                    media_query=scene.get("media_query", ""),
+                    api_key=api_key,
+                    model=model_to_use,
+                    db=db,
+                    aspect_ratio=aspect_ratio,
+                    duration_seconds=scene.get("duration_seconds", 0.0),
+                    suggested_bg_color=visual_spec.backgroundColor,
+                    suggested_text_color=visual_spec.textColor,
+                    seed=job_id,  # semilla por video → variedad entre videos
                 )
 
-            scene["anima_composer"] = composer_dict
+                scene["type"] = "custom"
+                scene["quality_status"] = "passed"
+                composer_dict = composer_spec.model_dump(exclude_none=True)
+
+                # Fase 5: refuerzo determinista de "texto opcional". Una proporción de
+                # las escenas del medio se vuelve visual-pura (sin texto), escalando con
+                # el nº de escenas. El prompt solo no basta (regla blanda → texto en
+                # todas). No toca la 1ra (gancho) ni la última (CTA).
+                composer_dict, stripped = apply_visual_pure_strip(
+                    composer_dict, i, len(timeline_scenes), aspect_ratio
+                )
+                if stripped:
+                    logger.info(
+                        "Fase 5: escena %d/%d convertida a VISUAL PURA (texto removido)",
+                        i + 1, len(timeline_scenes), extra={"job_id": job_id},
+                    )
+
+                scene["anima_composer"] = composer_dict
 
         # Pausa para evitar límites de RPM (Requests Per Minute) del plan gratuito de Gemini
         if i < len(timeline_scenes) - 1:
