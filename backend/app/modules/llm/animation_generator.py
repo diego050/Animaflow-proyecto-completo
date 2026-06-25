@@ -38,7 +38,8 @@ REGLAS OBLIGATORIAS:
    FUENTE: usa SIEMPRE `fontFamily: 'Inter, sans-serif'` en el texto (esa fuente está cargada y
    garantiza que el render mp4 salga IGUAL al preview). NO uses otras fuentes ni solo 'sans-serif'.
 8. Puedes dibujar formas/íconos con SVG inline o divs con estilos. Asegúrate de que SVG use elementos SVG (<circle>, <path>) DENTRO de un <svg>, nunca como divs sueltos.
-9. Devuelve SOLO el código TSX del componente. Sin explicaciones, sin markdown, sin ```."""
+9. NO pongas barras de progreso, líneas de tiempo, indicadores de duración ni de porcentaje de reproducción (sobre todo en los bordes inferior/superior). El timing lo maneja el sistema; esas barras se ven mal en una escena corta.
+10. Devuelve SOLO el código TSX del componente. Sin explicaciones, sin markdown, sin ```."""
 
 # Few-shot: un ejemplo BUENO y DETERMINISTA para anclar calidad.
 _FEWSHOT = """EJEMPLO de salida válida (estilo y calidad esperados):
@@ -164,6 +165,7 @@ def generate_scene_animation(
     duration_seconds: float,
     word_timestamps: Optional[list] = None,
     bg_hint: Optional[str] = None,
+    art_direction: Optional[str] = None,
     user_id: Optional[str] = None,
     model: Optional[str] = None,
     aspect_ratio: str = "9:16",
@@ -200,13 +202,22 @@ def generate_scene_animation(
                 + ". Si muestras texto, sincronízalo con esos frames."
             )
     bg = f"Color de fondo sugerido (úsalo o uno coherente): {bg_hint}." if bg_hint else ""
+    art = ""
+    if art_direction:
+        art = (
+            "DIRECCIÓN DE ARTE (úsala como guía de mood/colores/movimiento, "
+            "es la idea visual de la escena): "
+            f"{art_direction}\n"
+            "Ignora cualquier mención a 'transición' entre escenas: las transiciones "
+            "entre escenas las maneja el sistema, tú solo animas DENTRO de esta escena.\n"
+        )
 
     full_prompt = (
         f"{_SYSTEM_RULES}\n\n{_FEWSHOT}\n\n"
         f"Lienzo {width}x{height} (9:16, reel) a {_FPS}fps, duración EXACTA {duration_frames} frames "
         f"(toda la animación debe ocurrir dentro de ese rango).\n"
         f'Esta es UNA escena de un video; el AUDIO YA narra esta frase, NO la repitas entera en pantalla: "{text}"\n'
-        f"{bg} {timing}\n\n"
+        f"{art}{bg} {timing}\n\n"
         "Crea una animación que ILUSTRE visualmente la idea de esa frase (el VISUAL es el "
         "protagonista; si pones texto, pocas palabras clave). Devuelve SOLO el código."
     )
