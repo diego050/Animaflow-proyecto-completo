@@ -3,6 +3,7 @@ import React from "react";
 import type { TimelineSpec, Spec } from "../types/spec";
 import { useAuthStore } from "../store/useAuthStore";
 import { AnimaComposer } from './composer/AnimaComposer';
+import { CustomCode } from './CustomCode';
 import { COMPONENT_REGISTRY } from './registry';
 import { TransitionWrapper } from './transitions/TransitionWrapper';
 
@@ -103,6 +104,7 @@ interface DynamicSceneProps {
   fallbackBg: string;
   fallbackColor: string;
   animaComposer?: Spec['anima_composer'];
+  customCode?: string;
   nextSceneBackgroundColors?: string[];
   wordTimestamps?: { word: string; start: number; end: number }[];
 }
@@ -114,7 +116,11 @@ interface SceneProps {
 }
 type SceneComponent = React.ComponentType<SceneProps>;
 
-const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, animaComposer, nextSceneBackgroundColors, wordTimestamps }: DynamicSceneProps) => {
+const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, animaComposer, customCode, nextSceneBackgroundColors, wordTimestamps }: DynamicSceneProps) => {
+  // Fase 3: escena generada por code-gen (la IA escribió el componente).
+  if (customCode) {
+    return <CustomCode code={customCode} durationInFrames={durationInFrames} />;
+  }
   if (type === 'custom' && animaComposer) {
     return (
       <AnimaComposer
@@ -241,6 +247,7 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
                 fallbackBg={String(scene.remotion_props?.backgroundColor || "#000")}
                 fallbackColor={String(scene.remotion_props?.textColor || "#fff")}
                 animaComposer={scene.anima_composer}
+                customCode={(scene as { custom_code?: string }).custom_code}
                 nextSceneBackgroundColors={nextSceneColors[index]}
                 wordTimestamps={relativeWordTimestamps}
             />

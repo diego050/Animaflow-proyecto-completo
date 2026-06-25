@@ -532,6 +532,9 @@ class Spec(BaseModel):
         default=None,
         description="Cuando presente, type DEBE ser 'custom'",
     )
+    # Fase 3 (code-gen): componente Remotion (TSX) generado por IA para esta escena.
+    # Cuando presente, el render usa la composición CustomCode en vez del anima_composer.
+    custom_code: Optional[str] = Field(default=None)
     # Transición HACIA la siguiente escena (override). Si falta, el frontend elige
     # una automáticamente por continuidad. La IA puede fijarla por escena.
     transition: Optional[str] = Field(
