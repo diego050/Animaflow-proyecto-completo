@@ -15,7 +15,6 @@ AUDIO_STORAGE = get_storage_dir("audio")
 
 from app.modules.tts.service import generate_tts_with_timestamps
 from app.modules.llm.visual_spec import VisualSpecResult
-from app.modules.llm.component_strategy import generate_scene_composer
 
 
 async def _regenerate_scene_async(
@@ -74,27 +73,34 @@ async def _regenerate_scene_async(
         textColor=scene.get("remotion_props", {}).get("textColor", "#ffffff"),
     )
 
-    logger.info("Regenerando JSON para escena %d...", scene_index, extra={"job_id": job_id})
-    
-    from app.modules.pipeline.orchestrator import _get_user_api_key
-    with SessionLocal() as temp_session:
-        groq_api_key = _get_user_api_key(user_id, "groq", temp_session)
-    api_key = groq_api_key or os.getenv("GROQ_API_KEY") or ""
-    
-    composer_spec = generate_scene_composer(
-        text=new_text,
-        media_query=new_media_query,
-        api_key=api_key,
-        model="gemini-2.0-flash",
-        db=db,
-        suggested_bg_color=visual_spec.backgroundColor,
-        suggested_text_color=visual_spec.textColor,
-        seed=job_id,  # semilla por video → variedad entre videos
-    )
+    logger.info("Regenerando escena %d con code-gen...", scene_index, extra={"job_id": job_id})
 
-    scene["type"] = "custom"
-    scene["quality_status"] = "passed"
-    scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
+    from app.modules.llm.animation_generator import generate_scene_animation, fallback_scene_code
+    try:
+        anim = generate_scene_animation(
+            text=new_text,
+            duration_seconds=scene.get("duration_seconds", 0.0),
+            bg_hint=visual_spec.backgroundColor,
+            art_direction=new_media_query,
+            user_id=user_id,
+            aspect_ratio=aspect_ratio,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("Code-gen excepción (editor regen escena %d)", scene_index)
+        anim = None
+
+    scene["type"] = "custom_code"
+    scene.pop("anima_composer", None)  # limpiar dato viejo del orquestador, si lo había
+    scene["remotion_props"] = {
+        **(scene.get("remotion_props") or {}),
+        "backgroundColor": visual_spec.backgroundColor,
+    }
+    if anim and anim.get("valid") and anim.get("code"):
+        scene["custom_code"] = anim["code"]
+        scene["quality_status"] = "passed"
+    else:
+        scene["custom_code"] = fallback_scene_code(new_text, visual_spec.backgroundColor)
+        scene["quality_status"] = "fallback"
 
     # AE script generation deferred to export step
     scene["ae_script_code"] = None

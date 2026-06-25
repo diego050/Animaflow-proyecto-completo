@@ -48,22 +48,29 @@ app.post("/render", async (req, res) => {
       browser,
     });
 
-    const outputLocation = path.join(STORAGE_DIR, `${jobId}.mp4`);
+    // codec: "h264" (mp4, default) o "prores" (.mov, footage para After Effects).
+    const codec = req.body.codec === "prores" ? "prores" : "h264";
+    const ext = codec === "prores" ? "mov" : "mp4";
+    const outName = req.body.outputName || jobId;
+    const outputLocation = path.join(STORAGE_DIR, `${outName}.${ext}`);
 
-    console.log(`Rendering media for job ${jobId}...`);
+    console.log(`Rendering media for job ${jobId} (codec=${codec})...`);
     await renderMedia({
       composition,
       serveUrl,
-      codec: "h264",
+      codec,
       outputLocation,
       inputProps,
       browser,
+      ...(codec === "prores" ? { proResProfile: "hq" } : {}),
     });
 
     console.log(`Render completed for job ${jobId}. Saved to ${outputLocation}`);
     return res.json({
       jobId,
-      mp4: outputLocation,
+      mp4: codec === "h264" ? outputLocation : null,
+      file: outputLocation,
+      codec,
       durationInFrames: composition.durationInFrames,
     });
 

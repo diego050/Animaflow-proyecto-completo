@@ -27,10 +27,6 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.1-flash"
     GEMINI_FALLBACK_MODEL: str = "gemini-3.1-flash-lite-preview"
 
-    # Motor de generación de escenas: "orchestration" (catálogo de componentes) o
-    # "codegen" (la IA escribe el componente Remotion con código). Flag para A/B.
-    SCENE_ENGINE: str = os.getenv("SCENE_ENGINE", "orchestration")
-
     # Resend (contact form emails)
     RESEND_API_KEY: Optional[str] = None
     RESEND_TO_EMAIL: Optional[str] = None

@@ -1,5 +1,5 @@
 """Tests para el refuerzo determinista de 'texto opcional por escena' (Fase 5)."""
-from app.modules.llm.component_strategy import (
+from app._legacy_orchestrator.component_strategy import (
     _visual_pure_indices,
     apply_visual_pure_strip,
 )

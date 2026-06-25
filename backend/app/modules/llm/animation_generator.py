@@ -32,7 +32,7 @@ REGLAS OBLIGATORIAS:
    - Para cualquier "azar" usa SIEMPRE `random("una-semilla-string")` de remotion (mismo seed = mismo valor para siempre).
    - TODA la animación se deriva de useCurrentFrame(). Nada de tiempo real.
 4. Estilos SOLO inline (style={{...}}). NUNCA uses className (no hay CSS global; quedaría sin estilo).
-5. Diseña para un lienzo VERTICAL 9:16. Usa <AbsoluteFill>. Centra el contenido, deja márgenes seguros, texto grande y legible.
+5. RESPONSIVO al lienzo (NO hardcodees el tamaño): obtén las dimensiones con `const { width, height } = useVideoConfig()` y posiciona/escala TODO relativo a esos valores (porcentajes, width/2, width*0.08, Math.min(width,height), etc.). Nunca uses números fijos asumiendo 1080×1920. Usa <AbsoluteFill>, centra el contenido, deja márgenes seguros, texto grande y legible. Debe verse bien en cualquier proporción (vertical, cuadrado u horizontal).
 6. Hazlo DINÁMICO y PROFESIONAL: gradientes, sombras/glows, springs con rebote, movimiento continuo (parallax/float con Math.sin(frame/N)), entradas y salidas escalonadas. El CENTRO debe ser un VISUAL fuerte (formas, tarjetas, cifras, íconos vectoriales hechos con SVG/divs), NO solo texto plano.
 7. Si usas texto: corto e impactante, bien tipografiado (peso alto, buen tracking). Nada de párrafos largos.
    FUENTE: usa SIEMPRE `fontFamily: 'Inter, sans-serif'` en el texto (esa fuente está cargada y
@@ -42,30 +42,59 @@ REGLAS OBLIGATORIAS:
 10. Devuelve SOLO el código TSX del componente. Sin explicaciones, sin markdown, sin ```."""
 
 # Few-shot: un ejemplo BUENO y DETERMINISTA para anclar calidad.
-_FEWSHOT = """EJEMPLO de salida válida (estilo y calidad esperados):
+_FEWSHOT = """EJEMPLO de salida válida (estilo, calidad y RESPONSIVIDAD esperados — todo relativo a width/height):
 import React from "react";
 import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, random } from "remotion";
 
 export const Animation: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
   const pop = spring({ frame: frame - 10, fps, config: { damping: 12 } });
-  const float = Math.sin(frame / 18) * 14;
+  const float = Math.sin(frame / 18) * (height * 0.012);
   const titleIn = interpolate(frame, [25, 45], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const card = Math.min(width, height) * 0.5;
   return (
     <AbsoluteFill style={{ background: "radial-gradient(circle at 50% 35%, #1e293b, #020617 70%)", justifyContent: "center", alignItems: "center", overflow: "hidden" }}>
       {Array.from({ length: 40 }).map((_, i) => {
-        const px = random("px-" + i) * 1080;
-        const py = (random("py-" + i) * 1920 + frame * (1 + random("sp-" + i) * 2)) % 1920;
+        const px = random("px-" + i) * width;
+        const py = (random("py-" + i) * height + frame * (1 + random("sp-" + i) * 2)) % height;
         return <div key={i} style={{ position: "absolute", left: px, top: py, width: 4, height: 4, borderRadius: "50%", background: "#38bdf8", boxShadow: "0 0 10px #38bdf8", opacity: 0.4 }} />;
       })}
-      <div style={{ transform: "scale(" + pop + ") translateY(" + float + "px)", width: 520, height: 520, borderRadius: 48, background: "linear-gradient(135deg, #38bdf8, #6366f1)", boxShadow: "0 40px 90px rgba(56,189,248,0.4)", display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <div style={{ fontSize: 220, fontWeight: 900, color: "#fff" }}>+250%</div>
+      <div style={{ transform: `scale(${pop}) translateY(${float}px)`, width: card, height: card, borderRadius: card * 0.09, background: "linear-gradient(135deg, #38bdf8, #6366f1)", boxShadow: "0 40px 90px rgba(56,189,248,0.4)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div style={{ fontSize: card * 0.42, fontWeight: 900, color: "#fff", fontFamily: "Inter, sans-serif" }}>+250%</div>
       </div>
-      <h1 style={{ position: "absolute", bottom: 280, color: "#fff", fontSize: 64, fontWeight: 800, opacity: titleIn, textAlign: "center", margin: 0 }}>Crecimiento real</h1>
+      <h1 style={{ position: "absolute", bottom: height * 0.14, color: "#fff", fontSize: width * 0.06, fontWeight: 800, opacity: titleIn, fontFamily: "Inter, sans-serif", textAlign: "center", margin: 0 }}>Crecimiento real</h1>
     </AbsoluteFill>
   );
 };"""
+
+
+# Respaldo seguro: componente mínimo, responsivo y SIEMPRE válido (texto sobre el fondo).
+# Se usa cuando el code-gen de una escena falla — sustituye al orquestador como red.
+_FALLBACK_TEMPLATE = '''import React from "react";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring } from "remotion";
+
+export const Animation: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { fps, width } = useVideoConfig();
+  const pop = spring({ frame, fps, config: { damping: 14 } });
+  const fade = interpolate(frame, [0, 15], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return (
+    <AbsoluteFill style={{ background: "__BG__", justifyContent: "center", alignItems: "center", padding: width * 0.09 }}>
+      <div style={{ transform: `scale(${pop})`, opacity: fade, color: "#ffffff", fontFamily: "Inter, sans-serif", fontSize: width * 0.07, fontWeight: 800, textAlign: "center", lineHeight: 1.2 }}>
+        __TEXT__
+      </div>
+    </AbsoluteFill>
+  );
+};'''
+
+
+def fallback_scene_code(text: str, bg: Optional[str] = None) -> str:
+    """Código de una escena de respaldo seguro (texto sobre fondo). Siempre válido."""
+    safe = (text or "Escena").strip()
+    for ch in ('\\', '`', '{', '}', '<', '>', '"'):
+        safe = safe.replace(ch, "'" if ch == '"' else "")
+    return _FALLBACK_TEMPLATE.replace("__BG__", bg or "#0f172a").replace("__TEXT__", safe[:200])
 
 
 def _strip_fences(text: str) -> str:
@@ -78,7 +107,7 @@ def _strip_fences(text: str) -> str:
 
 
 def _build_prompt(user_prompt, width, height, duration_frames, previous_code, edit_instruction):
-    canvas = f"Lienzo {width}x{height} (vertical 9:16, formato reel) a {_FPS}fps, duración {duration_frames} frames."
+    canvas = f"Lienzo {width}x{height} a {_FPS}fps, duración {duration_frames} frames. Diseña RESPONSIVO con useVideoConfig() — no asumas un tamaño fijo."
     if previous_code and edit_instruction:
         return (
             f"{_SYSTEM_RULES}\n\n{canvas}\n\nEste es el componente ACTUAL:\n"
@@ -131,8 +160,12 @@ def generate_animation(
     }
 
 
+_MAX_CODEGEN_ATTEMPTS = 3  # 1 intento + 2 reparaciones con la IA (NO hay orquestador)
+
+
 def _run_codegen(full_prompt: str, api_key: str, use_model: str) -> tuple[str, list[str]]:
-    """Llama al LLM, saca el código, valida; 1 retry con feedback. Devuelve (code, errors)."""
+    """Llama al LLM, saca el código, valida; si falla, reintenta con la IA mandándole el
+    código fallido + los errores (auto-reparación). Devuelve (code, errors)."""
     from app.modules.llm.client import _call_llm_sync
     from google import genai
     from google.genai import types
@@ -143,7 +176,7 @@ def _run_codegen(full_prompt: str, api_key: str, use_model: str) -> tuple[str, l
 
     code = ""
     errors: list[str] = []
-    for attempt in range(2):
+    for attempt in range(_MAX_CODEGEN_ATTEMPTS):
         resp = _call_llm_sync(
             client=client, model=use_model, contents=full_prompt,
             config=config, label="LLM Animation",
@@ -152,10 +185,13 @@ def _run_codegen(full_prompt: str, api_key: str, use_model: str) -> tuple[str, l
         valid, errors = validate_animation_code(code)
         if valid:
             break
-        logger.warning("Animación inválida (intento %d): %s", attempt + 1, errors)
+        logger.warning("Animación inválida (intento %d/%d): %s", attempt + 1, _MAX_CODEGEN_ATTEMPTS, errors)
+        # Reparación: le devolvemos SU código fallido + los problemas para que lo arregle
+        # o cree otro (conservando la escena/timing/dirección de arte del prompt original).
         full_prompt += (
-            f"\n\nEl código que diste tuvo estos PROBLEMAS: {errors}. "
-            "Corrígelos y devuelve el componente completo, solo código."
+            f"\n\nEl código que generaste tuvo estos PROBLEMAS: {errors}.\n"
+            f"Este fue tu código (arréglalo o créalo de nuevo respetando la escena):\n{code}\n\n"
+            "Devuelve el componente COMPLETO ya corregido, solo código."
         )
     return code, errors
 
@@ -214,8 +250,8 @@ def generate_scene_animation(
 
     full_prompt = (
         f"{_SYSTEM_RULES}\n\n{_FEWSHOT}\n\n"
-        f"Lienzo {width}x{height} (9:16, reel) a {_FPS}fps, duración EXACTA {duration_frames} frames "
-        f"(toda la animación debe ocurrir dentro de ese rango).\n"
+        f"Lienzo {width}x{height} a {_FPS}fps (diseña RESPONSIVO con useVideoConfig), "
+        f"duración EXACTA {duration_frames} frames (toda la animación debe ocurrir dentro de ese rango).\n"
         f'Esta es UNA escena de un video; el AUDIO YA narra esta frase, NO la repitas entera en pantalla: "{text}"\n'
         f"{art}{bg} {timing}\n\n"
         "Crea una animación que ILUSTRE visualmente la idea de esa frase (el VISUAL es el "
