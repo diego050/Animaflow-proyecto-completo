@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.db.models import User
 from app.modules.ae_export.zip_exporter import create_export_zip
 from app.modules.ae_export.worker import generate_ae_export_async, _persist_job_spec
+from app.modules.ae_export.footage_exporter import generate_footage_export_async
 from app.db.models import JobModel
 from app.core.security import get_current_user
 from app.api.deps import get_job_or_404
@@ -22,6 +23,9 @@ import asyncio
 
 router = APIRouter(prefix="/api/jobs", tags=["exports"])
 
+# Refs a tareas en background (evita que el GC las recolecte antes de terminar).
+_export_tasks: set = set()
+
 
 
 @router.post("/{job_id}/export/after-effects")
@@ -34,16 +38,19 @@ async def trigger_ae_export(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Triggers async AE export job. Generates AE scripts for all scenes, then creates zip.
-    If force=True, clears existing scripts and regenerates all scenes.
+    Dispara el export de FOOTAGE para After Effects: renderiza cada escena code-gen a
+    ProRes (.mov) y las empaqueta en un zip. Corre en background; el frontend hace polling
+    de /status. (Reemplaza el viejo .jsx por-componente, que no aplica a code-gen.)
     """
     job = get_job_or_404(db, job_id, current_user.id)
 
     if not job.result_spec:
         raise HTTPException(status_code=400, detail="Job does not have a generated spec.json")
 
-    # Generate AE scripts and zip in a thread pool to avoid blocking the event loop
-    await asyncio.to_thread(generate_ae_export_async, job_id, force)
+    # Background: renderizar ProRes por escena tarda (Chromium headless) → no bloquear el POST.
+    task = asyncio.create_task(asyncio.to_thread(generate_footage_export_async, job_id, force))
+    _export_tasks.add(task)
+    task.add_done_callback(_export_tasks.discard)
 
     job.result_spec["_ae_export_status"] = "queued"
     job.result_spec["_ae_export_progress"] = {

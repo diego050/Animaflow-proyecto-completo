@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.logging import get_logger
-from app.core.config import settings
 from app.core.file_logger import JobFileLogger
 from app.db.session import SessionLocal, get_db_context
 from app.db.models import JobModel, ApiKey
@@ -16,7 +15,6 @@ from app.schemas.spec import TimelineSpec
 from app.modules.tts.service import AUDIO_STORAGE
 from app.modules.segmentation.service import split_text_into_chunks
 from app.modules.llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
-from app.modules.llm.component_strategy import generate_scene_composer, apply_visual_pure_strip
 from app.core.async_utils import run_async
 
 logger = get_logger("pipeline")
@@ -204,63 +202,66 @@ async def _process_chunks_async(
                 api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
                 model_to_use = llm_model
 
-            if settings.SCENE_ENGINE == "codegen":
-                # FASE 3 — CODE-GEN: la IA escribe el componente Remotion de la escena
-                # (consciente del guion + timing del audio). Reemplaza la orquestación.
-                from app.modules.llm.animation_generator import generate_scene_animation
+            # Sync: los word_timestamps almacenados son GLOBALES; el code-gen los necesita
+            # RELATIVOS a la escena (frame 0 = inicio de la escena).
+            scene_start = scene.get("start_time_seconds", 0.0) or 0.0
+            rel_wts = [
+                {
+                    "word": w.get("word", ""),
+                    "start": max(0.0, (w.get("start", 0) or 0) - scene_start),
+                    "end": max(0.0, (w.get("end", 0) or 0) - scene_start),
+                }
+                for w in (scene.get("word_timestamps") or [])
+            ]
+
+            # CODE-GEN: ÚNICO motor. Si falla, `generate_scene_animation` ya reintenta con la
+            # IA (auto-reparación, ver _MAX_CODEGEN_ATTEMPTS). Si aun así no sale válido,
+            # `fallback_scene_code` es la última red anti-crash (texto sobre fondo). NUNCA
+            # se usa el orquestador.
+            from app.modules.llm.animation_generator import (
+                generate_scene_animation,
+                fallback_scene_code,
+            )
+            try:
                 anim = generate_scene_animation(
                     text=scene.get("text", ""),
                     duration_seconds=scene.get("duration_seconds", 0.0),
-                    word_timestamps=scene.get("word_timestamps"),
+                    word_timestamps=rel_wts,
                     bg_hint=visual_spec.backgroundColor,
                     art_direction=scene.get("media_query"),
                     user_id=user_id,
                     model=model_to_use,
                     aspect_ratio=aspect_ratio,
                 )
-                scene["type"] = "custom_code"
+            except Exception:  # noqa: BLE001
+                logger.exception(
+                    "Code-gen excepción escena %d/%d", i + 1, len(timeline_scenes),
+                    extra={"job_id": job_id},
+                )
+                anim = None
+
+            scene["type"] = "custom_code"
+            # Exponer el color de fondo para el crossfade de transiciones.
+            scene["remotion_props"] = {"backgroundColor": visual_spec.backgroundColor}
+            if anim and anim.get("valid") and anim.get("code"):
                 scene["custom_code"] = anim["code"]
-                scene["quality_status"] = "passed" if anim["valid"] else "warning"
-                # Exponer el color de fondo para que las transiciones entre escenas
-                # (crossfade de fondo en MainComposition) mezclen mejor.
-                scene["remotion_props"] = {"backgroundColor": visual_spec.backgroundColor}
+                scene["quality_status"] = "passed"
                 logger.info(
-                    "Code-gen escena %d/%d (valid=%s, %d chars, model=%s)",
-                    i + 1, len(timeline_scenes), anim["valid"], len(anim["code"]),
+                    "Code-gen escena %d/%d (valid=True, %d chars, model=%s)",
+                    i + 1, len(timeline_scenes), len(anim["code"]),
                     anim["model"], extra={"job_id": job_id},
                 )
             else:
-                composer_spec = generate_scene_composer(
-                    text=scene.get("text", ""),
-                    media_query=scene.get("media_query", ""),
-                    api_key=api_key,
-                    model=model_to_use,
-                    db=db,
-                    aspect_ratio=aspect_ratio,
-                    duration_seconds=scene.get("duration_seconds", 0.0),
-                    suggested_bg_color=visual_spec.backgroundColor,
-                    suggested_text_color=visual_spec.textColor,
-                    seed=job_id,  # semilla por video → variedad entre videos
+                scene["custom_code"] = fallback_scene_code(
+                    scene.get("text", ""), visual_spec.backgroundColor
                 )
-
-                scene["type"] = "custom"
-                scene["quality_status"] = "passed"
-                composer_dict = composer_spec.model_dump(exclude_none=True)
-
-                # Fase 5: refuerzo determinista de "texto opcional". Una proporción de
-                # las escenas del medio se vuelve visual-pura (sin texto), escalando con
-                # el nº de escenas. El prompt solo no basta (regla blanda → texto en
-                # todas). No toca la 1ra (gancho) ni la última (CTA).
-                composer_dict, stripped = apply_visual_pure_strip(
-                    composer_dict, i, len(timeline_scenes), aspect_ratio
+                scene["quality_status"] = "fallback"
+                logger.warning(
+                    "Code-gen inválido escena %d/%d (%s) → respaldo seguro",
+                    i + 1, len(timeline_scenes),
+                    (anim.get("errors") if anim else "excepción"),
+                    extra={"job_id": job_id},
                 )
-                if stripped:
-                    logger.info(
-                        "Fase 5: escena %d/%d convertida a VISUAL PURA (texto removido)",
-                        i + 1, len(timeline_scenes), extra={"job_id": job_id},
-                    )
-
-                scene["anima_composer"] = composer_dict
 
         # Pausa para evitar límites de RPM (Requests Per Minute) del plan gratuito de Gemini
         if i < len(timeline_scenes) - 1:
@@ -309,22 +310,45 @@ async def _regenerate_components_for_reformat(
             api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
             model_to_use = llm_model
         
-        composer_spec = generate_scene_composer(
-            text=scene.get("text", ""),
-            media_query=scene.get("media_query", ""),
-            api_key=api_key,
-            model=model_to_use,
-            db=db,
-            aspect_ratio=aspect_ratio,
-            duration_seconds=scene.get("duration_seconds", 0.0),
-            suggested_bg_color=visual_spec.backgroundColor,
-            suggested_text_color=visual_spec.textColor,
-            seed=job_id,  # semilla por video → variedad entre videos
+        # CODE-GEN responsivo (el componente se adapta al nuevo aspect ratio). NO orquestador.
+        from app.modules.llm.animation_generator import (
+            generate_scene_animation,
+            fallback_scene_code,
         )
+        scene_start = scene.get("start_time_seconds", 0.0) or 0.0
+        rel_wts = [
+            {
+                "word": w.get("word", ""),
+                "start": max(0.0, (w.get("start", 0) or 0) - scene_start),
+                "end": max(0.0, (w.get("end", 0) or 0) - scene_start),
+            }
+            for w in (scene.get("word_timestamps") or [])
+        ]
+        try:
+            anim = generate_scene_animation(
+                text=scene.get("text", ""),
+                duration_seconds=scene.get("duration_seconds", 0.0),
+                word_timestamps=rel_wts,
+                bg_hint=visual_spec.backgroundColor,
+                art_direction=scene.get("media_query"),
+                user_id=user_id,
+                model=model_to_use,
+                aspect_ratio=aspect_ratio,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Code-gen excepción (regen escena %d)", i)
+            anim = None
 
-        scene["type"] = "custom"
-        scene["quality_status"] = "passed"
-        scene["anima_composer"] = composer_spec.model_dump(exclude_none=True)
+        scene["type"] = "custom_code"
+        scene["remotion_props"] = {"backgroundColor": visual_spec.backgroundColor}
+        if anim and anim.get("valid") and anim.get("code"):
+            scene["custom_code"] = anim["code"]
+            scene["quality_status"] = "passed"
+        else:
+            scene["custom_code"] = fallback_scene_code(
+                scene.get("text", ""), visual_spec.backgroundColor
+            )
+            scene["quality_status"] = "fallback"
     return timeline_scenes
 
 

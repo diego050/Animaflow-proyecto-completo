@@ -299,8 +299,8 @@ class BaseAnimaLayer(BaseModel):
             return None
         if not isinstance(v, str):
             return None
-        from app.modules.llm.component_strategy import AVAILABLE_COMPONENTS
-        if v not in AVAILABLE_COMPONENTS:
+        from app.services.manifest import get_component_names
+        if v not in get_component_names():
             logger = __import__("app.core.logging", fromlist=["get_logger"]).get_logger("spec.validator")
             logger.warning("Unknown componentName '%s' — will be handled by post-processor", v)
         return v

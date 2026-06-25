@@ -10,12 +10,17 @@ from unittest.mock import patch, AsyncMock, Mock
 from app.db.models import JobModel
 from app.modules.pipeline.orchestrator import run_pipeline, run_pipeline_approved
 from app.modules.llm.visual_spec import BatchVisualSpec, VisualSpecResult
-from app.schemas.spec import AnimaComposerSpec, AnimaBackground
 
-dummy_spec = AnimaComposerSpec(
-    background=AnimaBackground(type="solid", colors=["#000000"]),
-    layers=[]
-)
+# Resultado mock de code-gen: la IA "genera" un componente válido para la escena.
+dummy_codegen = {
+    "code": "export const Animation = () => null;",
+    "valid": True,
+    "errors": [],
+    "model": "test-model",
+    "width": 1080,
+    "height": 1920,
+    "duration_frames": 90,
+}
 
 @pytest.fixture
 def sample_script():
@@ -60,8 +65,8 @@ def mock_external_services(tmp_path, sample_script):
         new_callable=AsyncMock,
         return_value={"audio_path": str(tmp_path / "audio" / "test.wav"), "duration_seconds": 5.0, "word_timestamps": []},
     ) as mock_tts, patch(
-        "app.modules.pipeline.orchestrator.generate_scene_composer",
-        return_value=dummy_spec
+        "app.modules.llm.animation_generator.generate_scene_animation",
+        return_value=dummy_codegen
     ) as mock_component, patch(
         "app.modules.tts.service.AUDIO_STORAGE", audio_storage
     ):
@@ -155,12 +160,11 @@ class TestPipelineSnapshot:
         for i, (actual, expected) in enumerate(zip(spec["scenes"], expected_scenes)):
             assert actual["text"] and len(actual["text"]) > 0, f"Scene {i} text is empty"
             assert actual["media_query"] == expected.media_query, f"Scene {i} media_query mismatch"
-            assert actual["type"] == "custom", f"Scene {i} type mismatch"
-            assert "anima_composer" in actual, f"Scene {i} missing anima_composer JSON"
-            assert actual["remotion_props"] == {
-                "backgroundColor": expected.backgroundColor,
-                "textColor": expected.textColor,
-            }, f"Scene {i} remotion_props mismatch"
+            assert actual["type"] == "custom_code", f"Scene {i} type mismatch"
+            assert "custom_code" in actual, f"Scene {i} missing custom_code"
+            assert actual["remotion_props"]["backgroundColor"] == expected.backgroundColor, (
+                f"Scene {i} backgroundColor mismatch"
+            )
 
 
 class TestPipelineIdempotency:
@@ -195,8 +199,8 @@ class TestPipelineIdempotency:
             new_callable=AsyncMock,
             return_value={"audio_path": str(tmp_path / "audio" / "test.wav"), "duration_seconds": 3.0, "word_timestamps": []},
         ), patch(
-            "app.modules.pipeline.orchestrator.generate_scene_composer",
-            return_value=dummy_spec
+            "app.modules.llm.animation_generator.generate_scene_animation",
+            return_value=dummy_codegen
         ), patch(
             "app.modules.tts.service.AUDIO_STORAGE", audio_storage
         ):

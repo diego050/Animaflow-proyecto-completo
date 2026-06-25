@@ -167,8 +167,8 @@ def validate_composer_spec(
     # ── Check 9: Component name must be in registry ──
     # Reutiliza la ÚNICA fuente de verdad para evitar que esta lista derive de
     # la del strategy (que es la que de verdad borra componentes). v7.
-    from app.modules.llm.component_strategy import AVAILABLE_COMPONENTS
-    VALID_COMPONENTS = set(AVAILABLE_COMPONENTS)
+    from app.services.manifest import get_component_names
+    VALID_COMPONENTS = set(get_component_names())
 
     for i, layer in enumerate(layers):
         comp_name = layer.get("componentName", "")

@@ -13,7 +13,9 @@ import ast
 import re
 from pathlib import Path
 
-from app.modules.llm.component_strategy import AVAILABLE_COMPONENTS
+from app.services.manifest import get_component_names
+
+AVAILABLE_COMPONENTS = get_component_names()
 
 REGISTRY_TS = (
     Path(__file__).resolve().parents[2]

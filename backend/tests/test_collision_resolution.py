@@ -1,5 +1,9 @@
-"""Tests para de-solapamiento (Fase 3) y atenuado de decorativos (Fase 4)."""
-from app.modules.llm.component_strategy import (
+"""Tests para de-solapamiento (Fase 3) y atenuado de decorativos (Fase 4).
+
+NOTA: el orquestador fue archivado (code-gen es el único motor). Estos helpers viven
+ahora en `app/_legacy_orchestrator/`. El test se conserva por si se recupera el código.
+"""
+from app._legacy_orchestrator.component_strategy import (
     _estimate_layer_height,
     _resolve_vertical_overlaps,
     _tame_decorative_backgrounds,
