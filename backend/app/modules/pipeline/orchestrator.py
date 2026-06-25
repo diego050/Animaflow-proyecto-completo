@@ -213,6 +213,7 @@ async def _process_chunks_async(
                     duration_seconds=scene.get("duration_seconds", 0.0),
                     word_timestamps=scene.get("word_timestamps"),
                     bg_hint=visual_spec.backgroundColor,
+                    art_direction=scene.get("media_query"),
                     user_id=user_id,
                     model=model_to_use,
                     aspect_ratio=aspect_ratio,
@@ -220,6 +221,9 @@ async def _process_chunks_async(
                 scene["type"] = "custom_code"
                 scene["custom_code"] = anim["code"]
                 scene["quality_status"] = "passed" if anim["valid"] else "warning"
+                # Exponer el color de fondo para que las transiciones entre escenas
+                # (crossfade de fondo en MainComposition) mezclen mejor.
+                scene["remotion_props"] = {"backgroundColor": visual_spec.backgroundColor}
                 logger.info(
                     "Code-gen escena %d/%d (valid=%s, %d chars, model=%s)",
                     i + 1, len(timeline_scenes), anim["valid"], len(anim["code"]),
