@@ -51,6 +51,12 @@ export interface JobsState {
     mediaQuery: string,
     text: string,
   ) => Promise<TimelineSpec | null>;
+  editSceneCode: (
+    jobId: string,
+    sceneIndex: number,
+    instruction: string,
+  ) => Promise<string>;
+  regenerateSceneCode: (jobId: string, sceneIndex: number) => Promise<string>;
   reformatJob: (
     jobId: string,
     payload: {
@@ -267,6 +273,56 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       }));
     }
     return data.result_spec;
+  },
+
+  editSceneCode: async (
+    jobId: string,
+    sceneIndex: number,
+    instruction: string,
+  ) => {
+    // Edición quirúrgica del componente code-gen de la escena. Solo actualiza el código
+    // (el preview se recompila en vivo). NO renderiza mp4 — eso es on-demand.
+    const data = await api.post<{
+      scene_index: number;
+      custom_code: string;
+      valid: boolean;
+    }>(`/api/jobs/${jobId}/scenes/${sceneIndex}/edit-code`, { instruction });
+    set((state) => {
+      const spec = state.selectedJob?.result_spec;
+      if (!spec) return {};
+      const scenes = spec.scenes.map((s, i) =>
+        i === sceneIndex ? { ...s, custom_code: data.custom_code } : s,
+      );
+      return {
+        selectedJob: state.selectedJob
+          ? { ...state.selectedJob, result_spec: { ...spec, scenes } }
+          : null,
+      };
+    });
+    return data.custom_code;
+  },
+
+  regenerateSceneCode: async (jobId: string, sceneIndex: number) => {
+    // "Hazlo distinto": versión nueva del componente. Solo actualiza el código (preview
+    // en vivo). NO renderiza mp4.
+    const data = await api.post<{
+      scene_index: number;
+      custom_code: string;
+      valid: boolean;
+    }>(`/api/jobs/${jobId}/scenes/${sceneIndex}/regenerate-code`, {});
+    set((state) => {
+      const spec = state.selectedJob?.result_spec;
+      if (!spec) return {};
+      const scenes = spec.scenes.map((s, i) =>
+        i === sceneIndex ? { ...s, custom_code: data.custom_code } : s,
+      );
+      return {
+        selectedJob: state.selectedJob
+          ? { ...state.selectedJob, result_spec: { ...spec, scenes } }
+          : null,
+      };
+    });
+    return data.custom_code;
   },
 
   reformatJob: async (

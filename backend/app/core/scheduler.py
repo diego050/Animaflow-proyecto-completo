@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.render_adapter import RenderAdapter
 from app.core.security import create_access_token
 from app.core.storage_paths import get_storage_dir
+from app.services.flywheel import approve_and_embed_job
 from app.modules.pipeline.orchestrator import (
     run_pipeline,
     run_pipeline_enrichment,
@@ -355,6 +356,12 @@ class Scheduler:
                     # re-renders can be skipped later.
                     job_in_session.rendered_spec_hash = spec_hash
                     logger.info(f"Job {job_id} successfully rendered.")
+                    # Flywheel: el usuario renderizó → aprobar+embeber sus escenas code-gen.
+                    approve_and_embed_job(
+                        job_id,
+                        (job_in_session.result_spec or {}).get("scenes", []),
+                        job_in_session.user_id,
+                    )
                 else:
                     job_in_session.status = 'failed'
                     job_in_session.completed_at = datetime.now(timezone.utc)

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -26,6 +27,7 @@ from app.services.scene_editor import (
 )
 from app.services.context_manager import save_message, get_history
 from app.services.intent_router import classify_intent, answer_query
+from app.services.animation_store import save_generated_animation
 
 
 router = APIRouter()
@@ -435,6 +437,152 @@ async def edit_scene(
     except Exception as e:
         logger.exception("Scene edit failed for job %s, scene %d: %s", job_id, scene_index, e)
         raise HTTPException(status_code=500, detail=f"Edit failed: {str(e)}")
+
+
+class SceneCodeEditRequest(BaseModel):
+    instruction: str = Field(min_length=2, max_length=500)
+
+
+@router.post("/{job_id}/scenes/{scene_index}/edit-code")
+async def edit_scene_code(
+    job_id: str,
+    scene_index: int,
+    body: SceneCodeEditRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Edición QUIRÚRGICA del componente code-gen de UNA escena con una instrucción en
+    lenguaje natural ("haz el corazón más grande"). Actualiza el `custom_code` → el preview
+    del editor se recompila en vivo. NO renderiza mp4 (el render es siempre on-demand).
+    """
+    logger = get_logger("api.jobs")
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id, JobModel.user_id == current_user.id,
+    ).first()
+    if not job or not job.result_spec:
+        raise HTTPException(status_code=404, detail="Job o spec no encontrado")
+
+    scenes = job.result_spec.get("scenes", [])
+    if scene_index < 0 or scene_index >= len(scenes):
+        raise HTTPException(status_code=400, detail="Índice de escena fuera de rango")
+
+    scene = scenes[scene_index]
+    current_code = scene.get("custom_code")
+    if not current_code:
+        raise HTTPException(
+            status_code=400, detail="Esta escena no es code-gen (no tiene custom_code)."
+        )
+
+    from app.modules.llm.animation_generator import generate_animation
+    try:
+        result = generate_animation(
+            prompt="",
+            user_id=current_user.id,
+            aspect_ratio=job.result_spec.get("aspect_ratio", job.aspect_ratio or "9:16"),
+            duration_seconds=scene.get("duration_seconds", 6.0),
+            previous_code=current_code,
+            edit_instruction=body.instruction,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Edición code-gen falló (job %s, escena %d)", job_id, scene_index)
+        raise HTTPException(status_code=500, detail=f"La edición falló: {e}")
+
+    if not (result.get("valid") and result.get("code")):
+        # No tocamos la escena: se queda el código anterior (el preview no cambia).
+        raise HTTPException(
+            status_code=422,
+            detail=f"La edición no salió válida: {result.get('errors')}",
+        )
+
+    scene["custom_code"] = result["code"]
+    scene["quality_status"] = "passed"
+    flag_modified(job, "result_spec")
+    db.commit()
+    save_generated_animation(
+        code=result["code"], source="edit", job_id=job_id, scene_index=scene_index,
+        user_id=current_user.id, prompt_text=scene.get("text"), art_direction=body.instruction,
+        model=result.get("model"), valid=True, status="edited", tokens=result.get("tokens"),
+        duration_frames=result.get("duration_frames"),
+        aspect_ratio=job.result_spec.get("aspect_ratio"),
+    )
+    logger.info("Escena %d editada con code-gen (job %s)", scene_index, job_id)
+    return {"scene_index": scene_index, "custom_code": result["code"], "valid": True}
+
+
+@router.post("/{job_id}/scenes/{scene_index}/regenerate-code")
+async def regenerate_scene_code(
+    job_id: str,
+    scene_index: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """"Hazlo distinto": genera una versión NUEVA y con enfoque visual distinto del
+    componente code-gen de la escena. Actualiza el `custom_code` → preview en vivo.
+    NO renderiza mp4 (render on-demand).
+    """
+    logger = get_logger("api.jobs")
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id, JobModel.user_id == current_user.id,
+    ).first()
+    if not job or not job.result_spec:
+        raise HTTPException(status_code=404, detail="Job o spec no encontrado")
+
+    scenes = job.result_spec.get("scenes", [])
+    if scene_index < 0 or scene_index >= len(scenes):
+        raise HTTPException(status_code=400, detail="Índice de escena fuera de rango")
+
+    scene = scenes[scene_index]
+    if not scene.get("custom_code"):
+        raise HTTPException(
+            status_code=400, detail="Esta escena no es code-gen (no tiene custom_code)."
+        )
+
+    # Timestamps relativos a la escena (los almacenados son globales).
+    scene_start = scene.get("start_time_seconds", 0.0) or 0.0
+    rel_wts = [
+        {
+            "word": w.get("word", ""),
+            "start": max(0.0, (w.get("start", 0) or 0) - scene_start),
+            "end": max(0.0, (w.get("end", 0) or 0) - scene_start),
+        }
+        for w in (scene.get("word_timestamps") or [])
+    ]
+
+    from app.modules.llm.animation_generator import generate_scene_animation
+    try:
+        result = generate_scene_animation(
+            text=scene.get("text", ""),
+            duration_seconds=scene.get("duration_seconds", 6.0),
+            word_timestamps=rel_wts,
+            bg_hint=(scene.get("remotion_props") or {}).get("backgroundColor"),
+            art_direction=scene.get("media_query"),
+            user_id=current_user.id,
+            aspect_ratio=job.result_spec.get("aspect_ratio", job.aspect_ratio or "9:16"),
+            variation=True,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Regeneración code-gen falló (job %s, escena %d)", job_id, scene_index)
+        raise HTTPException(status_code=500, detail=f"La regeneración falló: {e}")
+
+    if not (result.get("valid") and result.get("code")):
+        raise HTTPException(
+            status_code=422, detail=f"La regeneración no salió válida: {result.get('errors')}"
+        )
+
+    scene["custom_code"] = result["code"]
+    scene["quality_status"] = "passed"
+    flag_modified(job, "result_spec")
+    db.commit()
+    save_generated_animation(
+        code=result["code"], source="regenerate", job_id=job_id, scene_index=scene_index,
+        user_id=current_user.id, prompt_text=scene.get("text"),
+        art_direction=scene.get("media_query"), model=result.get("model"), valid=True,
+        status="passed", tokens=result.get("tokens"),
+        duration_frames=result.get("duration_frames"),
+        aspect_ratio=job.result_spec.get("aspect_ratio"),
+    )
+    logger.info("Escena %d regenerada (hazlo distinto) en job %s", scene_index, job_id)
+    return {"scene_index": scene_index, "custom_code": result["code"], "valid": True}
 
 
 @router.get("/{job_id}/formats")

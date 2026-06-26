@@ -155,7 +155,8 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
                   type: focusedScene.type,
                   text: focusedScene.text,
                   durationInFrames: Math.round((focusedScene.duration_seconds || 5) * 30),
-                  animaComposer: (focusedScene as Spec).anima_composer,
+                  customCode: (focusedScene as Spec).custom_code,
+                  fallbackBg: String((focusedScene as Spec).remotion_props?.backgroundColor || '#000000'),
                 }}
                 durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
                 compositionWidth={compWidth}

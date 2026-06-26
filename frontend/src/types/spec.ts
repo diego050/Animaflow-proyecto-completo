@@ -188,6 +188,8 @@ export interface Spec {
   ae_metadata?: Record<string, unknown>;
   ae_script_code?: string;
   anima_composer?: AnimaComposerSpec;
+  /** Componente Remotion (TSX) generado por IA para esta escena (motor code-gen). */
+  custom_code?: string;
   /** Transición HACIA la siguiente escena (override). Si falta, se elige auto. */
   transition?: 'FadeThroughBlack' | 'ZoomBlurTransition' | 'WipeTransition' | 'GlitchTransition' | 'LightLeakTransition' | 'GradientOverlay' | 'ZoomThroughTransition' | 'SpatialPush' | 'FrostedGlassWipe' | 'GridPixelateWipe' | 'ChromaticAberrationWipe' | 'WhipPanTransition' | 'SlideWipe' | 'CrossDissolve' | 'MorphTransition' | 'IrisTransition';
   /** Color del velo/barrido para Fade/Wipe/ZoomBlur. */

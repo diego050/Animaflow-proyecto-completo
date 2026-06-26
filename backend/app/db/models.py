@@ -256,6 +256,41 @@ class ComponentModel(Base):
     )
 
 
+class GeneratedAnimation(Base):
+    """Cada animación code-gen generada (escena del pipeline, prototipo admin, edición o
+    regeneración). Sirve a DOS cosas:
+
+    - **Observabilidad:** tokens, modelo, validez, estado por generación → métricas por video.
+    - **Flywheel:** `code` + `prompt_text` + `embedding`; solo las `approved` alimentan el few-shot
+      (RAG de buenos ejemplos). El embedding se llena cuando se aprueba/cura (proceso aparte).
+    """
+
+    __tablename__ = "generated_animations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_id = Column(String(36), nullable=True, index=True)       # null = prototipo admin
+    scene_index = Column(Integer, nullable=True)
+    user_id = Column(String(36), nullable=True, index=True)
+    source = Column(String(30), nullable=False, server_default="pipeline")  # pipeline|prototype|edit|regenerate
+    prompt_text = Column(Text, nullable=True)                    # texto de la escena o prompt del usuario
+    art_direction = Column(Text, nullable=True)                  # media_query / dirección de arte
+    code = Column(Text, nullable=False)
+    model = Column(String(100), nullable=True)
+    valid = Column(Boolean, server_default="true")
+    status = Column(String(30), nullable=True)                   # passed|fallback|edited
+    tokens_in = Column(Integer, nullable=True)
+    tokens_out = Column(Integer, nullable=True)
+    tokens_total = Column(Integer, nullable=True)
+    duration_frames = Column(Integer, nullable=True)
+    aspect_ratio = Column(String(10), nullable=True)
+    approved = Column(Boolean, server_default="false", index=True)  # curación: solo aprobadas → few-shot
+    rating = Column(Integer, nullable=True)
+    embedding = Column(Vector(768), nullable=True)              # flywheel RAG (se llena al curar)
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
 class ConversationHistory(Base):
     """
     Conversation history model for persistent chat context during scene editing.

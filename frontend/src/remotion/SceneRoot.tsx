@@ -1,89 +1,45 @@
-import { Composition, registerRoot } from "remotion";
 import React from "react";
 import { AbsoluteFill } from "remotion";
-import { AnimaComposer } from './composer/AnimaComposer';
-import { COMPONENT_REGISTRY } from './registry';
+import { CustomCode } from './CustomCode';
 
 interface SceneWrapperProps {
-  type: string;
+  type?: string;
   text: string;
   durationInFrames: number;
   fallbackBg?: string;
   fallbackColor?: string;
-  animaComposer?: any;
+  customCode?: string;
 }
 
+/**
+ * Renderiza UNA escena para el preview. Code-gen → CustomCode; si no hay código, muestra
+ * el texto sobre el fondo (las escenas viejas con `anima_composer` ya no se renderizan: el
+ * orquestador se retiró, ver _legacy_orchestrator).
+ */
 export const SceneWrapper: React.FC<SceneWrapperProps> = ({
-  type,
   text,
   durationInFrames,
   fallbackBg = "#000000",
   fallbackColor = "#ffffff",
-  animaComposer,
+  customCode,
 }) => {
-  if (type === 'custom' && animaComposer) {
+  if (customCode) {
     return (
-      <AnimaComposer
-        spec={animaComposer}
-        text={text}
+      <CustomCode
+        code={customCode}
         durationInFrames={durationInFrames}
+        fallbackText={text}
+        fallbackBg={fallbackBg}
       />
     );
   }
-
-  let Component = COMPONENT_REGISTRY[type] as React.ComponentType<{ text: string; durationInFrames: number }> | undefined;
-
-  if (!Component) {
-    return (
-      <AbsoluteFill
-        style={{
-          backgroundColor: fallbackBg,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <div
-          style={{
-            color: fallbackColor,
-            fontSize: 60,
-            fontWeight: "bold",
-            textAlign: "center",
-            padding: 40,
-          }}
-        >
-          {text}
-        </div>
-      </AbsoluteFill>
-    );
-  }
-
-  return <Component text={text} durationInFrames={durationInFrames} />;
-};
-
-export const RemotionSceneRoot = () => {
   return (
-    <Composition
-      id="SceneRenderer"
-      component={SceneWrapper as React.FC<any>}
-      fps={30}
-      width={1080}
-      height={1920}
-      durationInFrames={150} // Fallback de 5 segundos
-      calculateMetadata={({ props }) => {
-        const typedProps = props as unknown as SceneWrapperProps;
-        return {
-          durationInFrames: typedProps.durationInFrames || 150,
-        };
-      }}
-      defaultProps={{
-        type: "",
-        text: "",
-        durationInFrames: 150,
-        fallbackBg: "#000000",
-        fallbackColor: "#ffffff",
-      }}
-    />
+    <AbsoluteFill
+      style={{ backgroundColor: fallbackBg, justifyContent: "center", alignItems: "center" }}
+    >
+      <div style={{ color: fallbackColor, fontSize: 60, fontWeight: "bold", textAlign: "center", padding: 40 }}>
+        {text}
+      </div>
+    </AbsoluteFill>
   );
 };
-
-registerRoot(RemotionSceneRoot);

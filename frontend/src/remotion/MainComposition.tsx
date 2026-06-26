@@ -2,9 +2,7 @@ import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig, Sequence, A
 import React from "react";
 import type { TimelineSpec, Spec } from "../types/spec";
 import { useAuthStore } from "../store/useAuthStore";
-import { AnimaComposer } from './composer/AnimaComposer';
 import { CustomCode } from './CustomCode';
-import { COMPONENT_REGISTRY } from './registry';
 import { TransitionWrapper } from './transitions/TransitionWrapper';
 
 // v8 (Fase 5): transiciones limpias (neutrales: negro/blanco, sin colores raros).
@@ -109,47 +107,27 @@ interface DynamicSceneProps {
   wordTimestamps?: { word: string; start: number; end: number }[];
 }
 
-interface SceneProps {
-  text: string;
-  durationInFrames: number;
-  [key: string]: unknown;
-}
-type SceneComponent = React.ComponentType<SceneProps>;
-
-const DynamicScene = ({ type, text, durationInFrames, fallbackBg, fallbackColor, animaComposer, customCode, nextSceneBackgroundColors, wordTimestamps }: DynamicSceneProps) => {
-  // Fase 3: escena generada por code-gen (la IA escribió el componente).
+const DynamicScene = ({ text, durationInFrames, fallbackBg, fallbackColor, customCode }: DynamicSceneProps) => {
+  // Code-gen es el ÚNICO motor: si hay código → CustomCode; si no, fallback de texto.
+  // (Las escenas viejas con `anima_composer` ya no se renderizan — el orquestador se retiró,
+  // ver backend/app/_legacy_orchestrator.)
   if (customCode) {
-    return <CustomCode code={customCode} durationInFrames={durationInFrames} />;
-  }
-  if (type === 'custom' && animaComposer) {
     return (
-      <AnimaComposer
-        spec={animaComposer}
-        text={text}
+      <CustomCode
+        code={customCode}
         durationInFrames={durationInFrames}
-        nextSceneBackgroundColors={nextSceneBackgroundColors}
-        wordTimestamps={wordTimestamps}
-      />
-    );
-  }
-
-  let Component = COMPONENT_REGISTRY[type] as SceneComponent | undefined;
-
-  if (!Component) {
-    return (
-      <FallbackScene
-        text={text}
+        fallbackText={text}
         fallbackBg={fallbackBg}
-        fallbackColor={fallbackColor}
-        isLoading={false}
       />
     );
   }
-
   return (
-    <AbsoluteFill style={{ backgroundColor: fallbackBg, overflow: 'hidden' }}>
-      <Component text={text} durationInFrames={durationInFrames} color={fallbackColor} textColor={fallbackColor} bgColor={fallbackBg} />
-    </AbsoluteFill>
+    <FallbackScene
+      text={text}
+      fallbackBg={fallbackBg}
+      fallbackColor={fallbackColor}
+      isLoading={false}
+    />
   );
 };
 

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pencil, Check, X as XIcon, Loader2, Split, Merge, ArrowRight, Clock, Sparkles, Music, Download } from 'lucide-react';
+import { Play, Pencil, Check, X as XIcon, Loader2, Split, Merge, ArrowRight, Clock, Sparkles, Music, Download, Wand2, RefreshCw } from 'lucide-react';
 import { useToastStore } from '../../store/useToastStore';
+import { useJobsStore } from '../../store/useJobsStore';
 import type { Spec as SceneSpec } from '../../types/spec';
 import { SceneDownloadMenu } from './SceneDownloadMenu';
 
@@ -38,7 +39,38 @@ export function SceneEditorCard({
   const [editText, setEditText] = useState('');
   const [editMedia, setEditMedia] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [codeInstruction, setCodeInstruction] = useState('');
+  const [isEditingCode, setIsEditingCode] = useState(false);
+  const [isRegeneratingCode, setIsRegeneratingCode] = useState(false);
   const { addToast } = useToastStore();
+  const codeBusy = isEditingCode || isRegeneratingCode;
+
+  const handleEditCode = async () => {
+    const instruction = codeInstruction.trim();
+    if (!instruction) return;
+    setIsEditingCode(true);
+    try {
+      await useJobsStore.getState().editSceneCode(jobId, index, instruction);
+      setCodeInstruction('');
+      addToast('success', 'Animación actualizada');
+    } catch (e) {
+      addToast('error', e instanceof Error ? e.message : 'No se pudo aplicar el cambio');
+    } finally {
+      setIsEditingCode(false);
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    setIsRegeneratingCode(true);
+    try {
+      await useJobsStore.getState().regenerateSceneCode(jobId, index);
+      addToast('success', 'Nueva versión generada');
+    } catch (e) {
+      addToast('error', e instanceof Error ? e.message : 'No se pudo regenerar');
+    } finally {
+      setIsRegeneratingCode(false);
+    }
+  };
 
   const handleStartEdit = () => {
     setIsEditing(true);
@@ -299,6 +331,51 @@ export function SceneEditorCard({
                 {scene.media_query}
               </p>
             </div>
+
+            {/* Edición code-gen: cambiar la animación con una instrucción. NO renderiza
+                mp4 (el preview se recompila en vivo; el render es on-demand). */}
+            {scene.custom_code && (
+              <div className="bg-surface-lowest rounded-lg p-3 border border-mint-precision/20 mb-3">
+                <p className="text-[10px] uppercase tracking-wider text-text-secondary/40 mb-1.5 font-semibold flex items-center gap-1">
+                  <Wand2 size={12} className="text-mint-precision/60" />
+                  Cambiar esta animación
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={codeInstruction}
+                    onChange={(e) => setCodeInstruction(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !codeBusy) handleEditCode();
+                    }}
+                    placeholder="ej: haz el corazón más grande y morado"
+                    disabled={codeBusy}
+                    className="flex-1 bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision outline-none transition-colors disabled:opacity-50"
+                  />
+                  <button
+                    onClick={handleEditCode}
+                    disabled={codeBusy || !codeInstruction.trim()}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-mint-precision text-deep-slate hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isEditingCode ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                    {isEditingCode ? 'Aplicando…' : 'Aplicar'}
+                  </button>
+                </div>
+                <button
+                  onClick={handleRegenerateCode}
+                  disabled={codeBusy}
+                  className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-text-secondary/60 hover:text-mint-precision transition-colors disabled:opacity-50"
+                  title="Generar una versión distinta de esta animación"
+                >
+                  {isRegeneratingCode ? (
+                    <Loader2 size={11} className="animate-spin" />
+                  ) : (
+                    <RefreshCw size={11} />
+                  )}
+                  {isRegeneratingCode ? 'Generando…' : 'Hazlo distinto'}
+                </button>
+              </div>
+            )}
 
             {/* SFX Cues */}
             {scene.sfx && scene.sfx.length > 0 && (

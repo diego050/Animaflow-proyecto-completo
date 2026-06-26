@@ -11,7 +11,7 @@ const { fontFamily } = loadFont();
  * truenan al renderizar). Sin esto, un error tumbaría el render del video completo.
  */
 class RenderErrorBoundary extends React.Component<
-  { fallbackBg?: string; children: React.ReactNode },
+  { fallbackBg?: string; fallbackText?: string; fallbackWidth?: number; children: React.ReactNode },
   { hasError: boolean }
 > {
   state = { hasError: false };
@@ -23,7 +23,34 @@ class RenderErrorBoundary extends React.Component<
   }
   render() {
     if (this.state.hasError) {
-      return <AbsoluteFill style={{ background: this.props.fallbackBg || '#0a0a0a' }} />;
+      // Si una escena truena al renderizar, mostramos su texto sobre el fondo
+      // (mejor que una pantalla en blanco en el video final).
+      const w = this.props.fallbackWidth || 1080;
+      return (
+        <AbsoluteFill
+          style={{
+            background: this.props.fallbackBg || '#0a0a0a',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: w * 0.09,
+          }}
+        >
+          {this.props.fallbackText ? (
+            <div
+              style={{
+                color: '#ffffff',
+                fontFamily,
+                fontSize: w * 0.06,
+                fontWeight: 800,
+                textAlign: 'center',
+                lineHeight: 1.2,
+              }}
+            >
+              {this.props.fallbackText}
+            </div>
+          ) : null}
+        </AbsoluteFill>
+      );
     }
     return this.props.children;
   }
@@ -39,7 +66,9 @@ export const CustomCode: React.FC<{
   durationInFrames?: number;
   width?: number;
   height?: number;
-}> = ({ code }) => {
+  fallbackText?: string;
+  fallbackBg?: string;
+}> = ({ code, width, fallbackText, fallbackBg }) => {
   const Comp = useMemo(() => {
     try {
       return compileAnimation(code);
@@ -61,7 +90,7 @@ export const CustomCode: React.FC<{
   // Fuente por defecto = Inter (el texto que no especifique fontFamily la hereda).
   return (
     <AbsoluteFill style={{ fontFamily }}>
-      <RenderErrorBoundary>
+      <RenderErrorBoundary fallbackText={fallbackText} fallbackBg={fallbackBg} fallbackWidth={width}>
         <Comp />
       </RenderErrorBoundary>
     </AbsoluteFill>

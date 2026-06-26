@@ -14,10 +14,14 @@ falta recuperarlo (git history + estos archivos), no para usarse.
   code-gen). La constante `AVAILABLE_COMPONENTS` que antes vivía aquí se reemplazó por llamadas
   directas a `app.services.manifest.get_component_names()` en `spec.py` y `spec_validator.py`.
 
+- `ae_worker.py` — el antiguo worker de export AE por `.jsx` (`generate_ae_export_async`).
+  Reemplazado por el **footage AE** (`ae_export/footage_exporter.py`, ProRes por escena). Sus 2
+  helpers vivos (`get_resolution`, `_persist_job_spec`) se movieron a `ae_export/job_utils.py`.
+- `anima_composer/` — transformaba `anima_composer` → AE ExtendScript. Solo lo usaba `ae_worker`.
+
 ## Lo que NO está aquí todavía (sigue VIVO, pendiente de decidir)
-- `app/modules/anima_composer/` y `app/modules/ae_export/` — el export a **After Effects** por
-  componente. Sigue vivo (aunque no aplica a escenas code-gen). Se archivará cuando exista el
-  reemplazo de **footage AE** (ver roadmap).
+- `app/modules/ae_export/` (zip_exporter, script_builder, deterministic, shape_renderers) — el
+  generador determinista AE sigue VIVO: `admin.py` lo usa para "descargar el .jsx de UN componente"
+  (herramienta admin). Si se quita esa feature, se puede archivar también.
 - Frontend: `remotion/composer/AnimaComposer.tsx`, el registry y los 163 componentes. Siguen
-  usados por **PreviewPlayer, AdminMarketplace, AnimationPlayground, SceneRoot**. Archivar implica
-  decidir el destino de esas features.
+  usados por **PreviewPlayer, SceneRoot** (render de videos viejos con `anima_composer`). Etapa 3b.
