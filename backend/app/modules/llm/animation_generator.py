@@ -153,19 +153,19 @@ def _build_edit_prompt(previous_code: str, edit_instruction: str, canvas: str) -
     )
 
 
-def _apply_search_replace(code: str, text: str) -> tuple[str, int, int, list[str]]:
+def _apply_search_replace(code: str, text: str) -> tuple[str, list[tuple[str, str]], list[str]]:
     """Aplica los bloques SEARCH/REPLACE de `text` sobre `code`.
-    Devuelve (nuevo_code, aplicados, total_bloques, bloques_search_que_fallaron)."""
+    Devuelve (nuevo_code, pares_aplicados[(search,replace)], bloques_search_que_fallaron)."""
     blocks = _SR_RE.findall(text or "")
-    applied = 0
+    applied: list[tuple[str, str]] = []
     failed: list[str] = []
     for search, replace in blocks:
         if search and search in code:
             code = code.replace(search, replace, 1)
-            applied += 1
+            applied.append((search, replace))
         else:
             failed.append(search)
-    return code, applied, len(blocks), failed
+    return code, applied, failed
 
 
 _MAX_EDIT_ATTEMPTS = 2  # intentos de edición quirúrgica antes de caer a regen completa
@@ -192,13 +192,18 @@ def _edit_codegen_surgical(
         t = out["tokens"]
         tokens["in"] += t["in"]; tokens["out"] += t["out"]; tokens["total"] += t["total"]
 
-        new_code, applied, total, failed = _apply_search_replace(previous_code, out["text"] or "")
+        new_code, applied_pairs, failed = _apply_search_replace(previous_code, out["text"] or "")
+        applied = len(applied_pairs)
+        total = applied + len(failed)
 
         if total > 0 and applied == total:
             valid, errors = validate_animation_code(new_code)
             if valid and not _smoke_test_code(new_code):
                 logger.info("Edición quirúrgica OK (%d bloque(s), intento %d)", applied, attempt + 1)
-                return {"code": new_code, "errors": errors, "tokens": tokens}
+                return {
+                    "code": new_code, "errors": errors, "tokens": tokens,
+                    "changes": [{"before": s, "after": r} for s, r in applied_pairs],
+                }
             feedback = (
                 "Al aplicar tus bloques el componente quedó inválido. Revísalos y reintenta "
                 "con bloques correctos (solo cambios mínimos)."
@@ -287,6 +292,7 @@ def generate_animation(
                 "duration_frames": duration_frames,
                 "tokens": edited["tokens"],
                 "edit_mode": "surgical",
+                "changes": edited.get("changes", []),
             }
 
     full_prompt = _build_prompt(prompt, width, height, duration_frames, previous_code, edit_instruction)

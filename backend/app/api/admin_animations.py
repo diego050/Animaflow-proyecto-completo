@@ -44,6 +44,8 @@ class AnimationGenerateResponse(BaseModel):
     width: int
     height: int
     duration_frames: int
+    edit_mode: Optional[str] = None          # surgical | full | create
+    changes: list[dict] = []                 # [{before, after}] de la edición quirúrgica
 
 
 @router.post("/generate", response_model=AnimationGenerateResponse)

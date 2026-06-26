@@ -15,6 +15,8 @@ interface GenResponse {
   width: number;
   height: number;
   duration_frames: number;
+  edit_mode?: 'surgical' | 'full' | 'create';
+  changes?: { before: string; after: string }[];
 }
 
 export function AnimationCreator() {
@@ -219,6 +221,27 @@ export function AnimationCreator() {
                 </button>
               </div>
             </div>
+          )}
+
+          {meta?.edit_mode === 'surgical' && meta.changes && meta.changes.length > 0 && (
+            <div className="text-xs">
+              <p className="text-text-secondary mb-1.5 font-medium">
+                Cambios aplicados ({meta.changes.length} {meta.changes.length === 1 ? 'bloque' : 'bloques'}):
+              </p>
+              <div className="space-y-2">
+                {meta.changes.map((c, i) => (
+                  <div key={i} className="border border-border-tech rounded-lg overflow-hidden font-mono text-[11px]">
+                    <pre className="bg-red-500/10 text-red-300/90 px-3 py-1.5 whitespace-pre-wrap overflow-auto max-h-28 border-b border-border-tech">- {c.before}</pre>
+                    <pre className="bg-mint-precision/10 text-mint-precision/90 px-3 py-1.5 whitespace-pre-wrap overflow-auto max-h-28">+ {c.after}</pre>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {meta?.edit_mode === 'full' && (
+            <p className="text-xs text-cadmium-orange/80">
+              No se pudo editar por bloques — se regeneró el componente completo.
+            </p>
           )}
 
           {code && (
