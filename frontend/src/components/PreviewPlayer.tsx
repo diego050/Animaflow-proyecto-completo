@@ -1,6 +1,6 @@
 import { Player } from "@remotion/player";
 import { MainComposition } from "../remotion/MainComposition";
-import { AnimaComposer } from "../remotion/composer/AnimaComposer";
+import { CustomCode } from "../remotion/CustomCode";
 import type { TimelineSpec, Spec } from "../types/spec";
 
 const ASPECT_DIMS: Record<string, { w: number; h: number; ratio: string }> = {
@@ -26,7 +26,8 @@ export const PreviewPlayer = ({ spec, aspectRatio = "9:16", focusSceneIndex, vid
   const durationInFrames = Math.max(1, Math.round(totalDuration * 30));
 
   const focusedScene = focusSceneIndex != null ? spec.scenes[focusSceneIndex] : null;
-  const isCustomScene = focusedScene?.type === 'custom' && (focusedScene as Spec)?.anima_composer;
+  const codegenCode = (focusedScene as Spec | null)?.custom_code;
+  const focusDuration = Math.round((focusedScene?.duration_seconds || 5) * 30);
 
   return (
     <div 
@@ -35,15 +36,18 @@ export const PreviewPlayer = ({ spec, aspectRatio = "9:16", focusSceneIndex, vid
     >
       {focusSceneIndex != null ? (
         /* ── Individual scene preview ── */
-        isCustomScene ? (
+        codegenCode ? (
           <Player
-            component={AnimaComposer}
+            component={CustomCode}
             inputProps={{
-              spec: (focusedScene as Spec).anima_composer!,
-              text: focusedScene.text,
-              durationInFrames: Math.round((focusedScene.duration_seconds || 5) * 30),
+              code: codegenCode,
+              durationInFrames: focusDuration,
+              width: dims.w,
+              height: dims.h,
+              fallbackText: focusedScene?.text,
+              fallbackBg: String((focusedScene as Spec)?.remotion_props?.backgroundColor || '#0a0a0a'),
             }}
-            durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
+            durationInFrames={focusDuration}
             compositionWidth={dims.w}
             compositionHeight={dims.h}
             fps={30}

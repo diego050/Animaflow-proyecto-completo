@@ -8,11 +8,14 @@ import os
 import uuid
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
-from app.db.models import User
+from app.db.session import get_db
+from app.db.models import User, GeneratedAnimation
 from app.core.security import require_admin
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -64,6 +67,19 @@ def generate(
         logger.exception("Error generando animación")
         raise HTTPException(status_code=500, detail=f"Error generando animación: {e}")
 
+    from app.services.animation_store import save_generated_animation
+    save_generated_animation(
+        code=result.get("code", ""),
+        source="edit" if req.edit_instruction else "prototype",
+        user_id=current_user.id,
+        prompt_text=req.edit_instruction or req.prompt,
+        model=result.get("model"),
+        valid=result.get("valid", False),
+        status="edited" if req.edit_instruction else "passed",
+        tokens=result.get("tokens"),
+        duration_frames=result.get("duration_frames"),
+        aspect_ratio=req.aspect_ratio,
+    )
     return AnimationGenerateResponse(**result)
 
 
@@ -115,6 +131,121 @@ async def render(
     return AnimationRenderResponse(
         video_url=f"/api/admin/animations/video/{anim_id}", anim_id=anim_id
     )
+
+
+# ── Config tuneable desde la DB (sin redeploy) ──
+
+# (default, descripción). Solo NO-secretos; los secretos siguen en env.
+_CODEGEN_SETTINGS = {
+    "codegen.model_override": (None, "Modelo forzado para code-gen (vacío = el del usuario)"),
+    "codegen.temperature": (0.4, "Temperatura de generación (0–1)"),
+    "codegen.max_attempts": (3, "Intentos de auto-reparación por generación"),
+    "flywheel.enabled": (True, "Activar el few-shot del flywheel (ejemplos aprobados)"),
+}
+
+
+@router.get("/settings")
+def get_codegen_settings(current_user: User = Depends(require_admin)):
+    """Lee la config tuneable de code-gen (DB con fallback a default de código)."""
+    from app.services.settings_store import get_setting
+    return {
+        k: {"value": get_setting(k, d), "default": d, "description": desc}
+        for k, (d, desc) in _CODEGEN_SETTINGS.items()
+    }
+
+
+@router.put("/settings")
+def update_codegen_settings(
+    payload: dict = Body(...), current_user: User = Depends(require_admin)
+):
+    """Actualiza la config tuneable de code-gen (solo keys conocidas)."""
+    from app.services.settings_store import set_setting
+    updated = {}
+    for k, v in payload.items():
+        if k in _CODEGEN_SETTINGS:
+            set_setting(k, v, _CODEGEN_SETTINGS[k][1])
+            updated[k] = v
+    return {"updated": updated, "ignored": [k for k in payload if k not in _CODEGEN_SETTINGS]}
+
+
+# ── Observabilidad: métricas de las animaciones code-gen generadas ──
+
+@router.get("/metrics")
+def metrics(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    """Resumen global: generaciones, % fallback, tokens, por estado/fuente/modelo."""
+    GA = GeneratedAnimation
+    total = db.query(func.count(GA.id)).scalar() or 0
+    by_status = dict(db.query(GA.status, func.count(GA.id)).group_by(GA.status).all())
+    by_source = dict(db.query(GA.source, func.count(GA.id)).group_by(GA.source).all())
+    by_model = dict(db.query(GA.model, func.count(GA.id)).group_by(GA.model).all())
+    tok_in = int(db.query(func.coalesce(func.sum(GA.tokens_in), 0)).scalar() or 0)
+    tok_out = int(db.query(func.coalesce(func.sum(GA.tokens_out), 0)).scalar() or 0)
+    tok_total = int(db.query(func.coalesce(func.sum(GA.tokens_total), 0)).scalar() or 0)
+    valid_count = db.query(func.count(GA.id)).filter(GA.valid.is_(True)).scalar() or 0
+    fallback_count = int(by_status.get("fallback", 0) or 0)
+
+    # Costo estimado en USD (tokens × precio por modelo).
+    from app.services.model_catalog import estimate_cost_usd
+    per_model_tokens = (
+        db.query(
+            GA.model,
+            func.coalesce(func.sum(GA.tokens_in), 0),
+            func.coalesce(func.sum(GA.tokens_out), 0),
+        )
+        .group_by(GA.model)
+        .all()
+    )
+    cost_by_model = {
+        (m or "?"): estimate_cost_usd(m, int(ti or 0), int(to or 0))
+        for m, ti, to in per_model_tokens
+    }
+    cost_total = round(sum(cost_by_model.values()), 4)
+    return {
+        "total_generations": total,
+        "valid": valid_count,
+        "fallback": fallback_count,
+        "fallback_rate": round(fallback_count / total, 3) if total else 0,
+        "by_status": by_status,
+        "by_source": by_source,
+        "by_model": by_model,
+        "tokens": {
+            "in": tok_in, "out": tok_out, "total": tok_total,
+            "avg_total_per_gen": round(tok_total / total) if total else 0,
+        },
+        "cost_usd": {
+            "total": cost_total,
+            "by_model": cost_by_model,
+            "avg_per_gen": round(cost_total / total, 6) if total else 0,
+        },
+    }
+
+
+@router.get("/metrics/job/{job_id}")
+def job_metrics(
+    job_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)
+):
+    """Tokens y escenas de UN video (observabilidad por video)."""
+    from app.services.model_catalog import estimate_cost_usd
+    GA = GeneratedAnimation
+    rows = db.query(GA).filter(GA.job_id == job_id).all()
+    cost_total = round(
+        sum(estimate_cost_usd(r.model, r.tokens_in or 0, r.tokens_out or 0) for r in rows), 6
+    )
+    return {
+        "job_id": job_id,
+        "scenes": len(rows),
+        "tokens_total": sum(r.tokens_total or 0 for r in rows),
+        "cost_usd": cost_total,
+        "fallbacks": sum(1 for r in rows if r.status == "fallback"),
+        "items": [
+            {
+                "scene_index": r.scene_index, "model": r.model, "status": r.status,
+                "tokens_total": r.tokens_total, "valid": r.valid, "source": r.source,
+                "cost_usd": estimate_cost_usd(r.model, r.tokens_in or 0, r.tokens_out or 0),
+            }
+            for r in sorted(rows, key=lambda x: (x.scene_index if x.scene_index is not None else 0))
+        ],
+    }
 
 
 @router.get("/video/{anim_id}")

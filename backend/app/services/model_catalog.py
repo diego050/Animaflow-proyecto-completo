@@ -108,3 +108,42 @@ def supports_structured_output(model: Optional[str]) -> bool:
     """¿El modelo acepta response_schema / JSON estricto? (Gemma NO.) Desconocido → True."""
     info = get_model_info(model)
     return info.supports_structured_output if info else True
+
+
+# ── Precios (USD por 1M tokens: entrada, salida) ─────────────────────────────
+# APROXIMADOS y CONFIGURABLES (cambian con el tiempo / proveedor). Sirven para
+# observabilidad de COSTO estimado, NO para facturación exacta. Si un modelo no está
+# aquí, se usa el precio por tier.
+PRICE_PER_1M: dict[str, tuple[float, float]] = {
+    "gemini-3.1-flash-lite": (0.10, 0.40),
+    "gemini-3.1-flash-lite-preview": (0.10, 0.40),
+    "gemini-2.0-flash": (0.10, 0.40),
+    "gemini-3.1-flash": (0.30, 2.50),
+    "gemini-3.5-flash": (0.30, 2.50),
+    "gemini-2.5-pro": (1.25, 10.0),
+    "gemini-3-pro": (1.25, 10.0),
+    "gemma-4-31b-it": (0.0, 0.0),
+    "claude-haiku-4-5-20251001": (0.80, 4.0),
+    "claude-sonnet-4-6": (3.0, 15.0),
+    "claude-opus-4-8": (15.0, 75.0),
+}
+_PRICE_BY_TIER = {
+    TIER_LITE: (0.10, 0.40),
+    TIER_STANDARD: (0.30, 2.50),
+    TIER_PRO: (1.25, 10.0),
+}
+
+
+def price_for_model(model: Optional[str]) -> tuple[float, float]:
+    """(precio_in, precio_out) USD por 1M tokens. Cae al precio por tier si no se conoce."""
+    info = get_model_info(model)
+    key = info.id if info else (model or "")
+    if key in PRICE_PER_1M:
+        return PRICE_PER_1M[key]
+    return _PRICE_BY_TIER.get(tier_for_model(model), _PRICE_BY_TIER[DEFAULT_TIER])
+
+
+def estimate_cost_usd(model: Optional[str], tokens_in: int, tokens_out: int) -> float:
+    """Costo estimado en USD de una generación (in/out tokens × precio del modelo)."""
+    pin, pout = price_for_model(model)
+    return round((tokens_in or 0) / 1_000_000 * pin + (tokens_out or 0) / 1_000_000 * pout, 6)

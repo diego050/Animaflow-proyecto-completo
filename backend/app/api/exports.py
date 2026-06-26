@@ -7,8 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.db.models import User
-from app.modules.ae_export.zip_exporter import create_export_zip
-from app.modules.ae_export.worker import generate_ae_export_async, _persist_job_spec
+from app.modules.ae_export.job_utils import _persist_job_spec
 from app.modules.ae_export.footage_exporter import generate_footage_export_async
 from app.db.models import JobModel
 from app.core.security import get_current_user

@@ -3,6 +3,8 @@ import fs from "fs";
 import path from "path";
 import { bundle } from "@remotion/bundler";
 import { selectComposition, renderMedia } from "@remotion/renderer";
+import { transform } from "sucrase";
+import vm from "node:vm";
 import { getBrowser } from "./chrome-pool.mjs";
 
 const app = express();
@@ -12,6 +14,45 @@ const PORT = process.env.PORT || 3001;
 const STORAGE_DIR = "/app/storage/videos";
 
 let serveUrl = null;
+
+// Smoke-test: compila el código generado (sucrase) y verifica que exporte un componente,
+// SIN renderizar. Atrapa errores de sintaxis/estructura que el validador regex no ve.
+// Devuelve { ok: true } o { ok: false, error }.
+app.post("/smoke-test", (req, res) => {
+  const { code } = req.body || {};
+  if (!code || typeof code !== "string") {
+    return res.status(400).json({ ok: false, error: "code requerido" });
+  }
+  try {
+    const { code: js } = transform(code, {
+      transforms: ["typescript", "jsx", "imports"],
+      jsxRuntime: "classic",
+      production: true,
+    });
+    // Stubs de react/remotion (no se renderiza; solo se evalúa la estructura del módulo).
+    const stub = new Proxy({}, { get: () => undefined });
+    const moduleObj = { exports: {} };
+    // SANDBOX: contexto V8 nuevo SIN process/require-real/Buffer/global + timeout.
+    // Solo exponemos require(stub react/remotion), module, exports. Los built-ins
+    // estándar (Object, Array, Math, JSON) vienen con el contexto.
+    const sandbox = {
+      require: (name) => {
+        if (name === "react" || name === "remotion") return stub;
+        throw new Error(`Import no permitido: ${name}`);
+      },
+      module: moduleObj,
+      exports: moduleObj.exports,
+    };
+    vm.runInNewContext(js, sandbox, { timeout: 2000 });
+    const exp = moduleObj.exports;
+    const comp =
+      exp.default || exp.Animation || Object.values(exp).find((v) => typeof v === "function");
+    if (!comp) return res.json({ ok: false, error: "el código no exporta un componente" });
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
 
 app.post("/render", async (req, res) => {
   try {
@@ -46,6 +87,7 @@ app.post("/render", async (req, res) => {
       id: compositionId,
       inputProps,
       browser,
+      timeoutInMilliseconds: 30000,  // sandbox: mata componentes colgados al evaluar
     });
 
     // codec: "h264" (mp4, default) o "prores" (.mov, footage para After Effects).
@@ -62,6 +104,7 @@ app.post("/render", async (req, res) => {
       outputLocation,
       inputProps,
       browser,
+      timeoutInMilliseconds: 30000,  // sandbox: timeout por frame (mata renders colgados)
       ...(codec === "prores" ? { proResProfile: "hq" } : {}),
     });
 

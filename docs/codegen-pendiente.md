@@ -40,22 +40,36 @@ cae al catálogo en vez de romper el video). Lo de abajo es lo que sigue.
       `SCENE_ENGINE=orchestration` explícito).
 - [x] **ErrorBoundary en CustomCode (HECHO):** atrapa errores de RUNTIME (los que pasan validación
       pero truenan al renderizar) → muestra un fallback en vez de tumbar el render del video.
-- [ ] **Sandbox endurecido del render server-side:** el render ejecuta código generado en Chromium
-      headless. Para escala/seguridad: worker aislado, límites de CPU/memoria/tiempo, sin red/fs,
-      y manejo de timeouts/crashes con fallback. (El preview en navegador del admin es bajo riesgo;
-      el render server-side es la superficie a endurecer.)
-- [ ] **Smoke-test antes de usar:** renderizar 1 frame headless para detectar crashes antes del
-      render completo / antes de guardar.
+- [x] **Sandbox del render server-side (HECHO, nivel código):** el `/smoke-test` pasó de `new
+      Function` a **`vm.runInNewContext`** con contexto mínimo (sin `process`/`require`-real/`Buffer`)
+      + timeout 2s. El render usa `timeoutInMilliseconds: 30000` (mata frames colgados). Pendiente
+      (infra, a escala): worker aislado / cgroups / seccomp si se abre a usuarios masivos.
+- [x] **Config tuneable desde la DB (HECHO):** `services/settings_store.py` (get/set sobre
+      `admin_settings`, cache 60s, fallback a default de código). Wired: `codegen.model_override`,
+      `codegen.temperature`, `codegen.max_attempts`, `flywheel.enabled`. Endpoint admin
+      `GET/PUT /api/admin/animations/settings`. Solo NO-secretos; DB_URL/claves/API keys siguen en env.
+- [x] **Smoke-test en generación (HECHO):** tras pasar el validador regex, el código se COMPILA de
+      verdad (sucrase) y se verifica que exporte un componente, en el render-server (`POST /smoke-test`).
+      Si falla (sintaxis/estructura) → el error exacto se le devuelve a la IA y reintenta. Best-effort
+      (si el render-server no responde, no bloquea). Atrapa el JS roto que el regex no ve.
+      *(Pendiente opcional: detectar errores de RUNTIME dentro del componente — requeriría renderStill
+      con un wrapper estricto; hoy el ErrorBoundary los degrada a texto sobre fondo.)*
 
 ## 3. El flywheel de ejemplos (el moat de largo plazo)
-- [ ] **Persistencia:** guardar cada animación generada (tabla `animaciones`: id, video_id,
-      user_id, prompt/escena, code, model, status, created_at).
-- [ ] **Curación:** marcar las BUENAS (aprobadas/renderizadas/rating). Solo esas entran al few-shot.
-      *(Crítico: si embebes basura, el flywheel se degrada.)*
-- [ ] **Vectorización:** embeber cada buena animación por lo que ES (visualizador, revelado de
-      cifra, showcase…). RAG: cuando llega un prompt nuevo, recuperar 2-3 ejemplos parecidos y
-      dárselos como few-shot → mejora con el tiempo, incluso con modelos baratos.
-- [ ] **Reutilizar** la infra de embeddings existente (`embedding.py`/pgvector).
+- [x] **Persistencia (HECHO):** tabla `generated_animations` (modelo + migración `b3d5f7h9j1k2`,
+      que además mergea los 2 heads de alembic que existían). Campos: code, prompt_text,
+      art_direction, model, valid, status, tokens_in/out/total, duration_frames, aspect_ratio,
+      approved, rating, embedding (Vector 768). Se guarda en TODOS los puntos de generación
+      (`animation_store.save_generated_animation`, best-effort): pipeline, edición, regeneración,
+      prototipo admin. ⚠️ La migración es MANUAL en deploy (`alembic upgrade head`).
+- [x] **Curación + embedding (HECHO):** al RENDERIZAR un video (señal: el usuario lo aceptó),
+      `flywheel.approve_and_embed_job` marca `approved=True` + embebe las escenas code-gen (no los
+      fallbacks). Hook en `scheduler.py` tras render exitoso. Best-effort.
+- [x] **Retrieval (HECHO):** `generate_scene_animation` llama `flywheel.get_flywheel_examples`
+      (cosine sobre `embedding`, HNSW) → inyecta hasta 2 ejemplos aprobados parecidos como few-shot
+      (si no hay, usa el estático). Guard: si el pool está vacío, NO gasta llamada de embedding.
+- [ ] **Mejora futura:** UI admin para curar/rating manual (hoy la aprobación es solo auto-al-render);
+      dedup de ejemplos casi-idénticos; cap del tamaño de los ejemplos inyectados.
 
 ## 4. Export a After Effects (universal)
 - [x] **Opción 1 — Footage por escena (HECHO, MVP):** el render-server soporta `codec: "prores"`;
@@ -71,11 +85,14 @@ cae al catálogo en vez de romper el video). Lo de abajo es lo que sigue.
 - [ ] Documentado en ADR-012 §6; los bloques AE por-componente actuales quedan legacy.
 
 ## 5. Producto / UX
-- [ ] **Flag por-video (no global):** hoy `SCENE_ENGINE` es env global. Pasarlo a **per-job desde
-      el wizard** (el usuario elige "code-gen" o "catálogo" por video). Mejora fácil.
-- [ ] **Edición por-escena en el editor:** llevar el loop "¿qué cambiar?" (edición quirúrgica) del
-      prototipo al editor del video real, por escena.
-- [ ] **Botón "hazlo distinto" / regenerar variación** por escena.
+- [x] **Edición por-escena en el editor (HECHO):** caja "Cambiar esta animación" en cada escena
+      code-gen (`SceneEditorCard`). Llama `POST /{job}/scenes/{i}/edit-code` (instrucción NL →
+      `generate_animation` con previous_code+edit_instruction, 3 intentos de repair). Actualiza el
+      `custom_code` en el store → preview en vivo. **NO renderiza mp4** (render on-demand). ⚠️ El
+      flag `SCENE_ENGINE` ya NO existe (code-gen es único motor) — ese punto quedó obsoleto.
+- [x] **Botón "hazlo distinto" (HECHO):** `POST /{job}/scenes/{i}/regenerate-code` → genera una
+      versión NUEVA con enfoque visual distinto (`generate_scene_animation(variation=True)`).
+      Actualiza `custom_code` → preview en vivo. NO renderiza mp4.
 - [ ] **"Bloquear layout":** congelar el `random` procedural a literales para que sea editable
       elemento por elemento (ver discusión de determinismo en ADR-012).
 
@@ -86,24 +103,34 @@ cae al catálogo en vez de romper el video). Lo de abajo es lo que sigue.
       orquestador) movido a `app/_legacy_orchestrator/`. `AVAILABLE_COMPONENTS` desacoplado →
       `spec.py`/`spec_validator` ahora usan `manifest.get_component_names()`. Tests repuntados
       (118 coleccionan, los afectados pasan).
-- [ ] **Etapa 2 — `anima_composer` + `ae_export`:** siguen VIVOS para el export a After Effects.
-      Archivar SOLO cuando exista el reemplazo de **footage AE** (sección 4). Si se quitan antes,
-      el export AE queda roto sin reemplazo.
+- [x] **Etapa 2 — `ae_worker` + `anima_composer` ARCHIVADOS:** el worker de export AE por `.jsx`
+      y el `anima_composer` (→ AE ExtendScript) movidos a `_legacy_orchestrator/`. Helpers vivos
+      (`get_resolution`, `_persist_job_spec`) extraídos a `ae_export/job_utils.py`. Imports muertos
+      limpiados (`__init__`, `exports.py`). El resto de `ae_export/` (deterministic/zip/script_builder)
+      queda VIVO porque `admin.py` lo usa para "descargar .jsx de UN componente". 118 tests OK.
 - [x] **Etapa 3a — Marketplace + Playground ELIMINADOS:** se borraron `AdminMarketplacePage`,
       `AnimationPlayground`, `AnimationsGallery` (galería de componentes), el `MarketplacePage`
       público y `useMarketplaceStore` + sus rutas/nav. "Crear Animación" (code-gen) se conserva.
-- [ ] **Etapa 3b — `AnimaComposer`, registry, 163 componentes:** AÚN usados por el render
-      (PreviewPlayer ×2, MainComposition rama `custom`, SceneRoot) para escenas `anima_composer`
-      viejas. Quitarlos = quitar el render de anima_composer (rompe videos viejos). Hacer cuando
-      se confirme que no se necesitan videos viejos. Beneficio: shrink del bundle Remotion.
+- [x] **Etapa 3b-1 (parte segura, HECHO):** eliminada la herramienta admin "descargar .jsx de UN
+      componente" (endpoint `/components/{name}/ae-script` + `aeScript.ts`). `PreviewPlayer` ahora
+      renderiza el preview por escena con `CustomCode` si la escena es code-gen. Consecuencia:
+      `ae_export/{deterministic,zip,script_builder}` quedó sin llamadores vivos (muerto inofensivo).
+- [x] **Etapa 3b-2 (HECHO):** ELIMINADOS 164 componentes (`remotion/components/`), `AnimaComposer`
+      (`composer/`), `registry.ts`, `primitives/`, `UniversalTransform`, `AnimatedWrapper`, `utils/`,
+      `manifest.ts`. Reescritos los 4 consumidores del render (MainComposition, SceneRoot→SceneWrapper,
+      ambos PreviewPlayers) → solo CustomCode + fallback de texto. `tsc` + `vite build` verde. Quedó
+      `remotion/`: MainComposition, Root, SceneRoot, CustomCode, CustomCodeAudio, compileAnimation,
+      transitions/. CAVEAT: videos viejos con `anima_composer` ya no renderizan sus componentes
+      (muestran texto sobre fondo). El tipo `AnimaComposerSpec` en types/spec.ts quedó sin uso (menor).
 - [ ] **Borrado real:** solo tras meses probado. "Borrar" es puerta de un solo sentido; por ahora
       todo queda recuperable (git + `_legacy_orchestrator/`).
 
 ## 7. Observabilidad / costo
-- [ ] Ya hay log de tokens por llamada (`Tokens [LLM Animation]: in/out/total`). Falta:
-- [ ] **Total por video** (acumulador por job → "video X usó N tokens ≈ $Y").
-- [ ] Métricas: % de escenas code-gen que pasan validación a la primera, % que necesitan fallback,
-      tiempo de render.
+- [x] **HECHO:** tokens por generación + endpoints `/metrics` y `/metrics/job/{job_id}`.
+- [x] **Costo en $ (HECHO):** `model_catalog.estimate_cost_usd` (precios USD/1M por modelo, fallback
+      por tier) → los endpoints de métricas devuelven `cost_usd` (total, por modelo, por video). Los
+      precios son configurables en código (`PRICE_PER_1M`). flash-lite ≈ $0.0005/escena.
+- [ ] **UI de métricas** en el panel admin (hoy solo endpoints JSON). + tiempo de render.
 
 ---
 

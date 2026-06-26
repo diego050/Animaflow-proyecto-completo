@@ -8,6 +8,7 @@ import re
 
 from app.core.logging import get_logger
 from app.modules.llm.animation_validator import validate_animation_code
+from app.services.settings_store import get_setting
 
 logger = get_logger("animation_gen")
 
@@ -123,6 +124,113 @@ def _build_prompt(user_prompt, width, height, duration_frames, previous_code, ed
     )
 
 
+# ── Edición QUIRÚRGICA (search/replace, estilo Cursor/Aider) ──
+# La IA devuelve solo los bloques que cambian; se aplican al código → el resto queda IDÉNTICO.
+
+_SR_RE = re.compile(
+    r"<{3,}\s*SEARCH\s*\n(.*?)\n={3,}\s*\n(.*?)\n>{3,}\s*REPLACE",
+    re.DOTALL,
+)
+
+
+def _build_edit_prompt(previous_code: str, edit_instruction: str, canvas: str) -> str:
+    return (
+        f"{_SYSTEM_RULES}\n\n{canvas}\n\n"
+        f"COMPONENTE ACTUAL:\n{previous_code}\n\n"
+        f'CAMBIO pedido por el usuario: "{edit_instruction}"\n\n'
+        "Devuelve SOLO los cambios mínimos como bloques SEARCH/REPLACE — NADA de código completo, "
+        "sin explicaciones, sin markdown. Por cada cambio, EXACTAMENTE este formato:\n"
+        "<<<<<<< SEARCH\n"
+        "[fragmento EXACTO del código actual a reemplazar, copiado tal cual con su indentación]\n"
+        "=======\n"
+        "[fragmento nuevo]\n"
+        ">>>>>>> REPLACE\n\n"
+        "REGLAS:\n"
+        "- El bloque SEARCH debe ser copia EXACTA y ÚNICA de una parte del código actual (incluye "
+        "suficiente contexto para que sea único; respeta espacios e indentación).\n"
+        "- Cambia SOLO lo necesario para el pedido. NO toques absolutamente nada más.\n"
+        "- Puedes devolver varios bloques SEARCH/REPLACE si hace falta."
+    )
+
+
+def _apply_search_replace(code: str, text: str) -> tuple[str, int, int, list[str]]:
+    """Aplica los bloques SEARCH/REPLACE de `text` sobre `code`.
+    Devuelve (nuevo_code, aplicados, total_bloques, bloques_search_que_fallaron)."""
+    blocks = _SR_RE.findall(text or "")
+    applied = 0
+    failed: list[str] = []
+    for search, replace in blocks:
+        if search and search in code:
+            code = code.replace(search, replace, 1)
+            applied += 1
+        else:
+            failed.append(search)
+    return code, applied, len(blocks), failed
+
+
+_MAX_EDIT_ATTEMPTS = 2  # intentos de edición quirúrgica antes de caer a regen completa
+
+
+def _edit_codegen_surgical(
+    previous_code: str, edit_instruction: str, api_key: str, use_model: str, canvas: str
+) -> Optional[dict]:
+    """Edición quirúrgica (search/replace) con REINTENTOS: si algún bloque no calza, se le dice
+    a la IA cuál falló y se reintenta (la 2ª vez suele calzar) — SIN regenerar todo. Solo tras
+    agotar los intentos devuelve None (→ fallback a regeneración completa). Todo-o-nada por intento.
+    """
+    from app.modules.llm.client import _call_llm_sync
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=api_key)
+    config = types.GenerateContentConfig(temperature=0.3, max_output_tokens=8000)
+    prompt = _build_edit_prompt(previous_code, edit_instruction, canvas)
+    tokens = {"in": 0, "out": 0, "total": 0}
+
+    for attempt in range(_MAX_EDIT_ATTEMPTS):
+        resp = _call_llm_sync(
+            client=client, model=use_model, contents=prompt, config=config, label="LLM Animation Edit",
+        )
+        um = getattr(resp, "usage_metadata", None)
+        if um:
+            tokens["in"] += getattr(um, "prompt_token_count", 0) or 0
+            tokens["out"] += getattr(um, "candidates_token_count", 0) or 0
+            tokens["total"] += getattr(um, "total_token_count", 0) or 0
+
+        new_code, applied, total, failed = _apply_search_replace(previous_code, resp.text or "")
+
+        if total > 0 and applied == total:
+            valid, errors = validate_animation_code(new_code)
+            if valid and not _smoke_test_code(new_code):
+                logger.info("Edición quirúrgica OK (%d bloque(s), intento %d)", applied, attempt + 1)
+                return {"code": new_code, "errors": errors, "tokens": tokens}
+            feedback = (
+                "Al aplicar tus bloques el componente quedó inválido. Revísalos y reintenta "
+                "con bloques correctos (solo cambios mínimos)."
+            )
+        elif total == 0:
+            feedback = (
+                "No devolviste ningún bloque en formato SEARCH/REPLACE. Devuelve SOLO los cambios "
+                "en ese formato EXACTO (<<<<<<< SEARCH / ======= / >>>>>>> REPLACE)."
+            )
+        else:
+            failed_join = "\n--- otro bloque que falló ---\n".join(s for s in failed if s)
+            feedback = (
+                f"{applied}/{total} bloques se aplicaron. Estos bloques SEARCH NO coincidieron con "
+                f"el código actual — cópialos EXACTOS (carácter por carácter, misma indentación) del "
+                f"COMPONENTE ACTUAL y reenvía TODOS los bloques de cambio:\n{failed_join}"
+            )
+
+        logger.info(
+            "Edición quirúrgica intento %d/%d: %d/%d bloques → reintento",
+            attempt + 1, _MAX_EDIT_ATTEMPTS, applied, total,
+        )
+        prompt += f"\n\nPROBLEMA en tu respuesta anterior: {feedback}"
+
+    logger.info("Edición quirúrgica agotó %d intentos → fallback a regeneración completa", _MAX_EDIT_ATTEMPTS)
+    return None
+
+
 def generate_animation(
     prompt: str,
     user_id: Optional[str] = None,
@@ -140,15 +248,36 @@ def generate_animation(
 
     creds = resolve_llm_credentials(user_id)
     api_key = creds.api_key
-    use_model = model or creds.model  # configurable — NO hardcode
+    use_model = model or get_setting("codegen.model_override") or creds.model  # job > DB override > cuenta
     if not api_key:
         raise ValueError("No hay API key de LLM configurada para tu usuario.")
 
     width, height = _DIMS.get(aspect_ratio, _DIMS["9:16"])
     duration_frames = int(duration_seconds * _FPS)
 
+    # EDICIÓN: primero intenta surgical (search/replace → preserva todo lo demás IDÉNTICO,
+    # estilo Cursor). Si no aplica nada o sale inválido, cae a regeneración completa.
+    if previous_code and edit_instruction:
+        canvas = (
+            f"Lienzo {width}x{height} a {_FPS}fps, duración {duration_frames} frames. "
+            "Diseña RESPONSIVO con useVideoConfig()."
+        )
+        edited = _edit_codegen_surgical(previous_code, edit_instruction, api_key, use_model, canvas)
+        if edited:
+            return {
+                "code": edited["code"],
+                "valid": len(edited["errors"]) == 0,
+                "errors": edited["errors"],
+                "model": use_model,
+                "width": width,
+                "height": height,
+                "duration_frames": duration_frames,
+                "tokens": edited["tokens"],
+                "edit_mode": "surgical",
+            }
+
     full_prompt = _build_prompt(prompt, width, height, duration_frames, previous_code, edit_instruction)
-    code, errors = _run_codegen(full_prompt, api_key, use_model)
+    code, errors, tokens = _run_codegen(full_prompt, api_key, use_model)
     return {
         "code": code,
         "valid": len(errors) == 0,
@@ -157,6 +286,8 @@ def generate_animation(
         "width": width,
         "height": height,
         "duration_frames": duration_frames,
+        "tokens": tokens,
+        "edit_mode": "full" if (previous_code and edit_instruction) else "create",
     }
 
 
@@ -172,20 +303,36 @@ def _run_codegen(full_prompt: str, api_key: str, use_model: str) -> tuple[str, l
 
     client = genai.Client(api_key=api_key)
     # Sin response_schema (es código, no JSON). Sin thinking_config (default del modelo).
-    config = types.GenerateContentConfig(temperature=0.4, max_output_tokens=12000)
+    # Temperatura y nº de intentos son tuneables desde la DB (admin) con default de código.
+    temperature = float(get_setting("codegen.temperature", 0.4))
+    max_attempts = int(get_setting("codegen.max_attempts", _MAX_CODEGEN_ATTEMPTS))
+    config = types.GenerateContentConfig(temperature=temperature, max_output_tokens=12000)
 
     code = ""
     errors: list[str] = []
-    for attempt in range(_MAX_CODEGEN_ATTEMPTS):
+    tokens = {"in": 0, "out": 0, "total": 0}
+    for attempt in range(max_attempts):
         resp = _call_llm_sync(
             client=client, model=use_model, contents=full_prompt,
             config=config, label="LLM Animation",
         )
+        um = getattr(resp, "usage_metadata", None)
+        if um:
+            tokens["in"] += getattr(um, "prompt_token_count", 0) or 0
+            tokens["out"] += getattr(um, "candidates_token_count", 0) or 0
+            tokens["total"] += getattr(um, "total_token_count", 0) or 0
         code = _strip_fences(resp.text or "")
         valid, errors = validate_animation_code(code)
         if valid:
-            break
-        logger.warning("Animación inválida (intento %d/%d): %s", attempt + 1, _MAX_CODEGEN_ATTEMPTS, errors)
+            # Smoke-test: compila de verdad en el render-server (atrapa sintaxis/estructura
+            # rota que el validador regex no ve). Best-effort.
+            smoke_err = _smoke_test_code(code)
+            if not smoke_err:
+                break
+            errors = [smoke_err]
+            logger.warning("Smoke-test falló (intento %d/%d): %s", attempt + 1, max_attempts, smoke_err)
+        else:
+            logger.warning("Animación inválida (intento %d/%d): %s", attempt + 1, max_attempts, errors)
         # Reparación: le devolvemos SU código fallido + los problemas para que lo arregle
         # o cree otro (conservando la escena/timing/dirección de arte del prompt original).
         full_prompt += (
@@ -193,7 +340,29 @@ def _run_codegen(full_prompt: str, api_key: str, use_model: str) -> tuple[str, l
             f"Este fue tu código (arréglalo o créalo de nuevo respetando la escena):\n{code}\n\n"
             "Devuelve el componente COMPLETO ya corregido, solo código."
         )
-    return code, errors
+    return code, errors, tokens
+
+
+def _smoke_test_code(code: str) -> Optional[str]:
+    """Pide al render-server compilar el código y verificar que exporte un componente
+    (sin renderizar). Devuelve None si OK (o si no se pudo verificar — best-effort), o el
+    mensaje de error si el código no compila/estructura mal."""
+    import httpx
+    from app.core.config import settings
+
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.post(
+                f"{settings.RENDER_SERVER_URL}/smoke-test", json={"code": code}
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Smoke-test no disponible (se omite): %s", e)
+        return None  # best-effort: no bloquear la generación si el render-server no responde
+    if data.get("ok"):
+        return None
+    return f"el código no compila o no exporta bien el componente: {data.get('error')}"
 
 
 def generate_scene_animation(
@@ -205,6 +374,7 @@ def generate_scene_animation(
     user_id: Optional[str] = None,
     model: Optional[str] = None,
     aspect_ratio: str = "9:16",
+    variation: bool = False,
 ) -> dict:
     """Fase 3: genera el componente de UNA escena (consciente del guion + timing del audio).
 
@@ -216,7 +386,7 @@ def generate_scene_animation(
 
     creds = resolve_llm_credentials(user_id)
     api_key = creds.api_key
-    use_model = model or creds.model
+    use_model = model or get_setting("codegen.model_override") or creds.model
     if not api_key:
         raise ValueError("No hay API key de LLM configurada.")
 
@@ -238,6 +408,11 @@ def generate_scene_animation(
                 + ". Si muestras texto, sincronízalo con esos frames."
             )
     bg = f"Color de fondo sugerido (úsalo o uno coherente): {bg_hint}." if bg_hint else ""
+    vary = (
+        "\nIMPORTANTE: genera una versión con un ENFOQUE VISUAL CLARAMENTE DISTINTO al típico "
+        "(otra composición, otros elementos/íconos, otra paleta dentro del mood). Sé creativo."
+        if variation else ""
+    )
     art = ""
     if art_direction:
         art = (
@@ -248,16 +423,28 @@ def generate_scene_animation(
             "entre escenas las maneja el sistema, tú solo animas DENTRO de esta escena.\n"
         )
 
+    # Flywheel: ejemplos aprobados parecidos como few-shot (si hay; si no, el estático).
+    from app.services.flywheel import get_flywheel_examples
+    _examples = get_flywheel_examples(text, art_direction, k=2, api_key=api_key)
+    fewshot = (
+        "\n\n".join(
+            f"EJEMPLO (animación previa aprobada — referencia de estilo y calidad):\n{ex}"
+            for ex in _examples
+        )
+        if _examples
+        else _FEWSHOT
+    )
+
     full_prompt = (
-        f"{_SYSTEM_RULES}\n\n{_FEWSHOT}\n\n"
+        f"{_SYSTEM_RULES}\n\n{fewshot}\n\n"
         f"Lienzo {width}x{height} a {_FPS}fps (diseña RESPONSIVO con useVideoConfig), "
         f"duración EXACTA {duration_frames} frames (toda la animación debe ocurrir dentro de ese rango).\n"
         f'Esta es UNA escena de un video; el AUDIO YA narra esta frase, NO la repitas entera en pantalla: "{text}"\n'
-        f"{art}{bg} {timing}\n\n"
+        f"{art}{bg} {timing}{vary}\n\n"
         "Crea una animación que ILUSTRE visualmente la idea de esa frase (el VISUAL es el "
         "protagonista; si pones texto, pocas palabras clave). Devuelve SOLO el código."
     )
-    code, errors = _run_codegen(full_prompt, api_key, use_model)
+    code, errors, tokens = _run_codegen(full_prompt, api_key, use_model)
     return {
         "code": code,
         "valid": len(errors) == 0,
@@ -266,4 +453,5 @@ def generate_scene_animation(
         "width": width,
         "height": height,
         "duration_frames": duration_frames,
+        "tokens": tokens,
     }

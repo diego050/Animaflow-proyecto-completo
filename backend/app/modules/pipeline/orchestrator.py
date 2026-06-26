@@ -15,6 +15,7 @@ from app.schemas.spec import TimelineSpec
 from app.modules.tts.service import AUDIO_STORAGE
 from app.modules.segmentation.service import split_text_into_chunks
 from app.modules.llm.visual_spec import generate_batch_visuals_with_llm, VisualSpecResult
+from app.services.animation_store import save_generated_animation
 from app.core.async_utils import run_async
 
 logger = get_logger("pipeline")
@@ -262,6 +263,23 @@ async def _process_chunks_async(
                     (anim.get("errors") if anim else "excepción"),
                     extra={"job_id": job_id},
                 )
+
+            # Persistir la generación (flywheel + observabilidad). Best-effort.
+            save_generated_animation(
+                code=scene["custom_code"],
+                source="pipeline",
+                job_id=job_id,
+                scene_index=i,
+                user_id=user_id,
+                prompt_text=scene.get("text"),
+                art_direction=scene.get("media_query"),
+                model=(anim or {}).get("model"),
+                valid=bool(anim and anim.get("valid")),
+                status=scene["quality_status"],
+                tokens=(anim or {}).get("tokens"),
+                duration_frames=(anim or {}).get("duration_frames"),
+                aspect_ratio=aspect_ratio,
+            )
 
         # Pausa para evitar límites de RPM (Requests Per Minute) del plan gratuito de Gemini
         if i < len(timeline_scenes) - 1:

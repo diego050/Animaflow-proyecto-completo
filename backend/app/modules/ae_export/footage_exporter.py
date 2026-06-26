@@ -9,15 +9,18 @@ funcione SIN cambios.
 """
 import os
 import zipfile
+from datetime import timedelta
+from urllib.parse import quote
 
 import httpx
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.security import create_access_token
 from app.core.storage_paths import get_storage_dir
 from app.db.session import get_db_context
 from app.db.models import JobModel
-from app.modules.ae_export.worker import _persist_job_spec, get_resolution
+from app.modules.ae_export.job_utils import _persist_job_spec, get_resolution
 
 logger = get_logger("ae_footage")
 
@@ -31,7 +34,8 @@ Tienes una escena por archivo (ProRes .mov, una capa por escena). Para usarlas e
 1. Importa los .mov (Archivo > Importar > Varios archivos).
 2. Arrastralos a una composicion EN ORDEN (scene_01, scene_02, ...), uno tras otro en
    la timeline. Cada escena es una capa que puedes recortar, retimear o reemplazar.
-3. El audio/voz va aparte: descarga el mp4 del video para la pista de audio.
+3. Cada .mov YA INCLUYE la voz de esa escena (pista de audio). Si no la quieres, silencia
+   o borra el audio de la capa en AE.
 
 Nota: el footage es un render fiel del preview (no editable por elemento, es video).
 Puedes componer, recolorear y poner capas encima. ~80% hecho; el resto lo ajustas tu.
@@ -56,6 +60,12 @@ def generate_footage_export_async(job_id: str, force: bool = False):
             job.result_spec["_ae_export_progress"] = {"current": 0, "total": len(scenes)}
             _persist_job_spec(job_id, job.result_spec)
 
+            # Token de servicio efímero para que el render-server baje el audio de /api/audio.
+            render_token = create_access_token(
+                {"sub": str(job.user_id)}, expires_delta=timedelta(minutes=60)
+            )
+            api_base = os.getenv("API_BASE_URL", "http://api:8000")
+
             videos_dir = get_storage_dir("videos")
             mov_paths: list[tuple[int, str]] = []
             with httpx.Client(timeout=600.0) as client:
@@ -66,15 +76,21 @@ def generate_footage_export_async(job_id: str, force: bool = False):
                     else:
                         duration_frames = max(1, round(scene.get("duration_seconds", 3.0) * _FPS))
                         out_name = f"{job_id}_footage_{i:02d}"
+                        # URL absoluta del audio de la escena, con token (para incluir la voz).
+                        audio_src = ""
+                        audio_url = scene.get("audio_url")
+                        if audio_url and audio_url.startswith("/"):
+                            audio_src = f"{api_base}{audio_url}?token={quote(render_token)}"
                         resp = client.post(
                             f"{settings.RENDER_SERVER_URL}/render",
                             json={
                                 "jobId": out_name,
-                                "compositionId": "CustomCode",
+                                "compositionId": "CustomCodeAudio",
                                 "codec": "prores",
                                 "outputName": out_name,
                                 "inputProps": {
                                     "code": code,
+                                    "audioSrc": audio_src,
                                     "durationInFrames": duration_frames,
                                     "width": w,
                                     "height": h,

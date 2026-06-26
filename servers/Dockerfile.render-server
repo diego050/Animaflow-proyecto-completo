@@ -26,7 +26,7 @@ WORKDIR /app/servers
 
 # Install server dependencies
 RUN npm init -y && \
-    npm install express @remotion/renderer @remotion/bundler
+    npm install express @remotion/renderer @remotion/bundler sucrase
 
 # Optional: Set environment variables so Remotion/Puppeteer use the system Chromium
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
