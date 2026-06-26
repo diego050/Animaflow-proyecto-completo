@@ -172,32 +172,27 @@ _MAX_EDIT_ATTEMPTS = 2  # intentos de edición quirúrgica antes de caer a regen
 
 
 def _edit_codegen_surgical(
-    previous_code: str, edit_instruction: str, api_key: str, use_model: str, canvas: str
+    previous_code: str, edit_instruction: str, api_key: str, use_model: str, canvas: str,
+    provider: str = "gemini",
 ) -> Optional[dict]:
     """Edición quirúrgica (search/replace) con REINTENTOS: si algún bloque no calza, se le dice
     a la IA cuál falló y se reintenta (la 2ª vez suele calzar) — SIN regenerar todo. Solo tras
     agotar los intentos devuelve None (→ fallback a regeneración completa). Todo-o-nada por intento.
     """
-    from app.modules.llm.client import _call_llm_sync
-    from google import genai
-    from google.genai import types
+    from app.modules.llm.router import call_text_llm
 
-    client = genai.Client(api_key=api_key)
-    config = types.GenerateContentConfig(temperature=0.3, max_output_tokens=8000)
     prompt = _build_edit_prompt(previous_code, edit_instruction, canvas)
     tokens = {"in": 0, "out": 0, "total": 0}
 
     for attempt in range(_MAX_EDIT_ATTEMPTS):
-        resp = _call_llm_sync(
-            client=client, model=use_model, contents=prompt, config=config, label="LLM Animation Edit",
+        out = call_text_llm(
+            prompt=prompt, api_key=api_key, model=use_model, provider=provider,
+            temperature=0.3, max_tokens=8000, label="LLM Animation Edit",
         )
-        um = getattr(resp, "usage_metadata", None)
-        if um:
-            tokens["in"] += getattr(um, "prompt_token_count", 0) or 0
-            tokens["out"] += getattr(um, "candidates_token_count", 0) or 0
-            tokens["total"] += getattr(um, "total_token_count", 0) or 0
+        t = out["tokens"]
+        tokens["in"] += t["in"]; tokens["out"] += t["out"]; tokens["total"] += t["total"]
 
-        new_code, applied, total, failed = _apply_search_replace(previous_code, resp.text or "")
+        new_code, applied, total, failed = _apply_search_replace(previous_code, out["text"] or "")
 
         if total > 0 and applied == total:
             valid, errors = validate_animation_code(new_code)
@@ -231,6 +226,31 @@ def _edit_codegen_surgical(
     return None
 
 
+def _resolve_codegen_target(user_id, model_arg) -> tuple[str, str, str]:
+    """Resuelve (modelo, provider, api_key) para code-gen.
+
+    Prioridad de modelo: arg explícito (del job) > `codegen.model_override` (DB) > default
+    del usuario. El PROVIDER sale del catálogo según el modelo elegido, y la API key se
+    resuelve para ESE proveedor (no el default del usuario) — así un modelo de Claude usa la
+    key de Claude aunque el default sea Gemini.
+    """
+    from app.modules.llm.resolver import resolve_llm_credentials
+    from app.services.model_catalog import get_model_info
+
+    creds = resolve_llm_credentials(user_id)
+    use_model = model_arg or get_setting("codegen.model_override") or creds.model
+    info = get_model_info(use_model)
+    provider = info.provider if info else creds.provider
+    if provider == creds.provider:
+        api_key = creds.api_key
+    else:
+        try:
+            api_key = resolve_llm_credentials(user_id, provider_override=provider).api_key
+        except Exception:  # noqa: BLE001
+            api_key = creds.api_key
+    return use_model, provider, api_key
+
+
 def generate_animation(
     prompt: str,
     user_id: Optional[str] = None,
@@ -241,14 +261,7 @@ def generate_animation(
     edit_instruction: Optional[str] = None,
 ) -> dict:
     """Genera (o edita) un componente Remotion. Devuelve dict con code/valid/errors/meta."""
-    from app.modules.llm.resolver import resolve_llm_credentials
-    from app.modules.llm.client import _call_llm_sync
-    from google import genai
-    from google.genai import types
-
-    creds = resolve_llm_credentials(user_id)
-    api_key = creds.api_key
-    use_model = model or get_setting("codegen.model_override") or creds.model  # job > DB override > cuenta
+    use_model, provider, api_key = _resolve_codegen_target(user_id, model)
     if not api_key:
         raise ValueError("No hay API key de LLM configurada para tu usuario.")
 
@@ -262,7 +275,7 @@ def generate_animation(
             f"Lienzo {width}x{height} a {_FPS}fps, duración {duration_frames} frames. "
             "Diseña RESPONSIVO con useVideoConfig()."
         )
-        edited = _edit_codegen_surgical(previous_code, edit_instruction, api_key, use_model, canvas)
+        edited = _edit_codegen_surgical(previous_code, edit_instruction, api_key, use_model, canvas, provider)
         if edited:
             return {
                 "code": edited["code"],
@@ -277,7 +290,7 @@ def generate_animation(
             }
 
     full_prompt = _build_prompt(prompt, width, height, duration_frames, previous_code, edit_instruction)
-    code, errors, tokens = _run_codegen(full_prompt, api_key, use_model)
+    code, errors, tokens = _run_codegen(full_prompt, api_key, use_model, provider)
     return {
         "code": code,
         "valid": len(errors) == 0,
@@ -294,34 +307,26 @@ def generate_animation(
 _MAX_CODEGEN_ATTEMPTS = 3  # 1 intento + 2 reparaciones con la IA (NO hay orquestador)
 
 
-def _run_codegen(full_prompt: str, api_key: str, use_model: str) -> tuple[str, list[str]]:
-    """Llama al LLM, saca el código, valida; si falla, reintenta con la IA mandándole el
-    código fallido + los errores (auto-reparación). Devuelve (code, errors)."""
-    from app.modules.llm.client import _call_llm_sync
-    from google import genai
-    from google.genai import types
+def _run_codegen(full_prompt: str, api_key: str, use_model: str, provider: str = "gemini") -> tuple[str, list[str], dict]:
+    """Llama al LLM (del `provider` dado, vía router multi-proveedor), saca el código, valida;
+    si falla, reintenta con la IA (auto-reparación). Devuelve (code, errors, tokens)."""
+    from app.modules.llm.router import call_text_llm
 
-    client = genai.Client(api_key=api_key)
-    # Sin response_schema (es código, no JSON). Sin thinking_config (default del modelo).
-    # Temperatura y nº de intentos son tuneables desde la DB (admin) con default de código.
+    # Temperatura y nº de intentos tuneables desde la DB (admin) con default de código.
     temperature = float(get_setting("codegen.temperature", 0.4))
     max_attempts = int(get_setting("codegen.max_attempts", _MAX_CODEGEN_ATTEMPTS))
-    config = types.GenerateContentConfig(temperature=temperature, max_output_tokens=12000)
 
     code = ""
     errors: list[str] = []
     tokens = {"in": 0, "out": 0, "total": 0}
     for attempt in range(max_attempts):
-        resp = _call_llm_sync(
-            client=client, model=use_model, contents=full_prompt,
-            config=config, label="LLM Animation",
+        out = call_text_llm(
+            prompt=full_prompt, api_key=api_key, model=use_model, provider=provider,
+            temperature=temperature, max_tokens=12000, label="LLM Animation",
         )
-        um = getattr(resp, "usage_metadata", None)
-        if um:
-            tokens["in"] += getattr(um, "prompt_token_count", 0) or 0
-            tokens["out"] += getattr(um, "candidates_token_count", 0) or 0
-            tokens["total"] += getattr(um, "total_token_count", 0) or 0
-        code = _strip_fences(resp.text or "")
+        t = out["tokens"]
+        tokens["in"] += t["in"]; tokens["out"] += t["out"]; tokens["total"] += t["total"]
+        code = _strip_fences(out["text"] or "")
         valid, errors = validate_animation_code(code)
         if valid:
             # Smoke-test: compila de verdad en el render-server (atrapa sintaxis/estructura
@@ -382,11 +387,7 @@ def generate_scene_animation(
     texto). `word_timestamps` (relativos a la escena, en segundos) se pasan como frames
     para que la IA pueda sincronizar reveals con la voz.
     """
-    from app.modules.llm.resolver import resolve_llm_credentials
-
-    creds = resolve_llm_credentials(user_id)
-    api_key = creds.api_key
-    use_model = model or get_setting("codegen.model_override") or creds.model
+    use_model, provider, api_key = _resolve_codegen_target(user_id, model)
     if not api_key:
         raise ValueError("No hay API key de LLM configurada.")
 
@@ -444,7 +445,7 @@ def generate_scene_animation(
         "Crea una animación que ILUSTRE visualmente la idea de esa frase (el VISUAL es el "
         "protagonista; si pones texto, pocas palabras clave). Devuelve SOLO el código."
     )
-    code, errors, tokens = _run_codegen(full_prompt, api_key, use_model)
+    code, errors, tokens = _run_codegen(full_prompt, api_key, use_model, provider)
     return {
         "code": code,
         "valid": len(errors) == 0,
