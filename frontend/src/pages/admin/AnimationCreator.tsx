@@ -15,6 +15,14 @@ interface GenResponse {
   width: number;
   height: number;
   duration_frames: number;
+  edit_mode?: 'surgical' | 'full' | 'create';
+  changes?: { before: string; after: string }[];
+}
+
+interface EditableValue {
+  name: string;
+  type: 'number' | 'color' | 'string' | 'number[]';
+  value: number | string | number[];
 }
 
 export function AnimationCreator() {
@@ -29,6 +37,7 @@ export function AnimationCreator() {
   const [meta, setMeta] = useState<GenResponse | null>(null);
   const [genErrors, setGenErrors] = useState<string[]>([]);
   const [editInstruction, setEditInstruction] = useState('');
+  const [values, setValues] = useState<EditableValue[]>([]);
 
   const [rendering, setRendering] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -69,6 +78,30 @@ export function AnimationCreator() {
     }
   }, [code, meta]);
 
+  const loadValues = useCallback(async (c: string) => {
+    if (!c) { setValues([]); return; }
+    try {
+      const data = await api.post<{ values: EditableValue[] }>(
+        '/api/admin/animations/values/extract', { code: c },
+      );
+      setValues(data.values || []);
+    } catch {
+      setValues([]);
+    }
+  }, []);
+
+  const applyValue = useCallback(async (name: string, value: number | string | number[]) => {
+    try {
+      const data = await api.post<{ code: string; values: EditableValue[] }>(
+        '/api/admin/animations/values/apply', { code, changes: { [name]: value } },
+      );
+      setCode(data.code);
+      setValues(data.values || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo aplicar el valor.');
+    }
+  }, [code]);
+
   const callGenerate = useCallback(
     async (body: Record<string, unknown>) => {
       setLoading(true);
@@ -80,13 +113,14 @@ export function AnimationCreator() {
         setCode(data.code);
         setMeta(data);
         setGenErrors(data.errors || []);
+        void loadValues(data.code);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Error generando la animación.');
       } finally {
         setLoading(false);
       }
     },
-    [],
+    [loadValues],
   );
 
   const handleGenerate = useCallback(() => {
@@ -219,6 +253,82 @@ export function AnimationCreator() {
                 </button>
               </div>
             </div>
+          )}
+
+          {meta?.edit_mode === 'surgical' && meta.changes && meta.changes.length > 0 && (
+            <div className="text-xs">
+              <p className="text-text-secondary mb-1.5 font-medium">
+                Cambios aplicados ({meta.changes.length} {meta.changes.length === 1 ? 'bloque' : 'bloques'}):
+              </p>
+              <div className="space-y-2">
+                {meta.changes.map((c, i) => (
+                  <div key={i} className="border border-border-tech rounded-lg overflow-hidden font-mono text-[11px]">
+                    <pre className="bg-red-500/10 text-red-300/90 px-3 py-1.5 whitespace-pre-wrap overflow-auto max-h-28 border-b border-border-tech">- {c.before}</pre>
+                    <pre className="bg-mint-precision/10 text-mint-precision/90 px-3 py-1.5 whitespace-pre-wrap overflow-auto max-h-28">+ {c.after}</pre>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {meta?.edit_mode === 'full' && (
+            <p className="text-xs text-cadmium-orange/80">
+              No se pudo editar por bloques — se regeneró el componente completo.
+            </p>
+          )}
+
+          {values.length > 0 && (
+            <details className="text-xs" open>
+              <summary className="cursor-pointer text-text-secondary hover:text-text-primary font-medium">
+                Valores editables ({values.length}) — instantáneo, sin IA
+              </summary>
+              <div className="mt-2 space-y-1.5">
+                {values.map((v) => (
+                  <div key={v.name} className="flex items-center gap-2">
+                    <span className="font-mono text-[11px] text-text-secondary/70 w-28 truncate" title={v.name}>{v.name}</span>
+                    {v.type === 'color' ? (
+                      <input
+                        type="color"
+                        defaultValue={String(v.value)}
+                        onChange={(e) => applyValue(v.name, e.target.value)}
+                        className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer"
+                      />
+                    ) : v.type === 'number' ? (
+                      <input
+                        type="number"
+                        step="any"
+                        defaultValue={Number(v.value)}
+                        onBlur={(e) => applyValue(v.name, parseFloat(e.target.value))}
+                        className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono"
+                      />
+                    ) : v.type === 'number[]' ? (
+                      <div className="flex gap-1 flex-wrap flex-1">
+                        {(v.value as number[]).map((n, idx) => (
+                          <input
+                            key={idx}
+                            type="number"
+                            step="any"
+                            defaultValue={n}
+                            onBlur={(e) => {
+                              const arr = [...(v.value as number[])];
+                              arr[idx] = parseFloat(e.target.value);
+                              applyValue(v.name, arr);
+                            }}
+                            className="w-14 bg-surface-container border border-border-tech rounded px-1 py-1 text-text-primary font-mono"
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        defaultValue={String(v.value)}
+                        onBlur={(e) => applyValue(v.name, e.target.value)}
+                        className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </details>
           )}
 
           {code && (

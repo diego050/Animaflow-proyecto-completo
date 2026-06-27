@@ -8,6 +8,8 @@ const PRESET_RATIOS = [
   { value: '16:9', label: 'Horizontal (16:9)', icon: Monitor },
   { value: '1:1', label: 'Cuadrado (1:1)', icon: Square },
   { value: '4:5', label: 'Instagram (4:5)', icon: Image },
+  { value: '3:4', label: 'Retrato (3:4)', icon: Image },
+  { value: '4:3', label: 'Clásico (4:3)', icon: Monitor },
   { value: '21:9', label: 'Cinemascope (21:9)', icon: Monitor },
 ];
 

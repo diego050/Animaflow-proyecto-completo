@@ -44,6 +44,8 @@ class AnimationGenerateResponse(BaseModel):
     width: int
     height: int
     duration_frames: int
+    edit_mode: Optional[str] = None          # surgical | full | create
+    changes: list[dict] = []                 # [{before, after}] de la edición quirúrgica
 
 
 @router.post("/generate", response_model=AnimationGenerateResponse)
@@ -133,6 +135,32 @@ async def render(
     )
 
 
+# ── Editor MANUAL de valores (sin LLM, instantáneo) ──
+
+class ValuesExtractRequest(BaseModel):
+    code: str
+
+
+class ValuesApplyRequest(BaseModel):
+    code: str
+    changes: dict
+
+
+@router.post("/values/extract")
+def values_extract(req: ValuesExtractRequest, current_user: User = Depends(require_admin)):
+    """Extrae las constantes editables (colores/números/textos/arrays) del código."""
+    from app.modules.llm.value_editor import extract_editable_values
+    return {"values": extract_editable_values(req.code)}
+
+
+@router.post("/values/apply")
+def values_apply(req: ValuesApplyRequest, current_user: User = Depends(require_admin)):
+    """Aplica cambios de valores (find-replace, SIN LLM). Devuelve el código nuevo + valores."""
+    from app.modules.llm.value_editor import apply_value_changes, extract_editable_values
+    new_code = apply_value_changes(req.code, req.changes or {})
+    return {"code": new_code, "values": extract_editable_values(new_code)}
+
+
 # ── Config tuneable desde la DB (sin redeploy) ──
 
 # (default, descripción). Solo NO-secretos; los secretos siguen en env.
@@ -140,6 +168,7 @@ _CODEGEN_SETTINGS = {
     "codegen.model_override": (None, "Modelo forzado para code-gen (vacío = el del usuario)"),
     "codegen.temperature": (0.4, "Temperatura de generación (0–1)"),
     "codegen.max_attempts": (3, "Intentos de auto-reparación por generación"),
+    "codegen.max_output_tokens": (12000, "Tope de tamaño del componente (tokens de salida)"),
     "flywheel.enabled": (True, "Activar el few-shot del flywheel (ejemplos aprobados)"),
 }
 

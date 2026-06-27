@@ -9,7 +9,11 @@ import type { TimelineSpec, Spec } from '../../types/spec';
 import { SceneTimelineBar } from './SceneTimelineBar';
 import { SceneInlineEditor } from './SceneInlineEditor';
 import { ChatPanel } from './SceneEditor/ChatPanel';
-import { editScene } from '../../api/sceneEdit';
+import { editScene, type SceneEditResponse } from '../../api/sceneEdit';
+import { SceneVersionHistory } from './SceneVersionHistory';
+import { api } from '../../api/client';
+import { useJobsStore } from '../../store/useJobsStore';
+import { dimsFor } from '../../remotion/aspectDims';
 
 interface PreviewPlayerProps {
   spec: TimelineSpec;
@@ -41,10 +45,9 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
   // Tabbed panel state
   const [activePanel, setActivePanel] = useState<'editor' | 'chat'>('editor');
 
-  const isLandscape = aspectRatio === '16:9';
-  const compWidth = isLandscape ? 1920 : 1080;
-  const compHeight = isLandscape ? 1080 : 1920;
-  const aspectClass = isLandscape ? 'aspect-[16/9]' : 'aspect-[9/16]';
+  const dims = dimsFor(aspectRatio);
+  const compWidth = dims.w;
+  const compHeight = dims.h;
 
   // Effect to handle seeking in the full video when a scene is clicked (isReadyToRender mode)
   useEffect(() => {
@@ -131,7 +134,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
         )}
 
         <div className="w-full flex items-center justify-center" style={{ maxHeight: 'calc(100vh - 340px)' }}>
-          <div className={`w-full max-h-full ${aspectClass} bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50`}>
+          <div style={{ aspectRatio: dims.cssRatio }} className="w-full max-h-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50">
             {isReadyToRender ? (
               /* Full video with audio - seek to scene on click */
               <Player
@@ -243,18 +246,40 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
             ))}
           </div>
         ) : (
-          <div className="h-[400px]">
-            <ChatPanel
-              onSend={async (prompt) => {
-                const targetScene = focusSceneIndex ?? 0;
-                return editScene(jobId, targetScene, {
-                  mode: 'conversational',
-                  prompt,
-                });
-              }}
-              disabled={false}
-              jobId={jobId}
-            />
+          <div className="flex flex-col">
+            <div className="h-[340px]">
+              <ChatPanel
+                onSend={async (prompt) => {
+                  // Chat GLOBAL: el backend parsea a qué escena(s) te refieres y qué quieres.
+                  const data = await api.post<{
+                    message: string;
+                    intent: string;
+                    edited_scenes: number[];
+                    updated_spec?: TimelineSpec;
+                  }>(
+                    `/api/jobs/${jobId}/assistant`,
+                    { prompt, focused_scene_index: focusSceneIndex ?? null },
+                    { timeoutMs: 180000 },
+                  );
+                  if (data.updated_spec) {
+                    useJobsStore.getState().applyJobSpec(data.updated_spec);
+                  }
+                  return {
+                    success: true,
+                    intent: data.intent === 'query' ? 'query' : 'edit',
+                    answer: data.message,
+                    explanation: data.message,
+                    warnings: [],
+                    changes_applied: (data.edited_scenes?.length ?? 0) > 0,
+                  } as SceneEditResponse;
+                }}
+                disabled={false}
+                jobId={jobId}
+              />
+            </div>
+            <div className="px-3 pb-3">
+              <SceneVersionHistory jobId={jobId} sceneIndex={focusSceneIndex ?? 0} />
+            </div>
           </div>
         )}
       </div>

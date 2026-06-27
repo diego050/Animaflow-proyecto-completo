@@ -1,15 +1,8 @@
 import { Player } from "@remotion/player";
 import { MainComposition } from "../remotion/MainComposition";
 import { CustomCode } from "../remotion/CustomCode";
+import { dimsFor } from "../remotion/aspectDims";
 import type { TimelineSpec, Spec } from "../types/spec";
-
-const ASPECT_DIMS: Record<string, { w: number; h: number; ratio: string }> = {
-  "9:16": { w: 1080, h: 1920, ratio: "9/16" },
-  "4:5": { w: 1080, h: 1350, ratio: "4/5" },
-  "3:4": { w: 1080, h: 1440, ratio: "3/4" },
-  "1:1": { w: 1080, h: 1080, ratio: "1/1" },
-  "16:9": { w: 1920, h: 1080, ratio: "16/9" },
-};
 
 interface PreviewPlayerProps {
   spec: TimelineSpec;
@@ -21,7 +14,7 @@ interface PreviewPlayerProps {
 export const PreviewPlayer = ({ spec, aspectRatio = "9:16", focusSceneIndex, videoUrl }: PreviewPlayerProps) => {
   if (!spec || !spec.scenes) return <div className="text-red-500 font-bold p-8 border border-red-500 rounded-lg">Error: No se recibió un spec válido.</div>;
 
-  const dims = ASPECT_DIMS[aspectRatio] || ASPECT_DIMS["9:16"];
+  const dims = dimsFor(aspectRatio);
   const totalDuration = spec.scenes.reduce((acc, scene) => acc + (scene.duration_seconds || 0), 0) || 1;
   const durationInFrames = Math.max(1, Math.round(totalDuration * 30));
 
@@ -32,7 +25,7 @@ export const PreviewPlayer = ({ spec, aspectRatio = "9:16", focusSceneIndex, vid
   return (
     <div 
       className="flex justify-center items-center rounded-xl overflow-hidden shadow-2xl border border-gray-800 bg-black w-full" 
-      style={{ maxWidth: "350px", minHeight: "500px", aspectRatio: dims.ratio }}
+      style={{ maxWidth: "350px", minHeight: "500px", aspectRatio: dims.cssRatio }}
     >
       {focusSceneIndex != null ? (
         /* ── Individual scene preview ── */

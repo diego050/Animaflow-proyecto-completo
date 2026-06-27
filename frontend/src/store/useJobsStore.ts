@@ -57,6 +57,8 @@ export interface JobsState {
     instruction: string,
   ) => Promise<string>;
   regenerateSceneCode: (jobId: string, sceneIndex: number) => Promise<string>;
+  revertSceneCode: (jobId: string, sceneIndex: number, versionId: string) => Promise<string>;
+  applyJobSpec: (spec: TimelineSpec) => void;
   reformatJob: (
     jobId: string,
     payload: {
@@ -325,6 +327,34 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     return data.custom_code;
   },
 
+  applyJobSpec: (spec: TimelineSpec) => {
+    set((state) => ({
+      selectedJob: state.selectedJob
+        ? { ...state.selectedJob, result_spec: spec }
+        : null,
+    }));
+  },
+
+  revertSceneCode: async (jobId: string, sceneIndex: number, versionId: string) => {
+    // Restaura una versión anterior del código de la escena (checkpoint). Sin mp4.
+    const data = await api.post<{ scene_index: number; custom_code: string }>(
+      `/api/jobs/${jobId}/scenes/${sceneIndex}/revert`, { version_id: versionId },
+    );
+    set((state) => {
+      const spec = state.selectedJob?.result_spec;
+      if (!spec) return {};
+      const scenes = spec.scenes.map((s, i) =>
+        i === sceneIndex ? { ...s, custom_code: data.custom_code } : s,
+      );
+      return {
+        selectedJob: state.selectedJob
+          ? { ...state.selectedJob, result_spec: { ...spec, scenes } }
+          : null,
+      };
+    });
+    return data.custom_code;
+  },
+
   reformatJob: async (
     jobId: string,
     payload: {
@@ -336,9 +366,11 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   ) => {
     try {
       await api.post(`/api/jobs/${jobId}/reformat`, payload);
+      // Refrescar la lista de formatos para que el nuevo aparezca en el switcher.
+      await get().fetchFormats(jobId);
       useToastStore
         .getState()
-        .addToast('success', `Proyecto reformateado a ${payload.aspect_ratio}`);
+        .addToast('success', `Proyecto reformateado a ${payload.aspect_ratio}. Cámbialo en el selector de formato.`);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Error al reformatear';

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -31,6 +33,7 @@ from app.services.animation_store import save_generated_animation
 
 
 router = APIRouter()
+logger = get_logger("api.jobs")
 
 
 @router.post("/{job_id}/approve-scenes", response_model=JobResponse)
@@ -147,21 +150,23 @@ async def reformat_job(
     db.commit()
     db.refresh(new_job)
 
-    # Determine which scenes to reformat
-    scenes_to_reformat = {
-        "selection": data.scene_selection,
-        "indices": data.scene_indices if data.scene_selection == "selected" else
-                   [data.current_scene_index] if data.scene_selection == "current" else
-                   list(range(len(scenes)))
-    }
+    # CODE-GEN: los componentes son RESPONSIVOS (useVideoConfig width/height) → basta copiar el
+    # spec y cambiar el aspect_ratio para que TODAS las escenas se adapten al nuevo formato.
+    # Instantáneo, sin regenerar, sin gastar tokens. (Antes este endpoint no generaba nada → el
+    # job quedaba "pending" vacío: ese era el bug.)
+    import copy as _copy
+    new_spec = _copy.deepcopy(job.result_spec)
+    new_spec["aspect_ratio"] = data.aspect_ratio
+    new_job.result_spec = new_spec
+    new_job.status = "completed"
+    flag_modified(new_job, "result_spec")
+    db.commit()
 
     return {
-        "message": "Reformat job created",
+        "message": f"Video reformateado a {data.aspect_ratio}",
         "new_job_id": new_job.id,
         "original_job_id": job.id,
         "aspect_ratio": data.aspect_ratio,
-        "scene_selection": data.scene_selection,
-        "scenes_to_reformat": scenes_to_reformat["indices"],
     }
 
 
@@ -322,6 +327,50 @@ async def edit_scene(
         )
 
     scene_spec = scenes[scene_index]
+
+    # Escena CODE-GEN → editar el CÓDIGO con la instrucción del chat (surgical, estilo Cursor).
+    # Usa la key del usuario resuelta por provider (generate_animation). NO pasa por el editor
+    # de spec viejo del orquestador (que además fallaba con API_KEY_INVALID).
+    if scene_spec.get("custom_code"):
+        instruction = (body.prompt or "").strip()
+        if not instruction:
+            raise HTTPException(status_code=400, detail="Escribe qué quieres cambiar en la escena.")
+        from app.modules.llm.animation_generator import generate_animation
+        try:
+            result = generate_animation(
+                prompt="",
+                user_id=current_user.id,
+                aspect_ratio=spec.get("aspect_ratio", job.aspect_ratio or "9:16"),
+                duration_seconds=scene_spec.get("duration_seconds", 6.0),
+                previous_code=scene_spec["custom_code"],
+                edit_instruction=instruction,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.exception("Edición code-gen (chat) falló job %s escena %d", job_id, scene_index)
+            raise HTTPException(status_code=500, detail=f"La edición falló: {e}")
+        if not (result.get("valid") and result.get("code")):
+            raise HTTPException(status_code=422, detail=f"La edición no salió válida: {result.get('errors')}")
+        scene_spec["custom_code"] = result["code"]
+        scenes[scene_index] = scene_spec
+        spec["scenes"] = scenes
+        job.result_spec = spec
+        flag_modified(job, "result_spec")
+        db.commit()
+        save_generated_animation(
+            code=result["code"], source="edit", job_id=job_id, scene_index=scene_index,
+            user_id=current_user.id, prompt_text=scene_spec.get("text"), art_direction=instruction,
+            model=result.get("model"), valid=True, status="edited", tokens=result.get("tokens"),
+            duration_frames=result.get("duration_frames"), aspect_ratio=spec.get("aspect_ratio"),
+        )
+        return {
+            "success": True,
+            "intent": "edit",
+            "explanation": f"Edité la escena {scene_index + 1} ({result.get('edit_mode')}).",
+            "updated_scene": scene_spec,
+            "changes_applied": True,
+            "changes": result.get("changes", []),
+            "warnings": [],
+        }
 
     try:
         if body.mode == "manual":
@@ -583,6 +632,178 @@ async def regenerate_scene_code(
     )
     logger.info("Escena %d regenerada (hazlo distinto) en job %s", scene_index, job_id)
     return {"scene_index": scene_index, "custom_code": result["code"], "valid": True}
+
+
+class SceneRevertRequest(BaseModel):
+    version_id: str
+
+
+@router.get("/{job_id}/scenes/{scene_index}/history")
+async def scene_code_history(
+    job_id: str,
+    scene_index: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Historial de versiones (checkpoints) del código de UNA escena, para deshacer/rehacer.
+    Sale de `generated_animations` (cada generación/edición quedó guardada)."""
+    from app.db.models import GeneratedAnimation
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id, JobModel.user_id == current_user.id,
+    ).first()
+    if not job or not job.result_spec:
+        raise HTTPException(status_code=404, detail="Job o spec no encontrado")
+    scenes = job.result_spec.get("scenes", [])
+    current_code = scenes[scene_index].get("custom_code") if 0 <= scene_index < len(scenes) else None
+    rows = (
+        db.query(GeneratedAnimation)
+        .filter(GeneratedAnimation.job_id == job_id, GeneratedAnimation.scene_index == scene_index)
+        .order_by(GeneratedAnimation.created_at.desc())
+        .limit(40)
+        .all()
+    )
+    return {
+        "scene_index": scene_index,
+        "versions": [
+            {
+                "id": r.id,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "source": r.source,        # pipeline | edit | regenerate
+                "status": r.status,
+                "is_current": bool(current_code) and r.code == current_code,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.post("/{job_id}/scenes/{scene_index}/revert")
+async def revert_scene_code(
+    job_id: str,
+    scene_index: int,
+    body: SceneRevertRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Restaura una versión anterior del código de la escena (checkpoint). NO renderiza mp4."""
+    from app.db.models import GeneratedAnimation
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id, JobModel.user_id == current_user.id,
+    ).first()
+    if not job or not job.result_spec:
+        raise HTTPException(status_code=404, detail="Job o spec no encontrado")
+    rec = (
+        db.query(GeneratedAnimation)
+        .filter(
+            GeneratedAnimation.id == body.version_id,
+            GeneratedAnimation.job_id == job_id,
+            GeneratedAnimation.scene_index == scene_index,
+        )
+        .first()
+    )
+    if not rec or not rec.code:
+        raise HTTPException(status_code=404, detail="Versión no encontrada")
+    scenes = job.result_spec.get("scenes", [])
+    if not (0 <= scene_index < len(scenes)):
+        raise HTTPException(status_code=400, detail="Índice de escena fuera de rango")
+    scenes[scene_index]["custom_code"] = rec.code
+    job.result_spec["scenes"] = scenes
+    flag_modified(job, "result_spec")
+    db.commit()
+    logger.info("Escena %d revertida a versión %s (job %s)", scene_index, body.version_id, job_id)
+    return {"scene_index": scene_index, "custom_code": rec.code}
+
+
+class AssistantRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=1000)
+    focused_scene_index: Optional[int] = None
+
+
+@router.post("/{job_id}/assistant")
+async def assistant(
+    job_id: str,
+    body: AssistantRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Chat GLOBAL de edición: entiende a qué escena(s) te refieres (del texto) y qué quieres
+    (editar puntual / regenerar desde el guion / preguntar), y lo aplica. NO renderiza mp4."""
+    from app.services.scene_assistant import parse_intent
+    from app.modules.llm.animation_generator import generate_animation, generate_scene_animation
+
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id, JobModel.user_id == current_user.id,
+    ).first()
+    if not job or not job.result_spec:
+        raise HTTPException(status_code=404, detail="Job o spec no encontrado")
+    scenes = job.result_spec.get("scenes", [])
+    if not scenes:
+        raise HTTPException(status_code=400, detail="El video no tiene escenas.")
+    aspect = job.result_spec.get("aspect_ratio") or job.aspect_ratio or "9:16"
+
+    intent = parse_intent(body.prompt, scenes, body.focused_scene_index, current_user.id)
+    targets = intent["scene_indices"] or [
+        body.focused_scene_index if body.focused_scene_index is not None else 0
+    ]
+    action = intent["action"]
+    instruction = intent["instruction"]
+
+    if action == "query":
+        return {"message": instruction, "intent": "query", "edited_scenes": []}
+
+    edited: list[int] = []
+    for i in targets:
+        if not (0 <= i < len(scenes)):
+            continue
+        scene = scenes[i]
+        try:
+            if action == "regenerate" or not scene.get("custom_code"):
+                scene_start = scene.get("start_time_seconds", 0.0) or 0.0
+                rel_wts = [
+                    {"word": w.get("word", ""),
+                     "start": max(0.0, (w.get("start", 0) or 0) - scene_start),
+                     "end": max(0.0, (w.get("end", 0) or 0) - scene_start)}
+                    for w in (scene.get("word_timestamps") or [])
+                ]
+                result = generate_scene_animation(
+                    text=scene.get("text", ""), duration_seconds=scene.get("duration_seconds", 6.0),
+                    word_timestamps=rel_wts, bg_hint=(scene.get("remotion_props") or {}).get("backgroundColor"),
+                    art_direction=scene.get("media_query"), user_id=current_user.id, aspect_ratio=aspect,
+                    variation=True,
+                )
+                src = "regenerate"
+            else:
+                result = generate_animation(
+                    prompt="", user_id=current_user.id, aspect_ratio=aspect,
+                    duration_seconds=scene.get("duration_seconds", 6.0),
+                    previous_code=scene["custom_code"], edit_instruction=instruction,
+                )
+                src = "edit"
+        except Exception:  # noqa: BLE001
+            logger.exception("Asistente: falló escena %d (job %s)", i, job_id)
+            continue
+        if result.get("valid") and result.get("code"):
+            scene["custom_code"] = result["code"]
+            scenes[i] = scene
+            edited.append(i)
+            save_generated_animation(
+                code=result["code"], source=src, job_id=job_id, scene_index=i,
+                user_id=current_user.id, prompt_text=scene.get("text"), art_direction=instruction,
+                model=result.get("model"), valid=True, status="edited", tokens=result.get("tokens"),
+                duration_frames=result.get("duration_frames"), aspect_ratio=aspect,
+            )
+
+    job.result_spec["scenes"] = scenes
+    flag_modified(job, "result_spec")
+    db.commit()
+
+    if edited:
+        nums = ", ".join(str(i + 1) for i in edited)
+        verb = "Regeneré" if action == "regenerate" else "Edité"
+        message = f"{verb} la(s) escena(s) {nums}. Mira el preview."
+    else:
+        message = "No pude aplicar el cambio (no salió válido). Sé más específico o intenta de nuevo."
+    return {"message": message, "intent": action, "edited_scenes": edited, "updated_spec": job.result_spec}
 
 
 @router.get("/{job_id}/formats")
