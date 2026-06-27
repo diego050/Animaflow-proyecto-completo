@@ -2,15 +2,8 @@ import { Composition, registerRoot } from "remotion";
 import { MainComposition } from "./MainComposition";
 import { CustomCode } from "./CustomCode";
 import { CustomCodeAudio } from "./CustomCodeAudio";
+import { dimsFor } from "./aspectDims";
 import type { TimelineSpec } from "../types/spec";
-
-const ASPECT_DIMS: Record<string, { w: number; h: number }> = {
-  "9:16": { w: 1080, h: 1920 },
-  "4:5": { w: 1080, h: 1350 },
-  "3:4": { w: 1080, h: 1440 },
-  "1:1": { w: 1080, h: 1080 },
-  "16:9": { w: 1920, h: 1080 },
-};
 
 const defaultSpec: TimelineSpec = {
   scenes: [
@@ -42,7 +35,7 @@ export const RemotionRoot = () => {
           const spec = props.spec as TimelineSpec;
           const totalDurationSecs = spec.scenes.reduce((acc, s) => acc + s.duration_seconds, 0);
           const ar = spec.aspect_ratio || "9:16";
-          const dims = ASPECT_DIMS[ar] || ASPECT_DIMS["9:16"];
+          const dims = dimsFor(ar);
           return {
             durationInFrames: Math.max(1, Math.round(totalDurationSecs * 30)),
             props,

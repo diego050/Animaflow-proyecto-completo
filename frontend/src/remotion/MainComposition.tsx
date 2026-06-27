@@ -234,10 +234,11 @@ export const MainComposition = ({ spec }: { spec: TimelineSpec }) => {
         );
       })}
 
-      {/* C2: overlays de transición, CENTRADOS en cada corte entre escenas.
-          Van después de las escenas en el DOM → se pintan ENCIMA. No tienen
-          audio ni alteran el timing; solo es un efecto visual sobre el corte. */}
-      {spec.scenes.slice(1).map((_, i) => {
+      {/* C2: overlays de transición ANTIGUAS — DESACTIVADAS. Ahora el code-gen hace sus
+          propias transiciones de entrada/salida DENTRO del componente de cada escena (que
+          además SÍ salen en el footage AE). Se deja el código intacto (slice(1,1) = vacío,
+          no renderiza nada) por si hubiera que revertir. */}
+      {spec.scenes.slice(1, 1).map((_, i) => {
         const boundaryFrame = sceneOffsets[i + 1];
         // Continuidad: el corte está entre la escena i (saliente) y la i+1 (entrante).
         // Override de la IA: la escena saliente puede fijar `transition`/`transition_color`.

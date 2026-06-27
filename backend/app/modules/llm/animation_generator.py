@@ -12,14 +12,25 @@ from app.services.settings_store import get_setting
 
 logger = get_logger("animation_gen")
 
-# Dimensiones por aspect ratio. El prototipo usa 9:16 (reel vertical).
-_DIMS = {
-    "9:16": (1080, 1920),
-    "16:9": (1920, 1080),
-    "1:1": (1080, 1080),
-    "4:5": (1080, 1350),
-}
 _FPS = 30
+
+
+def _parse_dims(aspect_ratio: str) -> tuple[int, int]:
+    """Dims (w, h) para CUALQUIER aspect ratio 'W:H' (presets o custom: 4:3, 21:9, 2.39:1…).
+    El lado CORTO queda en 1080 (igual que los presets); el largo escala. Default 9:16."""
+    try:
+        w_str, h_str = str(aspect_ratio).replace(" ", "").split(":")
+        wr, hr = float(w_str), float(h_str)
+        if wr <= 0 or hr <= 0:
+            raise ValueError
+    except Exception:  # noqa: BLE001
+        return (1080, 1920)
+    ratio = wr / hr
+    if ratio >= 1:  # horizontal o cuadrado → alto 1080
+        h, w = 1080, round(1080 * ratio)
+    else:  # vertical → ancho 1080
+        w, h = 1080, round(1080 / ratio)
+    return (w + (w % 2), h + (h % 2))  # dims pares (encoders)
 
 _SYSTEM_RULES = """Eres un experto en motion-graphics con Remotion (React). Generas UN componente \
 React autocontenido que renderiza una animación PROFESIONAL, dinámica y moderna (estilo reel viral).
@@ -39,8 +50,9 @@ REGLAS OBLIGATORIAS:
    FUENTE: usa SIEMPRE `fontFamily: 'Inter, sans-serif'` en el texto (esa fuente está cargada y
    garantiza que el render mp4 salga IGUAL al preview). NO uses otras fuentes ni solo 'sans-serif'.
 8. Puedes dibujar formas/íconos con SVG inline o divs con estilos. Asegúrate de que SVG use elementos SVG (<circle>, <path>) DENTRO de un <svg>, nunca como divs sueltos.
-9. NO pongas barras de progreso, líneas de tiempo, indicadores de duración ni de porcentaje de reproducción (sobre todo en los bordes inferior/superior). El timing lo maneja el sistema; esas barras se ven mal en una escena corta.
-10. Devuelve SOLO el código TSX del componente. Sin explicaciones, sin markdown, sin ```."""
+9. PROHIBIDO ABSOLUTAMENTE: barras de progreso, líneas/barras de tiempo, "scrubbers", indicadores de duración o de % de reproducción (esas barritas horizontales en el borde inferior o superior). NUNCA las pongas — el reproductor ya tiene la suya y se ven mal duplicadas.
+10. EDITABILIDAD: declara como `const` ARRIBA (nombres claros en camelCase) los valores que un humano podría querer ajustar a mano: posiciones/offsets base (`const bodyOffsetX = 0`), colores (`const titleColor = "#ffffff"`), tamaños, textos visibles (`const headline = "METAMORFOSIS"`), rotaciones (`const wingRotation = 0`). Úsalos en el JSX. Así se editan sin regenerar. (La lógica y el movimiento pueden seguir inline.)
+11. Devuelve SOLO el código TSX del componente. Sin explicaciones, sin markdown, sin ```."""
 
 # Few-shot: un ejemplo BUENO y DETERMINISTA para anclar calidad.
 _FEWSHOT = """EJEMPLO de salida válida (estilo, calidad y RESPONSIVIDAD esperados — todo relativo a width/height):
@@ -270,7 +282,7 @@ def generate_animation(
     if not api_key:
         raise ValueError("No hay API key de LLM configurada para tu usuario.")
 
-    width, height = _DIMS.get(aspect_ratio, _DIMS["9:16"])
+    width, height = _parse_dims(aspect_ratio)
     duration_frames = int(duration_seconds * _FPS)
 
     # EDICIÓN: primero intenta surgical (search/replace → preserva todo lo demás IDÉNTICO,
@@ -321,6 +333,7 @@ def _run_codegen(full_prompt: str, api_key: str, use_model: str, provider: str =
     # Temperatura y nº de intentos tuneables desde la DB (admin) con default de código.
     temperature = float(get_setting("codegen.temperature", 0.4))
     max_attempts = int(get_setting("codegen.max_attempts", _MAX_CODEGEN_ATTEMPTS))
+    max_output = int(get_setting("codegen.max_output_tokens", 12000))  # tope del tamaño del componente
 
     code = ""
     errors: list[str] = []
@@ -328,7 +341,7 @@ def _run_codegen(full_prompt: str, api_key: str, use_model: str, provider: str =
     for attempt in range(max_attempts):
         out = call_text_llm(
             prompt=full_prompt, api_key=api_key, model=use_model, provider=provider,
-            temperature=temperature, max_tokens=12000, label="LLM Animation",
+            temperature=temperature, max_tokens=max_output, label="LLM Animation",
         )
         t = out["tokens"]
         tokens["in"] += t["in"]; tokens["out"] += t["out"]; tokens["total"] += t["total"]
@@ -397,7 +410,7 @@ def generate_scene_animation(
     if not api_key:
         raise ValueError("No hay API key de LLM configurada.")
 
-    width, height = _DIMS.get(aspect_ratio, _DIMS["9:16"])
+    width, height = _parse_dims(aspect_ratio)
     duration_frames = int(duration_seconds * _FPS)
 
     timing = ""
@@ -411,10 +424,18 @@ def generate_scene_animation(
                 continue
         if parts:
             timing = (
-                "Frame en que se dice cada palabra: " + ", ".join(parts)
-                + ". Si muestras texto, sincronízalo con esos frames."
+                "(OPCIONAL — solo si decides mostrar palabras clave y quieres sincronizarlas con "
+                "la voz, el frame de cada palabra es: " + ", ".join(parts) + ".)"
             )
     bg = f"Color de fondo sugerido (úsalo o uno coherente): {bg_hint}." if bg_hint else ""
+    transitions = (
+        "\nTRANSICIONES (es UNA escena de un VIDEO con otras): anima una ENTRADA al inicio "
+        "(~primeros 10-15 frames) y una SALIDA al final (~últimos 10-15 frames), derivadas de "
+        "useCurrentFrame(). VARÍA el estilo entre escenas (NO siempre el mismo): slide desde "
+        "cualquier lado, fade, zoom in/out, desvanecer a negro o al color de fondo, wipe, escala, "
+        "rotación, etc. — elige lo que combine. La salida puede terminar en negro/color para "
+        "encadenar con la siguiente escena. Sé creativo, hay muchísimas transiciones posibles."
+    )
     vary = (
         "\nIMPORTANTE: genera una versión con un ENFOQUE VISUAL CLARAMENTE DISTINTO al típico "
         "(otra composición, otros elementos/íconos, otra paleta dentro del mood). Sé creativo."
@@ -447,9 +468,12 @@ def generate_scene_animation(
         f"Lienzo {width}x{height} a {_FPS}fps (diseña RESPONSIVO con useVideoConfig), "
         f"duración EXACTA {duration_frames} frames (toda la animación debe ocurrir dentro de ese rango).\n"
         f'Esta es UNA escena de un video; el AUDIO YA narra esta frase, NO la repitas entera en pantalla: "{text}"\n'
-        f"{art}{bg} {timing}{vary}\n\n"
-        "Crea una animación que ILUSTRE visualmente la idea de esa frase (el VISUAL es el "
-        "protagonista; si pones texto, pocas palabras clave). Devuelve SOLO el código."
+        f"{art}{bg} {timing}{transitions}{vary}\n\n"
+        "Crea una animación que ILUSTRE visualmente la idea de esa frase. El VISUAL es el "
+        "PROTAGONISTA. El texto es OPCIONAL — decide según lo que quede mejor: "
+        "(a) SIN texto (visual puro, ideal si la idea se ilustra sola, ej. una gráfica que sube), "
+        "(b) 1–3 PALABRAS CLAVE, o (c) excepcionalmente una frase corta. NO pongas la narración "
+        "completa como subtítulo salvo que de verdad aporte. Devuelve SOLO el código."
     )
     code, errors, tokens = _run_codegen(full_prompt, api_key, use_model, provider)
     return {

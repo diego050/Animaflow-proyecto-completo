@@ -29,6 +29,7 @@ const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage')
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })));
 const AdminJobsPage = lazy(() => import('./pages/admin/AdminJobsPage').then(m => ({ default: m.AdminJobsPage })));
 const AnimationCreator = lazy(() => import('./pages/admin/AnimationCreator').then(m => ({ default: m.AnimationCreator })));
+const AdminAnimationMetrics = lazy(() => import('./pages/admin/AdminAnimationMetrics').then(m => ({ default: m.AdminAnimationMetrics })));
 
 export default function App() {
   return (
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="system" element={<AdminSystemPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
             <Route path="animations/create" element={<AnimationCreator />} />
+            <Route path="metrics" element={<AdminAnimationMetrics />} />
           </Route>
 
           {/* 404 catch-all */}
