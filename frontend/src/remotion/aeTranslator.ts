@@ -10,12 +10,30 @@ import { parse } from '@babel/parser';
 
 export interface AeElement {
   id: string;
-  type: 'shape' | 'text' | 'svg';
+  type: 'shape' | 'text' | 'svg' | 'path';
   name: string;
   tag: string;
   isGroup: boolean; // true = está en un loop → se renderiza N veces (ids `id-0`, `id-1`, …)
   indexVar?: string;
   shape?: 'ellipse' | 'rect'; // para formas de SVG convertidas a nativas
+}
+
+/** Lee el atributo `d` (string literal) de un <path>; null si es dinámico/ausente. */
+function pathD(n: any): string | null {
+  for (const a of n.openingElement?.attributes || []) {
+    if (a.type === 'JSXAttribute' && a.name?.name === 'd') {
+      if (a.value?.type === 'StringLiteral') return a.value.value;
+      if (a.value?.type === 'JSXExpressionContainer' && a.value.expression?.type === 'StringLiteral')
+        return a.value.expression.value;
+      return null; // d dinámico → no convertible a nativo
+    }
+  }
+  return null;
+}
+
+/** Solo líneas rectas (M/L/H/V/Z) → convertible a trazo nativo. Curvas/arcos (C/S/Q/T/A) → footage. */
+function isStraightPath(d: string | null): boolean {
+  return !!d && /[Mm]/.test(d) && !/[CcSsQqTtAa]/.test(d);
 }
 
 export interface TagResult {
@@ -69,7 +87,10 @@ export function tagElements(code: string): TagResult {
     walk(n, (m: any) => {
       if (m === n || m.type !== 'JSXElement') return;
       const t = jsxName(m.openingElement).toLowerCase();
-      if (SVG_DRAWABLE.has(t)) {
+      if (t === 'path') {
+        if (isStraightPath(pathD(m))) hasShape = true; // trazo recto → nativo
+        else convertible = false; // curvas/arcos/d dinámico → footage del svg entero
+      } else if (SVG_DRAWABLE.has(t)) {
         if (SVG_NATIVE.has(t)) hasShape = true;
         else convertible = false;
       }
@@ -119,6 +140,15 @@ export function tagElements(code: string): TagResult {
       if (!svgs.some((s) => s.convertible && n.start > s.start && n.start < s.end)) return;
       counts.shape += 1;
       pushTag(n, 'shape', lower === 'rect' ? 'rect' : 'ellipse', `Forma ${counts.shape}`);
+      return;
+    }
+
+    // Path de líneas rectas dentro de un svg CONVERTIBLE → trazo nativo de AE.
+    if (lower === 'path') {
+      if (!svgs.some((s) => s.convertible && n.start > s.start && n.start < s.end)) return;
+      if (!isStraightPath(pathD(n))) return;
+      counts.shape += 1;
+      pushTag(n, 'path', undefined, `Trazo ${counts.shape}`);
       return;
     }
 

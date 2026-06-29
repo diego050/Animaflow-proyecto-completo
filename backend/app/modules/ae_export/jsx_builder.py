@@ -139,6 +139,39 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
                 f'var {lvar} = comp.layers.addSolid([{r}, {g}, {b}], {_js_str(name)}, '
                 f'{max(1, int(ap.get("w", 100) or 100))}, {max(1, int(ap.get("h", 100) or 100))}, 1);'
             )
+        elif kind == "path":
+            # Trazo nativo: shape layer con uno o más paths (vértices) + stroke (o fill).
+            r, g, b = _hex_to_rgb01(ap.get("color", "#ffffff"))
+            out.append(f"var {lvar} = comp.layers.addShape();")
+            out.append(f"{lvar}.name = {_js_str(name)};")
+            out.append(f'var {lvar}_g = {lvar}.property("Contents").addProperty("ADBE Vector Group");')
+            for si, sp in enumerate(ap.get("paths", [])):
+                pts = sp.get("points", [])
+                if len(pts) < 2:
+                    continue
+                verts = "[" + ",".join(f"[{round(p[0], 2)}, {round(p[1], 2)}]" for p in pts) + "]"
+                zeros = "[" + ",".join("[0,0]" for _ in pts) + "]"
+                sv = f"{lvar}_sh{si}"
+                out.append(f'var {sv} = {lvar}_g.property("Contents").addProperty("ADBE Vector Shape - Group");')
+                out.append(f"var {sv}_p = new Shape();")
+                out.append(f"{sv}_p.vertices = {verts};")
+                out.append(f"{sv}_p.inTangents = {zeros};")
+                out.append(f"{sv}_p.outTangents = {zeros};")
+                out.append(f"{sv}_p.closed = {'true' if sp.get('closed') else 'false'};")
+                out.append(f'{sv}.property("Path").setValue({sv}_p);')
+            if ap.get("filled"):
+                out.append(f'var {lvar}_f = {lvar}_g.property("Contents").addProperty("ADBE Vector Graphic - Fill");')
+                out.append(f'{lvar}_f.property("Color").setValue([{r}, {g}, {b}, 1]);')
+            else:
+                sw = max(1, int(ap.get("strokeWidth", 2) or 2))
+                out.append(f'var {lvar}_st = {lvar}_g.property("Contents").addProperty("ADBE Vector Graphic - Stroke");')
+                out.append(f'{lvar}_st.property("ADBE Vector Stroke Color").setValue([{r}, {g}, {b}, 1]);')
+                out.append(f'{lvar}_st.property("ADBE Vector Stroke Width").setValue({sw});')
+                # Caps/joins redondeados (como strokeLinecap/Linejoin="round"); opcional → try/catch.
+                out.append(
+                    f'try {{ {lvar}_st.property("ADBE Vector Stroke Line Cap").setValue(2); '
+                    f'{lvar}_st.property("ADBE Vector Stroke Line Join").setValue(2); }} catch (e) {{}}'
+                )
         else:  # shape (rect/ellipse) nativo
             w = max(1.0, float(ap.get("w", 100) or 100))
             h = max(1.0, float(ap.get("h", 100) or 100))
