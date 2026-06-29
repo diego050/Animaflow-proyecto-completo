@@ -1,4 +1,4 @@
-import { Loader2, Terminal, RotateCw } from 'lucide-react';
+import { Loader2, Terminal, RotateCw, ChevronDown } from 'lucide-react';
 import { ProgressSteps } from '../dashboard/ProgressSteps';
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../../api/client';
@@ -21,6 +21,7 @@ interface LogMessage {
 export function WizardStepProcessing({ status, jobId, title, description }: WizardStepProcessingProps) {
   const isFailed = status === 'failed' || status === 'failed_render';
   const [logs, setLogs] = useState<LogMessage[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,37 +70,42 @@ export function WizardStepProcessing({ status, jobId, title, description }: Wiza
           </div>
         )}
 
-        {/* Live Logs Terminal */}
+        {/* Registro técnico (logs) — opcional, plegado por defecto para no saturar la vista */}
         {jobId && (
-          <div className="mt-6 border border-border-tech rounded-lg bg-surface-lowest overflow-hidden flex flex-col">
-            <div className="bg-surface-highest px-3 py-1.5 border-b border-border-tech flex items-center gap-2">
+          <div className="mt-5">
+            <button
+              type="button"
+              onClick={() => setShowLogs(!showLogs)}
+              className="flex items-center gap-2 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
+            >
               <Terminal size={14} className="text-mint-precision" />
-              <span className="text-xs font-mono text-text-secondary font-medium">Worker Logs</span>
-              {status !== 'completed' && !isFailed && (
-                <div className="ml-auto flex gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-error animate-pulse" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse delay-75" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-mint-precision animate-pulse delay-150" />
+              Ver registro técnico
+              <ChevronDown size={13} className={`transition-transform ${showLogs ? 'rotate-180' : ''}`} />
+              {!showLogs && status !== 'completed' && !isFailed && (
+                <span className="w-1.5 h-1.5 rounded-full bg-mint-precision animate-pulse ml-1" />
+              )}
+            </button>
+            {showLogs && (
+              <div className="mt-2 border border-border-tech rounded-lg bg-surface-lowest overflow-hidden">
+                <div className="p-3 h-48 overflow-y-auto font-mono text-xs space-y-1.5">
+                  {logs.length === 0 ? (
+                    <div className="text-text-secondary/50 italic">Esperando eventos...</div>
+                  ) : (
+                    logs.map((log, i) => (
+                      <div key={i} className="flex gap-3">
+                        <span className="text-text-secondary/50 shrink-0">
+                          {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : ''}
+                        </span>
+                        <span className={log.level === 'ERROR' ? 'text-error' : log.level === 'WARNING' ? 'text-warning' : 'text-text-primary/90'}>
+                          {log.message}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                  <div ref={logsEndRef} />
                 </div>
-              )}
-            </div>
-            <div className="p-3 h-48 overflow-y-auto font-mono text-xs space-y-1.5">
-              {logs.length === 0 ? (
-                <div className="text-text-secondary/50 italic">Esperando eventos...</div>
-              ) : (
-                logs.map((log, i) => (
-                  <div key={i} className="flex gap-3">
-                    <span className="text-text-secondary/50 shrink-0">
-                      {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : ''}
-                    </span>
-                    <span className={log.level === 'ERROR' ? 'text-error' : log.level === 'WARNING' ? 'text-warning' : 'text-text-primary/90'}>
-                      {log.message}
-                    </span>
-                  </div>
-                ))
-              )}
-              <div ref={logsEndRef} />
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -3,7 +3,8 @@ import { ChevronDown, ChevronRight, ChevronUp, Edit } from 'lucide-react';
 import type { Spec } from '../../types/spec';
 import { editScene } from '../../api/sceneEdit';
 import { useToastStore } from '../../store/useToastStore';
-import { SceneValueEditor } from './SceneValueEditor';
+import { CodeValueEditor } from './CodeValueEditor';
+import { api } from '../../api/client';
 
 interface SceneInlineEditorProps {
   scene: Spec;
@@ -37,18 +38,46 @@ export function SceneInlineEditor({
   }, [editingName]);
 
   const composer = scene.anima_composer;
+  const saveCodeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingCodeRef = useRef<string | null>(null);
+
+  // Editor manual determinista (code-gen): preview en vivo + guardado debounced del custom_code.
+  const handleCodeChange = useCallback(
+    (newCode: string) => {
+      if (onSpecChange) onSpecChange(sceneIndex, { ...scene, custom_code: newCode } as Spec);
+      pendingCodeRef.current = newCode;
+      if (saveCodeTimeoutRef.current) clearTimeout(saveCodeTimeoutRef.current);
+      saveCodeTimeoutRef.current = setTimeout(() => {
+        const pending = pendingCodeRef.current;
+        pendingCodeRef.current = null;
+        if (pending != null) {
+          api
+            .post(`/api/jobs/${jobId}/scenes/${sceneIndex}/code`, { custom_code: pending })
+            .catch(() => addToast('error', 'Error al guardar el cambio'));
+        }
+      }, 600);
+    },
+    [scene, sceneIndex, jobId, onSpecChange, addToast],
+  );
 
   // Auto-expand when focused
   useEffect(() => {
     if (isFocused) setExpanded(true);
   }, [isFocused]);
 
-  // Cleanup timeout on unmount
+  // Cleanup + FLUSH: al cerrar/cambiar de escena, guarda el cambio pendiente (no se pierde el último).
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (saveCodeTimeoutRef.current) clearTimeout(saveCodeTimeoutRef.current);
+      if (pendingCodeRef.current != null) {
+        api
+          .post(`/api/jobs/${jobId}/scenes/${sceneIndex}/code`, { custom_code: pendingCodeRef.current })
+          .catch(() => {});
+        pendingCodeRef.current = null;
+      }
     };
-  }, []);
+  }, [jobId, sceneIndex]);
 
   // Debounced auto-save function
   const scheduleSave = useCallback(
@@ -131,12 +160,11 @@ export function SceneInlineEditor({
         {expanded && (
           <div className="px-3 pb-3">
             <p className="text-[10px] text-text-secondary/40 mb-2 truncate">{scene.text}</p>
-            <SceneValueEditor
-              jobId={jobId}
-              sceneIndex={sceneIndex}
-              scene={scene}
-              onSpecChange={onSpecChange}
-            />
+            {scene.custom_code ? (
+              <CodeValueEditor code={scene.custom_code} onChange={handleCodeChange} />
+            ) : (
+              <p className="text-[11px] text-text-secondary/40">Esta escena no tiene código editable.</p>
+            )}
           </div>
         )}
       </div>

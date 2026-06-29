@@ -35,6 +35,17 @@ export interface PerElementInfo {
   insertPos: number;
   ovObjStart: number;
   ovObjEnd: number;
+  // SIZE por elemento (opcional): override de una const LOCAL de tamaño (ej. `const size = ...`).
+  sizeAvailable: boolean;
+  sizeOvName: string;
+  sizeSetup: boolean;
+  sizeOverrides: Record<number, number>;
+  sizeBaseText: string;
+  sizeUsageStart: number;
+  sizeUsageEnd: number;
+  sizeInsertPos: number;
+  sizeOvObjStart: number;
+  sizeOvObjEnd: number;
 }
 
 export interface DetectedGroup {
@@ -144,11 +155,77 @@ function parseOverrideObject(ast: any, ovName: string): { overrides: Record<numb
   return result;
 }
 
+const SIZE_PROPS = new Set(['width', 'height', 'fontSize', 'r', 'size', 'radius']);
+
+function parseOverrideObjectNum(ast: any, ovName: string): { overrides: Record<number, number>; objStart: number; objEnd: number } {
+  const result = { overrides: {} as Record<number, number>, objStart: -1, objEnd: -1 };
+  walk(ast, (n: any) => {
+    if (n.type === 'VariableDeclarator' && n.id?.type === 'Identifier' && n.id.name === ovName && n.init?.type === 'ObjectExpression') {
+      result.objStart = n.init.start;
+      result.objEnd = n.init.end;
+      for (const p of n.init.properties) {
+        const key = p.key?.type === 'NumericLiteral' ? p.key.value : (p.key?.type === 'StringLiteral' ? Number(p.key.value) : null);
+        if (key !== null && p.value?.type === 'NumericLiteral') result.overrides[key] = p.value.value;
+      }
+    }
+  });
+  return result;
+}
+
+interface SizeSlot {
+  sizeAvailable: boolean;
+  sizeOvName: string;
+  sizeSetup: boolean;
+  sizeOverrides: Record<number, number>;
+  sizeBaseText: string;
+  sizeUsageStart: number;
+  sizeUsageEnd: number;
+  sizeInsertPos: number;
+  sizeOvObjStart: number;
+  sizeOvObjEnd: number;
+}
+
+// Tamaño por elemento: override de una const LOCAL del loop usada en una prop de tamaño.
+function computeSizeSlot(callback: any, ast: any, groupId: number, code: string): SizeSlot {
+  const ovName = `__ovs${groupId}`;
+  const def: SizeSlot = {
+    sizeAvailable: false, sizeOvName: ovName, sizeSetup: false, sizeOverrides: {}, sizeBaseText: '',
+    sizeUsageStart: -1, sizeUsageEnd: -1, sizeInsertPos: -1, sizeOvObjStart: -1, sizeOvObjEnd: -1,
+  };
+  const indexVar = callback?.params?.[1]?.type === 'Identifier' ? callback.params[1].name : '';
+  if (!indexVar) return def;
+
+  let sizeName = '';
+  walk(callback, (m: any) => {
+    if (sizeName || m.type !== 'ObjectProperty') return;
+    const key = m.key?.name ?? m.key?.value;
+    if (SIZE_PROPS.has(key) && m.value?.type === 'Identifier') sizeName = m.value.name;
+  });
+  if (!sizeName) return def;
+
+  let decl: any = null;
+  walk(callback, (m: any) => {
+    if (!decl && m.type === 'VariableDeclarator' && m.id?.type === 'Identifier' && m.id.name === sizeName && m.init) decl = m;
+  });
+  if (!decl) return def; // no es una const local (quizá nivel componente) → no override de tamaño
+
+  const init = decl.init;
+  if (init.type === 'LogicalExpression' && init.operator === '??' && init.left?.type === 'MemberExpression' && init.left.object?.name === ovName) {
+    const ov = parseOverrideObjectNum(ast, ovName);
+    return { ...def, sizeAvailable: true, sizeSetup: true, sizeOverrides: ov.overrides, sizeOvObjStart: ov.objStart, sizeOvObjEnd: ov.objEnd };
+  }
+  const insertPos = findReturnInsertPos(ast, callback.start);
+  if (insertPos < 0) return def;
+  return { ...def, sizeAvailable: true, sizeBaseText: code.slice(init.start, init.end), sizeUsageStart: init.start, sizeUsageEnd: init.end, sizeInsertPos: insertPos };
+}
+
 // Calcula si un grupo permite edición por elemento (color) y dónde inyectar el override.
-function computePerElement(callback: any, ast: any, groupId: number, consts: Map<string, ConstInfo>, groupStart: number): PerElementInfo {
+function computePerElement(callback: any, ast: any, groupId: number, consts: Map<string, ConstInfo>, groupStart: number, code: string): PerElementInfo {
+  const sizeSlot = computeSizeSlot(callback, ast, groupId, code);
   const off: PerElementInfo = {
     available: false, indexVar: '', ovName: `__ov${groupId}`, resolvedBase: '#888888', baseText: '',
     overrides: {}, setup: false, usageStart: -1, usageEnd: -1, insertPos: -1, ovObjStart: -1, ovObjEnd: -1,
+    ...sizeSlot,
   };
   const indexVar = callback?.params?.[1]?.type === 'Identifier' ? callback.params[1].name : '';
   if (!indexVar) return { ...off, reason: 'el loop no tiene variable de índice (_, i)' };
@@ -180,6 +257,7 @@ function computePerElement(callback: any, ast: any, groupId: number, consts: Map
       available: true, indexVar, ovName, setup: true,
       baseText: '', resolvedBase: resolveColor(baseNode, consts), overrides: ov.overrides,
       usageStart: -1, usageEnd: -1, insertPos: -1, ovObjStart: ov.objStart, ovObjEnd: ov.objEnd,
+      ...sizeSlot,
     };
   }
   if (usage) {
@@ -189,6 +267,7 @@ function computePerElement(callback: any, ast: any, groupId: number, consts: Map
       available: true, indexVar, ovName, setup: false,
       baseText: '', resolvedBase: resolveColor(usage, consts), overrides: {},
       usageStart: usage.start, usageEnd: usage.end, insertPos, ovObjStart: -1, ovObjEnd: -1,
+      ...sizeSlot,
       // baseText se completa abajo (necesita el code)
     };
   }
@@ -235,7 +314,7 @@ function findGroups(ast: any, consts: Map<string, ConstInfo>, code: string): Det
       });
     }
 
-    const perElement = computePerElement(callback, ast, id, consts, n.start);
+    const perElement = computePerElement(callback, ast, id, consts, n.start, code);
     if (perElement.available && !perElement.setup && perElement.usageStart >= 0) {
       perElement.baseText = code.slice(perElement.usageStart, perElement.usageEnd);
     }
@@ -355,5 +434,39 @@ export function setElementColor(code: string, groupId: number, index: number, co
   // 2. Inserta la const del override antes del return (posición baja, sin afectar lo de arriba).
   const decl = `const ${pe.ovName} = ${serializeOverrides({ [index]: safe })};\n  `;
   out = out.slice(0, pe.insertPos) + decl + out.slice(pe.insertPos);
+  return out;
+}
+
+function serializeOverridesNum(ov: Record<number, number>): string {
+  const entries = Object.entries(ov)
+    .map(([k, v]) => [Number(k), v] as [number, number])
+    .sort((a, b) => a[0] - b[0])
+    .map(([k, v]) => `${k}: ${v}`);
+  return `{ ${entries.join(', ')} }`;
+}
+
+/**
+ * Fija el TAMAÑO del elemento #index (override numérico de una const local de tamaño). Igual
+ * que setElementColor pero envuelve la const local: `const size = __ovsN[i] ?? (<init>)`.
+ * `value <= 0` quita la excepción de ese elemento.
+ */
+export function setElementSize(code: string, groupId: number, index: number, value: number): string {
+  const a = analyzeCode(code);
+  const g = a.groups.find((x) => x.id === groupId);
+  if (!g || !g.perElement.sizeAvailable) return code;
+  const pe = g.perElement;
+
+  if (pe.sizeSetup) {
+    const ov = { ...pe.sizeOverrides };
+    if (value > 0) ov[index] = value;
+    else delete ov[index];
+    return code.slice(0, pe.sizeOvObjStart) + serializeOverridesNum(ov) + code.slice(pe.sizeOvObjEnd);
+  }
+
+  if (!(value > 0)) return code;
+  const wrapped = `${pe.sizeOvName}[${pe.indexVar}] ?? (${pe.sizeBaseText})`;
+  let out = code.slice(0, pe.sizeUsageStart) + wrapped + code.slice(pe.sizeUsageEnd);
+  const decl = `const ${pe.sizeOvName} = ${serializeOverridesNum({ [index]: value })};\n  `;
+  out = out.slice(0, pe.sizeInsertPos) + decl + out.slice(pe.sizeInsertPos);
   return out;
 }

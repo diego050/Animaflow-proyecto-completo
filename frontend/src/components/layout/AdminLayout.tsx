@@ -14,7 +14,6 @@ import {
   ArrowLeft,
   Sparkles,
   BarChart3,
-  FlaskConical,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -26,7 +25,6 @@ const navItems = [
   { to: '/admin/jobs', label: 'Jobs', icon: Briefcase },
   { to: '/admin/system', label: 'Sistema', icon: Activity },
   { to: '/admin/animations/create', label: 'Crear Animación', icon: Sparkles },
-  { to: '/admin/animations/lab', label: 'Lab (por elemento)', icon: FlaskConical },
   { to: '/admin/metrics', label: 'Métricas', icon: BarChart3 },
   { to: '/admin/settings', label: 'Configuración', icon: Settings },
 ];

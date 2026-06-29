@@ -17,6 +17,27 @@ class ElevenLabsProvider(TTSProvider):
     def requires_api_key(self) -> bool:
         return True
 
+    async def list_voices(self, api_key: str) -> list[dict]:
+        """Trae el catálogo de voces de la cuenta ElevenLabs del usuario (GET /voices)."""
+        if not api_key:
+            return []
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{self.API_BASE}/voices", headers={"xi-api-key": api_key}, timeout=20
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        out: list[dict] = []
+        for v in data.get("voices", []):
+            labels = v.get("labels") or {}
+            out.append({
+                "voice_id": v.get("voice_id"),
+                "name": v.get("name"),
+                "preview_url": v.get("preview_url"),
+                "description": labels.get("description") or labels.get("accent") or "",
+            })
+        return out
+
     async def generate_audio(self, text: str, voice_id: str = "21m00Tcm4TlvDq8ikWAM", api_key: Optional[str] = None) -> str:
         if not api_key:
             raise ValueError("ElevenLabs requires an API key")

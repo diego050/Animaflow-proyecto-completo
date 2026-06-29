@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Film, Clock, Play, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Film, Clock, Play, CheckCircle2, Loader2, Sparkles, ChevronDown } from 'lucide-react';
 import type { SceneData } from '../../types/job';
 
 export interface WizardStepReviewScenesProps {
@@ -15,6 +15,15 @@ export function WizardStepReviewScenes({
   loading = false,
 }: WizardStepReviewScenesProps) {
   const [editedScenes, setEditedScenes] = useState<SceneData[]>(scenes);
+  const [openPrompt, setOpenPrompt] = useState<Set<number>>(new Set());
+
+  const togglePrompt = (index: number) =>
+    setOpenPrompt((prev) => {
+      const ns = new Set(prev);
+      if (ns.has(index)) ns.delete(index);
+      else ns.add(index);
+      return ns;
+    });
 
   const handleMediaQueryChange = (index: number, value: string) => {
     setEditedScenes((prev) =>
@@ -98,18 +107,37 @@ export function WizardStepReviewScenes({
               />
             </div>
 
-            {/* Media query / prompt (editable) */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-text-secondary uppercase tracking-wide flex items-center gap-1">
+            {/* Media query / prompt (editable, plegable para no alargar la lista) */}
+            <div>
+              <button
+                type="button"
+                onClick={() => togglePrompt(index)}
+                className="flex items-center gap-1 text-xs font-medium text-text-secondary uppercase tracking-wide hover:text-text-primary transition-colors"
+              >
                 <Sparkles size={12} className="text-mint-precision" />
                 Prompt visual
-              </label>
-              <textarea
-                value={scene.media_query}
-                onChange={(e) => handleMediaQueryChange(index, e.target.value)}
-                rows={2}
-                className="w-full bg-surface-highest border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/40 focus:outline-none focus:ring-1 focus:ring-mint-precision/50 resize-none"
-              />
+                <motion.div animate={{ rotate: openPrompt.has(index) ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                  <ChevronDown size={13} />
+                </motion.div>
+              </button>
+              <AnimatePresence>
+                {openPrompt.has(index) && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <textarea
+                      value={scene.media_query}
+                      onChange={(e) => handleMediaQueryChange(index, e.target.value)}
+                      rows={2}
+                      className="w-full mt-1.5 bg-surface-highest border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/40 focus:outline-none focus:ring-1 focus:ring-mint-precision/50 resize-none"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         ))}

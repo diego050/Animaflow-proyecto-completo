@@ -1,31 +1,46 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Player } from '@remotion/player';
-import { ArrowLeft, FlaskConical, Sparkles, Loader2, AlertTriangle, Boxes, Sliders, Scissors } from 'lucide-react';
+import { ArrowLeft, Sparkles, Wand2, AlertTriangle, Loader2, Film, Download } from 'lucide-react';
 import { api } from '../../api/client';
 import { compileAnimation } from '../../remotion/compileAnimation';
 import { CustomCode } from '../../remotion/CustomCode';
-import { analyzeCode, applyValueRef, setElementColor, type ValueRef } from '../../remotion/groupDetector';
+import { useAuthStore } from '../../store/useAuthStore';
+import { CodeValueEditor } from '../../components/project/CodeValueEditor';
 
 interface GenResponse {
   code: string;
+  valid: boolean;
+  errors: string[];
+  model: string;
   width: number;
   height: number;
   duration_frames: number;
-  model: string;
+  edit_mode?: 'surgical' | 'full' | 'create';
+  changes?: { before: string; after: string }[];
 }
 
 /**
- * Laboratorio AISLADO para la edición por-elemento (Camino B). No toca el pipeline, el editor
- * de video ni el render-server. Fase 1: detecta grupos repetidos en el código (solo lectura).
+ * Página unificada de animaciones (admin): generar, editar con IA (surgical), editor manual
+ * determinista (valores/separar/grupos/por-elemento, mismo `CodeValueEditor` que el editor de
+ * video), editar código a mano y renderizar a mp4. Reemplaza la antigua "Crear Animación".
  */
 export function AnimationLab() {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState('');
-  const [code, setCode] = useState('');
+  const [durationSeconds, setDurationSeconds] = useState(6);
+  const [modelOverride, setModelOverride] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [code, setCode] = useState('');
   const [meta, setMeta] = useState<GenResponse | null>(null);
+  const [genErrors, setGenErrors] = useState<string[]>([]);
+  const [editInstruction, setEditInstruction] = useState('');
+
+  const [rendering, setRendering] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   const compiled = useMemo(() => {
     if (!code) return { Comp: null as React.FC | null, error: null as string | null };
@@ -36,136 +51,131 @@ export function AnimationLab() {
     }
   }, [code]);
 
-  // Fase 1-2: análisis determinista (valores sueltos + grupos), en el navegador, instantáneo.
-  const analysis = useMemo(() => analyzeCode(code), [code]);
-
-  const [expandedPE, setExpandedPE] = useState<Set<number>>(new Set());
-  const [editWarning, setEditWarning] = useState<string | null>(null);
-
-  // Revertir automático: aplica el código nuevo SOLO si compila; si lo rompe, lo descarta.
-  const commit = useCallback((newCode: string) => {
-    try {
-      compileAnimation(newCode);
-      setCode(newCode);
-      setEditWarning(null);
-    } catch {
-      setEditWarning('Ese cambio rompía la animación — se descartó automáticamente.');
-    }
-  }, []);
-
-  // Fase 2: edita un valor (suelto o de grupo) reescribiendo solo ese pedacito (con auto-revert).
-  const editControl = useCallback(
-    (ref: ValueRef, newValue: number | string) => commit(applyValueRef(code, ref, newValue)),
-    [code, commit],
-  );
-
-  // Fase 3: fija el color de UN elemento del grupo (override por índice).
-  const setElemColor = useCallback(
-    (groupId: number, index: number, color: string) => commit(setElementColor(code, groupId, index, color)),
-    [code, commit],
-  );
-
-  // Input adecuado según el tipo de valor (color / número / texto).
-  const valueInput = (v: ValueRef) => {
-    if (v.type === 'color') {
-      return (
-        <input
-          type="color"
-          defaultValue={String(v.value)}
-          onChange={(e) => editControl(v, e.target.value)}
-          className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer shrink-0"
-        />
-      );
-    }
-    if (v.type === 'number') {
-      const isCount = v.role === 'count';
-      return (
-        <input
-          type="number"
-          step={isCount ? 1 : 'any'}
-          min={isCount ? 1 : undefined}
-          defaultValue={Number(v.value)}
-          onBlur={(e) =>
-            editControl(
-              v,
-              isCount
-                ? Math.max(1, Math.min(300, parseInt(e.target.value) || 1))
-                : parseFloat(e.target.value) || 0,
-            )
-          }
-          className="w-24 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono"
-        />
-      );
-    }
-    return (
-      <input
-        type="text"
-        defaultValue={String(v.value)}
-        onBlur={(e) => editControl(v, e.target.value)}
-        className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary"
-      />
-    );
-  };
-
-  const generate = useCallback(async () => {
-    if (!prompt.trim()) return;
+  const callGenerate = useCallback(async (body: Record<string, unknown>) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.post<GenResponse>(
-        '/api/admin/animations/generate',
-        { prompt: prompt.trim(), duration_seconds: 6 },
-        { timeoutMs: 180000 },
-      );
+      const data = await api.post<GenResponse>('/api/admin/animations/generate', body, { timeoutMs: 180000 });
       setCode(data.code);
       setMeta(data);
+      setGenErrors(data.errors || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error generando la animación.');
     } finally {
       setLoading(false);
     }
-  }, [prompt]);
+  }, []);
 
-  const previewH = 520;
+  const handleGenerate = useCallback(() => {
+    if (!prompt.trim()) {
+      setError('Escribe una descripción.');
+      return;
+    }
+    callGenerate({ prompt: prompt.trim(), duration_seconds: durationSeconds, model: modelOverride.trim() || undefined });
+  }, [prompt, durationSeconds, modelOverride, callGenerate]);
+
+  const handleEdit = useCallback(() => {
+    if (!editInstruction.trim() || !code) return;
+    callGenerate({
+      prompt: prompt.trim() || 'animación',
+      duration_seconds: durationSeconds,
+      model: modelOverride.trim() || undefined,
+      previous_code: code,
+      edit_instruction: editInstruction.trim(),
+    });
+    setEditInstruction('');
+  }, [editInstruction, code, prompt, durationSeconds, modelOverride, callGenerate]);
+
+  const handleRender = useCallback(async () => {
+    if (!code || !meta) return;
+    setRendering(true);
+    setRenderError(null);
+    setVideoUrl(null);
+    try {
+      const data = await api.post<{ video_url: string; anim_id: string }>(
+        '/api/admin/animations/render',
+        { code, width: meta.width, height: meta.height, duration_frames: meta.duration_frames },
+        { timeoutMs: 600000 },
+      );
+      const token = useAuthStore.getState().token;
+      const resp = await fetch(data.video_url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!resp.ok) throw new Error(`No se pudo cargar el video (${resp.status})`);
+      setVideoUrl(URL.createObjectURL(await resp.blob()));
+    } catch (e) {
+      setRenderError(e instanceof Error ? e.message : 'Error renderizando el mp4.');
+    } finally {
+      setRendering(false);
+    }
+  }, [code, meta]);
+
+  const previewH = 560;
   const previewW = meta ? Math.round((previewH * meta.width) / meta.height) : Math.round((previewH * 1080) / 1920);
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
-      <div className="flex items-center gap-4 mb-2">
+      <div className="flex items-center gap-4 mb-6">
         <button onClick={() => navigate('/admin')} className="p-2 hover:bg-surface-high rounded-lg text-text-secondary">
           <ArrowLeft size={20} />
         </button>
         <div>
           <h1 className="text-2xl font-display font-bold text-text-primary flex items-center gap-2">
-            <FlaskConical size={22} className="text-mint-precision" /> Lab — Edición por elemento
+            <Sparkles size={22} className="text-mint-precision" /> Crear / Editar Animación
           </h1>
           <p className="text-text-secondary text-sm mt-1">
-            Aislado. Fase 1: detecta los grupos repetidos del código (solo lectura, sin tocar nada más).
+            Genera con IA, edita por chat o a mano (valores, separar, por elemento), y renderiza a mp4.
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-        {/* IZQUIERDA: entrada + código + detección */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* IZQUIERDA: controles + edición */}
         <div className="space-y-4">
-          <div className="flex gap-2">
-            <input
-              type="text"
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Describe la animación</label>
+            <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && generate()}
-              placeholder="Genera una animación (ej. música con partículas verdes)…"
-              className="flex-1 bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/40 focus:outline-none focus:border-mint-precision"
+              rows={3}
+              placeholder="Ej: una cifra '+250%' con rebote sobre partículas azules, estilo reel…"
+              className="w-full bg-surface-container border border-border-tech rounded-lg p-3 text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-mint-precision resize-none"
             />
-            <button
-              onClick={generate}
-              disabled={loading || !prompt.trim()}
-              className="flex items-center gap-2 bg-mint-precision text-surface-lowest font-semibold px-4 rounded-lg hover:opacity-90 disabled:opacity-50"
-            >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-              Generar
-            </button>
           </div>
+
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-text-secondary mb-1">Duración (s)</label>
+              <input
+                type="number" min={0.5} max={30} step={0.5} value={durationSeconds}
+                onChange={(e) => setDurationSeconds(Math.max(0.5, Math.min(30, Number(e.target.value) || 6)))}
+                className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-mint-precision"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-text-secondary mb-1">Frames (30fps)</label>
+              <input
+                type="number" min={5} max={900} step={1} value={Math.round(durationSeconds * 30)}
+                onChange={(e) => setDurationSeconds(Math.max(5, Math.min(900, Number(e.target.value) || 180)) / 30)}
+                className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-mint-precision"
+              />
+            </div>
+            <div className="flex-[2]">
+              <label className="block text-xs font-medium text-text-secondary mb-1">Modelo (opcional)</label>
+              <input
+                type="text" value={modelOverride} onChange={(e) => setModelOverride(e.target.value)}
+                placeholder="default (ej. gemini-3.5-flash)"
+                className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/40 focus:outline-none focus:border-mint-precision"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleGenerate}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-mint-precision text-surface-lowest font-semibold py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50"
+          >
+            {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+            {loading ? 'Generando…' : 'Generar animación'}
+          </button>
 
           {error && (
             <div className="flex items-start gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
@@ -173,173 +183,69 @@ export function AnimationLab() {
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Código (pega uno o genera arriba)
-            </label>
-            <textarea
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              spellCheck={false}
-              rows={12}
-              placeholder="Pega aquí el código de una animación para analizarlo…"
-              className="w-full bg-surface-lowest border border-border-tech rounded-lg p-3 text-text-secondary/80 font-mono text-[11px] focus:outline-none focus:border-mint-precision resize-y"
-            />
-          </div>
-
-          {analysis.error && (
-            <p className="text-xs text-red-400 border border-red-500/30 rounded-lg p-3">
-              No se pudo analizar el código: {analysis.error}
-            </p>
-          )}
-
-          {editWarning && (
-            <p className="text-xs text-amber-400 border border-amber-500/30 bg-amber-500/10 rounded-lg p-3">
-              ⚠ {editWarning}
-            </p>
-          )}
-
-          {/* Panel: VALORES sueltos (fondo, textos, colores fuera de loops) */}
-          {code && !analysis.error && (
-            <div className="border border-border-tech rounded-lg p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-text-primary mb-3">
-                <Sliders size={16} className="text-mint-precision" /> Valores ({analysis.values.length})
-              </div>
-              {analysis.values.length === 0 ? (
-                <p className="text-xs text-text-secondary/40">Sin valores sueltos editables.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {analysis.values.map((v, i) => (
-                    <div key={`${v.label}-${v.value}-${i}`} className="flex items-center gap-2 text-xs">
-                      <span className="font-mono text-text-secondary/70 w-40 truncate" title={v.label}>
-                        {v.label}
-                      </span>
-                      {valueInput(v)}
-                    </div>
-                  ))}
-                </div>
-              )}
+          {genErrors.length > 0 && (
+            <div className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+              <div className="font-medium mb-1">La IA no cumplió algunas reglas (se mostró igual):</div>
+              <ul className="list-disc list-inside space-y-0.5">
+                {genErrors.map((er, i) => <li key={i}>{er}</li>)}
+              </ul>
             </div>
           )}
 
-          {/* Panel: SEPARAR color compartido (usos sueltos) */}
-          {code && !analysis.error && analysis.splits.length > 0 && (
-            <div className="border border-border-tech rounded-lg p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-text-primary mb-1">
-                <Scissors size={16} className="text-mint-precision" /> Separar color compartido ({analysis.splits.length})
+          {/* Edición con IA (surgical) */}
+          {code && (
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Editar con IA (cambio puntual)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text" value={editInstruction} onChange={(e) => setEditInstruction(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleEdit()}
+                  placeholder="Ej: pon el círculo más a la derecha y en rojo"
+                  className="flex-1 bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/40 focus:outline-none focus:border-mint-precision"
+                />
+                <button
+                  onClick={handleEdit} disabled={loading || !editInstruction.trim()}
+                  className="flex items-center gap-1 bg-surface-high border border-border-tech text-text-primary px-3 rounded-lg hover:border-mint-precision disabled:opacity-50 text-sm"
+                >
+                  <Wand2 size={15} /> Aplicar
+                </button>
               </div>
-              <p className="text-[10px] text-text-secondary/40 mb-3">
-                Estos elementos usan un color compartido. Edítalos para darles un color propio sin afectar el resto.
-              </p>
-              <div className="space-y-1.5">
-                {analysis.splits.map((s, i) => (
-                  <div key={`${s.label}-${s.start}-${s.value}-${i}`} className="flex items-center gap-2 text-xs">
-                    {valueInput(s)}
-                    <span className="font-mono text-[10px] text-text-secondary/50 truncate" title={s.context}>
-                      {s.label} · {s.context}
-                    </span>
+            </div>
+          )}
+
+          {meta?.edit_mode === 'surgical' && meta.changes && meta.changes.length > 0 && (
+            <div className="text-xs">
+              <p className="text-text-secondary mb-1.5 font-medium">Cambios ({meta.changes.length}):</p>
+              <div className="space-y-2">
+                {meta.changes.map((c, i) => (
+                  <div key={i} className="border border-border-tech rounded-lg overflow-hidden font-mono text-[11px]">
+                    <pre className="bg-red-500/10 text-red-300/90 px-3 py-1.5 whitespace-pre-wrap overflow-auto max-h-28 border-b border-border-tech">- {c.before}</pre>
+                    <pre className="bg-mint-precision/10 text-mint-precision/90 px-3 py-1.5 whitespace-pre-wrap overflow-auto max-h-28">+ {c.after}</pre>
                   </div>
                 ))}
               </div>
             </div>
           )}
+          {meta?.edit_mode === 'full' && (
+            <p className="text-xs text-cadmium-orange/80">No se pudo editar por bloques — se regeneró el componente completo.</p>
+          )}
 
-          {/* Panel: GRUPOS (loops) — cantidad + color de todo el grupo */}
-          {code && !analysis.error && (
-            <div className="border border-border-tech rounded-lg p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-text-primary mb-3">
-                <Boxes size={16} className="text-mint-precision" /> Grupos ({analysis.groups.length})
-              </div>
-              {analysis.groups.length === 0 ? (
-                <p className="text-xs text-text-secondary/40">
-                  No se detectaron grupos repetidos (Array.from / .map).
-                </p>
-              ) : (
-                <div className="space-y-2.5">
-                  {analysis.groups.map((g) => (
-                    <div key={g.id} className="bg-surface-lowest border border-border-tech rounded-lg p-3 text-xs">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-text-primary">
-                          Grupo {g.id + 1} · {g.count >= 0 ? `${g.count} elementos` : 'cantidad dinámica'}
-                        </span>
-                        <span className="font-mono text-[10px] text-text-secondary/50">{g.kind}</span>
-                      </div>
-                      {g.controls.length > 0 ? (
-                        <div className="space-y-1.5">
-                          {g.controls.map((ctrl, ci) => (
-                            <div key={`${ctrl.role}-${ctrl.label}-${ctrl.value}-${ci}`} className="flex items-center gap-2">
-                              <span className="font-mono text-text-secondary/70 w-32 truncate" title={ctrl.label}>
-                                {ctrl.role === 'count' ? 'Cantidad' : ctrl.label}
-                              </span>
-                              {valueInput(ctrl)}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-[10px] text-text-secondary/40">Sin valores editables en este grupo.</p>
-                      )}
-                      {g.perElement.available && g.count > 0 && g.count <= 100 && (
-                        <div className="mt-2 border-t border-border-tech/50 pt-2">
-                          <button
-                            onClick={() =>
-                              setExpandedPE((prev) => {
-                                const s = new Set(prev);
-                                if (s.has(g.id)) s.delete(g.id);
-                                else s.add(g.id);
-                                return s;
-                              })
-                            }
-                            className="text-[11px] text-mint-precision hover:underline"
-                          >
-                            {expandedPE.has(g.id) ? '▾' : '▸'} Editar por elemento ({g.count})
-                          </button>
-                          {expandedPE.has(g.id) && (
-                            <div className="mt-2 grid grid-cols-2 gap-1.5 max-h-48 overflow-auto pr-1">
-                              {Array.from({ length: g.count }).map((_, k) => {
-                                const ov = g.perElement.overrides[k];
-                                const eff = ov ?? g.perElement.resolvedBase;
-                                return (
-                                  <div key={`${g.id}-${k}-${eff}`} className="flex items-center gap-1.5">
-                                    <span className="text-[10px] text-text-secondary/50 w-7">#{k + 1}</span>
-                                    <input
-                                      type="color"
-                                      defaultValue={eff}
-                                      onChange={(e) => setElemColor(g.id, k, e.target.value)}
-                                      className="w-7 h-6 rounded border border-border-tech bg-transparent cursor-pointer"
-                                    />
-                                    {ov && (
-                                      <button
-                                        onClick={() => setElemColor(g.id, k, '')}
-                                        title="Quitar excepción (volver al color del grupo)"
-                                        className="text-[11px] text-text-secondary/40 hover:text-red-400"
-                                      >
-                                        ×
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {!g.perElement.available && g.perElement.reason && (
-                        <p className="mt-2 text-[10px] text-text-secondary/30">
-                          Por elemento: no disponible ({g.perElement.reason}).
-                        </p>
-                      )}
-                      <pre className="mt-2 text-[10px] text-text-secondary/40 font-mono whitespace-pre-wrap break-all">
-                        {g.snippet}…
-                      </pre>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* Editor manual determinista (mismo del editor de video) */}
+          {code && <CodeValueEditor code={code} onChange={setCode} />}
+
+          {/* Código editable a mano */}
+          {code && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-text-secondary hover:text-text-primary">Ver / editar código</summary>
+              <textarea
+                value={code} onChange={(e) => setCode(e.target.value)} spellCheck={false}
+                className="mt-2 w-full h-72 bg-surface-lowest border border-border-tech rounded-lg p-3 text-text-secondary/80 font-mono text-[11px] focus:outline-none focus:border-mint-precision resize-y"
+              />
+            </details>
           )}
         </div>
 
-        {/* DERECHA: preview */}
+        {/* DERECHA: preview + render */}
         <div className="flex flex-col items-center">
           <div className="text-xs text-text-secondary mb-2">
             {meta ? `${meta.width}×${meta.height} · ${meta.duration_frames}f · ${meta.model}` : 'Preview'}
@@ -375,11 +281,31 @@ export function AnimationLab() {
                     <div className="text-xs mt-2 font-mono">{compiled.error}</div>
                   </div>
                 ) : (
-                  'El preview aparecerá aquí'
+                  'Tu animación aparecerá aquí'
                 )}
               </div>
             )}
           </div>
+
+          {compiled.Comp && (
+            <button
+              onClick={handleRender} disabled={rendering}
+              className="mt-4 flex items-center justify-center gap-2 bg-surface-high border border-border-tech text-text-primary px-5 py-2.5 rounded-lg hover:border-mint-precision disabled:opacity-50 text-sm font-medium"
+              style={{ width: previewW }}
+            >
+              {rendering ? <Loader2 size={16} className="animate-spin" /> : <Film size={16} />}
+              {rendering ? 'Renderizando mp4…' : 'Renderizar a mp4'}
+            </button>
+          )}
+          {renderError && <div className="mt-2 text-xs text-red-400 text-center" style={{ width: previewW }}>{renderError}</div>}
+          {videoUrl && (
+            <div className="mt-4 flex flex-col items-center gap-2" style={{ width: previewW }}>
+              <video src={videoUrl} controls className="rounded-xl border border-border-tech w-full" />
+              <a href={videoUrl} download="animacion.mp4" className="flex items-center gap-2 text-sm text-mint-precision hover:underline">
+                <Download size={15} /> Descargar mp4
+              </a>
+            </div>
+          )}
         </div>
       </div>
     </div>
