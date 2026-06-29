@@ -30,6 +30,7 @@ export function AnimationLab() {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState('');
   const [durationSeconds, setDurationSeconds] = useState(6);
+  const [aspectRatio, setAspectRatio] = useState('9:16');
   const [modelOverride, setModelOverride] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,8 +76,13 @@ export function AnimationLab() {
       setError('Escribe una descripción.');
       return;
     }
-    callGenerate({ prompt: prompt.trim(), duration_seconds: durationSeconds, model: modelOverride.trim() || undefined });
-  }, [prompt, durationSeconds, modelOverride, callGenerate]);
+    callGenerate({
+      prompt: prompt.trim(),
+      duration_seconds: durationSeconds,
+      aspect_ratio: aspectRatio,
+      model: modelOverride.trim() || undefined,
+    });
+  }, [prompt, durationSeconds, aspectRatio, modelOverride, callGenerate]);
 
   const handleEdit = useCallback(() => {
     if (!editInstruction.trim() || !code) return;
@@ -194,6 +200,18 @@ export function AnimationLab() {
                 onChange={(e) => setDurationSeconds(Math.max(5, Math.min(900, Number(e.target.value) || 180)) / 30)}
                 className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-mint-precision"
               />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-text-secondary mb-1">Formato</label>
+              <select
+                value={aspectRatio}
+                onChange={(e) => setAspectRatio(e.target.value)}
+                className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-mint-precision"
+              >
+                {['9:16', '16:9', '1:1', '4:5', '3:4', '4:3', '21:9'].map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
             </div>
             <div className="flex-[2]">
               <label className="block text-xs font-medium text-text-secondary mb-1">Modelo (opcional)</label>
