@@ -274,25 +274,29 @@ export function analyzeCode(code: string): AnalysisResult {
     values.push({ label: n.value, type: 'color', value: n.value, start: n.start, end: n.end, quoted: true });
   });
 
-  // ── Splits: usos SUELTOS de un color COMPARTIDO (ej. el subtítulo usa glowColor igual que
-  //    las partículas). Editar uno lo vuelve un literal → independiente, sin tocar el resto. ──
-  const colorConstNames = new Set(
-    Array.from(consts.entries()).filter(([, c]) => c.type === 'color').map(([n]) => n),
-  );
+  // ── Splits: usos SUELTOS de un valor COMPARTIDO (color/tamaño/texto). Ej. el subtítulo usa
+  //    glowColor igual que las partículas, o dos textos usan el mismo titleSize. Editar un uso
+  //    lo vuelve un literal propio → independiente, sin tocar el resto. Sirve para cualquier tipo. ──
   const styleUsages: { name: string; node: any; inGroup: boolean }[] = [];
+  const seenUsage = new Set<number>();
+  const collectConstIds = (subtree: any) => {
+    walk(subtree, (m: any) => {
+      if (m.type === 'Identifier' && consts.has(m.name) && !seenUsage.has(m.start)) {
+        seenUsage.add(m.start);
+        const inGroup = groupSpans.some(([s, e]) => m.start >= s && m.start < e);
+        styleUsages.push({ name: m.name, node: m, inGroup });
+      }
+    });
+  };
   walk(ast, (n: any) => {
-    if (n.type === 'ObjectProperty' && n.value?.type === 'Identifier' && colorConstNames.has(n.value.name)) {
-      const node = n.value;
-      const inGroup = groupSpans.some(([s, e]) => node.start >= s && node.start < e);
-      styleUsages.push({ name: node.name, node, inGroup });
+    // Valor de una prop de estilo (directo o dentro de una fórmula: `width * titleSize`),
+    // excepto `length:` (eso es la cantidad del loop, se edita con el grupo).
+    if (n.type === 'ObjectProperty') {
+      const key = n.key?.name ?? n.key?.value;
+      if (key !== 'length') collectConstIds(n.value);
     }
     if (n.type === 'TemplateLiteral') {
-      for (const ex of n.expressions || []) {
-        if (ex?.type === 'Identifier' && colorConstNames.has(ex.name)) {
-          const inGroup = groupSpans.some(([s, e]) => ex.start >= s && ex.start < e);
-          styleUsages.push({ name: ex.name, node: ex, inGroup });
-        }
-      }
+      for (const ex of n.expressions || []) collectConstIds(ex);
     }
   });
   const countByName = new Map<string, number>();
@@ -304,7 +308,7 @@ export function analyzeCode(code: string): AnalysisResult {
     const c = consts.get(u.name);
     if (!c) continue;
     const ctx = code.slice(Math.max(0, u.node.start - 28), Math.min(code.length, u.node.end + 12)).replace(/\s+/g, ' ').trim();
-    splits.push({ label: u.name, type: 'color', value: c.value, start: u.node.start, end: u.node.end, quoted: true, context: ctx });
+    splits.push({ label: u.name, type: c.type, value: c.value, start: u.node.start, end: u.node.end, quoted: c.type !== 'number', context: ctx });
   }
 
   return { values, groups, splits, error: null };
