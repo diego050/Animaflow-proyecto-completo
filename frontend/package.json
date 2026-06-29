@@ -14,6 +14,7 @@
     "check:manifest": "tsx scripts/generate-manifest-json.ts --check"
   },
   "dependencies": {
+    "@babel/parser": "^7.29.3",
     "@remotion/cli": "^4.0.459",
     "@remotion/google-fonts": "^4.0.459",
     "@remotion/player": "^4.0.459",
