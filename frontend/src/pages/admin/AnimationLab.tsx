@@ -5,7 +5,7 @@ import { ArrowLeft, FlaskConical, Sparkles, Loader2, AlertTriangle, Boxes } from
 import { api } from '../../api/client';
 import { compileAnimation } from '../../remotion/compileAnimation';
 import { CustomCode } from '../../remotion/CustomCode';
-import { detectGroups } from '../../remotion/groupDetector';
+import { detectGroups, applyValueRef, type ValueRef } from '../../remotion/groupDetector';
 
 interface GenResponse {
   code: string;
@@ -36,8 +36,13 @@ export function AnimationLab() {
     }
   }, [code]);
 
-  // Fase 1: detección determinista de grupos (corre en el navegador, instantáneo).
+  // Fase 1-2: detección + edición determinista de grupos (en el navegador, instantáneo).
   const detection = useMemo(() => detectGroups(code), [code]);
+
+  // Fase 2: edita un control (cantidad / color de todo el grupo) reescribiendo solo ese valor.
+  const editControl = useCallback((ref: ValueRef, newValue: number | string) => {
+    setCode((prev) => applyValueRef(prev, ref, newValue));
+  }, []);
 
   const generate = useCallback(async () => {
     if (!prompt.trim()) return;
@@ -136,26 +141,46 @@ export function AnimationLab() {
               <div className="space-y-2.5">
                 {detection.groups.map((g) => (
                   <div key={g.id} className="bg-surface-lowest border border-border-tech rounded-lg p-3 text-xs">
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-2">
                       <span className="font-semibold text-text-primary">
                         Grupo {g.id + 1} · {g.count >= 0 ? `${g.count} elementos` : 'cantidad dinámica'}
                       </span>
                       <span className="font-mono text-[10px] text-text-secondary/50">{g.kind}</span>
                     </div>
-                    {(g.colorsInBody.length > 0 || g.identifiersInStyle.length > 0) && (
-                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                        {g.colorsInBody.map((c) => (
-                          <span key={c} className="flex items-center gap-1 text-[10px] text-text-secondary/70">
-                            <span className="w-3 h-3 rounded-sm border border-border-tech" style={{ background: c }} />
-                            {c}
-                          </span>
-                        ))}
-                        {g.identifiersInStyle.map((idn) => (
-                          <span key={idn} className="text-[10px] font-mono text-mint-precision/80 bg-mint-precision/10 px-1.5 py-0.5 rounded">
-                            {idn}
-                          </span>
+                    {g.controls.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {g.controls.map((ctrl, ci) => (
+                          <div key={`${ctrl.role}-${ctrl.label}-${ctrl.value}-${ci}`} className="flex items-center gap-2">
+                            {ctrl.role === 'count' ? (
+                              <>
+                                <span className="text-text-secondary/70 w-32">Cantidad</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={300}
+                                  defaultValue={Number(ctrl.value)}
+                                  onBlur={(e) => editControl(ctrl, Math.max(1, Math.min(300, parseInt(e.target.value) || 1)))}
+                                  className="w-20 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono"
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-mono text-text-secondary/70 w-32 truncate" title={ctrl.label}>
+                                  {ctrl.label}
+                                </span>
+                                <input
+                                  type="color"
+                                  defaultValue={String(ctrl.value)}
+                                  onChange={(e) => editControl(ctrl, e.target.value)}
+                                  className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer"
+                                />
+                              </>
+                            )}
+                          </div>
                         ))}
                       </div>
+                    ) : (
+                      <p className="text-[10px] text-text-secondary/40">Sin valores editables detectados en este grupo.</p>
                     )}
                     <pre className="mt-2 text-[10px] text-text-secondary/40 font-mono whitespace-pre-wrap break-all">
                       {g.snippet}…
