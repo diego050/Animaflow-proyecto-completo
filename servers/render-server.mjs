@@ -59,7 +59,8 @@ function assembleScene(frames, meta) {
   const elements = [];
   for (const id of ids) {
     const position = [], scale = [], rotation = [], opacity = [];
-    let appearance = null;
+    let first = null;
+    let best = null; // frame donde el elemento es más grande (tamaño real, evita escala≈0)
     frames.forEach((fr, f) => {
       const m = fr[id];
       if (!m) return;
@@ -67,23 +68,28 @@ function assembleScene(frames, meta) {
       scale.push([f, m.scale * 100]);
       rotation.push([f, m.rotation]);
       opacity.push([f, m.opacity]);
-      if (!appearance) {
-        const baseScale = m.scale || 1;
-        if (m.type === "text") {
-          appearance = { kind: "text", text: m.text || "", color: rgbToHex(m.color), fontSize: parseFloat(m.fontSize) || 80 };
-        } else if (m.type === "svg") {
-          appearance = { kind: "footage", file: `${id}.mov`, w: m.w, h: m.h, color: "#808080" };
-        } else {
-          appearance = {
-            kind: "shape",
-            shape: (m.borderRadius || "").includes("50%") ? "ellipse" : "rect",
-            color: rgbToHex(m.color),
-            w: Math.round(m.w / baseScale),
-            h: Math.round(m.h / baseScale),
-          };
-        }
-      }
+      if (!first) first = m;
+      if (!best || m.w > best.w) best = m;
     });
+    if (!first) continue;
+    // Tamaño BASE (CSS, sin transform) = rect del frame más grande / su escala. Nunca 0.
+    const bScale = (best && best.scale) || 1;
+    const baseW = Math.max(1, Math.round((best ? best.w : 1) / bScale));
+    const baseH = Math.max(1, Math.round((best ? best.h : 1) / bScale));
+    let appearance;
+    if (first.type === "text") {
+      appearance = { kind: "text", text: first.text || "", color: rgbToHex(first.color), fontSize: Math.max(1, parseFloat(first.fontSize) || 80) };
+    } else if (first.type === "svg") {
+      appearance = { kind: "footage", file: `${id}.mov`, w: baseW, h: baseH, color: "#808080" };
+    } else {
+      appearance = {
+        kind: "shape",
+        shape: (first.borderRadius || "").includes("50%") ? "ellipse" : "rect",
+        color: rgbToHex(first.color),
+        w: baseW,
+        h: baseH,
+      };
+    }
     elements.push({ id, name: id, appearance, tracks: { position, scale, rotation, opacity } });
   }
   return { ...meta, elements };

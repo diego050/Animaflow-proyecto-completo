@@ -118,7 +118,7 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
         if kind == "text":
             out.append(f"var {lvar} = comp.layers.addText({_js_str(ap.get('text', ''))});")
             r, g, b = _hex_to_rgb01(ap.get("color", "#ffffff"))
-            fsize = float(ap.get("fontSize", 80))
+            fsize = max(1.0, float(ap.get("fontSize", 80) or 80))
             out.append(f"var {lvar}_td = {lvar}.property(\"Source Text\").value;")
             out.append(f"{lvar}_td.fillColor = [{r}, {g}, {b}];")
             out.append(f"{lvar}_td.fontSize = {round(fsize, 1)};")
@@ -137,11 +137,11 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
             r, g, b = _hex_to_rgb01(ap.get("color", "#808080"))
             out.append(
                 f'var {lvar} = comp.layers.addSolid([{r}, {g}, {b}], {_js_str(name)}, '
-                f'{int(ap.get("w", 100))}, {int(ap.get("h", 100))}, 1);'
+                f'{max(1, int(ap.get("w", 100) or 100))}, {max(1, int(ap.get("h", 100) or 100))}, 1);'
             )
         else:  # shape (rect/ellipse) nativo
-            w = float(ap.get("w", 100))
-            h = float(ap.get("h", 100))
+            w = max(1.0, float(ap.get("w", 100) or 100))
+            h = max(1.0, float(ap.get("h", 100) or 100))
             r, g, b = _hex_to_rgb01(ap.get("color", "#22c55e"))
             shape_type = "ellipse" if ap.get("shape") == "ellipse" else "rect"
             out.append(f"var {lvar} = comp.layers.addShape();")
