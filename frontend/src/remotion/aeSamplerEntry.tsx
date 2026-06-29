@@ -117,6 +117,14 @@ let Comp: React.FC | null = null;
         scale = Math.sqrt(p[0] * p[0] + p[1] * p[1]) || 1;
         rotation = Math.round((Math.atan2(p[1], p[0]) * 180) / Math.PI);
       }
+      // Color: background-color sólido; si es transparente (gradiente), saca el 1er color del
+      // background-image; si no, el color del texto.
+      let color = cs.backgroundColor;
+      if (!color || color === 'rgba(0, 0, 0, 0)' || color === 'transparent') {
+        const bg = cs.backgroundImage || '';
+        const cm = bg.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/);
+        color = cm ? cm[0] : cs.color;
+      }
       out[id] = {
         type: elx.getAttribute('data-ae-type') || 'shape',
         x: Math.round(r.left - base.left + r.width / 2),
@@ -126,10 +134,7 @@ let Comp: React.FC | null = null;
         opacity: Math.round(parseFloat(cs.opacity || '1') * 100),
         scale: Math.round(scale * 100) / 100,
         rotation,
-        color:
-          cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)'
-            ? cs.backgroundColor
-            : cs.color,
+        color,
         borderRadius: cs.borderRadius,
         text: elx.getAttribute('data-ae-type') === 'text' ? (elx.textContent || '').trim().slice(0, 120) : undefined,
         fontSize: cs.fontSize,

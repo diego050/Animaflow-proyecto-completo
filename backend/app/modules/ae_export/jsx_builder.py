@@ -122,7 +122,15 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
             out.append(f"var {lvar}_td = {lvar}.property(\"Source Text\").value;")
             out.append(f"{lvar}_td.fillColor = [{r}, {g}, {b}];")
             out.append(f"{lvar}_td.fontSize = {round(fsize, 1)};")
+            out.append(f"{lvar}_td.justification = ParagraphJustification.CENTER_JUSTIFY;")
             out.append(f"{lvar}.property(\"Source Text\").setValue({lvar}_td);")
+            # AE ancla el texto en la base-izquierda → centramos el anchor en su bounding box
+            # para que Position quede en el CENTRO del texto (si no, sale corrido/cortado).
+            out.append(f"var {lvar}_r = {lvar}.sourceRectAtTime(0, false);")
+            out.append(
+                f"{lvar}.property(\"Transform\").property(\"Anchor Point\").setValue("
+                f"[{lvar}_r.left + {lvar}_r.width / 2, {lvar}_r.top + {lvar}_r.height / 2]);"
+            )
         elif kind == "footage":
             # Footage: se importa por nombre de archivo (el zip lo trae junto). Placeholder seguro.
             out.append(f"// (footage) importar {_js_str(ap.get('file', ''))} y añadir como capa — Fase B")
