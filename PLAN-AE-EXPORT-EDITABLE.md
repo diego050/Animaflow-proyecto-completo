@@ -145,6 +145,25 @@ Resultado: comp con N capas, cada una con su transform animado **editable**.
 Meta realista: **Nivel 3 para formas y textos simples** (el caso típico: partículas, barras,
 títulos), **Nivel 1/2 para lo complejo**. Eso da el ~85–90% editable que pediste.
 
+### 7b. Manejo de grupos (DECIDIDO)
+
+No queremos 200 capas por un grupo decorativo de 200 puntitos. Regla:
+
+| Grupo | En AE |
+|---|---|
+| **Pocos y con significado** (ícono, texto, ≤ ~10-12: tarjetas, barras) | **una capa por elemento** (editable cada uno) |
+| **Muchos / decorativos** (200 partículas, confeti) | **UNA sola capa de grupo** (clip/precomp del grupo entero) |
+
+- El parser ya sabe la **cantidad** de cada grupo → decide solo según un **umbral configurable**
+  (`maxLayersPerGroup`, default ~10-12).
+- La **capa de grupo** se puede borrar/mover/recolorear/retimear como una sola unidad (ideal para
+  "quitar toda la decoración" = borrar 1 capa).
+- **Quitar SOLO algunos elementos** de un grupo (ej. 200→120) se hace en NUESTRO editor
+  (control de cantidad / por-elemento) **antes de exportar**; el clip de grupo en AE sale con esa
+  cantidad. Dentro del clip ya no se separan (por eso el ajuste fino va antes del export).
+- Implementación de la capa de grupo: render del grupo aislado a **footage transparente** (ocultar
+  el resto) → 1 capa. (Reusa el mismo render del Nivel 1.)
+
 ---
 
 ## 8. Archivos a crear / modificar

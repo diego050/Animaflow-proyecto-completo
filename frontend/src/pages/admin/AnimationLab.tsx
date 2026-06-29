@@ -1,12 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Player } from '@remotion/player';
-import { ArrowLeft, Sparkles, Wand2, AlertTriangle, Loader2, Film, Download } from 'lucide-react';
+import { ArrowLeft, Sparkles, Wand2, AlertTriangle, Loader2, Film, Download, Layers } from 'lucide-react';
 import { api } from '../../api/client';
 import { compileAnimation } from '../../remotion/compileAnimation';
 import { CustomCode } from '../../remotion/CustomCode';
 import { useAuthStore } from '../../store/useAuthStore';
 import { CodeValueEditor } from '../../components/project/CodeValueEditor';
+import { tagElements } from '../../remotion/aeTranslator';
 
 interface GenResponse {
   code: string;
@@ -41,6 +42,9 @@ export function AnimationLab() {
   const [rendering, setRendering] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
+
+  const [aeExporting, setAeExporting] = useState(false);
+  const [aeError, setAeError] = useState<string | null>(null);
 
   const compiled = useMemo(() => {
     if (!code) return { Comp: null as React.FC | null, error: null as string | null };
@@ -105,6 +109,39 @@ export function AnimationLab() {
       setRenderError(e instanceof Error ? e.message : 'Error renderizando el mp4.');
     } finally {
       setRendering(false);
+    }
+  }, [code, meta]);
+
+  // Export AE editable (beta): etiqueta el código → muestrea en el render-server → descarga .jsx.
+  const handleAeExport = useCallback(async () => {
+    if (!code || !meta) return;
+    setAeExporting(true);
+    setAeError(null);
+    try {
+      const tagged = tagElements(code);
+      if (tagged.error) throw new Error('No se pudo analizar el código: ' + tagged.error);
+      const data = await api.post<{ jsx: string; elements: number }>(
+        '/api/admin/animations/ae-export',
+        {
+          code: tagged.taggedCode,
+          width: meta.width,
+          height: meta.height,
+          fps: 30,
+          duration_frames: meta.duration_frames,
+        },
+        { timeoutMs: 300000 },
+      );
+      const blob = new Blob([data.jsx], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'animaflow-ae.jsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setAeError(e instanceof Error ? e.message : 'Error exportando a AE.');
+    } finally {
+      setAeExporting(false);
     }
   }, [code, meta]);
 
@@ -298,6 +335,20 @@ export function AnimationLab() {
             </button>
           )}
           {renderError && <div className="mt-2 text-xs text-red-400 text-center" style={{ width: previewW }}>{renderError}</div>}
+
+          {compiled.Comp && (
+            <button
+              onClick={handleAeExport}
+              disabled={aeExporting}
+              title="Exporta capas editables para After Effects (beta)"
+              className="mt-2 flex items-center justify-center gap-2 bg-surface-high border border-border-tech text-text-primary px-5 py-2.5 rounded-lg hover:border-mint-precision disabled:opacity-50 text-sm font-medium"
+              style={{ width: previewW }}
+            >
+              {aeExporting ? <Loader2 size={16} className="animate-spin" /> : <Layers size={16} />}
+              {aeExporting ? 'Muestreando para AE…' : 'Exportar AE editable (beta)'}
+            </button>
+          )}
+          {aeError && <div className="mt-2 text-xs text-red-400 text-center" style={{ width: previewW }}>{aeError}</div>}
           {videoUrl && (
             <div className="mt-4 flex flex-col items-center gap-2" style={{ width: previewW }}>
               <video src={videoUrl} controls className="rounded-xl border border-border-tech w-full" />

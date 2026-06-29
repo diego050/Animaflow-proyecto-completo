@@ -5,6 +5,7 @@ import { bundle } from "@remotion/bundler";
 import { selectComposition, renderMedia } from "@remotion/renderer";
 import { transform } from "sucrase";
 import vm from "node:vm";
+import * as esbuild from "esbuild";
 import { getBrowser } from "./chrome-pool.mjs";
 
 const app = express();
@@ -14,6 +15,79 @@ const PORT = process.env.PORT || 3001;
 const STORAGE_DIR = "/app/storage/videos";
 
 let serveUrl = null;
+let samplerJs = null; // bundle del sampler AE (React + shim), construido al inicio
+
+// ── Export AE editable (Etapa 2: muestreo por frame). BETA. ──
+// Empaqueta el sampler (frontend/src/remotion/aeSamplerEntry.tsx) con esbuild → un JS para la
+// página de muestreo.
+async function buildAeSampler() {
+  try {
+    const result = await esbuild.build({
+      entryPoints: ["/app/frontend/src/remotion/aeSamplerEntry.tsx"],
+      bundle: true,
+      format: "iife",
+      platform: "browser",
+      target: "es2020",
+      jsx: "transform",
+      jsxFactory: "React.createElement",
+      jsxFragment: "React.Fragment",
+      absWorkingDir: "/app/frontend",
+      write: false,
+      minify: true,
+      logLevel: "warning",
+    });
+    samplerJs = result.outputFiles[0].text;
+    console.log(`AE sampler bundled (${samplerJs.length} bytes).`);
+  } catch (e) {
+    console.error("AE sampler bundle FAILED:", e.message);
+  }
+}
+
+function rgbToHex(rgb) {
+  if (!rgb) return "#808080";
+  if (rgb.startsWith("#")) return rgb;
+  const m = rgb.match(/\d+(\.\d+)?/g);
+  if (!m || m.length < 3) return "#808080";
+  const h = (n) => Math.max(0, Math.min(255, Math.round(parseFloat(n)))).toString(16).padStart(2, "0");
+  return `#${h(m[0])}${h(m[1])}${h(m[2])}`;
+}
+
+// Arma el aeScene (contrato de jsx_builder.py) desde las mediciones por frame.
+function assembleScene(frames, meta) {
+  const ids = new Set();
+  frames.forEach((fr) => Object.keys(fr).forEach((id) => ids.add(id)));
+  const elements = [];
+  for (const id of ids) {
+    const position = [], scale = [], rotation = [], opacity = [];
+    let appearance = null;
+    frames.forEach((fr, f) => {
+      const m = fr[id];
+      if (!m) return;
+      position.push([f, [m.x, m.y]]);
+      scale.push([f, m.scale * 100]);
+      rotation.push([f, m.rotation]);
+      opacity.push([f, m.opacity]);
+      if (!appearance) {
+        const baseScale = m.scale || 1;
+        if (m.type === "text") {
+          appearance = { kind: "text", text: m.text || "", color: rgbToHex(m.color), fontSize: parseFloat(m.fontSize) || 80 };
+        } else if (m.type === "svg") {
+          appearance = { kind: "footage", file: `${id}.mov`, w: m.w, h: m.h, color: "#808080" };
+        } else {
+          appearance = {
+            kind: "shape",
+            shape: (m.borderRadius || "").includes("50%") ? "ellipse" : "rect",
+            color: rgbToHex(m.color),
+            w: Math.round(m.w / baseScale),
+            h: Math.round(m.h / baseScale),
+          };
+        }
+      }
+    });
+    elements.push({ id, name: id, appearance, tracks: { position, scale, rotation, opacity } });
+  }
+  return { ...meta, elements };
+}
 
 // Smoke-test: compila el código generado (sucrase) y verifica que exporte un componente,
 // SIN renderizar. Atrapa errores de sintaxis/estructura que el validador regex no ve.
@@ -123,8 +197,72 @@ app.post("/render", async (req, res) => {
   }
 });
 
+// Página de muestreo (carga el bundle del sampler + un #root del tamaño del lienzo).
+app.get("/ae-sampler.html", (req, res) => {
+  if (!samplerJs) return res.status(503).send("AE sampler not ready");
+  res
+    .type("html")
+    .send(
+      `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#000">` +
+        `<div id="root"></div><script>${samplerJs}</script></body></html>`,
+    );
+});
+
+// Muestreo por-frame (Etapa 2). Recibe código TSX YA ETIQUETADO (data-ae-id) + dims + frames.
+// Devuelve el aeScene (contrato de jsx_builder). BETA: depende del navegador.
+app.post("/ae-sample", async (req, res) => {
+  try {
+    const { code, width = 1080, height = 1920, fps = 30, durationInFrames } = req.body || {};
+    if (!code || !durationInFrames) {
+      return res.status(400).json({ error: "code y durationInFrames requeridos" });
+    }
+    if (!samplerJs) return res.status(503).json({ error: "AE sampler aún empaquetando" });
+
+    // Cap de seguridad para no saturar el servidor (2 CPU / 8 GB).
+    const frameCount = Math.min(Number(durationInFrames), 900);
+
+    const { code: js } = transform(code, {
+      transforms: ["typescript", "jsx", "imports"],
+      jsxRuntime: "classic",
+      production: true,
+    });
+
+    const browser = await getBrowser();
+    const page = await browser.newPage({
+      context: undefined,
+      logLevel: "error",
+      indent: false,
+      pageIndex: 0,
+      onBrowserLog: null,
+      onLog: () => {},
+    });
+    try {
+      await page.setViewport({ width, height, deviceScaleFactor: 1 });
+      await page.goto({ url: `http://localhost:${PORT}/ae-sampler.html`, timeout: 30000, options: {} });
+      await page.evaluate((jsCode, dims) => window.__ae.mount(jsCode, dims), js, {
+        width, height, fps, durationInFrames: frameCount,
+      });
+
+      const frames = [];
+      for (let f = 0; f < frameCount; f++) {
+        await page.evaluate((ff) => window.__ae.setFrame(ff), f);
+        frames.push(await page.evaluate(() => window.__ae.measure()));
+      }
+
+      const scene = assembleScene(frames, { fps, width, height, durationInFrames: frameCount });
+      console.log(`AE sample OK: ${scene.elements.length} elementos, ${frameCount} frames.`);
+      return res.json(scene);
+    } finally {
+      try { await page.close(); } catch { /* noop */ }
+    }
+  } catch (error) {
+    console.error("AE sample failed:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", bundled: !!serveUrl });
+  res.json({ status: "ok", bundled: !!serveUrl, aeSampler: !!samplerJs });
 });
 
 async function start() {
@@ -139,6 +277,8 @@ async function start() {
     });
     
     console.log(`Bundled successfully at ${serveUrl}`);
+
+    await buildAeSampler(); // empaqueta el sampler AE (beta) al inicio
 
     app.listen(PORT, () => {
       console.log(`Render server listening on port ${PORT}`);
