@@ -34,25 +34,27 @@ def parse_intent(prompt: str, scenes: list, focused_index: Optional[int], user_i
     """Devuelve {scene_indices: [int], action: 'edit'|'regenerate'|'query', instruction: str}."""
     from app.modules.llm.router import call_text_llm
 
-    summary = "\n".join(f'{i}: "{(s.get("text") or "")[:90]}"' for i, s in enumerate(scenes))
-    focus = str(focused_index) if focused_index is not None else "ninguna"
+    # Listamos las escenas con su NÚMERO tal como las ve el usuario (desde 1) para que el LLM
+    # solo tenga que ECHAR el número (no convertir a 0-based — flash-lite fallaba en eso).
+    summary = "\n".join(f'Escena {i + 1}: "{(s.get("text") or "")[:90]}"' for i, s in enumerate(scenes))
+    focus = str(focused_index + 1) if focused_index is not None else "ninguna"
     full = (
         "Eres el asistente de edición de un video con animaciones (UNA por escena). El usuario te "
         "pide algo en lenguaje natural; determina a qué ESCENA(S) se refiere y qué ACCIÓN quiere.\n\n"
-        f"ESCENAS (índice: texto):\n{summary}\n\n"
+        f"ESCENAS:\n{summary}\n\n"
         f"Escena enfocada ahora: {focus}\n\n"
         f'PEDIDO DEL USUARIO: "{prompt}"\n\n'
         "Devuelve SOLO JSON (sin markdown, sin explicación):\n"
-        '{"scene_indices": [<índices 0-based>], "action": "edit"|"regenerate"|"query", '
-        '"instruction": "<el cambio concreto, o la pregunta>"}\n\n'
+        '{"scene_numbers": [<números de escena TAL CUAL dice el usuario, desde 1>], '
+        '"action": "edit"|"regenerate"|"query", "instruction": "<el cambio concreto, o la pregunta>"}\n\n'
         "REGLAS:\n"
-        "- 'escena 4' = índice 3 (el usuario cuenta desde 1; tú devuelves 0-based).\n"
-        "- 'esta escena'/'la actual' = la escena enfocada (si hay).\n"
-        "- 'todas' = todos los índices. 'la del corazón' = mapea por el texto.\n"
+        "- Usa el MISMO número que el usuario: si dice 'escena 2' devuelve 2, si dice 'la 3 y la 4' devuelve [3,4]. NO restes ni sumes.\n"
+        "- 'esta escena'/'la actual' = el número de la escena enfocada (si hay).\n"
+        "- 'todas' = todos los números (1 hasta el total). 'la del corazón' = mapea por el texto a su número.\n"
         "- 'hazme otra'/'no me gusta, créala de nuevo'/'rehazla' = action 'regenerate'.\n"
         "- Cambios puntuales (color, posición, quitar/agregar algo) = action 'edit'.\n"
         "- Pregunta sobre el video = action 'query'.\n"
-        "- Si no identificas la escena pero hay una enfocada, úsala."
+        "- Si no identificas la escena pero hay una enfocada, usa su número."
     )
     try:
         use_model, provider, api_key = _resolve_key(user_id)
@@ -75,9 +77,13 @@ def parse_intent(prompt: str, scenes: list, focused_index: Optional[int], user_i
 
     n = len(scenes)
     idxs = []
-    for x in (data.get("scene_indices") or []):
+    # El LLM devuelve números 1-based (como el usuario) → convertimos a índice 0-based aquí.
+    raw = data.get("scene_numbers")
+    if raw is None:
+        raw = data.get("scene_indices")  # compat por si el modelo usa la clave vieja
+    for x in (raw or []):
         try:
-            xi = int(x)
+            xi = int(x) - 1
         except (TypeError, ValueError):
             continue
         if 0 <= xi < n and xi not in idxs:

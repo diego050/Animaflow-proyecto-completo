@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, ChevronUp, Edit } from 'lucide-react';
 import type { Spec } from '../../types/spec';
 import { editScene } from '../../api/sceneEdit';
 import { useToastStore } from '../../store/useToastStore';
+import { SceneValueEditor } from './SceneValueEditor';
 
 interface SceneInlineEditorProps {
   scene: Spec;
@@ -110,19 +111,34 @@ export function SceneInlineEditor({
   const centerY = aspectRatio === '16:9' ? 540 : 960;
 
   if (!composer) {
+    // Escena code-gen (custom_code): editor MANUAL de valores (colores/números/textos), sin IA.
     return (
-      <div className="p-4 border-b border-border-tech/30">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-text-secondary/50">
-            Escena {sceneIndex + 1}
-          </span>
-          <span className="text-[10px] text-text-secondary/30">
-            {scene.duration_seconds}s
-          </span>
-        </div>
-        <p className="text-[10px] text-text-secondary/30 mt-1 truncate">
-          {scene.text}
-        </p>
+      <div className={`border-b border-border-tech/30 ${isFocused ? 'bg-mint-precision/5' : ''}`}>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-between p-3 hover:bg-surface-elevated transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            {expanded ? (
+              <ChevronDown size={14} className="text-text-secondary/50" />
+            ) : (
+              <ChevronRight size={14} className="text-text-secondary/50" />
+            )}
+            <span className="text-xs font-bold text-text-primary">Escena {sceneIndex + 1}</span>
+          </div>
+          <span className="text-[10px] text-text-secondary/40">{scene.duration_seconds}s</span>
+        </button>
+        {expanded && (
+          <div className="px-3 pb-3">
+            <p className="text-[10px] text-text-secondary/40 mb-2 truncate">{scene.text}</p>
+            <SceneValueEditor
+              jobId={jobId}
+              sceneIndex={sceneIndex}
+              scene={scene}
+              onSpecChange={onSpecChange}
+            />
+          </div>
+        )}
       </div>
     );
   }
