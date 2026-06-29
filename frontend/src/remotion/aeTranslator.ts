@@ -15,6 +15,7 @@ export interface AeElement {
   tag: string;
   isGroup: boolean; // true = está en un loop → se renderiza N veces (ids `id-0`, `id-1`, …)
   indexVar?: string;
+  shape?: 'ellipse' | 'rect'; // para formas de SVG convertidas a nativas
 }
 
 export interface TagResult {
@@ -55,13 +56,25 @@ export function tagElements(code: string): TagResult {
     return { taggedCode: code, elements: [], error: e instanceof Error ? e.message : String(e) };
   }
 
-  // 1. Spans de cada <svg> → para saltar sus elementos internos (circle/path/…): el svg se trata
-  //    como una sola unidad.
-  const svgSpans: [number, number][] = [];
+  // 1. Clasificar cada <svg>: "convertible" si SOLO tiene formas simples (circle/ellipse/rect)
+  //    → sus formas se vuelven capas NATIVAS. Si tiene path/line/etc → footage (todo el svg).
+  const SVG_NATIVE = new Set(['circle', 'ellipse', 'rect']);
+  const SVG_DRAWABLE = new Set(['circle', 'ellipse', 'rect', 'path', 'line', 'polygon', 'polyline', 'image', 'use', 'text']);
+  interface SvgInfo { start: number; end: number; convertible: boolean; }
+  const svgs: SvgInfo[] = [];
   walk(ast, (n: any) => {
-    if (n.type === 'JSXElement' && jsxName(n.openingElement).toLowerCase() === 'svg') {
-      svgSpans.push([n.start, n.end]);
-    }
+    if (n.type !== 'JSXElement' || jsxName(n.openingElement).toLowerCase() !== 'svg') return;
+    let convertible = true;
+    let hasShape = false;
+    walk(n, (m: any) => {
+      if (m === n || m.type !== 'JSXElement') return;
+      const t = jsxName(m.openingElement).toLowerCase();
+      if (SVG_DRAWABLE.has(t)) {
+        if (SVG_NATIVE.has(t)) hasShape = true;
+        else convertible = false;
+      }
+    });
+    svgs.push({ start: n.start, end: n.end, convertible: convertible && hasShape });
   });
 
   // 1b. Callbacks de `.map(...)` con su variable de índice → los elementos dentro se renderizan
@@ -84,50 +97,54 @@ export function tagElements(code: string): TagResult {
   const inserts: { pos: number; text: string }[] = [];
   const counts = { shape: 0, text: 0, svg: 0 };
 
+  const pushTag = (n: any, type: AeElement['type'], shape: 'ellipse' | 'rect' | undefined, label: string) => {
+    const id = `el-${elements.length}`;
+    const cb = mapCbs.filter((c) => n.start > c.start && n.start < c.end).sort((a, b) => b.start - a.start)[0];
+    const shapeAttr = shape ? ` data-ae-shape="${shape}"` : '';
+    const idVal = cb ? `{${'`' + id + '-${' + cb.indexVar + '}`'}}` : `"${id}"`;
+    inserts.push({ pos: n.openingElement.name.end, text: ` data-ae-id=${idVal} data-ae-type="${type}"${shapeAttr}` });
+    elements.push({ id, type, name: label, tag: jsxName(n.openingElement).toLowerCase(), isGroup: !!cb, indexVar: cb?.indexVar, shape });
+  };
+
   walk(ast, (n: any) => {
     if (n.type !== 'JSXElement') return;
     const name = jsxName(n.openingElement);
     if (!name || SKIP_NAMES.has(name)) return;
-
-    const isHtml = name[0] === name[0].toLowerCase(); // div/span/svg vs Componentes propios
-    if (!isHtml) return; // los componentes custom no se etiquetan (no vemos su HTML aquí)
-
+    const isHtml = name[0] === name[0].toLowerCase();
+    if (!isHtml) return;
     const lower = name.toLowerCase();
-    // Saltar elementos DENTRO de un svg (pero sí etiquetar el <svg> mismo).
-    if (lower !== 'svg' && svgSpans.some(([s, e]) => n.start > s && n.start < e)) return;
 
-    let type: AeElement['type'] = 'shape';
+    // Forma simple de SVG dentro de un svg CONVERTIBLE → capa nativa (elipse/rect).
+    if (SVG_NATIVE.has(lower)) {
+      if (!svgs.some((s) => s.convertible && n.start > s.start && n.start < s.end)) return;
+      counts.shape += 1;
+      pushTag(n, 'shape', lower === 'rect' ? 'rect' : 'ellipse', `Forma ${counts.shape}`);
+      return;
+    }
+
+    // Saltar TODO lo demás dentro de cualquier svg (el container se decide abajo).
+    if (lower !== 'svg' && svgs.some((s) => n.start > s.start && n.start < s.end)) return;
+
     if (lower === 'svg') {
-      type = 'svg';
-    } else if (TEXT_TAGS.has(lower)) {
+      const info = svgs.find((s) => s.start === n.start);
+      if (info?.convertible) return; // sus formas ya se taggearon → saltar el container
+      counts.svg += 1;
+      pushTag(n, 'svg', undefined, `SVG ${counts.svg}`);
+      return;
+    }
+
+    // div / span / h1…
+    let type: AeElement['type'] = 'shape';
+    if (TEXT_TAGS.has(lower)) {
       type = 'text';
     } else {
-      // div: texto si tiene contenido textual y NINGÚN hijo elemento; si no, forma.
       const kids = n.children || [];
       const hasElementChild = kids.some((k: any) => k.type === 'JSXElement');
-      const hasText = kids.some(
-        (k: any) => (k.type === 'JSXText' && k.value.trim()) || k.type === 'JSXExpressionContainer',
-      );
+      const hasText = kids.some((k: any) => (k.type === 'JSXText' && k.value.trim()) || k.type === 'JSXExpressionContainer');
       if (!hasElementChild && hasText) type = 'text';
     }
-
     counts[type] += 1;
-    const id = `el-${elements.length}`;
-    const label = type === 'text' ? `Texto ${counts.text}` : type === 'svg' ? `SVG ${counts.svg}` : `Forma ${counts.shape}`;
-
-    // ¿está dentro de un .map? → id por instancia con la variable de índice.
-    const cb = mapCbs
-      .filter((c) => n.start > c.start && n.start < c.end)
-      .sort((a, b) => b.start - a.start)[0];
-    let idAttr: string;
-    if (cb) {
-      const tid = '`' + id + '-${' + cb.indexVar + '}`';
-      idAttr = ` data-ae-id={${tid}} data-ae-type="${type}"`;
-    } else {
-      idAttr = ` data-ae-id="${id}" data-ae-type="${type}"`;
-    }
-    elements.push({ id, type, name: label, tag: lower, isGroup: !!cb, indexVar: cb?.indexVar });
-    inserts.push({ pos: n.openingElement.name.end, text: idAttr });
+    pushTag(n, type, undefined, type === 'text' ? `Texto ${counts.text}` : `Forma ${counts.shape}`);
   });
 
   // Insertar de derecha a izquierda para no correr las posiciones.

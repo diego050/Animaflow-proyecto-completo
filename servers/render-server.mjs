@@ -84,7 +84,7 @@ function assembleScene(frames, meta) {
     } else {
       appearance = {
         kind: "shape",
-        shape: (first.borderRadius || "").includes("50%") ? "ellipse" : "rect",
+        shape: first.shape || ((first.borderRadius || "").includes("50%") ? "ellipse" : "rect"),
         color: rgbToHex(first.color),
         w: baseW,
         h: baseH,
