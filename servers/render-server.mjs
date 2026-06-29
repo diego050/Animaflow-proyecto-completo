@@ -76,6 +76,16 @@ function assembleScene(frames, meta) {
     const bScale = (best && best.scale) || 1;
     const baseW = Math.max(1, Math.round((best ? best.w : 1) / bScale));
     const baseH = Math.max(1, Math.round((best ? best.h : 1) / bScale));
+
+    // SALTAR (no crear capa): contenedores transparentes (un div wrapper SIN fondo se volvería
+    // un rect negro) y overlays full-screen con gradiente (decoración casi transparente → rect
+    // opaco que tapa todo). El footage real de overlays es Fase B.
+    if (first.type === "shape") {
+      const fullScreen = baseW >= meta.width * 0.9 && baseH >= meta.height * 0.9;
+      if (first.bgKind === "none") continue;
+      if (first.bgKind === "gradient" && fullScreen) continue;
+    }
+
     let appearance;
     if (first.type === "text") {
       appearance = { kind: "text", text: first.text || "", color: rgbToHex(first.color), fontSize: Math.max(1, parseFloat(first.fontSize) || 80) };
