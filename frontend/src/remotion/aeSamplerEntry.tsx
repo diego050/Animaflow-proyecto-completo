@@ -121,20 +121,33 @@ let Comp: React.FC | null = null;
         scale = Math.sqrt(p[0] * p[0] + p[1] * p[1]) || 1;
         rotation = Math.round((Math.atan2(p[1], p[0]) * 180) / Math.PI);
       }
-      // Color: background-color sólido; si es transparente, 1er color del gradiente; si es una
-      // forma SVG, su fill/stroke; si no, el color del texto.
+      // Color + bgKind: background-color sólido → 'solid'; gradiente en background-image →
+      // 'gradient' (1er color); forma SVG → su fill/stroke (OJO: cs.fill da negro por defecto en
+      // HTML → solo para SVG); si nada → 'none' (contenedor transparente) y usamos el color del texto.
       const transparent = (c: string) => !c || c === 'rgba(0, 0, 0, 0)' || c === 'transparent' || c === 'none';
-      let color = cs.backgroundColor;
-      if (transparent(color)) {
+      const isSvgShape = !!elx.getAttribute('data-ae-shape');
+      let bgKind: 'solid' | 'gradient' | 'none' = 'none';
+      let color = cs.color;
+      if (!transparent(cs.backgroundColor)) {
+        bgKind = 'solid';
+        color = cs.backgroundColor;
+      } else {
         const cm = (cs.backgroundImage || '').match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/);
-        if (cm) color = cm[0];
-        else if (!transparent(cs.fill)) color = cs.fill;
-        else if (!transparent(cs.stroke)) color = cs.stroke;
-        else color = cs.color;
+        if ((cs.backgroundImage || '').includes('gradient') && cm) {
+          bgKind = 'gradient';
+          color = cm[0];
+        } else if (isSvgShape && !transparent(cs.fill)) {
+          bgKind = 'solid';
+          color = cs.fill;
+        } else if (isSvgShape && !transparent(cs.stroke)) {
+          bgKind = 'solid';
+          color = cs.stroke;
+        }
       }
       out[id] = {
         type: elx.getAttribute('data-ae-type') || 'shape',
         shape: elx.getAttribute('data-ae-shape') || undefined,
+        bgKind,
         x: Math.round(r.left - base.left + r.width / 2),
         y: Math.round(r.top - base.top + r.height / 2),
         w: Math.round(r.width),
