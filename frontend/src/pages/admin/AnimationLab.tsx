@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Player } from '@remotion/player';
-import { ArrowLeft, FlaskConical, Sparkles, Loader2, AlertTriangle, Boxes, Sliders } from 'lucide-react';
+import { ArrowLeft, FlaskConical, Sparkles, Loader2, AlertTriangle, Boxes, Sliders, Scissors } from 'lucide-react';
 import { api } from '../../api/client';
 import { compileAnimation } from '../../remotion/compileAnimation';
 import { CustomCode } from '../../remotion/CustomCode';
@@ -199,6 +199,33 @@ export function AnimationLab() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Panel: SEPARAR color compartido (usos sueltos) */}
+          {code && !analysis.error && analysis.splits.length > 0 && (
+            <div className="border border-border-tech rounded-lg p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-text-primary mb-1">
+                <Scissors size={16} className="text-mint-precision" /> Separar color compartido ({analysis.splits.length})
+              </div>
+              <p className="text-[10px] text-text-secondary/40 mb-3">
+                Estos elementos usan un color compartido. Edítalos para darles un color propio sin afectar el resto.
+              </p>
+              <div className="space-y-1.5">
+                {analysis.splits.map((s, i) => (
+                  <div key={`${s.label}-${s.start}-${s.value}-${i}`} className="flex items-center gap-2 text-xs">
+                    <input
+                      type="color"
+                      defaultValue={String(s.value)}
+                      onChange={(e) => editControl(s, e.target.value)}
+                      className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer shrink-0"
+                    />
+                    <span className="font-mono text-[10px] text-text-secondary/50 truncate" title={s.context}>
+                      {s.label} · {s.context}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
