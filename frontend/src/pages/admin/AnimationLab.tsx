@@ -5,7 +5,7 @@ import { ArrowLeft, FlaskConical, Sparkles, Loader2, AlertTriangle, Boxes, Slide
 import { api } from '../../api/client';
 import { compileAnimation } from '../../remotion/compileAnimation';
 import { CustomCode } from '../../remotion/CustomCode';
-import { analyzeCode, applyValueRef, type ValueRef } from '../../remotion/groupDetector';
+import { analyzeCode, applyValueRef, setElementColor, type ValueRef } from '../../remotion/groupDetector';
 
 interface GenResponse {
   code: string;
@@ -39,9 +39,16 @@ export function AnimationLab() {
   // Fase 1-2: análisis determinista (valores sueltos + grupos), en el navegador, instantáneo.
   const analysis = useMemo(() => analyzeCode(code), [code]);
 
+  const [expandedPE, setExpandedPE] = useState<Set<number>>(new Set());
+
   // Fase 2: edita un valor (suelto o de grupo) reescribiendo solo ese pedacito de código.
   const editControl = useCallback((ref: ValueRef, newValue: number | string) => {
     setCode((prev) => applyValueRef(prev, ref, newValue));
+  }, []);
+
+  // Fase 3: fija el color de UN elemento del grupo (override por índice).
+  const setElemColor = useCallback((groupId: number, index: number, color: string) => {
+    setCode((prev) => setElementColor(prev, groupId, index, color));
   }, []);
 
   // Input adecuado según el tipo de valor (color / número / texto).
@@ -228,6 +235,56 @@ export function AnimationLab() {
                         </div>
                       ) : (
                         <p className="text-[10px] text-text-secondary/40">Sin valores editables en este grupo.</p>
+                      )}
+                      {g.perElement.available && g.count > 0 && g.count <= 100 && (
+                        <div className="mt-2 border-t border-border-tech/50 pt-2">
+                          <button
+                            onClick={() =>
+                              setExpandedPE((prev) => {
+                                const s = new Set(prev);
+                                if (s.has(g.id)) s.delete(g.id);
+                                else s.add(g.id);
+                                return s;
+                              })
+                            }
+                            className="text-[11px] text-mint-precision hover:underline"
+                          >
+                            {expandedPE.has(g.id) ? '▾' : '▸'} Editar por elemento ({g.count})
+                          </button>
+                          {expandedPE.has(g.id) && (
+                            <div className="mt-2 grid grid-cols-2 gap-1.5 max-h-48 overflow-auto pr-1">
+                              {Array.from({ length: g.count }).map((_, k) => {
+                                const ov = g.perElement.overrides[k];
+                                const eff = ov ?? g.perElement.resolvedBase;
+                                return (
+                                  <div key={`${g.id}-${k}-${eff}`} className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-text-secondary/50 w-7">#{k + 1}</span>
+                                    <input
+                                      type="color"
+                                      defaultValue={eff}
+                                      onChange={(e) => setElemColor(g.id, k, e.target.value)}
+                                      className="w-7 h-6 rounded border border-border-tech bg-transparent cursor-pointer"
+                                    />
+                                    {ov && (
+                                      <button
+                                        onClick={() => setElemColor(g.id, k, '')}
+                                        title="Quitar excepción (volver al color del grupo)"
+                                        className="text-[11px] text-text-secondary/40 hover:text-red-400"
+                                      >
+                                        ×
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {!g.perElement.available && g.perElement.reason && (
+                        <p className="mt-2 text-[10px] text-text-secondary/30">
+                          Por elemento: no disponible ({g.perElement.reason}).
+                        </p>
                       )}
                       <pre className="mt-2 text-[10px] text-text-secondary/40 font-mono whitespace-pre-wrap break-all">
                         {g.snippet}…

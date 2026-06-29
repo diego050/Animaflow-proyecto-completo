@@ -2,11 +2,11 @@
  * Analizador + editor DETERMINISTA del código de una animación (Camino B).
  *
  * Lee el TSX que generó la IA (sin pedirle nada especial) con un parser real (@babel/parser) y
- * expone DOS cosas editables, cada una apuntando a la posición exacta del valor en el código:
- *   - values:  valores sueltos (consts de color/texto/número + colores inline fuera de loops) →
- *              fondo, textos, color de un texto, etc.
- *   - groups:  grupos repetidos (Array.from / [...].map) con su cantidad y colores de grupo.
- * Editar = reemplazar solo ese pedacito de texto. Corre 100% en el navegador, en ms, sin IA.
+ * expone lo editable, cada cosa apuntando a la posición exacta del valor en el código:
+ *   - values:  valores sueltos (consts de color/texto/número + colores inline fuera de loops).
+ *   - groups:  grupos repetidos (Array.from / [...].map) con cantidad, color de grupo y, si se
+ *              puede, edición POR ELEMENTO (override por índice: `__ovN[i] ?? base`).
+ * Editar = reemplazar solo ese pedacito de texto. Corre en el navegador, en ms, sin IA.
  */
 import { parse } from '@babel/parser';
 
@@ -20,11 +20,28 @@ export interface ValueRef {
   quoted: boolean;
 }
 
+export interface PerElementInfo {
+  available: boolean;
+  reason?: string;
+  indexVar: string;
+  ovName: string;
+  resolvedBase: string; // color base (hex) para el default del picker
+  baseText: string; // texto fuente de la expresión base (ej. "glowColor")
+  overrides: Record<number, string>;
+  setup: boolean; // si el override ya está inyectado en el código
+  usageStart: number;
+  usageEnd: number;
+  insertPos: number;
+  ovObjStart: number;
+  ovObjEnd: number;
+}
+
 export interface DetectedGroup {
   id: number;
   kind: 'Array.from' | '[...]';
   count: number;
   controls: ValueRef[];
+  perElement: PerElementInfo;
   callbackStart: number;
   callbackEnd: number;
   snippet: string;
@@ -37,6 +54,7 @@ export interface AnalysisResult {
 }
 
 const HEX = /^#[0-9a-fA-F]{3,8}$/;
+const COLOR_PROPS = new Set(['background', 'backgroundColor', 'color', 'fill', 'stroke', 'borderColor']);
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function walk(node: any, visit: (n: any) => void) {
@@ -67,10 +85,7 @@ function collectLiteralConsts(ast: any): Map<string, ConstInfo> {
     if (n.type !== 'VariableDeclarator' || n.id?.type !== 'Identifier' || !n.init) return;
     const init = n.init;
     if (init.type === 'StringLiteral') {
-      consts.set(n.id.name, {
-        type: HEX.test(init.value) ? 'color' : 'string',
-        value: init.value, valStart: init.start, valEnd: init.end,
-      });
+      consts.set(n.id.name, { type: HEX.test(init.value) ? 'color' : 'string', value: init.value, valStart: init.start, valEnd: init.end });
     } else if (init.type === 'NumericLiteral') {
       consts.set(n.id.name, { type: 'number', value: init.value, valStart: init.start, valEnd: init.end });
     }
@@ -79,12 +94,7 @@ function collectLiteralConsts(ast: any): Map<string, ConstInfo> {
 }
 
 function countTarget(obj: any): { kind: DetectedGroup['kind']; lengthNode: any; arrayLen: number } | null {
-  if (
-    obj?.type === 'CallExpression' &&
-    obj.callee?.type === 'MemberExpression' &&
-    obj.callee.object?.name === 'Array' &&
-    obj.callee.property?.name === 'from'
-  ) {
+  if (obj?.type === 'CallExpression' && obj.callee?.type === 'MemberExpression' && obj.callee.object?.name === 'Array' && obj.callee.property?.name === 'from') {
     const arg0 = obj.arguments?.[0];
     if (arg0?.type === 'ObjectExpression') {
       const lengthProp = arg0.properties.find((p: any) => p.key?.name === 'length' || p.key?.value === 'length');
@@ -95,6 +105,92 @@ function countTarget(obj: any): { kind: DetectedGroup['kind']; lengthNode: any; 
   }
   if (obj?.type === 'ArrayExpression') return { kind: '[...]', lengthNode: null, arrayLen: obj.elements.length };
   return null;
+}
+
+function resolveColor(node: any, consts: Map<string, ConstInfo>): string {
+  if (!node) return '#888888';
+  if (node.type === 'StringLiteral' && HEX.test(node.value)) return node.value;
+  if (node.type === 'Identifier') {
+    const c = consts.get(node.name);
+    if (c?.type === 'color') return String(c.value);
+  }
+  return '#888888';
+}
+
+function findReturnInsertPos(ast: any, groupStart: number): number {
+  let best = -1;
+  walk(ast, (n: any) => {
+    if (n.type === 'ReturnStatement' && typeof n.start === 'number' && n.start <= groupStart && (n.end ?? 0) >= groupStart) {
+      if (n.start > best) best = n.start;
+    }
+  });
+  return best;
+}
+
+function parseOverrideObject(ast: any, ovName: string): { overrides: Record<number, string>; objStart: number; objEnd: number } {
+  const result = { overrides: {} as Record<number, string>, objStart: -1, objEnd: -1 };
+  walk(ast, (n: any) => {
+    if (n.type === 'VariableDeclarator' && n.id?.type === 'Identifier' && n.id.name === ovName && n.init?.type === 'ObjectExpression') {
+      result.objStart = n.init.start;
+      result.objEnd = n.init.end;
+      for (const p of n.init.properties) {
+        const key = p.key?.type === 'NumericLiteral' ? p.key.value : (p.key?.type === 'StringLiteral' ? Number(p.key.value) : null);
+        if (key !== null && p.value?.type === 'StringLiteral') result.overrides[key] = p.value.value;
+      }
+    }
+  });
+  return result;
+}
+
+// Calcula si un grupo permite edición por elemento (color) y dónde inyectar el override.
+function computePerElement(callback: any, ast: any, groupId: number, consts: Map<string, ConstInfo>, groupStart: number): PerElementInfo {
+  const off: PerElementInfo = {
+    available: false, indexVar: '', ovName: `__ov${groupId}`, resolvedBase: '#888888', baseText: '',
+    overrides: {}, setup: false, usageStart: -1, usageEnd: -1, insertPos: -1, ovObjStart: -1, ovObjEnd: -1,
+  };
+  const indexVar = callback?.params?.[1]?.type === 'Identifier' ? callback.params[1].name : '';
+  if (!indexVar) return { ...off, reason: 'el loop no tiene variable de índice (_, i)' };
+  const ovName = `__ov${groupId}`;
+
+  // Busca la PRIMERA prop de color del estilo: identificador→const color, hex, o ya-override (?? base).
+  let usage: any = null;
+  let setupNode: any = null;
+  walk(callback, (m: any) => {
+    if (usage || setupNode) return;
+    if (m.type !== 'ObjectProperty') return;
+    const key = m.key?.name || m.key?.value;
+    if (!COLOR_PROPS.has(key)) return;
+    const v = m.value;
+    // ya-override: ovName[i] ?? base
+    if (v?.type === 'LogicalExpression' && v.operator === '??' && v.left?.type === 'MemberExpression' && v.left.object?.name === ovName) {
+      setupNode = v;
+    } else if (v?.type === 'Identifier' && consts.get(v.name)?.type === 'color') {
+      usage = v;
+    } else if (v?.type === 'StringLiteral' && HEX.test(v.value)) {
+      usage = v;
+    }
+  });
+
+  if (setupNode) {
+    const baseNode = setupNode.right;
+    const ov = parseOverrideObject(ast, ovName);
+    return {
+      available: true, indexVar, ovName, setup: true,
+      baseText: '', resolvedBase: resolveColor(baseNode, consts), overrides: ov.overrides,
+      usageStart: -1, usageEnd: -1, insertPos: -1, ovObjStart: ov.objStart, ovObjEnd: ov.objEnd,
+    };
+  }
+  if (usage) {
+    const insertPos = findReturnInsertPos(ast, groupStart);
+    if (insertPos < 0) return { ...off, reason: 'no se ubicó dónde insertar el override' };
+    return {
+      available: true, indexVar, ovName, setup: false,
+      baseText: '', resolvedBase: resolveColor(usage, consts), overrides: {},
+      usageStart: usage.start, usageEnd: usage.end, insertPos, ovObjStart: -1, ovObjEnd: -1,
+      // baseText se completa abajo (necesita el code)
+    };
+  }
+  return { ...off, reason: 'no se encontró un color editable en el elemento' };
 }
 
 function findGroups(ast: any, consts: Map<string, ConstInfo>, code: string): DetectedGroup[] {
@@ -125,22 +221,26 @@ function findGroups(ast: any, consts: Map<string, ConstInfo>, code: string): Det
       walk(callback, (m: any) => {
         if (m.type === 'StringLiteral' && HEX.test(m.value) && !seenInline.has(m.start)) {
           seenInline.add(m.start);
-          controls.push({ role: undefined, label: m.value, type: 'color', value: m.value, start: m.start, end: m.end, quoted: true });
+          controls.push({ label: m.value, type: 'color', value: m.value, start: m.start, end: m.end, quoted: true });
         }
         if (m.type === 'Identifier') {
           const c = consts.get(m.name);
           if (c && c.type === 'color' && !seenConst.has(m.name)) {
             seenConst.add(m.name);
-            controls.push({ role: undefined, label: m.name, type: 'color', value: c.value, start: c.valStart, end: c.valEnd, quoted: true });
+            controls.push({ label: m.name, type: 'color', value: c.value, start: c.valStart, end: c.valEnd, quoted: true });
           }
         }
       });
     }
 
+    const perElement = computePerElement(callback, ast, id, consts, n.start);
+    if (perElement.available && !perElement.setup && perElement.usageStart >= 0) {
+      perElement.baseText = code.slice(perElement.usageStart, perElement.usageEnd);
+    }
+
     groups.push({
-      id: id++, kind: target.kind, count, controls,
-      callbackStart: callback?.start ?? n.start,
-      callbackEnd: callback?.end ?? n.end,
+      id: id++, kind: target.kind, count, controls, perElement,
+      callbackStart: callback?.start ?? n.start, callbackEnd: callback?.end ?? n.end,
       snippet: code.slice(n.start, Math.min(n.end ?? n.start, n.start + 130)).replace(/\s+/g, ' ').trim(),
     });
   });
@@ -161,16 +261,14 @@ export function analyzeCode(code: string): AnalysisResult {
   const groupSpans = groups.map((g) => [g.callbackStart, g.callbackEnd] as [number, number]);
 
   const values: ValueRef[] = [];
-  // 1. Consts literales (colores, textos, números) → fondo, textos, etc.
   for (const [name, c] of consts) {
     values.push({ label: name, type: c.type, value: c.value, start: c.valStart, end: c.valEnd, quoted: c.type !== 'number' });
   }
-  // 2. Colores inline fuera de cualquier loop (ej. color: "#ffffff" en un texto suelto).
   const constStarts = new Set(Array.from(consts.values()).map((c) => c.valStart));
   walk(ast, (n: any) => {
     if (n.type !== 'StringLiteral' || !HEX.test(n.value)) return;
-    if (constStarts.has(n.start)) return; // es el valor de una const (ya listada)
-    if (groupSpans.some(([s, e]) => n.start >= s && n.start < e)) return; // dentro de un grupo
+    if (constStarts.has(n.start)) return;
+    if (groupSpans.some(([s, e]) => n.start >= s && n.start < e)) return;
     values.push({ label: n.value, type: 'color', value: n.value, start: n.start, end: n.end, quoted: true });
   });
 
@@ -181,4 +279,42 @@ export function analyzeCode(code: string): AnalysisResult {
 export function applyValueRef(code: string, ref: ValueRef, newValue: number | string): string {
   const text = ref.quoted ? `"${String(newValue).replace(/"/g, '')}"` : String(newValue);
   return code.slice(0, ref.start) + text + code.slice(ref.end);
+}
+
+function serializeOverrides(ov: Record<number, string>): string {
+  const entries = Object.entries(ov)
+    .map(([k, v]) => [Number(k), v] as [number, string])
+    .sort((a, b) => a[0] - b[0])
+    .map(([k, v]) => `${k}: "${String(v).replace(/"/g, '')}"`);
+  return `{ ${entries.join(', ')} }`;
+}
+
+/**
+ * Fija el color del elemento #index de un grupo (override por índice). Si es la primera vez,
+ * inyecta `const __ovN = {index: color}` antes del return y envuelve el uso del color con
+ * `__ovN[i] ?? base`. Si ya existe, solo actualiza el objeto. Reescribe el código de forma
+ * determinista (sin IA). `color` vacío = quita la excepción de ese elemento.
+ */
+export function setElementColor(code: string, groupId: number, index: number, color: string): string {
+  const a = analyzeCode(code);
+  const g = a.groups.find((x) => x.id === groupId);
+  if (!g || !g.perElement.available) return code;
+  const pe = g.perElement;
+  const safe = color.replace(/"/g, '');
+
+  if (pe.setup) {
+    const ov = { ...pe.overrides };
+    if (safe) ov[index] = safe;
+    else delete ov[index];
+    return code.slice(0, pe.ovObjStart) + serializeOverrides(ov) + code.slice(pe.ovObjEnd);
+  }
+
+  if (!safe) return code; // nada que hacer (sin setup y sin color)
+  // 1. Envuelve el uso del color (posición alta primero).
+  const wrapped = `${pe.ovName}[${pe.indexVar}] ?? ${pe.baseText}`;
+  let out = code.slice(0, pe.usageStart) + wrapped + code.slice(pe.usageEnd);
+  // 2. Inserta la const del override antes del return (posición baja, sin afectar lo de arriba).
+  const decl = `const ${pe.ovName} = ${serializeOverrides({ [index]: safe })};\n  `;
+  out = out.slice(0, pe.insertPos) + decl + out.slice(pe.insertPos);
+  return out;
 }
