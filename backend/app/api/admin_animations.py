@@ -161,6 +161,41 @@ def values_apply(req: ValuesApplyRequest, current_user: User = Depends(require_a
     return {"code": new_code, "values": extract_editable_values(new_code)}
 
 
+# ── Export a After Effects EDITABLE (beta) — Etapas 2+3 del traductor AE ──
+
+class AeExportRequest(BaseModel):
+    code: str           # código TSX YA ETIQUETADO (data-ae-id) por el frontend
+    width: int = 1080
+    height: int = 1920
+    fps: int = 30
+    duration_frames: int = 180
+
+
+@router.post("/ae-export")
+def ae_export(req: AeExportRequest, current_user: User = Depends(require_admin)):
+    """Muestrea la animación (render-server) → arma el aeScene → emite el .jsx para AE. BETA."""
+    import httpx
+    from app.core.config import settings
+    from app.modules.ae_export.jsx_builder import build_jsx
+
+    try:
+        with httpx.Client(timeout=300.0) as client:
+            r = client.post(
+                f"{settings.RENDER_SERVER_URL}/ae-sample",
+                json={
+                    "code": req.code, "width": req.width, "height": req.height,
+                    "fps": req.fps, "durationInFrames": req.duration_frames,
+                },
+            )
+            r.raise_for_status()
+            scene = r.json()
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Muestreo AE falló: {e}")
+
+    jsx = build_jsx(scene)
+    return {"jsx": jsx, "elements": len(scene.get("elements", []))}
+
+
 # ── Config tuneable desde la DB (sin redeploy) ──
 
 # (default, descripción). Solo NO-secretos; los secretos siguen en env.
