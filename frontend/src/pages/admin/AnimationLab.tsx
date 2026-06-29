@@ -1,11 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Player } from '@remotion/player';
-import { ArrowLeft, FlaskConical, Sparkles, Loader2, AlertTriangle, Boxes } from 'lucide-react';
+import { ArrowLeft, FlaskConical, Sparkles, Loader2, AlertTriangle, Boxes, Sliders } from 'lucide-react';
 import { api } from '../../api/client';
 import { compileAnimation } from '../../remotion/compileAnimation';
 import { CustomCode } from '../../remotion/CustomCode';
-import { detectGroups, applyValueRef, type ValueRef } from '../../remotion/groupDetector';
+import { analyzeCode, applyValueRef, type ValueRef } from '../../remotion/groupDetector';
 
 interface GenResponse {
   code: string;
@@ -36,13 +36,55 @@ export function AnimationLab() {
     }
   }, [code]);
 
-  // Fase 1-2: detección + edición determinista de grupos (en el navegador, instantáneo).
-  const detection = useMemo(() => detectGroups(code), [code]);
+  // Fase 1-2: análisis determinista (valores sueltos + grupos), en el navegador, instantáneo.
+  const analysis = useMemo(() => analyzeCode(code), [code]);
 
-  // Fase 2: edita un control (cantidad / color de todo el grupo) reescribiendo solo ese valor.
+  // Fase 2: edita un valor (suelto o de grupo) reescribiendo solo ese pedacito de código.
   const editControl = useCallback((ref: ValueRef, newValue: number | string) => {
     setCode((prev) => applyValueRef(prev, ref, newValue));
   }, []);
+
+  // Input adecuado según el tipo de valor (color / número / texto).
+  const valueInput = (v: ValueRef) => {
+    if (v.type === 'color') {
+      return (
+        <input
+          type="color"
+          defaultValue={String(v.value)}
+          onChange={(e) => editControl(v, e.target.value)}
+          className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer shrink-0"
+        />
+      );
+    }
+    if (v.type === 'number') {
+      const isCount = v.role === 'count';
+      return (
+        <input
+          type="number"
+          step={isCount ? 1 : 'any'}
+          min={isCount ? 1 : undefined}
+          defaultValue={Number(v.value)}
+          onBlur={(e) =>
+            editControl(
+              v,
+              isCount
+                ? Math.max(1, Math.min(300, parseInt(e.target.value) || 1))
+                : parseFloat(e.target.value) || 0,
+            )
+          }
+          className="w-24 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono"
+        />
+      );
+    }
+    return (
+      <input
+        type="text"
+        defaultValue={String(v.value)}
+        onBlur={(e) => editControl(v, e.target.value)}
+        className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary"
+      />
+    );
+  };
 
   const generate = useCallback(async () => {
     if (!prompt.trim()) return;
@@ -124,72 +166,78 @@ export function AnimationLab() {
             />
           </div>
 
-          {/* Panel de detección (Fase 1) */}
-          <div className="border border-border-tech rounded-lg p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-text-primary mb-3">
-              <Boxes size={16} className="text-mint-precision" /> Grupos detectados
-            </div>
-            {detection.error ? (
-              <p className="text-xs text-red-400">No se pudo analizar el código: {detection.error}</p>
-            ) : !code ? (
-              <p className="text-xs text-text-secondary/40">Genera o pega un código para analizarlo.</p>
-            ) : detection.groups.length === 0 ? (
-              <p className="text-xs text-text-secondary/40">
-                No se detectaron grupos repetidos (Array.from / .map). Esta animación no tiene loops de elementos.
-              </p>
-            ) : (
-              <div className="space-y-2.5">
-                {detection.groups.map((g) => (
-                  <div key={g.id} className="bg-surface-lowest border border-border-tech rounded-lg p-3 text-xs">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-text-primary">
-                        Grupo {g.id + 1} · {g.count >= 0 ? `${g.count} elementos` : 'cantidad dinámica'}
-                      </span>
-                      <span className="font-mono text-[10px] text-text-secondary/50">{g.kind}</span>
-                    </div>
-                    {g.controls.length > 0 ? (
-                      <div className="space-y-1.5">
-                        {g.controls.map((ctrl, ci) => (
-                          <div key={`${ctrl.role}-${ctrl.label}-${ctrl.value}-${ci}`} className="flex items-center gap-2">
-                            {ctrl.role === 'count' ? (
-                              <>
-                                <span className="text-text-secondary/70 w-32">Cantidad</span>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={300}
-                                  defaultValue={Number(ctrl.value)}
-                                  onBlur={(e) => editControl(ctrl, Math.max(1, Math.min(300, parseInt(e.target.value) || 1)))}
-                                  className="w-20 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono"
-                                />
-                              </>
-                            ) : (
-                              <>
-                                <span className="font-mono text-text-secondary/70 w-32 truncate" title={ctrl.label}>
-                                  {ctrl.label}
-                                </span>
-                                <input
-                                  type="color"
-                                  defaultValue={String(ctrl.value)}
-                                  onChange={(e) => editControl(ctrl, e.target.value)}
-                                  className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer"
-                                />
-                              </>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-[10px] text-text-secondary/40">Sin valores editables detectados en este grupo.</p>
-                    )}
-                    <pre className="mt-2 text-[10px] text-text-secondary/40 font-mono whitespace-pre-wrap break-all">
-                      {g.snippet}…
-                    </pre>
-                  </div>
-                ))}
+          {analysis.error && (
+            <p className="text-xs text-red-400 border border-red-500/30 rounded-lg p-3">
+              No se pudo analizar el código: {analysis.error}
+            </p>
+          )}
+
+          {/* Panel: VALORES sueltos (fondo, textos, colores fuera de loops) */}
+          {code && !analysis.error && (
+            <div className="border border-border-tech rounded-lg p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-text-primary mb-3">
+                <Sliders size={16} className="text-mint-precision" /> Valores ({analysis.values.length})
               </div>
-            )}
-          </div>
+              {analysis.values.length === 0 ? (
+                <p className="text-xs text-text-secondary/40">Sin valores sueltos editables.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {analysis.values.map((v, i) => (
+                    <div key={`${v.label}-${v.value}-${i}`} className="flex items-center gap-2 text-xs">
+                      <span className="font-mono text-text-secondary/70 w-40 truncate" title={v.label}>
+                        {v.label}
+                      </span>
+                      {valueInput(v)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Panel: GRUPOS (loops) — cantidad + color de todo el grupo */}
+          {code && !analysis.error && (
+            <div className="border border-border-tech rounded-lg p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-text-primary mb-3">
+                <Boxes size={16} className="text-mint-precision" /> Grupos ({analysis.groups.length})
+              </div>
+              {analysis.groups.length === 0 ? (
+                <p className="text-xs text-text-secondary/40">
+                  No se detectaron grupos repetidos (Array.from / .map).
+                </p>
+              ) : (
+                <div className="space-y-2.5">
+                  {analysis.groups.map((g) => (
+                    <div key={g.id} className="bg-surface-lowest border border-border-tech rounded-lg p-3 text-xs">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-text-primary">
+                          Grupo {g.id + 1} · {g.count >= 0 ? `${g.count} elementos` : 'cantidad dinámica'}
+                        </span>
+                        <span className="font-mono text-[10px] text-text-secondary/50">{g.kind}</span>
+                      </div>
+                      {g.controls.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {g.controls.map((ctrl, ci) => (
+                            <div key={`${ctrl.role}-${ctrl.label}-${ctrl.value}-${ci}`} className="flex items-center gap-2">
+                              <span className="font-mono text-text-secondary/70 w-32 truncate" title={ctrl.label}>
+                                {ctrl.role === 'count' ? 'Cantidad' : ctrl.label}
+                              </span>
+                              {valueInput(ctrl)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-text-secondary/40">Sin valores editables en este grupo.</p>
+                      )}
+                      <pre className="mt-2 text-[10px] text-text-secondary/40 font-mono whitespace-pre-wrap break-all">
+                        {g.snippet}…
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* DERECHA: preview */}

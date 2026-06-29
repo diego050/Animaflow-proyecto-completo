@@ -1,22 +1,23 @@
 /**
- * Detector + editor DETERMINISTA de grupos repetidos (Camino B, Fases 1-2).
+ * Analizador + editor DETERMINISTA del código de una animación (Camino B).
  *
- * Lee el código TSX que generó la IA (sin pedirle nada especial) con un parser real
- * (@babel/parser) y encuentra los grupos en bucle (`Array.from({length:N}).map`, `[...].map`).
- * Por cada grupo expone CONTROLES editables (cantidad + colores de todo el grupo), cada uno
- * apuntando a la posición exacta del valor en el código. Editar = reemplazar ese pedacito de
- * texto (no se reescribe el resto). Corre 100% en el navegador, en milisegundos, sin IA.
+ * Lee el TSX que generó la IA (sin pedirle nada especial) con un parser real (@babel/parser) y
+ * expone DOS cosas editables, cada una apuntando a la posición exacta del valor en el código:
+ *   - values:  valores sueltos (consts de color/texto/número + colores inline fuera de loops) →
+ *              fondo, textos, color de un texto, etc.
+ *   - groups:  grupos repetidos (Array.from / [...].map) con su cantidad y colores de grupo.
+ * Editar = reemplazar solo ese pedacito de texto. Corre 100% en el navegador, en ms, sin IA.
  */
 import { parse } from '@babel/parser';
 
 export interface ValueRef {
-  role: 'count' | 'color';
+  role?: 'count';
   label: string;
-  type: 'number' | 'color';
+  type: 'number' | 'color' | 'string';
   value: number | string;
-  start: number; // posición del valor en el código (a reemplazar)
+  start: number;
   end: number;
-  quoted: boolean; // si el valor va entre comillas al escribirlo
+  quoted: boolean;
 }
 
 export interface DetectedGroup {
@@ -24,12 +25,13 @@ export interface DetectedGroup {
   kind: 'Array.from' | '[...]';
   count: number;
   controls: ValueRef[];
-  callbackStart: number; // cuerpo del .map (para la Fase 3)
+  callbackStart: number;
   callbackEnd: number;
   snippet: string;
 }
 
-export interface DetectionResult {
+export interface AnalysisResult {
+  values: ValueRef[];
   groups: DetectedGroup[];
   error: string | null;
 }
@@ -59,8 +61,6 @@ interface ConstInfo {
   valEnd: number;
 }
 
-// Consts LITERALES (const X = "#hex" | número). Las locales de un loop (const size = random()*...)
-// son EXPRESIONES, no literales → no entran aquí. Por eso esto filtra solo lo editable de verdad.
 function collectLiteralConsts(ast: any): Map<string, ConstInfo> {
   const consts = new Map<string, ConstInfo>();
   walk(ast, (n: any) => {
@@ -97,86 +97,84 @@ function countTarget(obj: any): { kind: DetectedGroup['kind']; lengthNode: any; 
   return null;
 }
 
-export function detectGroups(code: string): DetectionResult {
-  if (!code || !code.trim()) return { groups: [], error: null };
-  let ast: any;
-  try {
-    ast = parse(code, { sourceType: 'module', plugins: ['typescript', 'jsx'] });
-  } catch (e) {
-    return { groups: [], error: e instanceof Error ? e.message : String(e) };
-  }
-
-  const consts = collectLiteralConsts(ast);
+function findGroups(ast: any, consts: Map<string, ConstInfo>, code: string): DetectedGroup[] {
   const groups: DetectedGroup[] = [];
   let id = 0;
-
   walk(ast, (n: any) => {
-    if (n.type !== 'CallExpression' || n.callee?.type !== 'MemberExpression' || n.callee.property?.name !== 'map') {
-      return;
-    }
+    if (n.type !== 'CallExpression' || n.callee?.type !== 'MemberExpression' || n.callee.property?.name !== 'map') return;
     const target = countTarget(n.callee.object);
     if (!target) return;
-
     const callback = n.arguments?.[0];
     const controls: ValueRef[] = [];
 
-    // ── Cantidad ──
     let count = target.arrayLen;
     if (target.lengthNode?.type === 'NumericLiteral') {
       count = target.lengthNode.value;
-      controls.push({
-        role: 'count', label: 'cantidad', type: 'number', value: count,
-        start: target.lengthNode.start, end: target.lengthNode.end, quoted: false,
-      });
+      controls.push({ role: 'count', label: 'cantidad', type: 'number', value: count, start: target.lengthNode.start, end: target.lengthNode.end, quoted: false });
     } else if (target.lengthNode?.type === 'Identifier') {
-      // length: barCount → resolvemos a la const
       const c = consts.get(target.lengthNode.name);
       if (c && c.type === 'number') {
         count = c.value as number;
-        controls.push({
-          role: 'count', label: `cantidad (${target.lengthNode.name})`, type: 'number', value: count,
-          start: c.valStart, end: c.valEnd, quoted: false,
-        });
+        controls.push({ role: 'count', label: `cantidad (${target.lengthNode.name})`, type: 'number', value: count, start: c.valStart, end: c.valEnd, quoted: false });
       }
     }
 
-    // ── Colores del grupo ──
-    const seenColorConst = new Set<string>();
+    const seenConst = new Set<string>();
     const seenInline = new Set<number>();
     if (callback) {
       walk(callback, (m: any) => {
-        // color inline (ej. color: "#ffffff" dentro del loop)
         if (m.type === 'StringLiteral' && HEX.test(m.value) && !seenInline.has(m.start)) {
           seenInline.add(m.start);
-          controls.push({
-            role: 'color', label: m.value, type: 'color', value: m.value,
-            start: m.start, end: m.end, quoted: true,
-          });
+          controls.push({ role: undefined, label: m.value, type: 'color', value: m.value, start: m.start, end: m.end, quoted: true });
         }
-        // color por const referenciada (glowColor, barColor… también dentro de templates)
         if (m.type === 'Identifier') {
           const c = consts.get(m.name);
-          if (c && c.type === 'color' && !seenColorConst.has(m.name)) {
-            seenColorConst.add(m.name);
-            controls.push({
-              role: 'color', label: m.name, type: 'color', value: c.value,
-              start: c.valStart, end: c.valEnd, quoted: true,
-            });
+          if (c && c.type === 'color' && !seenConst.has(m.name)) {
+            seenConst.add(m.name);
+            controls.push({ role: undefined, label: m.name, type: 'color', value: c.value, start: c.valStart, end: c.valEnd, quoted: true });
           }
         }
       });
     }
 
     groups.push({
-      id: id++, kind: target.kind, count,
-      controls,
+      id: id++, kind: target.kind, count, controls,
       callbackStart: callback?.start ?? n.start,
       callbackEnd: callback?.end ?? n.end,
       snippet: code.slice(n.start, Math.min(n.end ?? n.start, n.start + 130)).replace(/\s+/g, ' ').trim(),
     });
   });
+  return groups;
+}
 
-  return { groups, error: null };
+export function analyzeCode(code: string): AnalysisResult {
+  if (!code || !code.trim()) return { values: [], groups: [], error: null };
+  let ast: any;
+  try {
+    ast = parse(code, { sourceType: 'module', plugins: ['typescript', 'jsx'] });
+  } catch (e) {
+    return { values: [], groups: [], error: e instanceof Error ? e.message : String(e) };
+  }
+
+  const consts = collectLiteralConsts(ast);
+  const groups = findGroups(ast, consts, code);
+  const groupSpans = groups.map((g) => [g.callbackStart, g.callbackEnd] as [number, number]);
+
+  const values: ValueRef[] = [];
+  // 1. Consts literales (colores, textos, números) → fondo, textos, etc.
+  for (const [name, c] of consts) {
+    values.push({ label: name, type: c.type, value: c.value, start: c.valStart, end: c.valEnd, quoted: c.type !== 'number' });
+  }
+  // 2. Colores inline fuera de cualquier loop (ej. color: "#ffffff" en un texto suelto).
+  const constStarts = new Set(Array.from(consts.values()).map((c) => c.valStart));
+  walk(ast, (n: any) => {
+    if (n.type !== 'StringLiteral' || !HEX.test(n.value)) return;
+    if (constStarts.has(n.start)) return; // es el valor de una const (ya listada)
+    if (groupSpans.some(([s, e]) => n.start >= s && n.start < e)) return; // dentro de un grupo
+    values.push({ label: n.value, type: 'color', value: n.value, start: n.start, end: n.end, quoted: true });
+  });
+
+  return { values, groups, error: null };
 }
 
 /** Reemplaza el valor apuntado por `ref` con `newValue` (reescribe solo ese pedacito). */
