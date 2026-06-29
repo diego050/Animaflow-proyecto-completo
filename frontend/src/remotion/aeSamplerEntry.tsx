@@ -89,6 +89,10 @@ let Comp: React.FC | null = null;
     el.style.width = cfg.width + 'px';
     el.style.height = cfg.height + 'px';
     root = createRoot(el);
+    // Render de CALENTAMIENTO: el primer render tras createRoot puede dar medidas inestables
+    // (el transform aún no aplicado → frame 0 mide tamaño completo). Con un render previo, el
+    // setFrame(0) del muestreo ya mide estable.
+    flushSync(() => root!.render(React.createElement(Comp!)));
     return true;
   },
 
@@ -117,16 +121,20 @@ let Comp: React.FC | null = null;
         scale = Math.sqrt(p[0] * p[0] + p[1] * p[1]) || 1;
         rotation = Math.round((Math.atan2(p[1], p[0]) * 180) / Math.PI);
       }
-      // Color: background-color sólido; si es transparente (gradiente), saca el 1er color del
-      // background-image; si no, el color del texto.
+      // Color: background-color sólido; si es transparente, 1er color del gradiente; si es una
+      // forma SVG, su fill/stroke; si no, el color del texto.
+      const transparent = (c: string) => !c || c === 'rgba(0, 0, 0, 0)' || c === 'transparent' || c === 'none';
       let color = cs.backgroundColor;
-      if (!color || color === 'rgba(0, 0, 0, 0)' || color === 'transparent') {
-        const bg = cs.backgroundImage || '';
-        const cm = bg.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/);
-        color = cm ? cm[0] : cs.color;
+      if (transparent(color)) {
+        const cm = (cs.backgroundImage || '').match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/);
+        if (cm) color = cm[0];
+        else if (!transparent(cs.fill)) color = cs.fill;
+        else if (!transparent(cs.stroke)) color = cs.stroke;
+        else color = cs.color;
       }
       out[id] = {
         type: elx.getAttribute('data-ae-type') || 'shape',
+        shape: elx.getAttribute('data-ae-shape') || undefined,
         x: Math.round(r.left - base.left + r.width / 2),
         y: Math.round(r.top - base.top + r.height / 2),
         w: Math.round(r.width),
