@@ -5,6 +5,7 @@ import type { Spec } from '../../types/spec';
 
 interface EditableValue {
   name: string;
+  label?: string;
   type: 'number' | 'color' | 'string' | 'number[]';
   value: number | string | number[];
 }
@@ -86,8 +87,8 @@ export function SceneValueEditor({
             key={`${v.name}:${Array.isArray(v.value) ? v.value.join(',') : v.value}`}
             className="flex items-center gap-2"
           >
-            <span className="font-mono text-[11px] text-text-secondary/70 w-28 truncate" title={v.name}>
-              {v.name}
+            <span className="font-mono text-[11px] text-text-secondary/70 w-28 truncate" title={v.label ?? v.name}>
+              {v.label ?? v.name}
             </span>
             {v.type === 'color' ? (
               <input
