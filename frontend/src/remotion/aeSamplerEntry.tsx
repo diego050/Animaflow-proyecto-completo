@@ -63,6 +63,67 @@ const remotionShim: any = {
   interpolateColors,
 };
 
+/**
+ * Parsea un `d` de SOLO líneas rectas (M/L/H/V/Z, abs y rel) → subpaths de puntos en coordenadas
+ * del LIENZO (usa getScreenCTM, así respeta viewBox + transform del padre). Para trazos nativos AE.
+ */
+function parseStraightPath(pathEl: SVGPathElement, base: DOMRect): { points: number[][]; closed: boolean }[] {
+  const d = pathEl.getAttribute('d') || '';
+  const ctm = pathEl.getScreenCTM();
+  const svg = pathEl.ownerSVGElement;
+  if (!ctm || !svg) return [];
+  const pt = svg.createSVGPoint();
+  const toCanvas = (x: number, y: number): number[] => {
+    pt.x = x;
+    pt.y = y;
+    const s = pt.matrixTransform(ctm);
+    return [Math.round(s.x - base.left), Math.round(s.y - base.top)];
+  };
+  const tokens = d.match(/[MmLlHhVvZz]|-?\d*\.?\d+(?:e-?\d+)?/g) || [];
+  const isCmd = (t: string) => /^[MmLlHhVvZz]$/.test(t);
+  const subs: { points: number[][]; closed: boolean }[] = [];
+  let cur: { points: number[][]; closed: boolean } | null = null;
+  let cx = 0, cy = 0, sx = 0, sy = 0, i = 0;
+  while (i < tokens.length) {
+    const cmd = tokens[i++];
+    if (!isCmd(cmd)) continue;
+    if (cmd === 'M' || cmd === 'm') {
+      let x = parseFloat(tokens[i++]), y = parseFloat(tokens[i++]);
+      if (cmd === 'm') { x += cx; y += cy; }
+      cx = x; cy = y; sx = x; sy = y;
+      cur = { points: [toCanvas(cx, cy)], closed: false };
+      subs.push(cur);
+      while (i < tokens.length && !isCmd(tokens[i])) {
+        let lx = parseFloat(tokens[i++]), ly = parseFloat(tokens[i++]);
+        if (cmd === 'm') { lx += cx; ly += cy; }
+        cx = lx; cy = ly; cur.points.push(toCanvas(cx, cy));
+      }
+    } else if (cmd === 'L' || cmd === 'l') {
+      while (i < tokens.length && !isCmd(tokens[i])) {
+        let x = parseFloat(tokens[i++]), y = parseFloat(tokens[i++]);
+        if (cmd === 'l') { x += cx; y += cy; }
+        cx = x; cy = y; cur?.points.push(toCanvas(cx, cy));
+      }
+    } else if (cmd === 'H' || cmd === 'h') {
+      while (i < tokens.length && !isCmd(tokens[i])) {
+        let x = parseFloat(tokens[i++]);
+        if (cmd === 'h') x += cx;
+        cx = x; cur?.points.push(toCanvas(cx, cy));
+      }
+    } else if (cmd === 'V' || cmd === 'v') {
+      while (i < tokens.length && !isCmd(tokens[i])) {
+        let y = parseFloat(tokens[i++]);
+        if (cmd === 'v') y += cy;
+        cy = y; cur?.points.push(toCanvas(cx, cy));
+      }
+    } else if (cmd === 'Z' || cmd === 'z') {
+      if (cur) cur.closed = true;
+      cx = sx; cy = sy;
+    }
+  }
+  return subs;
+}
+
 let root: Root | null = null;
 let Comp: React.FC | null = null;
 
@@ -144,15 +205,43 @@ let Comp: React.FC | null = null;
           color = cs.stroke;
         }
       }
+      // Path nativo: parsear el `d` (líneas rectas) a puntos del lienzo + color/ancho del trazo.
+      const aeType = elx.getAttribute('data-ae-type') || 'shape';
+      let pathExtra: Record<string, any> | undefined;
+      if (aeType === 'path') {
+        const ctmEl = elx as unknown as SVGGraphicsElement;
+        const ctm2 = ctmEl.getScreenCTM ? ctmEl.getScreenCTM() : null;
+        const ctmScale = ctm2 ? Math.sqrt(ctm2.a * ctm2.a + ctm2.b * ctm2.b) : 1;
+        const filled = !transparent(cs.fill);
+        pathExtra = {
+          paths: parseStraightPath(elx as unknown as SVGPathElement, base),
+          strokeWidth: Math.max(1, Math.round(parseFloat(cs.strokeWidth || '1') * ctmScale)),
+          filled,
+        };
+        color = filled ? cs.fill : !transparent(cs.stroke) ? cs.stroke : cs.color;
+      }
+
+      // Opacidad EFECTIVA: en CSS la opacidad se hereda visualmente (un contenedor a 50% hace que
+      // sus hijos se vean al 50%). Como podemos SALTAR contenedores (wrappers sin fondo), aquí
+      // multiplicamos la opacidad del elemento por la de TODOS sus ancestros (hasta el root) → así
+      // un fade-in puesto en el contenedor se conserva en cada hijo.
+      let effOpacity = parseFloat(cs.opacity || '1');
+      let par = elx.parentElement;
+      while (par && par !== rootEl) {
+        const po = parseFloat(getComputedStyle(par).opacity || '1');
+        if (!isNaN(po)) effOpacity *= po;
+        par = par.parentElement;
+      }
       out[id] = {
-        type: elx.getAttribute('data-ae-type') || 'shape',
+        type: aeType,
         shape: elx.getAttribute('data-ae-shape') || undefined,
         bgKind,
+        ...(pathExtra || {}),
         x: Math.round(r.left - base.left + r.width / 2),
         y: Math.round(r.top - base.top + r.height / 2),
         w: Math.round(r.width),
         h: Math.round(r.height),
-        opacity: Math.round(parseFloat(cs.opacity || '1') * 100),
+        opacity: Math.round(effOpacity * 100),
         scale: Math.round(scale * 100) / 100,
         rotation,
         color,

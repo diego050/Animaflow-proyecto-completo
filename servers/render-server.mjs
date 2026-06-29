@@ -61,6 +61,7 @@ function assembleScene(frames, meta) {
     const position = [], scale = [], rotation = [], opacity = [];
     let first = null;
     let best = null; // frame donde el elemento es más grande (tamaño real, evita escala≈0)
+    let last = null; // último frame medido (para geometría de paths ya asentada, escala≈1)
     frames.forEach((fr, f) => {
       const m = fr[id];
       if (!m) return;
@@ -70,6 +71,7 @@ function assembleScene(frames, meta) {
       opacity.push([f, m.opacity]);
       if (!first) first = m;
       if (!best || m.w > best.w) best = m;
+      last = m;
     });
     if (!first) continue;
     // Tamaño BASE (CSS, sin transform) = rect del frame más grande / su escala. Nunca 0.
@@ -89,6 +91,23 @@ function assembleScene(frames, meta) {
     let appearance;
     if (first.type === "text") {
       appearance = { kind: "text", text: first.text || "", color: rgbToHex(first.color), fontSize: Math.max(1, parseFloat(first.fontSize) || 80) };
+    } else if (first.type === "path") {
+      // Geometría del ÚLTIMO frame (ya asentada, escala≈1), relativa al centro del bbox de ese
+      // frame. La Position por-frame mueve ese centro. (No escalamos el path con el padre → se
+      // pierde solo el "crecer" inicial; posición/forma correctas.)
+      const g = (last && last.paths) || first.paths || [];
+      const cx = last ? last.x : 0;
+      const cy = last ? last.y : 0;
+      const rel = g
+        .filter((sp) => sp && sp.points && sp.points.length >= 2)
+        .map((sp) => ({ closed: !!sp.closed, points: sp.points.map((p) => [p[0] - cx, p[1] - cy]) }));
+      appearance = {
+        kind: "path",
+        paths: rel,
+        color: rgbToHex(first.color),
+        strokeWidth: (last && last.strokeWidth) || first.strokeWidth || 2,
+        filled: last ? !!last.filled : !!first.filled,
+      };
     } else if (first.type === "svg") {
       appearance = { kind: "footage", file: `${id}.mov`, w: baseW, h: baseH, color: "#808080" };
     } else {
