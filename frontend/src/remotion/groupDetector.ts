@@ -18,6 +18,7 @@ export interface ValueRef {
   start: number;
   end: number;
   quoted: boolean;
+  context?: string; // para los "splits": snippet del entorno del uso
 }
 
 export interface PerElementInfo {
@@ -50,6 +51,7 @@ export interface DetectedGroup {
 export interface AnalysisResult {
   values: ValueRef[];
   groups: DetectedGroup[];
+  splits: ValueRef[]; // usos sueltos de un color COMPARTIDO (para hacerlos independientes)
   error: string | null;
 }
 
@@ -248,12 +250,12 @@ function findGroups(ast: any, consts: Map<string, ConstInfo>, code: string): Det
 }
 
 export function analyzeCode(code: string): AnalysisResult {
-  if (!code || !code.trim()) return { values: [], groups: [], error: null };
+  if (!code || !code.trim()) return { values: [], groups: [], splits: [], error: null };
   let ast: any;
   try {
     ast = parse(code, { sourceType: 'module', plugins: ['typescript', 'jsx'] });
   } catch (e) {
-    return { values: [], groups: [], error: e instanceof Error ? e.message : String(e) };
+    return { values: [], groups: [], splits: [], error: e instanceof Error ? e.message : String(e) };
   }
 
   const consts = collectLiteralConsts(ast);
@@ -272,7 +274,40 @@ export function analyzeCode(code: string): AnalysisResult {
     values.push({ label: n.value, type: 'color', value: n.value, start: n.start, end: n.end, quoted: true });
   });
 
-  return { values, groups, error: null };
+  // ── Splits: usos SUELTOS de un color COMPARTIDO (ej. el subtítulo usa glowColor igual que
+  //    las partículas). Editar uno lo vuelve un literal → independiente, sin tocar el resto. ──
+  const colorConstNames = new Set(
+    Array.from(consts.entries()).filter(([, c]) => c.type === 'color').map(([n]) => n),
+  );
+  const styleUsages: { name: string; node: any; inGroup: boolean }[] = [];
+  walk(ast, (n: any) => {
+    if (n.type === 'ObjectProperty' && n.value?.type === 'Identifier' && colorConstNames.has(n.value.name)) {
+      const node = n.value;
+      const inGroup = groupSpans.some(([s, e]) => node.start >= s && node.start < e);
+      styleUsages.push({ name: node.name, node, inGroup });
+    }
+    if (n.type === 'TemplateLiteral') {
+      for (const ex of n.expressions || []) {
+        if (ex?.type === 'Identifier' && colorConstNames.has(ex.name)) {
+          const inGroup = groupSpans.some(([s, e]) => ex.start >= s && ex.start < e);
+          styleUsages.push({ name: ex.name, node: ex, inGroup });
+        }
+      }
+    }
+  });
+  const countByName = new Map<string, number>();
+  for (const u of styleUsages) countByName.set(u.name, (countByName.get(u.name) ?? 0) + 1);
+  const splits: ValueRef[] = [];
+  for (const u of styleUsages) {
+    if (u.inGroup) continue; // los usos dentro de loops se editan con el grupo
+    if ((countByName.get(u.name) ?? 0) < 2) continue; // solo si es compartido
+    const c = consts.get(u.name);
+    if (!c) continue;
+    const ctx = code.slice(Math.max(0, u.node.start - 28), Math.min(code.length, u.node.end + 12)).replace(/\s+/g, ' ').trim();
+    splits.push({ label: u.name, type: 'color', value: c.value, start: u.node.start, end: u.node.end, quoted: true, context: ctx });
+  }
+
+  return { values, groups, splits, error: null };
 }
 
 /** Reemplaza el valor apuntado por `ref` con `newValue` (reescribe solo ese pedacito). */
