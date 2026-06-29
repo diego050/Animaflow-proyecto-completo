@@ -714,15 +714,19 @@ async def revert_scene_code(
     return {"scene_index": scene_index, "custom_code": rec.code}
 
 
-@router.get("/{job_id}/scenes/{scene_index}/values")
-async def get_scene_values(
+class SceneCodeRequest(BaseModel):
+    custom_code: str = Field(min_length=1, max_length=200000)
+
+
+@router.post("/{job_id}/scenes/{scene_index}/code")
+async def set_scene_code(
     job_id: str,
     scene_index: int,
+    body: SceneCodeRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Constantes editables (sin LLM) del código de UNA escena, para el editor manual."""
-    from app.modules.llm.value_editor import extract_editable_values
+    """Fija el custom_code de una escena (editor manual determinista del frontend). NO renderiza mp4."""
     job = db.query(JobModel).filter(
         JobModel.id == job_id, JobModel.user_id == current_user.id,
     ).first()
@@ -731,39 +735,11 @@ async def get_scene_values(
     scenes = job.result_spec.get("scenes", [])
     if not (0 <= scene_index < len(scenes)):
         raise HTTPException(status_code=400, detail="Índice de escena fuera de rango")
-    code = scenes[scene_index].get("custom_code") or ""
-    return {"values": extract_editable_values(code)}
-
-
-class SceneValuesRequest(BaseModel):
-    changes: dict
-
-
-@router.post("/{job_id}/scenes/{scene_index}/values")
-async def apply_scene_values(
-    job_id: str,
-    scene_index: int,
-    body: SceneValuesRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Aplica cambios de valores (find-replace, SIN LLM) al código de la escena. NO renderiza mp4."""
-    from app.modules.llm.value_editor import apply_value_changes, extract_editable_values
-    job = db.query(JobModel).filter(
-        JobModel.id == job_id, JobModel.user_id == current_user.id,
-    ).first()
-    if not job or not job.result_spec:
-        raise HTTPException(status_code=404, detail="Job o spec no encontrado")
-    scenes = job.result_spec.get("scenes", [])
-    if not (0 <= scene_index < len(scenes)):
-        raise HTTPException(status_code=400, detail="Índice de escena fuera de rango")
-    code = scenes[scene_index].get("custom_code") or ""
-    new_code = apply_value_changes(code, body.changes or {})
-    scenes[scene_index]["custom_code"] = new_code
+    scenes[scene_index]["custom_code"] = body.custom_code
     job.result_spec["scenes"] = scenes
     flag_modified(job, "result_spec")
     db.commit()
-    return {"custom_code": new_code, "values": extract_editable_values(new_code)}
+    return {"scene_index": scene_index, "custom_code": body.custom_code}
 
 
 class AssistantRequest(BaseModel):

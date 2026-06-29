@@ -59,6 +59,7 @@ export function WizardStepScript({
 }: WizardStepScriptProps) {
   const [showCustomPrompt, setShowCustomPrompt] = useState(false);
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
+  const [showDesign, setShowDesign] = useState(false);
 
   const handleAddScene = () => {
     onScenesChange([...scenes, { text: '', media_query: '', duration_seconds: 7 }]);
@@ -224,9 +225,33 @@ export function WizardStepScript({
           Agregar nueva escena
         </button>
 
-        {/* Design.md section */}
-        <div className="border-t border-border-tech/50 pt-4">
-          <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
+        {/* Guía de diseño — OPCIONAL (plegada por defecto) */}
+        <div className="border-t border-border-tech/50 pt-3">
+          <button
+            type="button"
+            onClick={() => setShowDesign(!showDesign)}
+            className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+          >
+            Guía de diseño <span className="text-text-secondary/40">(opcional)</span>
+            <motion.div animate={{ rotate: showDesign ? 180 : 0 }} transition={{ duration: 0.2 }}>
+              <ChevronDown size={14} />
+            </motion.div>
+          </button>
+          <AnimatePresence>
+            {showDesign && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="pt-3">
+                  <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {renderCustomInstructions()}
@@ -355,9 +380,33 @@ export function WizardStepScript({
           </div>
         )}
 
-        {/* Design.md section */}
-        <div className="border-t border-border-tech/50 pt-4">
-          <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
+        {/* Guía de diseño — OPCIONAL (plegada por defecto) */}
+        <div className="border-t border-border-tech/50 pt-3">
+          <button
+            type="button"
+            onClick={() => setShowDesign(!showDesign)}
+            className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+          >
+            Guía de diseño <span className="text-text-secondary/40">(opcional)</span>
+            <motion.div animate={{ rotate: showDesign ? 180 : 0 }} transition={{ duration: 0.2 }}>
+              <ChevronDown size={14} />
+            </motion.div>
+          </button>
+          <AnimatePresence>
+            {showDesign && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="pt-3">
+                  <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {renderCustomInstructions()}

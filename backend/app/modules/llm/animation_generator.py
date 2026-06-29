@@ -125,6 +125,48 @@ def _strip_fences(text: str) -> str:
     return t.strip()
 
 
+def _ensure_interpolate_clamp(code: str) -> str:
+    """Determinista (sin IA): agrega `{ extrapolateLeft/Right: "clamp" }` a los `interpolate(...)`
+    que no tengan extrapolate, balanceando paréntesis. Evita que valores se disparen al infinito
+    fuera del rango (el bug del 'texto que vuela'). Si ya trae extrapolate, lo respeta."""
+    out = code or ""
+    needle = "interpolate("
+    closes: list[int] = []  # posiciones del ')' de cierre de cada call sin extrapolate
+    i = 0
+    while True:
+        idx = out.find(needle, i)
+        if idx < 0:
+            break
+        # 'interpolateColors(' no aplica: find ya matchea solo 'interpolate('
+        open_paren = idx + len(needle) - 1
+        depth = 0
+        j = open_paren
+        in_str = ""
+        while j < len(out):
+            c = out[j]
+            if in_str:
+                if c == in_str and out[j - 1] != "\\":
+                    in_str = ""
+            elif c in ("'", '"', "`"):
+                in_str = c
+            elif c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        if j >= len(out):
+            break
+        inner = out[open_paren + 1:j]
+        if "extrapolate" not in inner:
+            closes.append(j)
+        i = open_paren + 1  # permite detectar interpolate anidados
+    for close in sorted(closes, reverse=True):
+        out = out[:close] + ', { extrapolateLeft: "clamp", extrapolateRight: "clamp" }' + out[close:]
+    return out
+
+
 def _build_prompt(user_prompt, width, height, duration_frames, previous_code, edit_instruction):
     canvas = f"Lienzo {width}x{height} a {_FPS}fps, duración {duration_frames} frames. Diseña RESPONSIVO con useVideoConfig() — no asumas un tamaño fijo."
     if previous_code and edit_instruction:
@@ -211,6 +253,7 @@ def _edit_codegen_surgical(
         tokens["in"] += t["in"]; tokens["out"] += t["out"]; tokens["total"] += t["total"]
 
         new_code, applied_pairs, failed = _apply_search_replace(previous_code, out["text"] or "")
+        new_code = _ensure_interpolate_clamp(new_code)
         applied = len(applied_pairs)
         total = applied + len(failed)
 
@@ -352,6 +395,7 @@ def _run_codegen(full_prompt: str, api_key: str, use_model: str, provider: str =
         t = out["tokens"]
         tokens["in"] += t["in"]; tokens["out"] += t["out"]; tokens["total"] += t["total"]
         code = _strip_fences(out["text"] or "")
+        code = _ensure_interpolate_clamp(code)
         valid, errors = validate_animation_code(code)
         if valid:
             # Smoke-test: compila de verdad en el render-server (atrapa sintaxis/estructura

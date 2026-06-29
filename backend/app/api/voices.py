@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.db.models import Voice, User
+from app.db.models import Voice, User, ApiKey
 from app.schemas.voice import VoiceCreate, VoiceUpdate, VoiceResponse, VoicePreviewRequest
 from app.core.security import get_current_user
 from app.core.config import settings
@@ -20,6 +20,28 @@ from app.core.logging import get_logger
 
 router = APIRouter(prefix="/api/voices", tags=["voices"])
 logger = get_logger("voices")
+
+
+@router.get("/elevenlabs")
+async def list_elevenlabs_voices(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Catálogo de voces de ElevenLabs, solo si el usuario tiene su API key configurada."""
+    key = (
+        db.query(ApiKey)
+        .filter(ApiKey.user_id == current_user.id, ApiKey.provider == "elevenlabs", ApiKey.is_active.is_(True))
+        .first()
+    )
+    if not key:
+        return {"has_key": False, "voices": []}
+    from app.modules.tts.providers.elevenlabs import ElevenLabsProvider
+    try:
+        voices = await ElevenLabsProvider().list_voices(key.api_key)
+        return {"has_key": True, "voices": voices}
+    except Exception as e:  # noqa: BLE001
+        logger.warning("No se pudo listar voces de ElevenLabs: %s", e)
+        return {"has_key": True, "voices": [], "error": "No se pudieron traer las voces (¿API key válida?)"}
 
 
 @router.get("/", response_model=list[VoiceResponse])
