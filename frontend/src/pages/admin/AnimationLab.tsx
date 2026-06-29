@@ -40,16 +40,30 @@ export function AnimationLab() {
   const analysis = useMemo(() => analyzeCode(code), [code]);
 
   const [expandedPE, setExpandedPE] = useState<Set<number>>(new Set());
+  const [editWarning, setEditWarning] = useState<string | null>(null);
 
-  // Fase 2: edita un valor (suelto o de grupo) reescribiendo solo ese pedacito de código.
-  const editControl = useCallback((ref: ValueRef, newValue: number | string) => {
-    setCode((prev) => applyValueRef(prev, ref, newValue));
+  // Revertir automático: aplica el código nuevo SOLO si compila; si lo rompe, lo descarta.
+  const commit = useCallback((newCode: string) => {
+    try {
+      compileAnimation(newCode);
+      setCode(newCode);
+      setEditWarning(null);
+    } catch {
+      setEditWarning('Ese cambio rompía la animación — se descartó automáticamente.');
+    }
   }, []);
+
+  // Fase 2: edita un valor (suelto o de grupo) reescribiendo solo ese pedacito (con auto-revert).
+  const editControl = useCallback(
+    (ref: ValueRef, newValue: number | string) => commit(applyValueRef(code, ref, newValue)),
+    [code, commit],
+  );
 
   // Fase 3: fija el color de UN elemento del grupo (override por índice).
-  const setElemColor = useCallback((groupId: number, index: number, color: string) => {
-    setCode((prev) => setElementColor(prev, groupId, index, color));
-  }, []);
+  const setElemColor = useCallback(
+    (groupId: number, index: number, color: string) => commit(setElementColor(code, groupId, index, color)),
+    [code, commit],
+  );
 
   // Input adecuado según el tipo de valor (color / número / texto).
   const valueInput = (v: ValueRef) => {
@@ -179,6 +193,12 @@ export function AnimationLab() {
             </p>
           )}
 
+          {editWarning && (
+            <p className="text-xs text-amber-400 border border-amber-500/30 bg-amber-500/10 rounded-lg p-3">
+              ⚠ {editWarning}
+            </p>
+          )}
+
           {/* Panel: VALORES sueltos (fondo, textos, colores fuera de loops) */}
           {code && !analysis.error && (
             <div className="border border-border-tech rounded-lg p-4">
@@ -214,12 +234,7 @@ export function AnimationLab() {
               <div className="space-y-1.5">
                 {analysis.splits.map((s, i) => (
                   <div key={`${s.label}-${s.start}-${s.value}-${i}`} className="flex items-center gap-2 text-xs">
-                    <input
-                      type="color"
-                      defaultValue={String(s.value)}
-                      onChange={(e) => editControl(s, e.target.value)}
-                      className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer shrink-0"
-                    />
+                    {valueInput(s)}
                     <span className="font-mono text-[10px] text-text-secondary/50 truncate" title={s.context}>
                       {s.label} · {s.context}
                     </span>

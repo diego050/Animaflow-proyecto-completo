@@ -43,6 +43,7 @@ REGLAS OBLIGATORIAS:
    - PROHIBIDO: Math.random(), Date.now(), new Date(), performance.now(), setTimeout, setInterval.
    - Para cualquier "azar" usa SIEMPRE `random("una-semilla-string")` de remotion (mismo seed = mismo valor para siempre).
    - TODA la animación se deriva de useCurrentFrame(). Nada de tiempo real.
+   - CLAMP OBLIGATORIO: en CADA `interpolate(...)` pon SIEMPRE `{ extrapolateLeft: "clamp", extrapolateRight: "clamp" }`. Si no, fuera del rango los valores se disparan al infinito y el texto/elementos "vuelan" fuera de pantalla. Ej: `interpolate(frame, [0, 30], [50, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })`.
 4. Estilos SOLO inline (style={{...}}). NUNCA uses className (no hay CSS global; quedaría sin estilo).
 5. RESPONSIVO al lienzo (NO hardcodees el tamaño): obtén las dimensiones con `const { width, height } = useVideoConfig()` y posiciona/escala TODO relativo a esos valores (porcentajes, width/2, width*0.08, Math.min(width,height), etc.). Nunca uses números fijos asumiendo 1080×1920. Usa <AbsoluteFill>, centra el contenido, deja márgenes seguros, texto grande y legible. Debe verse bien en cualquier proporción (vertical, cuadrado u horizontal).
 6. Hazlo DINÁMICO y PROFESIONAL: gradientes, sombras/glows, springs con rebote, movimiento continuo (parallax/float con Math.sin(frame/N)), entradas y salidas escalonadas. El CENTRO debe ser un VISUAL fuerte (formas, tarjetas, cifras, íconos vectoriales hechos con SVG/divs), NO solo texto plano.
@@ -53,7 +54,8 @@ REGLAS OBLIGATORIAS:
 9. PROHIBIDO ABSOLUTAMENTE: barras de progreso, líneas/barras de tiempo, "scrubbers", indicadores de duración o de % de reproducción (esas barritas horizontales en el borde inferior o superior). NUNCA las pongas — el reproductor ya tiene la suya y se ven mal duplicadas.
 10. EDITABILIDAD (para edición manual determinista): declara TODOS los valores ajustables como `const` ARRIBA con nombres claros en camelCase, y úsalos en el JSX:
     - Colores: UNO POR elemento visual, SIN COMPARTIR aunque el valor sea el mismo (ej. `dotColor`, `subtitleColor`, `bgColorStart`, `bgColorEnd` por separado — NUNCA un solo `accentColor` para cosas distintas como subtítulo Y puntos). Incluye SIEMPRE los colores del fondo/gradiente como consts.
-    - Textos visibles (`headline`, `subtitle`), posiciones/offsets base, tamaños, rotaciones.
+    - Textos visibles (`headline`, `subtitle`), posiciones/offsets base, rotaciones.
+    - TAMAÑOS como FACTOR con nombre, NO el número suelto dentro de la fórmula: declara `const titleSize = 0.12;` y usa `fontSize: width * titleSize` (NO `fontSize: width * 0.12`). Igual para otros tamaños relativos (`elementSize`, etc.). Así el tamaño es editable a mano.
     - Grupos repetidos (partículas, anillos, barras): declara su CANTIDAD y su color/tamaño como consts (`particleCount = 15`, `particleColor = "#86efac"`, `particleSize = 8`) y úsalos en el loop.
     La lógica y el movimiento pueden seguir inline.
 11. Devuelve SOLO el código TSX del componente. Sin explicaciones, sin markdown, sin ```."""
