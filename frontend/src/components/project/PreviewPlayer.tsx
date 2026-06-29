@@ -48,6 +48,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
   const dims = dimsFor(aspectRatio);
   const compWidth = dims.w;
   const compHeight = dims.h;
+  const [historyRefresh, setHistoryRefresh] = useState(0);
 
   // Effect to handle seeking in the full video when a scene is clicked (isReadyToRender mode)
   useEffect(() => {
@@ -255,6 +256,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
                     message: string;
                     intent: string;
                     edited_scenes: number[];
+                    changes?: { scene: number; before: string; after: string }[];
                     updated_spec?: TimelineSpec;
                   }>(
                     `/api/jobs/${jobId}/assistant`,
@@ -264,11 +266,20 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
                   if (data.updated_spec) {
                     useJobsStore.getState().applyJobSpec(data.updated_spec);
                   }
+                  // Enfoca la escena editada → su historial/checkpoint aparece abajo. Y refresca el historial.
+                  if (data.edited_scenes?.length) {
+                    onFocusScene?.(data.edited_scenes[0]);
+                    setHistoryRefresh((n) => n + 1);
+                  }
+                  // Muestra el diff concreto en el chat (qué línea cambió).
+                  const diff = (data.changes ?? [])
+                    .map((c) => `· esc ${c.scene}: «${(c.before || '').slice(0, 60)}» → «${(c.after || '').slice(0, 60)}»`)
+                    .join('\n');
                   return {
                     success: true,
                     intent: data.intent === 'query' ? 'query' : 'edit',
                     answer: data.message,
-                    explanation: data.message,
+                    explanation: diff ? `${data.message}\n${diff}` : data.message,
                     warnings: [],
                     changes_applied: (data.edited_scenes?.length ?? 0) > 0,
                   } as SceneEditResponse;
@@ -278,7 +289,11 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
               />
             </div>
             <div className="px-3 pb-3">
-              <SceneVersionHistory jobId={jobId} sceneIndex={focusSceneIndex ?? 0} />
+              <SceneVersionHistory
+                jobId={jobId}
+                sceneIndex={focusSceneIndex ?? 0}
+                refreshKey={historyRefresh}
+              />
             </div>
           </div>
         )}

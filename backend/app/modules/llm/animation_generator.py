@@ -51,7 +51,11 @@ REGLAS OBLIGATORIAS:
    garantiza que el render mp4 salga IGUAL al preview). NO uses otras fuentes ni solo 'sans-serif'.
 8. Puedes dibujar formas/íconos con SVG inline o divs con estilos. Asegúrate de que SVG use elementos SVG (<circle>, <path>) DENTRO de un <svg>, nunca como divs sueltos.
 9. PROHIBIDO ABSOLUTAMENTE: barras de progreso, líneas/barras de tiempo, "scrubbers", indicadores de duración o de % de reproducción (esas barritas horizontales en el borde inferior o superior). NUNCA las pongas — el reproductor ya tiene la suya y se ven mal duplicadas.
-10. EDITABILIDAD: declara como `const` ARRIBA (nombres claros en camelCase) los valores que un humano podría querer ajustar a mano: posiciones/offsets base (`const bodyOffsetX = 0`), colores (`const titleColor = "#ffffff"`), tamaños, textos visibles (`const headline = "METAMORFOSIS"`), rotaciones (`const wingRotation = 0`). Úsalos en el JSX. Así se editan sin regenerar. (La lógica y el movimiento pueden seguir inline.)
+10. EDITABILIDAD (para edición manual determinista): declara TODOS los valores ajustables como `const` ARRIBA con nombres claros en camelCase, y úsalos en el JSX:
+    - Colores: UNO POR elemento visual, SIN COMPARTIR aunque el valor sea el mismo (ej. `dotColor`, `subtitleColor`, `bgColorStart`, `bgColorEnd` por separado — NUNCA un solo `accentColor` para cosas distintas como subtítulo Y puntos). Incluye SIEMPRE los colores del fondo/gradiente como consts.
+    - Textos visibles (`headline`, `subtitle`), posiciones/offsets base, tamaños, rotaciones.
+    - Grupos repetidos (partículas, anillos, barras): declara su CANTIDAD y su color/tamaño como consts (`particleCount = 15`, `particleColor = "#86efac"`, `particleSize = 8`) y úsalos en el loop.
+    La lógica y el movimiento pueden seguir inline.
 11. Devuelve SOLO el código TSX del componente. Sin explicaciones, sin markdown, sin ```."""
 
 # Few-shot: un ejemplo BUENO y DETERMINISTA para anclar calidad.

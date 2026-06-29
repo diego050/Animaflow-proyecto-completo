@@ -714,6 +714,58 @@ async def revert_scene_code(
     return {"scene_index": scene_index, "custom_code": rec.code}
 
 
+@router.get("/{job_id}/scenes/{scene_index}/values")
+async def get_scene_values(
+    job_id: str,
+    scene_index: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Constantes editables (sin LLM) del código de UNA escena, para el editor manual."""
+    from app.modules.llm.value_editor import extract_editable_values
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id, JobModel.user_id == current_user.id,
+    ).first()
+    if not job or not job.result_spec:
+        raise HTTPException(status_code=404, detail="Job o spec no encontrado")
+    scenes = job.result_spec.get("scenes", [])
+    if not (0 <= scene_index < len(scenes)):
+        raise HTTPException(status_code=400, detail="Índice de escena fuera de rango")
+    code = scenes[scene_index].get("custom_code") or ""
+    return {"values": extract_editable_values(code)}
+
+
+class SceneValuesRequest(BaseModel):
+    changes: dict
+
+
+@router.post("/{job_id}/scenes/{scene_index}/values")
+async def apply_scene_values(
+    job_id: str,
+    scene_index: int,
+    body: SceneValuesRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Aplica cambios de valores (find-replace, SIN LLM) al código de la escena. NO renderiza mp4."""
+    from app.modules.llm.value_editor import apply_value_changes, extract_editable_values
+    job = db.query(JobModel).filter(
+        JobModel.id == job_id, JobModel.user_id == current_user.id,
+    ).first()
+    if not job or not job.result_spec:
+        raise HTTPException(status_code=404, detail="Job o spec no encontrado")
+    scenes = job.result_spec.get("scenes", [])
+    if not (0 <= scene_index < len(scenes)):
+        raise HTTPException(status_code=400, detail="Índice de escena fuera de rango")
+    code = scenes[scene_index].get("custom_code") or ""
+    new_code = apply_value_changes(code, body.changes or {})
+    scenes[scene_index]["custom_code"] = new_code
+    job.result_spec["scenes"] = scenes
+    flag_modified(job, "result_spec")
+    db.commit()
+    return {"custom_code": new_code, "values": extract_editable_values(new_code)}
+
+
 class AssistantRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=1000)
     focused_scene_index: Optional[int] = None
@@ -752,6 +804,7 @@ async def assistant(
         return {"message": instruction, "intent": "query", "edited_scenes": []}
 
     edited: list[int] = []
+    all_changes: list[dict] = []
     for i in targets:
         if not (0 <= i < len(scenes)):
             continue
@@ -786,6 +839,8 @@ async def assistant(
             scene["custom_code"] = result["code"]
             scenes[i] = scene
             edited.append(i)
+            for ch in (result.get("changes") or []):
+                all_changes.append({"scene": i + 1, "before": ch.get("before"), "after": ch.get("after")})
             save_generated_animation(
                 code=result["code"], source=src, job_id=job_id, scene_index=i,
                 user_id=current_user.id, prompt_text=scene.get("text"), art_direction=instruction,
@@ -800,10 +855,17 @@ async def assistant(
     if edited:
         nums = ", ".join(str(i + 1) for i in edited)
         verb = "Regeneré" if action == "regenerate" else "Edité"
-        message = f"{verb} la(s) escena(s) {nums}. Mira el preview."
+        detail = f" ({len(all_changes)} cambio(s))" if all_changes else ""
+        message = f"{verb} la escena {nums}{detail}."
     else:
         message = "No pude aplicar el cambio (no salió válido). Sé más específico o intenta de nuevo."
-    return {"message": message, "intent": action, "edited_scenes": edited, "updated_spec": job.result_spec}
+    return {
+        "message": message,
+        "intent": action,
+        "edited_scenes": edited,
+        "changes": all_changes,
+        "updated_spec": job.result_spec,
+    }
 
 
 @router.get("/{job_id}/formats")

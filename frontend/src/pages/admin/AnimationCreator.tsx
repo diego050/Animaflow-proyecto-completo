@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Player } from '@remotion/player';
 import { ArrowLeft, Sparkles, Wand2, AlertTriangle, Loader2, Film, Download } from 'lucide-react';
@@ -38,6 +38,10 @@ export function AnimationCreator() {
   const [genErrors, setGenErrors] = useState<string[]>([]);
   const [editInstruction, setEditInstruction] = useState('');
   const [values, setValues] = useState<EditableValue[]>([]);
+  const [codeDraft, setCodeDraft] = useState('');
+
+  // Mantiene el editor de código en sync con el código actual (generación, valor aplicado, etc.).
+  useEffect(() => { setCodeDraft(code); }, [code]);
 
   const [rendering, setRendering] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -189,10 +193,23 @@ export function AnimationCreator() {
               <label className="block text-xs font-medium text-text-secondary mb-1">Duración (s)</label>
               <input
                 type="number"
-                min={2}
+                min={0.5}
                 max={30}
+                step={0.5}
                 value={durationSeconds}
-                onChange={(e) => setDurationSeconds(Math.max(2, Math.min(30, Number(e.target.value) || 6)))}
+                onChange={(e) => setDurationSeconds(Math.max(0.5, Math.min(30, Number(e.target.value) || 6)))}
+                className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-mint-precision"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-text-secondary mb-1">Frames (30fps)</label>
+              <input
+                type="number"
+                min={5}
+                max={900}
+                step={1}
+                value={Math.round(durationSeconds * 30)}
+                onChange={(e) => setDurationSeconds(Math.max(5, Math.min(900, Number(e.target.value) || 180)) / 30)}
                 className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-mint-precision"
               />
             </div>
@@ -283,7 +300,10 @@ export function AnimationCreator() {
               </summary>
               <div className="mt-2 space-y-1.5">
                 {values.map((v) => (
-                  <div key={v.name} className="flex items-center gap-2">
+                  <div
+                    key={`${v.name}:${Array.isArray(v.value) ? v.value.join(',') : v.value}`}
+                    className="flex items-center gap-2"
+                  >
                     <span className="font-mono text-[11px] text-text-secondary/70 w-28 truncate" title={v.name}>{v.name}</span>
                     {v.type === 'color' ? (
                       <input
@@ -333,10 +353,27 @@ export function AnimationCreator() {
 
           {code && (
             <details className="text-xs">
-              <summary className="cursor-pointer text-text-secondary hover:text-text-primary">Ver código generado</summary>
-              <pre className="mt-2 max-h-72 overflow-auto bg-surface-lowest border border-border-tech rounded-lg p-3 text-text-secondary/80 font-mono whitespace-pre-wrap">
-                {code}
-              </pre>
+              <summary className="cursor-pointer text-text-secondary hover:text-text-primary">Ver / editar código</summary>
+              <textarea
+                value={codeDraft}
+                onChange={(e) => setCodeDraft(e.target.value)}
+                spellCheck={false}
+                className="mt-2 w-full h-72 bg-surface-lowest border border-border-tech rounded-lg p-3 text-text-secondary/80 font-mono text-[11px] focus:outline-none focus:border-mint-precision resize-y"
+              />
+              <div className="flex items-center gap-2 mt-1.5">
+                <button
+                  onClick={() => { setCode(codeDraft); void loadValues(codeDraft); }}
+                  disabled={codeDraft === code}
+                  className="flex items-center gap-1 bg-mint-precision/90 text-surface-lowest px-3 py-1.5 rounded-lg hover:bg-mint-precision disabled:opacity-40 font-medium"
+                >
+                  <Wand2 size={13} /> Aplicar código
+                </button>
+                {codeDraft !== code && (
+                  <button onClick={() => setCodeDraft(code)} className="text-text-secondary/60 hover:text-text-primary px-2 py-1.5">
+                    Descartar
+                  </button>
+                )}
+              </div>
             </details>
           )}
         </div>

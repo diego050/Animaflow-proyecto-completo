@@ -19,7 +19,15 @@ const fmtTime = (s: string | null) =>
   s ? new Date(s).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
 
 /** Historial de versiones (checkpoints) de UNA escena code-gen, con botón restaurar. */
-export function SceneVersionHistory({ jobId, sceneIndex }: { jobId: string; sceneIndex: number }) {
+export function SceneVersionHistory({
+  jobId,
+  sceneIndex,
+  refreshKey = 0,
+}: {
+  jobId: string;
+  sceneIndex: number;
+  refreshKey?: number;
+}) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);
   const [reverting, setReverting] = useState<string | null>(null);
@@ -39,7 +47,9 @@ export function SceneVersionHistory({ jobId, sceneIndex }: { jobId: string; scen
 
   useEffect(() => {
     load();
-  }, [load]);
+    // refreshKey cambia tras cada edición del asistente → recarga aunque la escena sea la misma.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load, refreshKey]);
 
   const revert = async (id: string) => {
     setReverting(id);
