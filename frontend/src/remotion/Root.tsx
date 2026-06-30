@@ -54,9 +54,10 @@ export const RemotionRoot = () => {
         id="CustomCode"
         component={CustomCode}
         calculateMetadata={({ props }) => {
-          const p = props as { durationInFrames?: number; width?: number; height?: number };
+          const p = props as { durationInFrames?: number; width?: number; height?: number; fps?: number };
           return {
             durationInFrames: Math.max(1, Math.round(p.durationInFrames || 180)),
+            fps: p.fps || 30,
             props,
             width: p.width || 1080,
             height: p.height || 1920,
@@ -65,7 +66,7 @@ export const RemotionRoot = () => {
         fps={30}
         width={1080}
         height={1920}
-        defaultProps={{ code: "", durationInFrames: 180, width: 1080, height: 1920 }}
+        defaultProps={{ code: "", durationInFrames: 180, width: 1080, height: 1920, fps: 30 }}
       />
 
       {/* Igual que CustomCode pero con audio — para el footage AE por escena (.mov con voz). */}
@@ -73,9 +74,10 @@ export const RemotionRoot = () => {
         id="CustomCodeAudio"
         component={CustomCodeAudio}
         calculateMetadata={({ props }) => {
-          const p = props as { durationInFrames?: number; width?: number; height?: number };
+          const p = props as { durationInFrames?: number; width?: number; height?: number; fps?: number };
           return {
             durationInFrames: Math.max(1, Math.round(p.durationInFrames || 180)),
+            fps: p.fps || 30,
             props,
             width: p.width || 1080,
             height: p.height || 1920,
@@ -84,7 +86,7 @@ export const RemotionRoot = () => {
         fps={30}
         width={1080}
         height={1920}
-        defaultProps={{ code: "", audioSrc: "", durationInFrames: 180, width: 1080, height: 1920 }}
+        defaultProps={{ code: "", audioSrc: "", durationInFrames: 180, width: 1080, height: 1920, fps: 30 }}
       />
     </>
   );

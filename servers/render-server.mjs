@@ -70,10 +70,11 @@ function assembleScene(frames, meta) {
   frames.forEach((fr) => Object.keys(fr).forEach((id) => ids.add(id)));
   const elements = [];
   for (const id of ids) {
-    const position = [], scale = [], rotation = [], opacity = [];
+    const position = [], scale = [], rotation = [], opacity = [], colorTrack = [];
     let first = null;
     let best = null; // frame donde el elemento es más grande (tamaño real, evita escala≈0)
     let last = null; // último frame medido (para geometría de paths ya asentada, escala≈1)
+    let firstHex = null, colorVaries = false; // ¿el color cambia en el tiempo? → keyframes
     frames.forEach((fr, f) => {
       const m = fr[id];
       if (!m) return;
@@ -81,6 +82,10 @@ function assembleScene(frames, meta) {
       scale.push([f, m.scale * 100]);
       rotation.push([f, m.rotation]);
       opacity.push([f, m.opacity]);
+      const hex = rgbToHex(m.color);
+      if (firstHex === null) firstHex = hex;
+      else if (hex !== firstHex) colorVaries = true;
+      colorTrack.push([f, hex]);
       if (!first) first = m;
       if (!best || m.w > best.w) best = m;
       last = m;
@@ -111,6 +116,7 @@ function assembleScene(frames, meta) {
         fontWeight: first.fontWeight || 400,
         letterSpacing: first.letterSpacing || 0,
         lineHeight: first.lineHeight || 0,
+        colorTrack: colorVaries ? colorTrack : undefined, // color de texto animado
       };
     } else if (first.type === "path") {
       // Geometría del ÚLTIMO frame (ya asentada, escala≈1), relativa al centro del bbox de ese
@@ -134,6 +140,7 @@ function assembleScene(frames, meta) {
         strokeWidth: (last && last.strokeWidth) || first.strokeWidth || 2,
         filled: last ? !!last.filled : !!first.filled,
         dash: (last && last.dash) || first.dash,
+        colorTrack: colorVaries ? colorTrack : undefined, // trazo/relleno de path animado
       };
     } else if (first.type === "svg") {
       appearance = { kind: "footage", file: `${id}.mov`, w: baseW, h: baseH, color: "#808080" };
@@ -152,6 +159,7 @@ function assembleScene(frames, meta) {
           : undefined,
         roundness: first.roundness || 0,
         border: first.border ? { width: first.border.width, color: rgbToHex(first.border.color) } : undefined,
+        colorTrack: colorVaries ? colorTrack : undefined, // relleno animado (color en el tiempo)
       };
     }
     const el = { id, name: id, appearance, tracks: { position, scale, rotation, opacity } };
@@ -168,8 +176,13 @@ function assembleScene(frames, meta) {
     }
     if (first.blur) fx.blur = first.blur;
     if (Object.keys(fx).length) el.effects = fx;
+    el.z = first.zIndex || 0; // para ordenar el apilado (z-index) igual que en el navegador
     elements.push(el);
   }
+  // Ordenar por z-index (estable): mayor z = más arriba. jsx_builder agrega en orden → último arriba.
+  elements.forEach((e, i) => (e._i = i));
+  elements.sort((a, b) => a.z - b.z || a._i - b._i);
+  elements.forEach((e) => { delete e._i; delete e.z; });
   return { ...meta, elements };
 }
 

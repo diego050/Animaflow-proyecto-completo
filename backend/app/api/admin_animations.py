@@ -32,8 +32,11 @@ class AnimationGenerateRequest(BaseModel):
     model: Optional[str] = Field(default=None, description="Override de modelo (configurable).")
     aspect_ratio: str = Field(default="9:16")
     duration_seconds: int = Field(default=6, ge=2, le=30)
+    fps: int = Field(default=30, ge=1, le=120)
     previous_code: Optional[str] = Field(default=None, description="Para edición: el código actual.")
     edit_instruction: Optional[str] = Field(default=None, description="Para edición: qué cambiar.")
+    design_md: Optional[str] = Field(default=None, description="Opt-in: kit de marca / design.md a respetar.")
+    variation: bool = Field(default=False, description="Opt-in: generar una versión visualmente distinta.")
 
 
 class AnimationGenerateResponse(BaseModel):
@@ -44,6 +47,7 @@ class AnimationGenerateResponse(BaseModel):
     width: int
     height: int
     duration_frames: int
+    fps: int = 30
     edit_mode: Optional[str] = None          # surgical | full | create
     changes: list[dict] = []                 # [{before, after}] de la edición quirúrgica
 
@@ -60,8 +64,11 @@ def generate(
             model=req.model,
             aspect_ratio=req.aspect_ratio,
             duration_seconds=req.duration_seconds,
+            fps=req.fps,
             previous_code=req.previous_code,
             edit_instruction=req.edit_instruction,
+            design_md=req.design_md,
+            variation=req.variation,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -85,6 +92,30 @@ def generate(
     return AnimationGenerateResponse(**result)
 
 
+# ── Flywheel: curación MANUAL (⭐). Recolecta/cura ahora; el retrieval a la IA está apagado
+#    (flywheel.retrieval_enabled) hasta que haya cantidad/calidad suficiente. ──
+
+class FlywheelAddRequest(BaseModel):
+    code: str = Field(min_length=30)
+    prompt: str = Field(default="", max_length=2000)
+    aspect_ratio: str = Field(default="9:16")
+
+
+@router.post("/flywheel/add")
+def flywheel_add(req: FlywheelAddRequest, current_user: User = Depends(require_admin)):
+    """Marca una animación como BUENA → entra al flywheel (aprobada+embebida) si pasa el guard de
+    diversidad. NO se usa aún para generar (retrieval apagado); solo se va acumulando."""
+    from app.services.flywheel import add_to_flywheel
+    from app.modules.llm.animation_validator import validate_animation_code
+
+    valid, errors = validate_animation_code(req.code)
+    if not valid:
+        return {"added": False, "reason": f"código inválido: {', '.join(errors)[:200]}"}
+    return add_to_flywheel(
+        code=req.code, prompt_text=req.prompt, user_id=current_user.id, aspect_ratio=req.aspect_ratio,
+    )
+
+
 # ── Fase 2: render a mp4 (vía render-server con la composición "CustomCode") ──
 
 class AnimationRenderRequest(BaseModel):
@@ -92,6 +123,7 @@ class AnimationRenderRequest(BaseModel):
     width: int = Field(default=1080)
     height: int = Field(default=1920)
     duration_frames: int = Field(default=180, ge=30, le=1800)
+    fps: int = Field(default=30, ge=1, le=120)
 
 
 class AnimationRenderResponse(BaseModel):
@@ -118,6 +150,7 @@ async def render(
             "durationInFrames": req.duration_frames,
             "width": req.width,
             "height": req.height,
+            "fps": req.fps,
         },
     }
     try:
@@ -204,7 +237,8 @@ _CODEGEN_SETTINGS = {
     "codegen.temperature": (0.4, "Temperatura de generación (0–1)"),
     "codegen.max_attempts": (3, "Intentos de auto-reparación por generación"),
     "codegen.max_output_tokens": (12000, "Tope de tamaño del componente (tokens de salida)"),
-    "flywheel.enabled": (True, "Activar el few-shot del flywheel (ejemplos aprobados)"),
+    "flywheel.retrieval_enabled": (False, "Usar el flywheel para GENERAR (alimentar ejemplos a la IA). OFF = solo recolecta/cura"),
+    "flywheel.dedup_distance": (0.06, "Diversidad: distancia coseno mínima para aceptar un ejemplo (menor = rechaza más parecidos)"),
 }
 
 

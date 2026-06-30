@@ -66,6 +66,7 @@ export const CustomCode: React.FC<{
   durationInFrames?: number;
   width?: number;
   height?: number;
+  fps?: number;
   fallbackText?: string;
   fallbackBg?: string;
 }> = ({ code, width, fallbackText, fallbackBg }) => {

@@ -16,6 +16,8 @@ export interface AeElement {
   isGroup: boolean; // true = está en un loop → se renderiza N veces (ids `id-0`, `id-1`, …)
   indexVar?: string;
   shape?: 'ellipse' | 'rect'; // para formas de SVG convertidas a nativas
+  start: number; // span del elemento en el código (para mapear sus valores editables)
+  end: number;
 }
 
 /** Lee el atributo `d` (string literal) de un <path>; null si es dinámico/ausente. */
@@ -124,7 +126,7 @@ export function tagElements(code: string): TagResult {
     const shapeAttr = shape ? ` data-ae-shape="${shape}"` : '';
     const idVal = cb ? `{${'`' + id + '-${' + cb.indexVar + '}`'}}` : `"${id}"`;
     inserts.push({ pos: n.openingElement.name.end, text: ` data-ae-id=${idVal} data-ae-type="${type}"${shapeAttr}` });
-    elements.push({ id, type, name: label, tag: jsxName(n.openingElement).toLowerCase(), isGroup: !!cb, indexVar: cb?.indexVar, shape });
+    elements.push({ id, type, name: label, tag: jsxName(n.openingElement).toLowerCase(), isGroup: !!cb, indexVar: cb?.indexVar, shape, start: n.start, end: n.end });
   };
 
   walk(ast, (n: any) => {
