@@ -25,6 +25,7 @@ CONTRATO `aeScene` (lo que el muestreo debe entregar):
 }
 Cada track puede venir CRUDO (un valor por frame) → se simplifica aquí; o ya simplificado.
 """
+import math
 from typing import Any
 
 
@@ -104,6 +105,38 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
         f'var comp = app.project.items.addComp("AnimaFlow Scene", {width}, {height}, 1, {duration_s}, {fps});'
     )
     out.append("comp.openInViewer();")
+
+    # Fondo (AbsoluteFill): capa Solid al FONDO (se agrega PRIMERO → queda abajo del stack) con
+    # color sólido o efecto Gradient Ramp (lineal/radial). Estático, sin keyframes.
+    bg = scene.get("background")
+    if bg:
+        out.append("")
+        out.append("// --- Fondo ---")
+        if bg.get("kind") == "solid":
+            r, g, b = _hex_to_rgb01(bg.get("color", "#000000"))
+            out.append(f'var LB = comp.layers.addSolid([{r}, {g}, {b}], "Fondo", {width}, {height}, 1);')
+        else:
+            r1, g1, b1 = _hex_to_rgb01(bg.get("start", "#000000"))
+            r2, g2, b2 = _hex_to_rgb01(bg.get("end", "#000000"))
+            out.append(f'var LB = comp.layers.addSolid([{r1}, {g1}, {b1}], "Fondo", {width}, {height}, 1);')
+            out.append('var LB_e = LB.property("ADBE Effect Parade").addProperty("ADBE Ramp");')
+            if bg.get("shape") == "linear":
+                ang = math.radians(float(bg.get("angle", 180)))
+                dx, dy = math.sin(ang), -math.cos(ang)
+                half = max(width, height) / 2.0
+                sx, sy = width / 2 - dx * half, height / 2 - dy * half
+                ex, ey = width / 2 + dx * half, height / 2 + dy * half
+                ramp_shape = 1  # Linear Ramp
+            else:  # radial: centro → esquina (radio = farthest-corner)
+                sx = width * float(bg.get("cx", 50)) / 100.0
+                sy = height * float(bg.get("cy", 50)) / 100.0
+                ex, ey = float(width), float(height)
+                ramp_shape = 2  # Radial Ramp
+            out.append(f'LB_e.property("ADBE Ramp-0001").setValue([{round(sx, 1)}, {round(sy, 1)}]);')
+            out.append(f'LB_e.property("ADBE Ramp-0002").setValue([{r1}, {g1}, {b1}, 1]);')
+            out.append(f'LB_e.property("ADBE Ramp-0003").setValue([{round(ex, 1)}, {round(ey, 1)}]);')
+            out.append(f'LB_e.property("ADBE Ramp-0004").setValue([{r2}, {g2}, {b2}, 1]);')
+            out.append(f'LB_e.property("ADBE Ramp-0005").setValue({ramp_shape});')
 
     # AE pone cada capa nueva ARRIBA del stack → agregamos en el MISMO orden del código para que
     # el último elemento (el que en HTML se dibuja encima) quede arriba en AE. Orden directo.
