@@ -74,6 +74,28 @@ def _hex_to_rgb01(hex_color: str) -> tuple[float, float, float]:
         return (1.0, 1.0, 1.0)
 
 
+def _emit_stroke(lvar: str, group_var: str, r: float, g: float, b: float, width: int, dash: Any) -> list[str]:
+    """Líneas .jsx para un trazo (Stroke) en un grupo de forma: color + ancho + caps redondeados +
+    dash opcional ([guion, espacio]). matchNames (independientes del idioma)."""
+    st = f"{lvar}_st"
+    out = [
+        f'var {st} = {group_var}.property("Contents").addProperty("ADBE Vector Graphic - Stroke");',
+        f'{st}.property("ADBE Vector Stroke Color").setValue([{r}, {g}, {b}, 1]);',
+        f'{st}.property("ADBE Vector Stroke Width").setValue({max(1, int(width))});',
+        f'try {{ {st}.property("ADBE Vector Stroke Line Cap").setValue(2); '
+        f'{st}.property("ADBE Vector Stroke Line Join").setValue(2); }} catch (e) {{}}',
+    ]
+    if dash and len(dash) >= 1:
+        d = max(1, int(dash[0]))
+        gap = max(1, int(dash[1])) if len(dash) > 1 else d
+        out.append(
+            f'try {{ var {st}_d = {st}.property("ADBE Vector Stroke Dashes"); '
+            f'{st}_d.addProperty("ADBE Vector Stroke Dash 1").setValue({d}); '
+            f'{st}_d.addProperty("ADBE Vector Stroke Gap 1").setValue({gap}); }} catch (e) {{}}'
+        )
+    return out
+
+
 def _emit_keyframes(prop_js: str, track: list, fps: int, is_xy: bool, tol: float) -> list[str]:
     """Líneas .jsx para fijar keyframes en una propiedad. `track` = [(frame, val), ...]."""
     simplified = simplify_track(track, tol)
@@ -197,14 +219,7 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
                 out.append(f'{lvar}_f.property("Color").setValue([{r}, {g}, {b}, 1]);')
             else:
                 sw = max(1, int(ap.get("strokeWidth", 2) or 2))
-                out.append(f'var {lvar}_st = {lvar}_g.property("Contents").addProperty("ADBE Vector Graphic - Stroke");')
-                out.append(f'{lvar}_st.property("ADBE Vector Stroke Color").setValue([{r}, {g}, {b}, 1]);')
-                out.append(f'{lvar}_st.property("ADBE Vector Stroke Width").setValue({sw});')
-                # Caps/joins redondeados (como strokeLinecap/Linejoin="round"); opcional → try/catch.
-                out.append(
-                    f'try {{ {lvar}_st.property("ADBE Vector Stroke Line Cap").setValue(2); '
-                    f'{lvar}_st.property("ADBE Vector Stroke Line Join").setValue(2); }} catch (e) {{}}'
-                )
+                out += _emit_stroke(lvar, f"{lvar}_g", r, g, b, sw, ap.get("dash"))
         else:  # shape (rect/ellipse) nativo
             w = max(1.0, float(ap.get("w", 100) or 100))
             h = max(1.0, float(ap.get("h", 100) or 100))
@@ -219,8 +234,11 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
                 + ");"
             )
             out.append(f"{lvar}_s.property(\"Size\").setValue([{w}, {h}]);")
-            out.append(f"var {lvar}_f = {lvar}_g.property(\"Contents\").addProperty(\"ADBE Vector Graphic - Fill\");")
-            out.append(f"{lvar}_f.property(\"Color\").setValue([{r}, {g}, {b}, 1]);")
+            if ap.get("filled", True):
+                out.append(f"var {lvar}_f = {lvar}_g.property(\"Contents\").addProperty(\"ADBE Vector Graphic - Fill\");")
+                out.append(f"{lvar}_f.property(\"Color\").setValue([{r}, {g}, {b}, 1]);")
+            else:  # forma SVG con fill:none + stroke (ej. anillo punteado decorativo)
+                out += _emit_stroke(lvar, f"{lvar}_g", r, g, b, int(ap.get("strokeWidth", 2) or 2), ap.get("dash"))
 
         # Efectos nativos de AE (Nivel 2): Drop Shadow (sombra/glow) + Gaussian Blur. La capa sigue
         # siendo nativa/editable. matchNames (independientes del idioma).
