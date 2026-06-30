@@ -30,6 +30,14 @@ const hexIntoRgb = (orig: string, hex: string): string => {
 const onEnterBlur = (e: React.KeyboardEvent<HTMLInputElement>) => {
   if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
 };
+// Color dentro de un string (ej. el rgba del borde "1px solid rgba(...)") → para un picker inline.
+const COLOR_TOKEN = /rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}/;
+const colorInStr = (s: string): string | null => s.match(COLOR_TOKEN)?.[0] ?? null;
+const replaceColorInStr = (s: string, hex: string): string => {
+  const tok = colorInStr(s);
+  if (!tok) return s;
+  return s.replace(tok, RGB_RE.test(tok) ? hexIntoRgb(tok, hex) : hex);
+};
 
 /**
  * Editor MANUAL determinista (sin IA) del código de una animación: Valores sueltos, Separar
@@ -169,13 +177,27 @@ export function CodeValueEditor({
         </select>
       );
     }
+    // text (espaciado, redondeo, borde…). Si el valor trae un color (ej. borde con rgba) → picker inline.
+    const valStr = String(s.value);
+    const col = colorInStr(valStr);
     return (
-      <input
-        type="text"
-        defaultValue={String(s.value)}
-        onBlur={(e) => editControl(s, e.target.value)}
-        className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono"
-      />
+      <>
+        {col && (
+          <input
+            type="color"
+            defaultValue={RGB_RE.test(col) ? rgbToHex(col) : col}
+            onChange={(e) => editControl(s, replaceColorInStr(valStr, e.target.value))}
+            className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer shrink-0"
+          />
+        )}
+        <input
+          type="text"
+          defaultValue={valStr}
+          onKeyDown={onEnterBlur}
+          onBlur={(e) => editControl(s, e.target.value)}
+          className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono text-[11px] min-w-0"
+        />
+      </>
     );
   };
 

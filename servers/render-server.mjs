@@ -96,12 +96,16 @@ function assembleScene(frames, meta) {
     const baseW = Math.max(1, Math.round((best ? best.w : 1) / bScale));
     const baseH = Math.max(1, Math.round((best ? best.h : 1) / bScale));
 
-    // SALTAR (no crear capa): contenedores transparentes (un div wrapper SIN fondo se volvería
-    // un rect negro) y overlays full-screen con gradiente (decoración casi transparente → rect
-    // opaco que tapa todo). El footage real de overlays es Fase B.
+    // SALTAR footage (svg no convertible): hoy no hay footage real → un rect gris tapa más de lo
+    // que aporta. Mejor omitirlo (cuando exista footage Fase B se reactiva).
+    if (first.type === "svg") continue;
+
+    // SALTAR (no crear capa): contenedores transparentes SIN borde (un div wrapper se volvería un
+    // rect negro) y overlays full-screen con gradiente. PERO un div transparente CON borde (ej. el
+    // marco de un arco) sí se exporta (como trazo).
     if (first.type === "shape") {
       const fullScreen = baseW >= meta.width * 0.9 && baseH >= meta.height * 0.9;
-      if (first.bgKind === "none") continue;
+      if (first.bgKind === "none" && !first.border) continue;
       if (first.bgKind === "gradient" && fullScreen) continue;
     }
 
@@ -151,7 +155,7 @@ function assembleScene(frames, meta) {
         color: rgbToHex(first.color),
         w: baseW,
         h: baseH,
-        filled: first.filled !== false, // divs siempre rellenos; svg con fill:none → trazo
+        filled: first.filled !== undefined ? first.filled : first.bgKind !== "none", // div transparente (solo borde) → no relleno
         strokeWidth: first.strokeWidth || 2,
         dash: first.dash,
         grad: first.grad
