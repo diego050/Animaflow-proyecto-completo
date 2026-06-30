@@ -102,7 +102,16 @@ function assembleScene(frames, meta) {
 
     let appearance;
     if (first.type === "text") {
-      appearance = { kind: "text", text: first.text || "", color: rgbToHex(first.color), fontSize: Math.max(1, parseFloat(first.fontSize) || 80) };
+      appearance = {
+        kind: "text",
+        text: first.text || "",
+        color: rgbToHex(first.color),
+        fontSize: Math.max(1, parseFloat(first.fontSize) || 80),
+        fontFamily: first.fontFamily || undefined,
+        fontWeight: first.fontWeight || 400,
+        letterSpacing: first.letterSpacing || 0,
+        lineHeight: first.lineHeight || 0,
+      };
     } else if (first.type === "path") {
       // Geometría del ÚLTIMO frame (ya asentada, escala≈1), relativa al centro del bbox de ese
       // frame. La Position por-frame mueve ese centro. (No escalamos el path con el padre → se
@@ -112,7 +121,12 @@ function assembleScene(frames, meta) {
       const cy = last ? last.y : 0;
       const rel = g
         .filter((sp) => sp && sp.points && sp.points.length >= 2)
-        .map((sp) => ({ closed: !!sp.closed, points: sp.points.map((p) => [p[0] - cx, p[1] - cy]) }));
+        .map((sp) => ({
+          closed: !!sp.closed,
+          points: sp.points.map((p) => [p[0] - cx, p[1] - cy]),
+          inTangents: sp.inTangents || [],
+          outTangents: sp.outTangents || [],
+        }));
       appearance = {
         kind: "path",
         paths: rel,
@@ -133,6 +147,11 @@ function assembleScene(frames, meta) {
         filled: first.filled !== false, // divs siempre rellenos; svg con fill:none → trazo
         strokeWidth: first.strokeWidth || 2,
         dash: first.dash,
+        grad: first.grad
+          ? { shape: first.grad.shape, angle: first.grad.angle, start: rgbToHex(first.grad.start), end: rgbToHex(first.grad.end) }
+          : undefined,
+        roundness: first.roundness || 0,
+        border: first.border ? { width: first.border.width, color: rgbToHex(first.border.color) } : undefined,
       };
     }
     const el = { id, name: id, appearance, tracks: { position, scale, rotation, opacity } };
