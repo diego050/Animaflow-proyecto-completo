@@ -13,6 +13,24 @@ const WEIGHTS: [string, string][] = [
   ['700', 'Bold'], ['800', 'ExtraBold'], ['900', 'Black'],
 ];
 
+// rgb()/rgba() ↔ hex (para mostrar un picker también en colores rgba, preservando el alpha).
+const RGB_RE = /^rgba?\(/i;
+const rgbToHex = (c: string): string => {
+  const m = c.match(/[\d.]+/g);
+  if (!m || m.length < 3) return '#000000';
+  const h = (n: string) => Math.max(0, Math.min(255, Math.round(parseFloat(n)))).toString(16).padStart(2, '0');
+  return `#${h(m[0])}${h(m[1])}${h(m[2])}`;
+};
+const hexIntoRgb = (orig: string, hex: string): string => {
+  const m = orig.match(/[\d.]+/g) || [];
+  const a = m.length >= 4 ? m[3] : null;
+  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  return a != null ? `rgba(${r}, ${g}, ${b}, ${a})` : `rgb(${r}, ${g}, ${b})`;
+};
+const onEnterBlur = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+};
+
 /**
  * Editor MANUAL determinista (sin IA) del código de una animación: Valores sueltos, Separar
  * color/valor compartido, y Grupos (cantidad + color + edición POR ELEMENTO). Con revertir
@@ -70,6 +88,26 @@ export function CodeValueEditor({
         />
       );
     }
+    // rgb()/rgba() → también con picker (preserva el alpha) + el texto al lado por si quieren alpha.
+    if (v.type === 'string' && RGB_RE.test(String(v.value))) {
+      return (
+        <>
+          <input
+            type="color"
+            defaultValue={rgbToHex(String(v.value))}
+            onChange={(e) => editControl(v, hexIntoRgb(String(v.value), e.target.value))}
+            className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer shrink-0"
+          />
+          <input
+            type="text"
+            defaultValue={String(v.value)}
+            onKeyDown={onEnterBlur}
+            onBlur={(e) => editControl(v, e.target.value)}
+            className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary text-[11px] font-mono min-w-0"
+          />
+        </>
+      );
+    }
     if (v.type === 'number') {
       const isCount = v.role === 'count';
       return (
@@ -78,6 +116,7 @@ export function CodeValueEditor({
           step={isCount ? 1 : 'any'}
           min={isCount ? 1 : undefined}
           defaultValue={Number(v.value)}
+          onKeyDown={onEnterBlur}
           onBlur={(e) =>
             editControl(
               v,
@@ -94,6 +133,7 @@ export function CodeValueEditor({
       <input
         type="text"
         defaultValue={String(v.value)}
+        onKeyDown={onEnterBlur}
         onBlur={(e) => editControl(v, e.target.value)}
         className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary"
       />
@@ -163,6 +203,7 @@ export function CodeValueEditor({
                 key={`txt-${t.start}-${i}`}
                 type="text"
                 defaultValue={String(t.value)}
+                onKeyDown={onEnterBlur}
                 onBlur={(e) => editControl(t, e.target.value)}
                 className="w-full bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary text-xs"
               />
@@ -181,7 +222,7 @@ export function CodeValueEditor({
         ) : (
           <div className="space-y-1.5">
             {analysis.values.map((v, i) => (
-              <div key={`${v.label}-${v.value}-${i}`} className="flex items-center gap-2 text-xs">
+              <div key={`${v.label}-${v.start}-${i}`} className="flex items-center gap-2 text-xs">
                 <span className="font-mono text-[11px] text-text-secondary/70 w-32 truncate" title={v.label}>
                   {v.label}
                 </span>
@@ -243,7 +284,7 @@ export function CodeValueEditor({
           </p>
           <div className="space-y-1.5">
             {analysis.splits.map((s, i) => (
-              <div key={`${s.label}-${s.start}-${s.value}-${i}`} className="flex items-center gap-2 text-xs">
+              <div key={`${s.label}-${s.start}-${i}`} className="flex items-center gap-2 text-xs">
                 {valueInput(s)}
                 <span className="font-mono text-[10px] text-text-secondary/50 truncate" title={s.context}>
                   {s.label} · {s.context}
@@ -269,7 +310,7 @@ export function CodeValueEditor({
                 {g.controls.length > 0 && (
                   <div className="space-y-1.5">
                     {g.controls.map((ctrl, ci) => (
-                      <div key={`${ctrl.role}-${ctrl.label}-${ctrl.value}-${ci}`} className="flex items-center gap-2">
+                      <div key={`${ctrl.role}-${ctrl.label}-${ctrl.start}-${ci}`} className="flex items-center gap-2">
                         <span className="font-mono text-text-secondary/70 w-28 truncate" title={ctrl.label}>
                           {ctrl.role === 'count' ? 'Cantidad' : ctrl.label}
                         </span>
@@ -300,7 +341,7 @@ export function CodeValueEditor({
                           const eff = ov ?? g.perElement.resolvedBase;
                           const sizeOv = g.perElement.sizeOverrides[k];
                           return (
-                            <div key={`${g.id}-${k}-${eff}-${sizeOv ?? ''}`} className="flex items-center gap-1.5">
+                            <div key={`${g.id}-${k}`} className="flex items-center gap-1.5">
                               <span className="text-[10px] text-text-secondary/50 w-7">#{k + 1}</span>
                               {g.perElement.available && (
                                 <input
