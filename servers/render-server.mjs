@@ -52,6 +52,18 @@ function rgbToHex(rgb) {
   return `#${h(m[0])}${h(m[1])}${h(m[2])}`;
 }
 
+// Alfa (0..1) de un color rgba()/#hex8; 1 si es opaco.
+function alphaOf(c) {
+  if (!c) return 1;
+  const m = c.match(/rgba?\(([^)]+)\)/);
+  if (m) {
+    const p = m[1].split(",").map((s) => parseFloat(s));
+    return p.length >= 4 ? p[3] : 1;
+  }
+  if (/^#[0-9a-fA-F]{8}$/.test(c)) return parseInt(c.slice(7, 9), 16) / 255;
+  return 1;
+}
+
 // Arma el aeScene (contrato de jsx_builder.py) desde las mediciones por frame.
 function assembleScene(frames, meta) {
   const ids = new Set();
@@ -119,7 +131,21 @@ function assembleScene(frames, meta) {
         h: baseH,
       };
     }
-    elements.push({ id, name: id, appearance, tracks: { position, scale, rotation, opacity } });
+    const el = { id, name: id, appearance, tracks: { position, scale, rotation, opacity } };
+    // Efectos nativos de AE (Nivel 2): sombra/glow + desenfoque. Valores del 1er frame (constantes).
+    const fx = {};
+    if (first.shadow) {
+      fx.shadow = {
+        color: rgbToHex(first.shadow.color),
+        opacity: Math.round(alphaOf(first.shadow.color) * 255),
+        x: first.shadow.x || 0,
+        y: first.shadow.y || 0,
+        blur: first.shadow.blur || 0,
+      };
+    }
+    if (first.blur) fx.blur = first.blur;
+    if (Object.keys(fx).length) el.effects = fx;
+    elements.push(el);
   }
   return { ...meta, elements };
 }

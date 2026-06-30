@@ -222,6 +222,26 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
             out.append(f"var {lvar}_f = {lvar}_g.property(\"Contents\").addProperty(\"ADBE Vector Graphic - Fill\");")
             out.append(f"{lvar}_f.property(\"Color\").setValue([{r}, {g}, {b}, 1]);")
 
+        # Efectos nativos de AE (Nivel 2): Drop Shadow (sombra/glow) + Gaussian Blur. La capa sigue
+        # siendo nativa/editable. matchNames (independientes del idioma).
+        fx = el.get("effects") or {}
+        sh = fx.get("shadow")
+        if sh:
+            sr, sg, sb = _hex_to_rgb01(sh.get("color", "#000000"))
+            sx, sy, sblur = float(sh.get("x", 0)), float(sh.get("y", 0)), float(sh.get("blur", 0))
+            dist = math.hypot(sx, sy)
+            direction = math.degrees(math.atan2(sx, -sy)) % 360 if dist else 0.0
+            out.append(f'var {lvar}_ds = {lvar}.property("ADBE Effect Parade").addProperty("ADBE Drop Shadow");')
+            out.append(f'{lvar}_ds.property("ADBE Drop Shadow-0001").setValue([{sr}, {sg}, {sb}, 1]);')
+            out.append(f'{lvar}_ds.property("ADBE Drop Shadow-0002").setValue({max(0, min(255, int(sh.get("opacity", 178))))});')
+            out.append(f'{lvar}_ds.property("ADBE Drop Shadow-0003").setValue({round(direction, 1)});')
+            out.append(f'{lvar}_ds.property("ADBE Drop Shadow-0004").setValue({round(dist, 1)});')
+            out.append(f'{lvar}_ds.property("ADBE Drop Shadow-0005").setValue({round(sblur, 1)});')
+        if fx.get("blur"):
+            out.append(f'var {lvar}_gb = {lvar}.property("ADBE Effect Parade").addProperty("ADBE Gaussian Blur 2");')
+            out.append(f'{lvar}_gb.property("ADBE Gaussian Blur 2-0001").setValue({round(float(fx["blur"]), 1)});')
+            out.append(f'try {{ {lvar}_gb.property("ADBE Gaussian Blur 2-0002").setValue(1); }} catch (e) {{}}')
+
         # Keyframes de transform
         tracks = el.get("tracks") or {}
         tr = f"{lvar}.property(\"Transform\")"
