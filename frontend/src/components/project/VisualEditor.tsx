@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
-import { Player } from '@remotion/player';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { Player, type PlayerRef } from '@remotion/player';
 import { X, MousePointerClick, ChevronsUp, ChevronsDown } from 'lucide-react';
 import { CustomCode } from '../../remotion/CustomCode';
 import { compileAnimation } from '../../remotion/compileAnimation';
@@ -33,6 +33,13 @@ const hexIntoRgb = (orig: string, hex: string): string => {
 const onEnterBlur = (e: React.KeyboardEvent<HTMLInputElement>) => {
   if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
 };
+const COLOR_TOKEN = /rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}/;
+const colorInStr = (s: string): string | null => s.match(COLOR_TOKEN)?.[0] ?? null;
+const replaceColorInStr = (s: string, hex: string): string => {
+  const tok = colorInStr(s);
+  if (!tok) return s;
+  return s.replace(tok, RGB_RE.test(tok) ? hexIntoRgb(tok, hex) : hex);
+};
 
 type Rect = { left: number; top: number; width: number; height: number };
 
@@ -54,9 +61,31 @@ export function VisualEditor({
   previewH: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ ids: string[]; x: number; y: number; moved: boolean } | null>(null);
+  const playerRef = useRef<PlayerRef>(null);
+  const dragRef = useRef<{ ids: string[]; node: HTMLElement; origTransform: string; x: number; y: number; moved: boolean } | null>(null);
   const [ids, setIds] = useState<string[]>([]);
   const [rects, setRects] = useState<Record<string, Rect>>({});
+  const [autoFocusText, setAutoFocusText] = useState(false);
+
+  // Fuerza repintar el frame pausado tras una edición (si no, el Player no refleja el cambio hasta darle play).
+  const repaint = useCallback(() => {
+    const p = playerRef.current;
+    if (!p) return;
+    const f = p.getCurrentFrame();
+    requestAnimationFrame(() => { try { p.seekTo(f); } catch { /* noop */ } });
+  }, []);
+
+  // Clic FUERA de la preview y del panel → deseleccionar (cierra el recuadro).
+  useEffect(() => {
+    const onDocDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (containerRef.current?.contains(t) || t.closest('[data-ae-panel]')) return;
+      setIds([]);
+      setRects({});
+    };
+    document.addEventListener('mousedown', onDocDown);
+    return () => document.removeEventListener('mousedown', onDocDown);
+  }, []);
   const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null);
   const [panelPos, setPanelPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
 
@@ -111,17 +140,25 @@ export function VisualEditor({
       }
       const moveIds = ids.includes(id) ? ids : [id];
       if (!ids.includes(id)) { setIds([id]); setRects({ [id]: rectOf(node) }); }
-      dragRef.current = { ids: moveIds, x: e.clientX, y: e.clientY, moved: false };
+      dragRef.current = { ids: moveIds, node, origTransform: node.style.transform, x: e.clientX, y: e.clientY, moved: false };
     },
     [ids, baseId, rectOf, placePanel],
   );
 
-  const onMouseMove = useCallback((e: React.MouseEvent) => {
-    const d = dragRef.current;
-    if (!d) return;
-    if (!d.moved && (Math.abs(e.clientX - d.x) > 4 || Math.abs(e.clientY - d.y) > 4)) d.moved = true;
-    if (d.moved) setDragOffset({ dx: e.clientX - d.x, dy: e.clientY - d.y }); // feedback en vivo
-  }, []);
+  const onMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (!d.moved && (Math.abs(e.clientX - d.x) > 4 || Math.abs(e.clientY - d.y) > 4)) d.moved = true;
+      if (d.moved) {
+        const dx = e.clientX - d.x, dy = e.clientY - d.y;
+        setDragOffset({ dx, dy }); // recuadro
+        const s = width / previewW; // mover el OBJETO real en vivo (px de composición)
+        d.node.style.transform = `${d.origTransform} translate(${dx * s}px, ${dy * s}px)`;
+      }
+    },
+    [width, previewW],
+  );
 
   const onMouseUp = useCallback(
     (e: React.MouseEvent) => {
@@ -144,9 +181,23 @@ export function VisualEditor({
       if (!ddx && !ddy) return;
       let nc = code;
       for (const id of d.ids) nc = setElementMargin(nc, id, ddx, ddy);
-      try { compileAnimation(nc); onChange(nc); setRects({}); } catch { /* noop */ }
+      try { compileAnimation(nc); onChange(nc); setRects({}); repaint(); } catch { /* noop */ }
     },
-    [code, onChange, scale, previewW, previewH, rects],
+    [code, onChange, scale, previewW, previewH, rects, repaint],
+  );
+
+  // Doble clic en un TEXTO → seleccionarlo y enfocar su campo de texto para escribir de una.
+  const onDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const node = (e.target as HTMLElement).closest('[data-ae-id]') as HTMLElement | null;
+      if (!node || node.getAttribute('data-ae-type') !== 'text') return;
+      const id = baseId(node);
+      setIds([id]);
+      setRects({ [id]: rectOf(node) });
+      placePanel();
+      setAutoFocusText(true);
+    },
+    [baseId, rectOf, placePanel],
   );
 
   const editRef = useCallback(
@@ -155,14 +206,15 @@ export function VisualEditor({
         const nc = applyValueRef(code, ref, val);
         compileAnimation(nc);
         onChange(nc);
+        repaint();
       } catch { /* noop */ }
     },
-    [code, onChange],
+    [code, onChange, repaint],
   );
 
   const apply = useCallback(
-    (nc: string) => { try { compileAnimation(nc); onChange(nc); } catch { /* noop */ } },
-    [onChange],
+    (nc: string) => { try { compileAnimation(nc); onChange(nc); repaint(); } catch { /* noop */ } },
+    [onChange, repaint],
   );
 
   const onResizeDown = useCallback(
@@ -237,7 +289,30 @@ export function VisualEditor({
     if (r.type === 'number') {
       return <input type="number" defaultValue={Number(r.value)} onKeyDown={onEnterBlur} onBlur={(e) => editRef(r, parseFloat(e.target.value) || 0)} className="w-24 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono text-xs" />;
     }
-    return <input type="text" defaultValue={String(r.value)} onKeyDown={onEnterBlur} onBlur={(e) => editRef(r, e.target.value)} className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary text-xs min-w-0" />;
+    const isText = r.label === 'Texto';
+    const valStr = String(r.value);
+    const col = !isText ? colorInStr(valStr) : null; // borde u otro con color → picker inline
+    return (
+      <>
+        {col && (
+          <input
+            type="color"
+            defaultValue={RGB_RE.test(col) ? rgbToHexC(col) : col}
+            onChange={(e) => editRef(r, replaceColorInStr(valStr, e.target.value))}
+            className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer shrink-0"
+          />
+        )}
+        <input
+          type="text"
+          defaultValue={valStr}
+          autoFocus={isText && autoFocusText}
+          onFocus={(e) => { if (isText && autoFocusText) { setAutoFocusText(false); e.currentTarget.select(); } }}
+          onKeyDown={onEnterBlur}
+          onBlur={(e) => editRef(r, e.target.value)}
+          className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary text-xs min-w-0"
+        />
+      </>
+    );
   };
 
   return (
@@ -248,8 +323,10 @@ export function VisualEditor({
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
+      onDoubleClick={onDoubleClick}
     >
       <Player
+        ref={playerRef}
         component={CustomCode}
         inputProps={{ code: tagged, durationInFrames, width, height, fps }}
         durationInFrames={durationInFrames}

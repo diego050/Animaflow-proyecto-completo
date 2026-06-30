@@ -129,12 +129,24 @@ export function tagElements(code: string): TagResult {
     elements.push({ id, type, name: label, tag: jsxName(n.openingElement).toLowerCase(), isGroup: !!cb, indexVar: cb?.indexVar, shape, start: n.start, end: n.end });
   };
 
+  // AbsoluteFill: el RAÍZ (más externo) es el fondo → se captura aparte (background()), se salta.
+  // Los INTERNOS (paneles de color, ej. el césped) SÍ se exportan como formas.
+  const absStarts: number[] = [];
+  walk(ast, (n: any) => {
+    if (n.type === 'JSXElement' && jsxName(n.openingElement) === 'AbsoluteFill') absStarts.push(n.start);
+  });
+  const rootAbsFill = absStarts.length ? Math.min(...absStarts) : -1;
+
   walk(ast, (n: any) => {
     if (n.type !== 'JSXElement') return;
     const name = jsxName(n.openingElement);
-    if (!name || SKIP_NAMES.has(name)) return;
-    const isHtml = name[0] === name[0].toLowerCase();
-    if (!isHtml) return;
+    if (!name) return;
+    if (name === 'AbsoluteFill') {
+      if (n.start === rootAbsFill) return; // fondo (se captura con background())
+    } else {
+      if (SKIP_NAMES.has(name)) return;
+      if (name[0] !== name[0].toLowerCase()) return; // componentes propios (no vemos su HTML)
+    }
     const lower = name.toLowerCase();
 
     // Forma simple de SVG dentro de un svg CONVERTIBLE → capa nativa (elipse/rect).

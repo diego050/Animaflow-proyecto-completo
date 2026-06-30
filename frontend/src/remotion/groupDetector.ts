@@ -549,6 +549,20 @@ export function analyzeByElement(code: string): ElementEdit[] {
 }
 
 /**
+ * Inserta una prop nueva al FINAL del objeto `style` (después de la última prop). Importante: si se
+ * insertara al inicio, un `margin: 0`/`border: ...` posterior la anularía (por eso los textos no se
+ * movían). Al final, gana sobre los shorthands.
+ */
+function _appendStyleProp(styleObj: any, name: string, value: string): { start: number; end: number; text: string } {
+  const props = styleObj.properties || [];
+  if (props.length) {
+    const last = props[props.length - 1];
+    return { start: last.end, end: last.end, text: `, ${name}: ${value}` };
+  }
+  return { start: styleObj.start + 1, end: styleObj.start + 1, text: ` ${name}: ${value} ` };
+}
+
+/**
  * MOVER un elemento (Fase 3, arrastrar): suma (ddx, ddy) px al desplazamiento del elemento vía
  * `marginLeft`/`marginTop` en su `style` (desplaza toda su trayectoria sin tocar las fórmulas de
  * posición). Acumula: si ya existen márgenes numéricos (nuestros), les suma; si no, los crea.
@@ -594,7 +608,7 @@ export function setElementMargin(code: string, elementId: string, ddx: number, d
       if (cur !== null) edits.push({ start: p.value.start, end: p.value.end, text: String(Math.round(cur + delta)) });
       // si existe pero es un margen calculado (no número) → no lo tocamos
     } else {
-      edits.push({ start: styleObj.start + 1, end: styleObj.start + 1, text: ` ${name}: ${Math.round(delta)},` });
+      edits.push(_appendStyleProp(styleObj, name, String(Math.round(delta))));
     }
   };
   handle('marginLeft', ddx);
@@ -639,7 +653,7 @@ export function setElementSizePx(code: string, elementId: string, w: number, h: 
     const v = Math.max(1, Math.round(val));
     const p = find(name);
     if (p) edits.push({ start: p.value.start, end: p.value.end, text: String(v) });
-    else edits.push({ start: styleObj.start + 1, end: styleObj.start + 1, text: ` ${name}: ${v},` });
+    else edits.push(_appendStyleProp(styleObj, name, String(v)));
   };
   handle('width', w);
   handle('height', h);
@@ -674,7 +688,8 @@ export function setElementZIndex(code: string, elementId: string, z: number): st
   );
   const v = String(Math.round(z));
   if (p) return code.slice(0, p.value.start) + v + code.slice(p.value.end);
-  return code.slice(0, styleObj.start + 1) + ` zIndex: ${v},` + code.slice(styleObj.start + 1);
+  const e = _appendStyleProp(styleObj, 'zIndex', v);
+  return code.slice(0, e.start) + e.text + code.slice(e.end);
 }
 
 /** Reemplaza el valor apuntado por `ref` con `newValue` (reescribe solo ese pedacito). */

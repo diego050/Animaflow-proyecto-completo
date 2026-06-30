@@ -61,6 +61,21 @@ def _js_str(s: str) -> str:
     return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ") + '"'
 
 
+_WEIGHT_NAMES = {
+    100: "Thin", 200: "ExtraLight", 300: "Light", 400: "Regular", 500: "Medium",
+    600: "SemiBold", 700: "Bold", 800: "ExtraBold", 900: "Black",
+}
+
+
+def _postscript_font(family: str, weight: int) -> str:
+    """Nombre PostScript de la fuente (lo que AE necesita), no la familia: 'Inter' + peso 900 →
+    'Inter-Black'. AE muestra '[Inter/TrueType]' (corchetes) si se le da solo la familia → usa el
+    peso Regular. Con el nombre exacto usa el peso correcto. PostScript = familia sin espacios."""
+    fam = "".join((family or "Inter").split())
+    w = min(_WEIGHT_NAMES, key=lambda k: abs(k - int(weight or 400)))
+    return f"{fam}-{_WEIGHT_NAMES[w]}"
+
+
 def _hex_to_rgb01(hex_color: str) -> tuple[float, float, float]:
     h = (hex_color or "#000000").lstrip("#")
     if len(h) == 3:
@@ -198,10 +213,15 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
             # Fuente (best-effort: si no está instalada AE la ignora), peso (fauxBold), tracking
             # (letter-spacing: AE usa 1/1000 em), interlineado (leading).
             fam = ap.get("fontFamily")
+            weight = int(ap.get("fontWeight", 400) or 400)
             if fam:
-                out.append(f'try {{ {lvar}_td.font = {_js_str(fam)}; }} catch (e) {{}}')
-            if int(ap.get("fontWeight", 400) or 400) >= 600:
-                out.append(f"{lvar}_td.fauxBold = true;")
+                # Nombre PostScript con el peso (ej. Inter-Black) → AE usa el peso correcto. Si no
+                # existe ese peso instalado, intenta la familia sola como respaldo.
+                ps = _postscript_font(fam, weight)
+                out.append(
+                    f'try {{ {lvar}_td.font = {_js_str(ps)}; }} catch (e1) {{ '
+                    f'try {{ {lvar}_td.font = {_js_str("".join(fam.split()))}; }} catch (e2) {{}} }}'
+                )
             ls = float(ap.get("letterSpacing", 0) or 0)
             if ls:
                 out.append(f"{lvar}_td.tracking = {round(ls / fsize * 1000, 1)};")
@@ -320,13 +340,15 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
                     out += _emit_color_keyframes(f'{lvar}_f.property("Color")', ct, fps)
                 else:
                     out.append(f"{lvar}_f.property(\"Color\").setValue([{r}, {g}, {b}, 1]);")
-            else:  # forma SVG con fill:none + stroke (ej. anillo punteado decorativo)
-                out += _emit_stroke(lvar, f"{lvar}_g", r, g, b, int(ap.get("strokeWidth", 2) or 2), ap.get("dash"))
-            # Borde CSS de un div relleno (border:Npx solid) → stroke ADEMÁS del fill.
+            # STROKE: el BORDE del div (border:Npx solid) gana — se dibuja AUNQUE no haya relleno (ej.
+            # el marco de un arco: div transparente con borde). Si no hay borde pero la forma no está
+            # rellena, es un svg fill:none (anillo punteado) → su propio trazo.
             border = ap.get("border")
-            if border and ap.get("filled", True):
+            if border:
                 br, bg, bb = _hex_to_rgb01(border.get("color", "#000000"))
                 out += _emit_stroke(lvar, f"{lvar}_g", br, bg, bb, int(border.get("width", 1) or 1), None)
+            elif not ap.get("filled", True):
+                out += _emit_stroke(lvar, f"{lvar}_g", r, g, b, int(ap.get("strokeWidth", 2) or 2), ap.get("dash"), fps, ap.get("colorTrack"))
 
         # Efectos nativos de AE (Nivel 2): Drop Shadow (sombra/glow) + Gaussian Blur. La capa sigue
         # siendo nativa/editable. matchNames (independientes del idioma).
