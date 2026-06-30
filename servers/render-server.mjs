@@ -119,6 +119,7 @@ function assembleScene(frames, meta) {
         color: rgbToHex(first.color),
         strokeWidth: (last && last.strokeWidth) || first.strokeWidth || 2,
         filled: last ? !!last.filled : !!first.filled,
+        dash: (last && last.dash) || first.dash,
       };
     } else if (first.type === "svg") {
       appearance = { kind: "footage", file: `${id}.mov`, w: baseW, h: baseH, color: "#808080" };
@@ -129,6 +130,9 @@ function assembleScene(frames, meta) {
         color: rgbToHex(first.color),
         w: baseW,
         h: baseH,
+        filled: first.filled !== false, // divs siempre rellenos; svg con fill:none → trazo
+        strokeWidth: first.strokeWidth || 2,
+        dash: first.dash,
       };
     }
     const el = { id, name: id, appearance, tracks: { position, scale, rotation, opacity } };

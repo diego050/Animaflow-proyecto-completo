@@ -124,6 +124,13 @@ function parseStraightPath(pathEl: SVGPathElement, base: DOMRect): { points: num
   return subs;
 }
 
+/** Parsea strokeDasharray ("10px 20px" / "10 20") → [dash, gap] en px de lienzo; undefined si none. */
+function parseDash(d: string | null, scale: number): number[] | undefined {
+  if (!d || d === 'none') return undefined;
+  const nums = (d.match(/[\d.]+/g) || []).map((s) => Math.max(1, Math.round(parseFloat(s) * scale)));
+  return nums.length ? nums : undefined;
+}
+
 let root: Root | null = null;
 let Comp: React.FC | null = null;
 
@@ -220,8 +227,22 @@ let Comp: React.FC | null = null;
           paths: parseStraightPath(elx as unknown as SVGPathElement, base),
           strokeWidth: Math.max(1, Math.round(parseFloat(cs.strokeWidth || '1') * ctmScale)),
           filled,
+          dash: parseDash(cs.strokeDasharray, ctmScale),
         };
         color = filled ? cs.fill : !transparent(cs.stroke) ? cs.stroke : cs.color;
+      }
+
+      // Formas SVG (circle/ellipse/rect): ¿relleno o SOLO trazo (fill:none + stroke)? + ancho/dash.
+      let shapeStroke: Record<string, any> | undefined;
+      if (aeType === 'shape' && isSvgShape) {
+        const ctmEl = elx as unknown as SVGGraphicsElement;
+        const ctm3 = ctmEl.getScreenCTM ? ctmEl.getScreenCTM() : null;
+        const cScale = ctm3 ? Math.sqrt(ctm3.a * ctm3.a + ctm3.b * ctm3.b) : 1;
+        shapeStroke = {
+          filled: !transparent(cs.fill),
+          strokeWidth: Math.max(1, Math.round((parseFloat(cs.strokeWidth || '0') || 0) * cScale)),
+          dash: parseDash(cs.strokeDasharray, cScale),
+        };
       }
 
       // Opacidad EFECTIVA: en CSS la opacidad se hereda visualmente (un contenedor a 50% hace que
@@ -254,6 +275,7 @@ let Comp: React.FC | null = null;
         shadow,
         blur: blurPx || undefined,
         ...(pathExtra || {}),
+        ...(shapeStroke || {}),
         x: Math.round(r.left - base.left + r.width / 2),
         y: Math.round(r.top - base.top + r.height / 2),
         w: Math.round(r.width),
