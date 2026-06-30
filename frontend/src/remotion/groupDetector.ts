@@ -353,6 +353,24 @@ export function analyzeCode(code: string): AnalysisResult {
     values.push({ label: n.value, type: 'color', value: n.value, start: n.start, end: n.end, quoted: true });
   });
 
+  // Colores hex INLINE dentro de template literals (ej. el 2º color de un
+  // `linear-gradient(${c}, #16a34a)`). No son StringLiteral → escaneamos el texto crudo de cada
+  // quasi. `quoted: false` = se reemplaza el hex tal cual (sin comillas).
+  const HEX_SCAN = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/g;
+  walk(ast, (n: any) => {
+    if (n.type !== 'TemplateLiteral') return;
+    for (const q of n.quasis || []) {
+      const raw: string = q.value?.raw ?? '';
+      HEX_SCAN.lastIndex = 0;
+      let mm: RegExpExecArray | null;
+      while ((mm = HEX_SCAN.exec(raw))) {
+        const start = q.start + mm.index;
+        if (groupSpans.some(([s, e]) => start >= s && start < e)) continue;
+        values.push({ label: mm[0], type: 'color', value: mm[0], start, end: start + mm[0].length, quoted: false });
+      }
+    }
+  });
+
   // ── Splits: usos SUELTOS de un valor COMPARTIDO (color/tamaño/texto). Ej. el subtítulo usa
   //    glowColor igual que las partículas, o dos textos usan el mismo titleSize. Editar un uso
   //    lo vuelve un literal propio → independiente, sin tocar el resto. Sirve para cualquier tipo. ──

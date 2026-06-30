@@ -179,7 +179,10 @@ let Comp: React.FC | null = null;
       const m = cs.transform && cs.transform !== 'none' ? cs.transform.match(/matrix\(([^)]+)\)/) : null;
       if (m) {
         const p = m[1].split(',').map(parseFloat);
-        scale = Math.sqrt(p[0] * p[0] + p[1] * p[1]) || 1;
+        // OJO: `|| 1` convertiría escala 0 en 1 (0 es falsy) → el frame 0 de una entrada que crece
+        // desde 0 saldría a tamaño completo. Solo caer a 1 si es NaN (matrix inválida).
+        const sc = Math.sqrt(p[0] * p[0] + p[1] * p[1]);
+        scale = isNaN(sc) ? 1 : sc;
         rotation = Math.round((Math.atan2(p[1], p[0]) * 180) / Math.PI);
       }
       // Color + bgKind: background-color sólido → 'solid'; gradiente en background-image →
@@ -232,10 +235,24 @@ let Comp: React.FC | null = null;
         if (!isNaN(po)) effOpacity *= po;
         par = par.parentElement;
       }
+      // boxShadow → sombra/glow; filter: blur() → desenfoque (efectos nativos de AE en Nivel 2).
+      let shadow: Record<string, any> | undefined;
+      const bs = cs.boxShadow;
+      if (bs && bs !== 'none' && !bs.startsWith('inset')) {
+        const seg = bs.split(/,(?![^(]*\))/)[0]; // primera sombra (coma fuera de rgb())
+        const col = seg.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/);
+        const px = (seg.replace(/rgba?\([^)]+\)/, '').match(/-?\d+(?:\.\d+)?px/g) || []).map((s) => parseFloat(s));
+        if (col) shadow = { color: col[0], x: px[0] || 0, y: px[1] || 0, blur: px[2] || 0 };
+      }
+      const fm = (cs.filter || '').match(/blur\(([\d.]+)px\)/);
+      const blurPx = fm ? parseFloat(fm[1]) : 0;
+
       out[id] = {
         type: aeType,
         shape: elx.getAttribute('data-ae-shape') || undefined,
         bgKind,
+        shadow,
+        blur: blurPx || undefined,
         ...(pathExtra || {}),
         x: Math.round(r.left - base.left + r.width / 2),
         y: Math.round(r.top - base.top + r.height / 2),
