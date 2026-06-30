@@ -4,8 +4,6 @@ import type { Spec } from '../../types/spec';
 import { editScene } from '../../api/sceneEdit';
 import { useToastStore } from '../../store/useToastStore';
 import { CodeValueEditor } from './CodeValueEditor';
-import { VisualEditor } from './VisualEditor';
-import { dimsFor } from '../../remotion/aspectDims';
 import { api } from '../../api/client';
 
 interface SceneInlineEditorProps {
@@ -163,34 +161,7 @@ export function SceneInlineEditor({
           <div className="px-3 pb-3">
             <p className="text-[10px] text-text-secondary/40 mb-2 truncate">{scene.text}</p>
             {scene.custom_code ? (
-              <div className="space-y-2">
-                {(() => {
-                  // Editor VISUAL (clic/arrastrar) de ESTA escena, reusando el del lab. Edita el mismo
-                  // custom_code → handleCodeChange (preview en vivo + guardado debounced).
-                  const dims = dimsFor(aspectRatio);
-                  const durFrames = Math.max(1, Math.round((scene.duration_seconds ?? 5) * 30));
-                  const MAXW = 260, MAXH = 360;
-                  const ar = dims.w / dims.h;
-                  let pw = Math.round(MAXH * ar);
-                  let ph = MAXH;
-                  if (pw > MAXW) { pw = MAXW; ph = Math.round(MAXW / ar); }
-                  return (
-                    <div className="flex justify-center">
-                      <VisualEditor
-                        code={scene.custom_code}
-                        onChange={handleCodeChange}
-                        width={dims.w}
-                        height={dims.h}
-                        fps={30}
-                        durationInFrames={durFrames}
-                        previewW={pw}
-                        previewH={ph}
-                      />
-                    </div>
-                  );
-                })()}
-                <CodeValueEditor code={scene.custom_code} onChange={handleCodeChange} />
-              </div>
+              <CodeValueEditor code={scene.custom_code} onChange={handleCodeChange} />
             ) : (
               <p className="text-[11px] text-text-secondary/40">Esta escena no tiene código editable.</p>
             )}

@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { SkipForward, SkipBack, MessageSquare, Sliders } from 'lucide-react';
 import { Player } from '@remotion/player';
 import type { PlayerRef } from '@remotion/player';
 import { SceneWrapper } from '../../remotion/SceneRoot';
+import { VisualEditor } from './VisualEditor';
 import { MainComposition } from '../../remotion/MainComposition';
 import type { TimelineSpec, Spec } from '../../types/spec';
 import { SceneTimelineBar } from './SceneTimelineBar';
@@ -49,6 +50,35 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
   const compWidth = dims.w;
   const compHeight = dims.h;
   const [historyRefresh, setHistoryRefresh] = useState(0);
+
+  // Tamaño real del área de preview (para encajar el editor visual sin deformar).
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const update = () => setBox({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Edición visual de la escena ENFOCADA (en el preview grande): guarda su custom_code (live + debounced).
+  const focusCodeSave = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleFocusedCodeChange = useCallback(
+    (newCode: string) => {
+      if (focusSceneIndex == null) return;
+      const sc = spec.scenes[focusSceneIndex];
+      onSceneSpecChange?.(focusSceneIndex, { ...sc, custom_code: newCode } as Spec);
+      if (focusCodeSave.current) clearTimeout(focusCodeSave.current);
+      const idx = focusSceneIndex;
+      focusCodeSave.current = setTimeout(() => {
+        api.post(`/api/jobs/${jobId}/scenes/${idx}/code`, { custom_code: newCode }).catch(() => {});
+      }, 600);
+    },
+    [focusSceneIndex, spec.scenes, onSceneSpecChange, jobId],
+  );
 
   // Effect to handle seeking in the full video when a scene is clicked (isReadyToRender mode)
   useEffect(() => {
@@ -135,7 +165,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
         )}
 
         <div className="w-full flex items-center justify-center" style={{ maxHeight: 'calc(100vh - 340px)' }}>
-          <div style={{ aspectRatio: dims.cssRatio }} className="w-full max-h-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50">
+          <div ref={boxRef} style={{ aspectRatio: dims.cssRatio }} className="w-full max-h-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50">
             {isReadyToRender ? (
               /* Full video with audio - seek to scene on click */
               <Player
@@ -151,24 +181,48 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
                 style={{ width: '100%', height: '100%' }}
               />
             ) : focusedScene ? (
-              /* Pre-render: show individual scene preview (no audio yet) */
-              <Player
-                key={`scene-${focusSceneIndex}-${debouncedSpecKey}`}
-                component={SceneWrapper}
-                inputProps={{
-                  type: focusedScene.type,
-                  text: focusedScene.text,
-                  durationInFrames: Math.round((focusedScene.duration_seconds || 5) * 30),
-                  customCode: (focusedScene as Spec).custom_code,
-                  fallbackBg: String((focusedScene as Spec).remotion_props?.backgroundColor || '#000000'),
-                }}
-                durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
-                compositionWidth={compWidth}
-                compositionHeight={compHeight}
-                fps={30}
-                controls
-                style={{ width: '100%', height: '100%' }}
-              />
+              (focusedScene as Spec).custom_code && box.w > 0 ? (
+                // Escena code-gen ENFOCADA → el preview grande es EDITABLE (clic/arrastrar) sobre su
+                // custom_code. Encaja en el área medida sin deformar.
+                (() => {
+                  const ar = compWidth / compHeight;
+                  let pw = Math.round(box.h * ar);
+                  let ph = box.h;
+                  if (pw > box.w) { pw = box.w; ph = Math.round(box.w / ar); }
+                  return (
+                    <VisualEditor
+                      key={`ve-${focusSceneIndex}`}
+                      code={(focusedScene as Spec).custom_code as string}
+                      onChange={handleFocusedCodeChange}
+                      width={compWidth}
+                      height={compHeight}
+                      fps={30}
+                      durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
+                      previewW={pw}
+                      previewH={ph}
+                    />
+                  );
+                })()
+              ) : (
+                /* Pre-render: scene preview (no editable, sin custom_code) */
+                <Player
+                  key={`scene-${focusSceneIndex}-${debouncedSpecKey}`}
+                  component={SceneWrapper}
+                  inputProps={{
+                    type: focusedScene.type,
+                    text: focusedScene.text,
+                    durationInFrames: Math.round((focusedScene.duration_seconds || 5) * 30),
+                    customCode: (focusedScene as Spec).custom_code,
+                    fallbackBg: String((focusedScene as Spec).remotion_props?.backgroundColor || '#000000'),
+                  }}
+                  durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
+                  compositionWidth={compWidth}
+                  compositionHeight={compHeight}
+                  fps={30}
+                  controls
+                  style={{ width: '100%', height: '100%' }}
+                />
+              )
             ) : (
               <Player
                 key={`main-fallback-${debouncedSpecKey}`}
