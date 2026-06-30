@@ -17,6 +17,22 @@ const WEIGHTS: [string, string][] = [
   ['700', 'Bold'], ['800', 'ExtraBold'], ['900', 'Black'],
 ];
 const SNAP = 8; // px de pantalla para snap al centro del lienzo
+const RGB_RE = /^rgba?\(/i;
+const rgbToHexC = (c: string): string => {
+  const m = c.match(/[\d.]+/g);
+  if (!m || m.length < 3) return '#000000';
+  const h = (n: string) => Math.max(0, Math.min(255, Math.round(parseFloat(n)))).toString(16).padStart(2, '0');
+  return `#${h(m[0])}${h(m[1])}${h(m[2])}`;
+};
+const hexIntoRgb = (orig: string, hex: string): string => {
+  const m = orig.match(/[\d.]+/g) || [];
+  const a = m.length >= 4 ? m[3] : null;
+  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  return a != null ? `rgba(${r}, ${g}, ${b}, ${a})` : `rgb(${r}, ${g}, ${b})`;
+};
+const onEnterBlur = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+};
 
 type Rect = { left: number; top: number; width: number; height: number };
 
@@ -41,6 +57,19 @@ export function VisualEditor({
   const dragRef = useRef<{ ids: string[]; x: number; y: number; moved: boolean } | null>(null);
   const [ids, setIds] = useState<string[]>([]);
   const [rects, setRects] = useState<Record<string, Rect>>({});
+  const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null);
+  const [panelPos, setPanelPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+
+  // Coloca el panel FIJO al costado de la preview, sin taparla; salta de lado si no cabe.
+  const placePanel = useCallback(() => {
+    const c = containerRef.current?.getBoundingClientRect();
+    if (!c) return;
+    const panelW = 248;
+    let left = c.right + 8;
+    if (left + panelW > window.innerWidth - 8) left = c.left - panelW - 8;
+    if (left < 8) left = 8;
+    setPanelPos({ left, top: Math.max(8, Math.min(c.top, window.innerHeight - 220)) });
+  }, []);
 
   const tagged = useMemo(() => {
     const t = tagElements(code).taggedCode;
@@ -72,6 +101,7 @@ export function VisualEditor({
       const node = t.closest('[data-ae-id]') as HTMLElement | null;
       if (!node) { dragRef.current = null; setIds([]); setRects({}); return; }
       const id = baseId(node);
+      placePanel();
       if (e.shiftKey) {
         // multi-selección: alternar
         setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -83,18 +113,21 @@ export function VisualEditor({
       if (!ids.includes(id)) { setIds([id]); setRects({ [id]: rectOf(node) }); }
       dragRef.current = { ids: moveIds, x: e.clientX, y: e.clientY, moved: false };
     },
-    [ids, baseId, rectOf],
+    [ids, baseId, rectOf, placePanel],
   );
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     const d = dragRef.current;
-    if (d && !d.moved && (Math.abs(e.clientX - d.x) > 4 || Math.abs(e.clientY - d.y) > 4)) d.moved = true;
+    if (!d) return;
+    if (!d.moved && (Math.abs(e.clientX - d.x) > 4 || Math.abs(e.clientY - d.y) > 4)) d.moved = true;
+    if (d.moved) setDragOffset({ dx: e.clientX - d.x, dy: e.clientY - d.y }); // feedback en vivo
   }, []);
 
   const onMouseUp = useCallback(
     (e: React.MouseEvent) => {
       const d = dragRef.current;
       dragRef.current = null;
+      setDragOffset(null);
       if (!d || !d.moved) return;
       let ddxS = e.clientX - d.x;
       let ddyS = e.clientY - d.y;
@@ -180,6 +213,11 @@ export function VisualEditor({
     if (r.type === 'color') {
       return <input type="color" defaultValue={String(r.value)} onChange={(e) => editRef(r, e.target.value)} className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer shrink-0" />;
     }
+    if (r.type === 'string' && RGB_RE.test(String(r.value))) {
+      return (
+        <input type="color" defaultValue={rgbToHexC(String(r.value))} onChange={(e) => editRef(r, hexIntoRgb(String(r.value), e.target.value))} className="w-8 h-7 rounded border border-border-tech bg-transparent cursor-pointer shrink-0" />
+      );
+    }
     if (c === 'font') {
       const primary = String(r.value).split(',')[0].replace(/['"]/g, '').trim();
       const opts = FONT_LIST.includes(primary) ? FONT_LIST : [primary, ...FONT_LIST];
@@ -197,9 +235,9 @@ export function VisualEditor({
       );
     }
     if (r.type === 'number') {
-      return <input type="number" defaultValue={Number(r.value)} onBlur={(e) => editRef(r, parseFloat(e.target.value) || 0)} className="w-24 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono text-xs" />;
+      return <input type="number" defaultValue={Number(r.value)} onKeyDown={onEnterBlur} onBlur={(e) => editRef(r, parseFloat(e.target.value) || 0)} className="w-24 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono text-xs" />;
     }
-    return <input type="text" defaultValue={String(r.value)} onBlur={(e) => editRef(r, e.target.value)} className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary text-xs min-w-0" />;
+    return <input type="text" defaultValue={String(r.value)} onKeyDown={onEnterBlur} onBlur={(e) => editRef(r, e.target.value)} className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary text-xs min-w-0" />;
   };
 
   return (
@@ -212,7 +250,6 @@ export function VisualEditor({
       onMouseUp={onMouseUp}
     >
       <Player
-        key={tagged}
         component={CustomCode}
         inputProps={{ code: tagged, durationInFrames, width, height, fps }}
         durationInFrames={durationInFrames}
@@ -228,7 +265,11 @@ export function VisualEditor({
       {ids.map((id) => {
         const r = rects[id];
         return r ? (
-          <div key={id} className="absolute pointer-events-none border-2 border-mint-precision rounded-sm" style={{ left: r.left, top: r.top, width: r.width, height: r.height }} />
+          <div
+            key={id}
+            className="absolute pointer-events-none border-2 border-mint-precision rounded-sm"
+            style={{ left: r.left + (dragOffset?.dx ?? 0), top: r.top + (dragOffset?.dy ?? 0), width: r.width, height: r.height }}
+          />
         ) : null;
       })}
 
@@ -248,7 +289,7 @@ export function VisualEditor({
       )}
 
       {single && (
-        <div data-ae-panel className="absolute right-2 top-2 w-60 max-h-[85%] overflow-auto bg-surface-lowest border border-border-tech rounded-xl shadow-2xl p-3 text-xs z-10">
+        <div data-ae-panel className="fixed w-60 overflow-auto bg-surface-lowest border border-border-tech rounded-xl shadow-2xl p-3 text-xs z-50" style={{ left: panelPos.left, top: panelPos.top, maxHeight: '80vh' }}>
           <div className="flex items-center justify-between mb-2 gap-2">
             <span className="font-semibold text-text-primary truncate" title={single.label}>{single.label}</span>
             <button onClick={() => { setIds([]); setRects({}); }} className="text-text-secondary/60 hover:text-text-primary shrink-0"><X size={14} /></button>
@@ -277,7 +318,7 @@ export function VisualEditor({
       )}
 
       {ids.length > 1 && (
-        <div data-ae-panel className="absolute right-2 top-2 bg-surface-lowest border border-border-tech rounded-xl shadow-2xl p-3 text-xs z-10">
+        <div data-ae-panel className="fixed bg-surface-lowest border border-border-tech rounded-xl shadow-2xl p-3 text-xs z-50" style={{ left: panelPos.left, top: panelPos.top }}>
           <div className="flex items-center justify-between gap-2 mb-2">
             <span className="font-semibold text-text-primary">{ids.length} seleccionados</span>
             <button onClick={() => { setIds([]); setRects({}); }} className="text-text-secondary/60 hover:text-text-primary"><X size={14} /></button>

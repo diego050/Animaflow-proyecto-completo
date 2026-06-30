@@ -38,6 +38,7 @@ export function AnimationLab() {
   const [modelOverride, setModelOverride] = useState('');
   const [designMd, setDesignMd] = useState(''); // opt-in: brand kit / design.md
   const [variations, setVariations] = useState<{ code: string; meta: GenResponse }[]>([]);
+  const [variationCount, setVariationCount] = useState(3);
   const [varying, setVarying] = useState(false);
   const [flywheelMsg, setFlywheelMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -115,8 +116,9 @@ export function AnimationLab() {
       variation: true,
     };
     try {
+      const n = Math.max(2, Math.min(6, variationCount));
       const results = await Promise.all(
-        [0, 1, 2].map(() => api.post<GenResponse>('/api/admin/animations/generate', body, { timeoutMs: 180000 })),
+        Array.from({ length: n }).map(() => api.post<GenResponse>('/api/admin/animations/generate', body, { timeoutMs: 180000 })),
       );
       setVariations(results.map((m) => ({ code: m.code, meta: m })));
     } catch (e) {
@@ -124,7 +126,7 @@ export function AnimationLab() {
     } finally {
       setVarying(false);
     }
-  }, [prompt, durationSeconds, fps, aspectRatio, modelOverride, designMd]);
+  }, [prompt, durationSeconds, fps, aspectRatio, modelOverride, designMd, variationCount]);
 
   const pickVariation = useCallback(
     (v: { code: string; meta: GenResponse }) => {
@@ -235,8 +237,16 @@ export function AnimationLab() {
     }
   }, [code, meta]);
 
-  const previewH = 560;
-  const previewW = meta ? Math.round((previewH * meta.width) / meta.height) : Math.round((previewH * 1080) / 1920);
+  // Preview ENCAJADA en una caja máxima (no deformar ni desbordar en horizontal 16:9, etc.).
+  const PREVIEW_MAX_W = 520;
+  const PREVIEW_MAX_H = 560;
+  const previewAR = meta ? meta.width / meta.height : 1080 / 1920;
+  let previewW = Math.round(PREVIEW_MAX_H * previewAR);
+  let previewH = PREVIEW_MAX_H;
+  if (previewW > PREVIEW_MAX_W) {
+    previewW = PREVIEW_MAX_W;
+    previewH = Math.round(PREVIEW_MAX_W / previewAR);
+  }
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
@@ -338,10 +348,16 @@ export function AnimationLab() {
               {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
               {loading ? 'Generando…' : 'Generar'}
             </button>
+            <input
+              type="number" min={2} max={6} step={1} value={variationCount}
+              onChange={(e) => setVariationCount(Math.max(2, Math.min(6, Number(e.target.value) || 3)))}
+              title="Cuántas variaciones (2–6)"
+              className="w-14 bg-surface-container border border-border-tech rounded-lg px-2 py-2.5 text-sm text-text-primary text-center focus:outline-none focus:border-mint-precision"
+            />
             <button
               onClick={handleVariations}
               disabled={loading || varying}
-              title="Genera 3 variaciones para elegir"
+              title={`Genera ${variationCount} variaciones en paralelo para elegir`}
               className="flex items-center justify-center gap-2 border border-border-tech text-text-primary font-semibold px-3 py-2.5 rounded-lg hover:border-mint-precision disabled:opacity-50"
             >
               {varying ? <Loader2 size={18} className="animate-spin" /> : <Shuffle size={18} />}
