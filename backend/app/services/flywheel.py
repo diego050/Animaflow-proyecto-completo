@@ -30,9 +30,58 @@ def _text_for(prompt_text: Optional[str], art_direction: Optional[str]) -> str:
     return " ".join(p for p in [prompt_text, art_direction] if p).strip()
 
 
+_DEDUP_DEFAULT = 0.06  # distancia coseno mínima a la más cercana aprobada (menor = más parecida)
+
+
+def _nearest_distance(db, emb) -> Optional[float]:
+    """Distancia coseno al ejemplo APROBADO más cercano (None si el pool está vacío)."""
+    return (
+        db.query(GeneratedAnimation.embedding.cosine_distance(emb))
+        .filter(GeneratedAnimation.approved.is_(True), GeneratedAnimation.embedding.isnot(None))
+        .order_by(GeneratedAnimation.embedding.cosine_distance(emb))
+        .limit(1)
+        .scalar()
+    )
+
+
+def add_to_flywheel(
+    code: str, prompt_text: str, user_id: Optional[str] = None, aspect_ratio: Optional[str] = None,
+) -> dict:
+    """Curación MANUAL (botón ⭐ "marcar como buena"): guarda la animación como ejemplo aprobado +
+    embebido del flywheel, con GUARD DE DIVERSIDAD — si ya hay una aprobada muy parecida, NO la
+    agrega (evita el pool repetitivo / el espiral de lo mismo). Devuelve {added, reason}."""
+    from app.services.settings_store import get_setting
+
+    if not code or not (prompt_text or "").strip():
+        return {"added": False, "reason": "falta código o descripción para curar"}
+    api_key = _resolve_gemini_key(user_id)
+    emb = generate_embedding(prompt_text, api_key=api_key)
+    if not emb:
+        return {"added": False, "reason": "no se pudo generar el embedding (revisa la API key de Gemini)"}
+    dedup = float(get_setting("flywheel.dedup_distance", _DEDUP_DEFAULT))
+    try:
+        with get_db_context() as db:
+            d = _nearest_distance(db, emb)
+            if d is not None and d < dedup:
+                return {"added": False, "reason": "ya hay una muy parecida en el flywheel (diversidad)"}
+            db.add(GeneratedAnimation(
+                user_id=user_id, source="curated", prompt_text=prompt_text[:5000] or None,
+                code=code, model=None, valid=True, status="curated", approved=True,
+                embedding=emb, aspect_ratio=aspect_ratio,
+            ))
+            db.commit()
+        logger.info("Flywheel: animación curada manualmente (⭐) agregada.")
+        return {"added": True, "reason": "Guardada en el flywheel ⭐"}
+    except Exception as e:  # noqa: BLE001
+        logger.warning("add_to_flywheel falló: %s", e)
+        return {"added": False, "reason": "error guardando en el flywheel"}
+
+
 def approve_and_embed_job(job_id: str, scenes: list, user_id: Optional[str] = None) -> None:
     """El video se renderizó → aprobar + embeber sus escenas code-gen (no los fallbacks)."""
     try:
+        from app.services.settings_store import get_setting
+        dedup = float(get_setting("flywheel.dedup_distance", _DEDUP_DEFAULT))
         api_key = _resolve_gemini_key(user_id)
         with get_db_context() as db:
             approved = 0
@@ -55,7 +104,9 @@ def approve_and_embed_job(job_id: str, scenes: list, user_id: Optional[str] = No
                     text = _text_for(rec.prompt_text, rec.art_direction)
                     emb = generate_embedding(text, api_key=api_key) if text else None
                     if emb:
-                        rec.embedding = emb
+                        d = _nearest_distance(db, emb)
+                        if d is None or d >= dedup:  # solo embeber si aporta diversidad
+                            rec.embedding = emb
                 approved += 1
             db.commit()
         logger.info("Flywheel: %d escenas aprobadas+embebidas del job %s", approved, job_id)
@@ -72,7 +123,9 @@ def get_flywheel_examples(
     """Hasta k ejemplos APROBADOS parecidos (su código TSX), por cercanía coseno. Best-effort."""
     try:
         from app.services.settings_store import get_setting
-        if not get_setting("flywheel.enabled", True):
+        # RETRIEVAL apagado por defecto: el flywheel RECOLECTA/CURA ahora, pero NO alimenta a la IA
+        # hasta que se active `flywheel.retrieval_enabled` (cuando haya cantidad/calidad suficiente).
+        if not get_setting("flywheel.retrieval_enabled", False):
             return []
         text = _text_for(prompt_text, art_direction)
         if not text:

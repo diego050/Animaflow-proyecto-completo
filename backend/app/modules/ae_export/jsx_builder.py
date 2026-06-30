@@ -74,13 +74,19 @@ def _hex_to_rgb01(hex_color: str) -> tuple[float, float, float]:
         return (1.0, 1.0, 1.0)
 
 
-def _emit_stroke(lvar: str, group_var: str, r: float, g: float, b: float, width: int, dash: Any) -> list[str]:
-    """Líneas .jsx para un trazo (Stroke) en un grupo de forma: color + ancho + caps redondeados +
-    dash opcional ([guion, espacio]). matchNames (independientes del idioma)."""
+def _emit_stroke(
+    lvar: str, group_var: str, r: float, g: float, b: float, width: int, dash: Any,
+    fps: int = 30, color_track: Any = None,
+) -> list[str]:
+    """Líneas .jsx para un trazo (Stroke) en un grupo de forma: color (estático o animado por
+    keyframes) + ancho + caps redondeados + dash opcional. matchNames (independientes del idioma)."""
     st = f"{lvar}_st"
-    out = [
-        f'var {st} = {group_var}.property("Contents").addProperty("ADBE Vector Graphic - Stroke");',
-        f'{st}.property("ADBE Vector Stroke Color").setValue([{r}, {g}, {b}, 1]);',
+    out = [f'var {st} = {group_var}.property("Contents").addProperty("ADBE Vector Graphic - Stroke");']
+    if color_track and len(color_track) > 1:
+        out += _emit_color_keyframes(f'{st}.property("ADBE Vector Stroke Color")', color_track, fps)
+    else:
+        out.append(f'{st}.property("ADBE Vector Stroke Color").setValue([{r}, {g}, {b}, 1]);')
+    out += [
         f'{st}.property("ADBE Vector Stroke Width").setValue({max(1, int(width))});',
         f'try {{ {st}.property("ADBE Vector Stroke Line Cap").setValue(2); '
         f'{st}.property("ADBE Vector Stroke Line Join").setValue(2); }} catch (e) {{}}',
@@ -107,6 +113,17 @@ def _emit_keyframes(prop_js: str, track: list, fps: int, is_xy: bool, tol: float
         else:
             v = str(round(val, 3))
         lines.append(f"  {prop_js}.setValueAtTime({t}, {v});")
+    return lines
+
+
+def _emit_color_keyframes(prop_js: str, track: list, fps: int, tol: float = 0.012) -> list[str]:
+    """Keyframes de COLOR: track = [(frame, '#hex'), ...] → [r,g,b,1] por keyframe, simplificado
+    (tol pequeño porque el rango es 0..1). Para rellenos/colores animados en el tiempo."""
+    rgb = [[f, list(_hex_to_rgb01(c))] for f, c in track]
+    lines: list[str] = []
+    for frame, val in simplify_track(rgb, tol):
+        t = round(frame / fps, 5)
+        lines.append(f"  {prop_js}.setValueAtTime({t}, [{val[0]}, {val[1]}, {val[2]}, 1]);")
     return lines
 
 
@@ -199,6 +216,17 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
                 f"{lvar}.property(\"Transform\").property(\"Anchor Point\").setValue("
                 f"[{lvar}_r.left + {lvar}_r.width / 2, {lvar}_r.top + {lvar}_r.height / 2]);"
             )
+            # Color de texto ANIMADO → animador "Fill Color" (selector 0-100% afecta todo el texto;
+            # la fillColor base queda de fallback). Todo en try/catch por si los matchNames fallan.
+            ct = ap.get("colorTrack")
+            if ct and len(ct) > 1:
+                out.append(
+                    f'try {{ var {lvar}_an = {lvar}.property("ADBE Text Properties").property("ADBE Text Animators").addProperty("ADBE Text Animator"); '
+                    f'{lvar}_an.property("ADBE Text Selectors").addProperty("ADBE Text Selector"); '
+                    f'var {lvar}_fc = {lvar}_an.property("ADBE Text Animator Properties").addProperty("ADBE Text Fill Color");'
+                )
+                out += _emit_color_keyframes(f"{lvar}_fc", ct, fps)
+                out.append("} catch (e) {}")
         elif kind == "footage":
             # Footage: se importa por nombre de archivo (el zip lo trae junto). Placeholder seguro.
             out.append(f"// (footage) importar {_js_str(ap.get('file', ''))} y añadir como capa — Fase B")
@@ -239,7 +267,7 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
                 out.append(f'{lvar}_f.property("Color").setValue([{r}, {g}, {b}, 1]);')
             else:
                 sw = max(1, int(ap.get("strokeWidth", 2) or 2))
-                out += _emit_stroke(lvar, f"{lvar}_g", r, g, b, sw, ap.get("dash"))
+                out += _emit_stroke(lvar, f"{lvar}_g", r, g, b, sw, ap.get("dash"), fps, ap.get("colorTrack"))
         else:  # shape (rect/ellipse) nativo
             w = max(1.0, float(ap.get("w", 100) or 100))
             h = max(1.0, float(ap.get("h", 100) or 100))
@@ -287,7 +315,11 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
                 )
             elif ap.get("filled", True):
                 out.append(f"var {lvar}_f = {lvar}_g.property(\"Contents\").addProperty(\"ADBE Vector Graphic - Fill\");")
-                out.append(f"{lvar}_f.property(\"Color\").setValue([{r}, {g}, {b}, 1]);")
+                ct = ap.get("colorTrack")
+                if ct and len(ct) > 1:  # color animado → keyframes
+                    out += _emit_color_keyframes(f'{lvar}_f.property("Color")', ct, fps)
+                else:
+                    out.append(f"{lvar}_f.property(\"Color\").setValue([{r}, {g}, {b}, 1]);")
             else:  # forma SVG con fill:none + stroke (ej. anillo punteado decorativo)
                 out += _emit_stroke(lvar, f"{lvar}_g", r, g, b, int(ap.get("strokeWidth", 2) or 2), ap.get("dash"))
             # Borde CSS de un div relleno (border:Npx solid) → stroke ADEMÁS del fill.

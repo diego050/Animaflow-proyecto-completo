@@ -1,12 +1,14 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Sparkles, Wand2, AlertTriangle, Loader2, Film, Download, Layers, Undo2, Redo2, Shuffle, Star } from 'lucide-react';
 import { Player } from '@remotion/player';
-import { ArrowLeft, Sparkles, Wand2, AlertTriangle, Loader2, Film, Download, Layers } from 'lucide-react';
+import { CustomCode } from '../../remotion/CustomCode';
+import { useHistory } from '../../hooks/useHistory';
 import { api } from '../../api/client';
 import { compileAnimation } from '../../remotion/compileAnimation';
-import { CustomCode } from '../../remotion/CustomCode';
 import { useAuthStore } from '../../store/useAuthStore';
 import { CodeValueEditor } from '../../components/project/CodeValueEditor';
+import { VisualEditor } from '../../components/project/VisualEditor';
 import { tagElements } from '../../remotion/aeTranslator';
 
 interface GenResponse {
@@ -17,6 +19,7 @@ interface GenResponse {
   width: number;
   height: number;
   duration_frames: number;
+  fps: number;
   edit_mode?: 'surgical' | 'full' | 'create';
   changes?: { before: string; after: string }[];
 }
@@ -30,12 +33,19 @@ export function AnimationLab() {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState('');
   const [durationSeconds, setDurationSeconds] = useState(6);
+  const [fps, setFps] = useState(30);
   const [aspectRatio, setAspectRatio] = useState('9:16');
   const [modelOverride, setModelOverride] = useState('');
+  const [designMd, setDesignMd] = useState(''); // opt-in: brand kit / design.md
+  const [variations, setVariations] = useState<{ code: string; meta: GenResponse }[]>([]);
+  const [varying, setVarying] = useState(false);
+  const [flywheelMsg, setFlywheelMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [code, setCode] = useState('');
+  const codeHistory = useHistory('');
+  const code = codeHistory.value;
+  const setCode = codeHistory.set; // ediciones = paso deshacible
   const [meta, setMeta] = useState<GenResponse | null>(null);
   const [genErrors, setGenErrors] = useState<string[]>([]);
   const [editInstruction, setEditInstruction] = useState('');
@@ -56,12 +66,12 @@ export function AnimationLab() {
     }
   }, [code]);
 
-  const callGenerate = useCallback(async (body: Record<string, unknown>) => {
+  const callGenerate = useCallback(async (body: Record<string, unknown>, apply: (c: string) => void) => {
     setLoading(true);
     setError(null);
     try {
       const data = await api.post<GenResponse>('/api/admin/animations/generate', body, { timeoutMs: 180000 });
-      setCode(data.code);
+      apply(data.code); // generar = reset historial; editar con IA = paso deshacible
       setMeta(data);
       setGenErrors(data.errors || []);
     } catch (e) {
@@ -76,25 +86,99 @@ export function AnimationLab() {
       setError('Escribe una descripción.');
       return;
     }
-    callGenerate({
+    callGenerate(
+      {
+        prompt: prompt.trim(),
+        duration_seconds: durationSeconds,
+        fps,
+        aspect_ratio: aspectRatio,
+        model: modelOverride.trim() || undefined,
+        design_md: designMd.trim() || undefined, // opt-in
+      },
+      codeHistory.reset, // animación nueva → historial limpio
+    );
+  }, [prompt, durationSeconds, fps, aspectRatio, modelOverride, designMd, callGenerate, codeHistory.reset]);
+
+  // Opt-in: 3 variaciones en paralelo (solo cuando se pide). Elegir una la pone como la animación.
+  const handleVariations = useCallback(async () => {
+    if (!prompt.trim()) { setError('Escribe una descripción.'); return; }
+    setVarying(true);
+    setError(null);
+    setVariations([]);
+    const body = {
       prompt: prompt.trim(),
       duration_seconds: durationSeconds,
+      fps,
       aspect_ratio: aspectRatio,
       model: modelOverride.trim() || undefined,
-    });
-  }, [prompt, durationSeconds, aspectRatio, modelOverride, callGenerate]);
+      design_md: designMd.trim() || undefined,
+      variation: true,
+    };
+    try {
+      const results = await Promise.all(
+        [0, 1, 2].map(() => api.post<GenResponse>('/api/admin/animations/generate', body, { timeoutMs: 180000 })),
+      );
+      setVariations(results.map((m) => ({ code: m.code, meta: m })));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error generando variaciones.');
+    } finally {
+      setVarying(false);
+    }
+  }, [prompt, durationSeconds, fps, aspectRatio, modelOverride, designMd]);
+
+  const pickVariation = useCallback(
+    (v: { code: string; meta: GenResponse }) => {
+      codeHistory.reset(v.code);
+      setMeta(v.meta);
+      setGenErrors(v.meta.errors || []);
+      setVariations([]);
+    },
+    [codeHistory.reset],
+  );
+
+  // ⭐ Curar al flywheel (manual). Se acumula; aún NO se usa para generar (retrieval apagado).
+  const handleFlywheel = useCallback(async () => {
+    if (!code) return;
+    setFlywheelMsg('Guardando…');
+    try {
+      const r = await api.post<{ added: boolean; reason: string }>(
+        '/api/admin/animations/flywheel/add',
+        { code, prompt: prompt.trim(), aspect_ratio: aspectRatio },
+      );
+      setFlywheelMsg(r.reason);
+    } catch (e) {
+      setFlywheelMsg(e instanceof Error ? e.message : 'Error guardando en el flywheel.');
+    }
+  }, [code, prompt, aspectRatio]);
 
   const handleEdit = useCallback(() => {
     if (!editInstruction.trim() || !code) return;
-    callGenerate({
-      prompt: prompt.trim() || 'animación',
-      duration_seconds: durationSeconds,
-      model: modelOverride.trim() || undefined,
-      previous_code: code,
-      edit_instruction: editInstruction.trim(),
-    });
+    callGenerate(
+      {
+        prompt: prompt.trim() || 'animación',
+        duration_seconds: durationSeconds,
+        model: modelOverride.trim() || undefined,
+        previous_code: code,
+        edit_instruction: editInstruction.trim(),
+      },
+      codeHistory.set, // edición con IA → paso deshacible
+    );
     setEditInstruction('');
-  }, [editInstruction, code, prompt, durationSeconds, modelOverride, callGenerate]);
+  }, [editInstruction, code, prompt, durationSeconds, modelOverride, callGenerate, codeHistory.set]);
+
+  // Atajos Ctrl/Cmd+Z (deshacer) y Ctrl/Cmd+Shift+Z (rehacer), salvo escribiendo en un input/textarea.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      e.preventDefault();
+      if (e.shiftKey) codeHistory.redo();
+      else codeHistory.undo();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [codeHistory.undo, codeHistory.redo]);
 
   const handleRender = useCallback(async () => {
     if (!code || !meta) return;
@@ -104,7 +188,7 @@ export function AnimationLab() {
     try {
       const data = await api.post<{ video_url: string; anim_id: string }>(
         '/api/admin/animations/render',
-        { code, width: meta.width, height: meta.height, duration_frames: meta.duration_frames },
+        { code, width: meta.width, height: meta.height, duration_frames: meta.duration_frames, fps: meta.fps },
         { timeoutMs: 600000 },
       );
       const token = useAuthStore.getState().token;
@@ -132,7 +216,7 @@ export function AnimationLab() {
           code: tagged.taggedCode,
           width: meta.width,
           height: meta.height,
-          fps: 30,
+          fps: meta.fps,
           duration_frames: meta.duration_frames,
         },
         { timeoutMs: 300000 },
@@ -194,10 +278,20 @@ export function AnimationLab() {
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-text-secondary mb-1">Frames (30fps)</label>
+              <label className="block text-xs font-medium text-text-secondary mb-1">FPS</label>
+              <select
+                value={fps}
+                onChange={(e) => setFps(Number(e.target.value))}
+                className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-mint-precision"
+              >
+                {[24, 25, 30, 50, 60].map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-text-secondary mb-1">Frames ({fps}fps)</label>
               <input
-                type="number" min={5} max={900} step={1} value={Math.round(durationSeconds * 30)}
-                onChange={(e) => setDurationSeconds(Math.max(5, Math.min(900, Number(e.target.value) || 180)) / 30)}
+                type="number" min={5} max={1800} step={1} value={Math.round(durationSeconds * fps)}
+                onChange={(e) => setDurationSeconds(Math.max(5, Math.min(1800, Number(e.target.value) || fps * 6)) / fps)}
                 className="w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-mint-precision"
               />
             </div>
@@ -223,14 +317,65 @@ export function AnimationLab() {
             </div>
           </div>
 
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-mint-precision text-surface-lowest font-semibold py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-            {loading ? 'Generando…' : 'Generar animación'}
-          </button>
+          {/* Brand kit / design.md — OPT-IN: solo influye si lo llenas */}
+          <details className="text-xs">
+            <summary className="cursor-pointer text-text-secondary hover:text-text-primary">Brand kit / design.md (opcional)</summary>
+            <textarea
+              value={designMd}
+              onChange={(e) => setDesignMd(e.target.value)}
+              rows={4}
+              placeholder="Tu marca: colores, fuente, estilo. Ej: colores #0f172a y #22c55e, fuente Inter, look minimalista oscuro. Solo se usa si lo llenas."
+              className="mt-2 w-full bg-surface-container border border-border-tech rounded-lg px-3 py-2 text-text-primary placeholder:text-text-secondary/40 focus:outline-none focus:border-mint-precision font-mono text-[11px]"
+            />
+          </details>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleGenerate}
+              disabled={loading || varying}
+              className="flex-1 flex items-center justify-center gap-2 bg-mint-precision text-surface-lowest font-semibold py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+              {loading ? 'Generando…' : 'Generar'}
+            </button>
+            <button
+              onClick={handleVariations}
+              disabled={loading || varying}
+              title="Genera 3 variaciones para elegir"
+              className="flex items-center justify-center gap-2 border border-border-tech text-text-primary font-semibold px-3 py-2.5 rounded-lg hover:border-mint-precision disabled:opacity-50"
+            >
+              {varying ? <Loader2 size={18} className="animate-spin" /> : <Shuffle size={18} />}
+              {varying ? 'Variando…' : 'Variaciones'}
+            </button>
+          </div>
+
+          {variations.length > 0 && (
+            <div className="border border-border-tech rounded-lg p-3">
+              <div className="text-xs font-semibold text-text-primary mb-2">Elige una variación</div>
+              <div className="grid grid-cols-3 gap-2">
+                {variations.map((v, i) => (
+                  <div key={i} className="flex flex-col gap-1">
+                    <div className="rounded-lg overflow-hidden border border-border-tech bg-surface-lowest" style={{ aspectRatio: `${v.meta.width} / ${v.meta.height}` }}>
+                      <Player
+                        component={CustomCode}
+                        inputProps={{ code: v.code, durationInFrames: v.meta.duration_frames, width: v.meta.width, height: v.meta.height, fps: v.meta.fps }}
+                        durationInFrames={v.meta.duration_frames}
+                        fps={v.meta.fps}
+                        compositionWidth={v.meta.width}
+                        compositionHeight={v.meta.height}
+                        style={{ width: '100%', height: '100%' }}
+                        loop
+                        autoPlay
+                      />
+                    </div>
+                    <button onClick={() => pickVariation(v)} className="text-[11px] bg-mint-precision/90 text-surface-lowest rounded py-1 font-medium hover:opacity-90">
+                      Usar {i + 1}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="flex items-start gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
@@ -286,6 +431,34 @@ export function AnimationLab() {
           )}
 
           {/* Editor manual determinista (mismo del editor de video) */}
+          {code && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={codeHistory.undo}
+                disabled={!codeHistory.canUndo}
+                title="Deshacer (Ctrl+Z)"
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-border-tech text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Undo2 size={13} /> Deshacer
+              </button>
+              <button
+                onClick={codeHistory.redo}
+                disabled={!codeHistory.canRedo}
+                title="Rehacer (Ctrl+Shift+Z)"
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-border-tech text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Redo2 size={13} /> Rehacer
+              </button>
+              <button
+                onClick={handleFlywheel}
+                title="Marcar como buena → se guarda en el flywheel (aún no se usa para generar)"
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-amber-400/40 text-amber-300 hover:bg-amber-400/10 ml-auto"
+              >
+                <Star size={13} /> Guardar como buena
+              </button>
+            </div>
+          )}
+          {flywheelMsg && <p className="text-[11px] text-amber-300/80">⭐ {flywheelMsg}</p>}
           {code && <CodeValueEditor code={code} onChange={setCode} />}
 
           {/* Código editable a mano */}
@@ -310,23 +483,15 @@ export function AnimationLab() {
             style={{ width: previewW, height: previewH }}
           >
             {compiled.Comp ? (
-              <Player
-                key={code}
-                component={CustomCode}
-                inputProps={{
-                  code,
-                  durationInFrames: meta?.duration_frames ?? 180,
-                  width: meta?.width ?? 1080,
-                  height: meta?.height ?? 1920,
-                }}
+              <VisualEditor
+                code={code}
+                onChange={setCode}
+                width={meta?.width ?? 1080}
+                height={meta?.height ?? 1920}
+                fps={meta?.fps ?? 30}
                 durationInFrames={meta?.duration_frames ?? 180}
-                fps={30}
-                compositionWidth={meta?.width ?? 1080}
-                compositionHeight={meta?.height ?? 1920}
-                style={{ width: previewW, height: previewH }}
-                controls
-                loop
-                autoPlay
+                previewW={previewW}
+                previewH={previewH}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-center text-text-secondary/50 text-sm p-6">

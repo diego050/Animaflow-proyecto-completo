@@ -12,6 +12,7 @@ export const CustomCodeAudio: React.FC<{
   durationInFrames?: number;
   width?: number;
   height?: number;
+  fps?: number;
   fallbackText?: string;
   fallbackBg?: string;
 }> = ({ code, audioSrc, durationInFrames, width, height, fallbackText, fallbackBg }) => {

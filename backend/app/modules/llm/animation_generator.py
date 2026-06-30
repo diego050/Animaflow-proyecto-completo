@@ -58,10 +58,14 @@ REGLAS OBLIGATORIAS:
     - TAMAÑOS como FACTOR con nombre, NO el número suelto dentro de la fórmula: declara `const titleSize = 0.12;` y usa `fontSize: width * titleSize` (NO `fontSize: width * 0.12`). Igual para otros tamaños relativos (`elementSize`, etc.). Así el tamaño es editable a mano.
     - Grupos repetidos (partículas, anillos, barras): declara su CANTIDAD y su color/tamaño como consts (`particleCount = 15`, `particleColor = "#86efac"`, `particleSize = 8`) y úsalos en el loop.
     La lógica y el movimiento pueden seguir inline.
-11. Devuelve SOLO el código TSX del componente. Sin explicaciones, sin markdown, sin ```."""
+11. VARIEDAD Y LIBERTAD CREATIVA (clave): tienes LIBERTAD TOTAL de diseño dentro de estas reglas técnicas. Cada animación debe ser DISTINTA — NO caigas en la misma fórmula de siempre (figura/tarjeta centrada + título abajo). Según la idea, explora composiciones diferentes: pantalla dividida, full-bleed, asimétrica, cuadrícula, diagonal, secuencia de momentos, SIN texto, tipografía gigante como protagonista, formas abstractas, capas en profundidad, etc. Lo OBLIGATORIO es la calidad, el determinismo y las reglas técnicas; la COMPOSICIÓN es libre y debe sorprender. Inventa algo propio para cada pedido.
+12. Devuelve SOLO el código TSX del componente. Sin explicaciones, sin markdown, sin ```."""
 
-# Few-shot: un ejemplo BUENO y DETERMINISTA para anclar calidad.
-_FEWSHOT = """EJEMPLO de salida válida (estilo, calidad y RESPONSIVIDAD esperados — todo relativo a width/height):
+# Few-shot: un ejemplo SOLO como referencia TÉCNICA (no de diseño) para anclar el patrón correcto
+# sin que la IA copie la composición — la variedad/creatividad la rige la regla 11.
+_FEWSHOT = """EJEMPLO solo como REFERENCIA TÉCNICA (cómo se escribe: responsivo a width/height, determinista, \
+consts editables, nivel de pulido). NO copies su diseño, composición ni temática — INVENTA algo TOTALMENTE \
+distinto y propio para cada pedido (otra estructura, otros elementos, otra idea):
 import React from "react";
 import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, random } from "remotion";
 
@@ -167,8 +171,8 @@ def _ensure_interpolate_clamp(code: str) -> str:
     return out
 
 
-def _build_prompt(user_prompt, width, height, duration_frames, previous_code, edit_instruction):
-    canvas = f"Lienzo {width}x{height} a {_FPS}fps, duración {duration_frames} frames. Diseña RESPONSIVO con useVideoConfig() — no asumas un tamaño fijo."
+def _build_prompt(user_prompt, width, height, duration_frames, previous_code, edit_instruction, design_md=None, variation=False, fps=_FPS):
+    canvas = f"Lienzo {width}x{height} a {fps}fps, duración {duration_frames} frames. Diseña RESPONSIVO con useVideoConfig() — no asumas un tamaño fijo."
     if previous_code and edit_instruction:
         return (
             f"{_SYSTEM_RULES}\n\n{canvas}\n\nEste es el componente ACTUAL:\n"
@@ -177,9 +181,23 @@ def _build_prompt(user_prompt, width, height, duration_frames, previous_code, ed
             "Aplica SOLO ese cambio (lo mínimo necesario) y conserva TODO lo demás igual. "
             "Devuelve el componente COMPLETO ya corregido, solo código."
         )
+    # Opt-in: brand kit / design.md (solo si el usuario lo pasó) → colores/fuente/estilo FIELES.
+    brand = (
+        f"\n\nKIT DE MARCA / DISEÑO DEL USUARIO (respétalo fielmente: usa ESTOS colores, fuente y "
+        f"estilo en toda la animación):\n{design_md}\n"
+        if design_md
+        else ""
+    )
+    # Opt-in: variación (solo cuando se pide explícitamente) → enfoque visual claramente distinto.
+    vary = (
+        "\n\nGENERA UNA VERSIÓN CON UN ENFOQUE VISUAL CLARAMENTE DISTINTO: otra composición, otros "
+        "elementos/íconos, otra paleta dentro del mood. Aléjate de la fórmula típica, sé muy creativo."
+        if variation
+        else ""
+    )
     return (
-        f"{_SYSTEM_RULES}\n\n{_FEWSHOT}\n\n{canvas}\n\n"
-        f'Crea una animación para: "{user_prompt}"\n\n'
+        f"{_SYSTEM_RULES}\n\n{_FEWSHOT}\n\n{canvas}{brand}\n\n"
+        f'Crea una animación para: "{user_prompt}"{vary}\n\n'
         "Devuelve SOLO el código del componente."
     )
 
@@ -325,20 +343,25 @@ def generate_animation(
     duration_seconds: int = 6,
     previous_code: Optional[str] = None,
     edit_instruction: Optional[str] = None,
+    design_md: Optional[str] = None,
+    variation: bool = False,
+    fps: int = _FPS,
 ) -> dict:
-    """Genera (o edita) un componente Remotion. Devuelve dict con code/valid/errors/meta."""
+    """Genera (o edita) un componente Remotion. Devuelve dict con code/valid/errors/meta.
+    `design_md` (kit de marca) y `variation` son OPT-IN: solo influyen si se pasan."""
     use_model, provider, api_key = _resolve_codegen_target(user_id, model)
     if not api_key:
         raise ValueError("No hay API key de LLM configurada para tu usuario.")
 
+    fps = int(fps) if fps and 1 <= int(fps) <= 120 else _FPS
     width, height = _parse_dims(aspect_ratio)
-    duration_frames = int(duration_seconds * _FPS)
+    duration_frames = int(duration_seconds * fps)
 
     # EDICIÓN: primero intenta surgical (search/replace → preserva todo lo demás IDÉNTICO,
     # estilo Cursor). Si no aplica nada o sale inválido, cae a regeneración completa.
     if previous_code and edit_instruction:
         canvas = (
-            f"Lienzo {width}x{height} a {_FPS}fps, duración {duration_frames} frames. "
+            f"Lienzo {width}x{height} a {fps}fps, duración {duration_frames} frames. "
             "Diseña RESPONSIVO con useVideoConfig()."
         )
         edited = _edit_codegen_surgical(previous_code, edit_instruction, api_key, use_model, canvas, provider)
@@ -351,12 +374,13 @@ def generate_animation(
                 "width": width,
                 "height": height,
                 "duration_frames": duration_frames,
+                "fps": fps,
                 "tokens": edited["tokens"],
                 "edit_mode": "surgical",
                 "changes": edited.get("changes", []),
             }
 
-    full_prompt = _build_prompt(prompt, width, height, duration_frames, previous_code, edit_instruction)
+    full_prompt = _build_prompt(prompt, width, height, duration_frames, previous_code, edit_instruction, design_md, variation, fps)
     code, errors, tokens = _run_codegen(full_prompt, api_key, use_model, provider)
     return {
         "code": code,
@@ -366,6 +390,7 @@ def generate_animation(
         "width": width,
         "height": height,
         "duration_frames": duration_frames,
+        "fps": fps,
         "tokens": tokens,
         "edit_mode": "full" if (previous_code and edit_instruction) else "create",
     }
@@ -506,7 +531,8 @@ def generate_scene_animation(
     _examples = get_flywheel_examples(text, art_direction, k=2, api_key=api_key)
     fewshot = (
         "\n\n".join(
-            f"EJEMPLO (animación previa aprobada — referencia de estilo y calidad):\n{ex}"
+            "REFERENCIA DE CALIDAD (animación aprobada — inspírate en su NIVEL de pulido y técnica, "
+            f"NO la copies ni repliques su diseño; crea algo distinto y propio):\n{ex}"
             for ex in _examples
         )
         if _examples

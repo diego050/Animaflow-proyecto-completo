@@ -1,7 +1,17 @@
 import { useMemo, useState, useCallback } from 'react';
-import { Sliders, Scissors, Boxes } from 'lucide-react';
+import { Sliders, Scissors, Boxes, Type, TextCursorInput, Clock } from 'lucide-react';
 import { compileAnimation } from '../../remotion/compileAnimation';
-import { analyzeCode, applyValueRef, setElementColor, setElementSize, type ValueRef } from '../../remotion/groupDetector';
+import { analyzeCode, applyValueRef, setElementColor, setElementSize, type ValueRef, type StyleRef } from '../../remotion/groupDetector';
+
+// Fuentes disponibles en el dropdown (las comunes web + sistema).
+const FONT_LIST = [
+  'Inter', 'Roboto', 'Montserrat', 'Poppins', 'Open Sans', 'Lato', 'Oswald', 'Raleway',
+  'Playfair Display', 'Bebas Neue', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New',
+];
+const WEIGHTS: [string, string][] = [
+  ['300', 'Light'], ['400', 'Regular'], ['500', 'Medium'], ['600', 'SemiBold'],
+  ['700', 'Bold'], ['800', 'ExtraBold'], ['900', 'Black'],
+];
 
 /**
  * Editor MANUAL determinista (sin IA) del código de una animación: Valores sueltos, Separar
@@ -90,6 +100,45 @@ export function CodeValueEditor({
     );
   };
 
+  const styleInput = (s: StyleRef) => {
+    if (s.control === 'font') {
+      const primary = String(s.value).split(',')[0].replace(/['"]/g, '').trim();
+      const opts = FONT_LIST.includes(primary) ? FONT_LIST : [primary, ...FONT_LIST];
+      return (
+        <select
+          value={primary}
+          onChange={(e) => editControl(s, `${e.target.value}, sans-serif`)}
+          className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary"
+        >
+          {opts.map((f) => (
+            <option key={f} value={f}>{f}</option>
+          ))}
+        </select>
+      );
+    }
+    if (s.control === 'weight') {
+      return (
+        <select
+          value={String(s.value)}
+          onChange={(e) => editControl(s, parseInt(e.target.value, 10))}
+          className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary"
+        >
+          {WEIGHTS.map(([w, l]) => (
+            <option key={w} value={w}>{l} ({w})</option>
+          ))}
+        </select>
+      );
+    }
+    return (
+      <input
+        type="text"
+        defaultValue={String(s.value)}
+        onBlur={(e) => editControl(s, e.target.value)}
+        className="flex-1 bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary font-mono"
+      />
+    );
+  };
+
   if (analysis.error) {
     return <p className="text-xs text-red-400">No se pudo analizar el código: {analysis.error}</p>;
   }
@@ -100,6 +149,26 @@ export function CodeValueEditor({
         <p className="text-[11px] text-amber-400 border border-amber-500/30 bg-amber-500/10 rounded-lg p-2">
           ⚠ {warning}
         </p>
+      )}
+
+      {/* Texto (las palabras del JSX) */}
+      {analysis.texts.length > 0 && (
+        <div className="border border-border-tech rounded-lg p-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-text-primary mb-2">
+            <TextCursorInput size={14} className="text-mint-precision" /> Texto ({analysis.texts.length})
+          </div>
+          <div className="space-y-1.5">
+            {analysis.texts.map((t, i) => (
+              <input
+                key={`txt-${t.start}-${i}`}
+                type="text"
+                defaultValue={String(t.value)}
+                onBlur={(e) => editControl(t, e.target.value)}
+                className="w-full bg-surface-container border border-border-tech rounded px-2 py-1 text-text-primary text-xs"
+              />
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Valores sueltos */}
@@ -122,6 +191,46 @@ export function CodeValueEditor({
           </div>
         )}
       </div>
+
+      {/* Estilo: fuente, peso, espaciado, redondeo (por elemento) */}
+      {analysis.styles.length > 0 && (
+        <div className="border border-border-tech rounded-lg p-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-text-primary mb-2">
+            <Type size={14} className="text-mint-precision" /> Estilo ({analysis.styles.length})
+          </div>
+          <div className="space-y-1.5">
+            {analysis.styles.map((s, i) => (
+              <div key={`${s.prop}-${s.start}-${i}`} className="flex items-center gap-2 text-xs">
+                <span className="font-mono text-[11px] text-text-secondary/70 w-16 shrink-0" title={s.label}>
+                  {s.label}
+                </span>
+                {styleInput(s)}
+                <span className="font-mono text-[10px] text-text-secondary/40 truncate w-24 shrink-0" title={s.elementLabel}>
+                  {s.elementLabel}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tiempos (rangos de frames de interpolate) */}
+      {analysis.timings.length > 0 && (
+        <div className="border border-border-tech rounded-lg p-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-text-primary mb-1">
+            <Clock size={14} className="text-mint-precision" /> Tiempos ({analysis.timings.length})
+          </div>
+          <p className="text-[10px] text-text-secondary/40 mb-2">Frame en que empieza/termina cada animación.</p>
+          <div className="space-y-1.5">
+            {analysis.timings.map((t, i) => (
+              <div key={`tm-${t.start}-${i}`} className="flex items-center gap-2 text-xs">
+                <span className="font-mono text-[11px] text-text-secondary/70 flex-1 truncate" title={t.label}>{t.label}</span>
+                {valueInput(t)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Separar color/valor compartido */}
       {analysis.splits.length > 0 && (

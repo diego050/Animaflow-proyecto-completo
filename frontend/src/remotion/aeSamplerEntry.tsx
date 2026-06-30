@@ -449,6 +449,7 @@ let Comp: React.FC | null = null;
         blur: blurPx || undefined,
         roundness: roundness || undefined,
         border,
+        zIndex: cs.zIndex && cs.zIndex !== 'auto' ? parseInt(cs.zIndex, 10) || 0 : 0,
         ...(textStyle || {}),
         ...(pathExtra || {}),
         ...(shapeStroke || {}),

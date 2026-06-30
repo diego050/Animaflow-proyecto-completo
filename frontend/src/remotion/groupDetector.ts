@@ -9,6 +9,7 @@
  * Editar = reemplazar solo ese pedacito de texto. Corre en el navegador, en ms, sin IA.
  */
 import { parse } from '@babel/parser';
+import { tagElements } from './aeTranslator';
 
 export interface ValueRef {
   role?: 'count';
@@ -48,6 +49,12 @@ export interface PerElementInfo {
   sizeOvObjEnd: number;
 }
 
+export interface StyleRef extends ValueRef {
+  prop: string; // 'fontFamily' | 'fontWeight' | 'letterSpacing' | 'borderRadius'
+  control: 'font' | 'weight' | 'number' | 'text';
+  elementLabel: string; // de qué elemento es (texto o tag)
+}
+
 export interface DetectedGroup {
   id: number;
   kind: 'Array.from' | '[...]';
@@ -63,8 +70,20 @@ export interface AnalysisResult {
   values: ValueRef[];
   groups: DetectedGroup[];
   splits: ValueRef[]; // usos sueltos de un color COMPARTIDO (para hacerlos independientes)
+  styles: StyleRef[]; // propiedades de estilo editables (fuente, peso, espaciado, redondeo)
+  texts: ValueRef[]; // texto literal en el JSX (las palabras), editable
+  timings: ValueRef[]; // rangos de frames de interpolate (cuándo aparece/dura cada cosa)
   error: string | null;
 }
+
+// Propiedades de estilo inline que exponemos como editables, con su control de UI y etiqueta.
+const STYLE_PROPS: Record<string, { control: StyleRef['control']; label: string }> = {
+  fontFamily: { control: 'font', label: 'Fuente' },
+  fontWeight: { control: 'weight', label: 'Peso' },
+  letterSpacing: { control: 'text', label: 'Espaciado' },
+  borderRadius: { control: 'text', label: 'Redondeo' },
+  border: { control: 'text', label: 'Borde' },
+};
 
 const HEX = /^#[0-9a-fA-F]{3,8}$/;
 const COLOR_PROPS = new Set(['background', 'backgroundColor', 'color', 'fill', 'stroke', 'borderColor']);
@@ -329,12 +348,12 @@ function findGroups(ast: any, consts: Map<string, ConstInfo>, code: string): Det
 }
 
 export function analyzeCode(code: string): AnalysisResult {
-  if (!code || !code.trim()) return { values: [], groups: [], splits: [], error: null };
+  if (!code || !code.trim()) return { values: [], groups: [], splits: [], styles: [], texts: [], timings: [], error: null };
   let ast: any;
   try {
     ast = parse(code, { sourceType: 'module', plugins: ['typescript', 'jsx'] });
   } catch (e) {
-    return { values: [], groups: [], splits: [], error: e instanceof Error ? e.message : String(e) };
+    return { values: [], groups: [], splits: [], styles: [], texts: [], timings: [], error: e instanceof Error ? e.message : String(e) };
   }
 
   const consts = collectLiteralConsts(ast);
@@ -408,7 +427,254 @@ export function analyzeCode(code: string): AnalysisResult {
     splits.push({ label: u.name, type: c.type, value: c.value, start: u.node.start, end: u.node.end, quoted: c.type !== 'number', context: ctx });
   }
 
-  return { values, groups, splits, error: null };
+  // ── Estilos: propiedades inline (fontFamily/fontWeight/letterSpacing/borderRadius) en el `style`
+  //    de cada elemento → editables con su control (dropdown fuente/peso, texto). Solo literales
+  //    (si es una const, ya está en `values`). Se saltan los que están dentro de loops. ──
+  const styles: StyleRef[] = [];
+  walk(ast, (n: any) => {
+    if (n.type !== 'JSXElement') return;
+    if (groupSpans.some(([s, e]) => n.start >= s && n.start < e)) return;
+    const styleAttr = (n.openingElement?.attributes || []).find(
+      (a: any) => a.type === 'JSXAttribute' && a.name?.name === 'style',
+    );
+    const obj =
+      styleAttr?.value?.type === 'JSXExpressionContainer' && styleAttr.value.expression?.type === 'ObjectExpression'
+        ? styleAttr.value.expression
+        : null;
+    if (!obj) return;
+    const tag = n.openingElement?.name?.type === 'JSXIdentifier' ? n.openingElement.name.name : 'elem';
+    const txt = (n.children || [])
+      .map((c: any) => (c.type === 'JSXText' ? c.value.trim() : ''))
+      .join(' ')
+      .trim()
+      .slice(0, 24);
+    const elementLabel = txt || `<${tag}>`;
+    for (const p of obj.properties || []) {
+      if (p.type !== 'ObjectProperty') continue;
+      const key = p.key?.name ?? (p.key?.type === 'StringLiteral' ? p.key.value : null);
+      const meta = key ? STYLE_PROPS[key] : undefined;
+      if (!meta) continue;
+      const v = p.value;
+      if (v?.type === 'StringLiteral') {
+        styles.push({ prop: key, control: meta.control, elementLabel, label: meta.label, type: 'string', value: v.value, start: v.start, end: v.end, quoted: true });
+      } else if (v?.type === 'NumericLiteral') {
+        styles.push({ prop: key, control: meta.control, elementLabel, label: meta.label, type: 'number', value: v.value, start: v.start, end: v.end, quoted: false });
+      }
+    }
+  });
+
+  // ── Textos: el contenido literal del JSX (las PALABRAS, ej. <h1>Progreso Activo</h1>). Si el
+  //    texto viene de una const (`{titleText}`) ya está en `values`; aquí sacamos el texto inline. ──
+  const texts: ValueRef[] = [];
+  walk(ast, (n: any) => {
+    if (n.type !== 'JSXElement') return;
+    if (groupSpans.some(([s, e]) => n.start >= s && n.start < e)) return;
+    for (const c of n.children || []) {
+      if (c.type !== 'JSXText') continue;
+      const raw: string = c.value || '';
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      const lead = raw.length - raw.trimStart().length;
+      const trail = raw.length - raw.trimEnd().length;
+      texts.push({ label: 'Texto', type: 'string', value: trimmed, start: c.start + lead, end: c.end - trail, quoted: false });
+    }
+  });
+
+  // ── Tiempos: el rango de frames de cada `interpolate(frame, [inicio, fin], ...)` asignado a una
+  //    const (ej. `const titleOpacity = interpolate(frame, [30, 60], ...)`). Editar = cambiar cuándo
+  //    aparece/dura cada cosa. Solo literales numéricos del rango (arg 2). ──
+  const timings: ValueRef[] = [];
+  walk(ast, (n: any) => {
+    if (n.type !== 'VariableDeclarator' || n.id?.type !== 'Identifier') return;
+    const init = n.init;
+    if (init?.type !== 'CallExpression' || init.callee?.type !== 'Identifier' || init.callee.name !== 'interpolate') return;
+    const range = init.arguments?.[1];
+    if (range?.type !== 'ArrayExpression') return;
+    if (groupSpans.some(([s, e]) => init.start >= s && init.start < e)) return;
+    (range.elements || []).forEach((el: any, i: number) => {
+      if (el?.type !== 'NumericLiteral') return;
+      const pos = i === 0 ? 'inicio' : i === range.elements.length - 1 ? 'fin' : `pto ${i}`;
+      timings.push({ label: `${n.id.name} · ${pos}`, type: 'number', value: el.value, start: el.start, end: el.end, quoted: false });
+    });
+  });
+
+  return { values, groups, splits, styles, texts, timings, error: null };
+}
+
+export interface ElementEdit {
+  id: string; // data-ae-id (el-N)
+  label: string; // texto del elemento o <tag>
+  type: string; // shape | text | path | svg
+  refs: ValueRef[]; // valores editables de ESTE elemento (texto/estilo/inline + consts que usa)
+}
+
+/**
+ * Para el EDITOR VISUAL (clic→editar): mapea cada elemento etiquetado a sus valores editables.
+ * Junta los refs INLINE dentro del span del elemento (texto, estilo, hex) + las CONSTANTES que
+ * referencia en su código (ej. `background: circleColor`). Reusa los mismos ValueRef → se editan
+ * con applyValueRef como en el panel. Devuelve [] si el código no parsea.
+ */
+export function analyzeByElement(code: string): ElementEdit[] {
+  const { elements, error: tagErr } = tagElements(code);
+  if (tagErr) return [];
+  const a = analyzeCode(code);
+  if (a.error) return [];
+  let ast: any;
+  try {
+    ast = parse(code, { sourceType: 'module', plugins: ['typescript', 'jsx'] });
+  } catch {
+    return [];
+  }
+  const inlineRefs = [...a.texts, ...a.styles, ...a.values]; // candidatos por posición
+  // Consts con nombre (para resolver referencias dentro de un elemento).
+  const constByName = new Map<string, ValueRef>();
+  for (const v of a.values) if (typeof v.label === 'string' && /^[A-Za-z_$]/.test(v.label)) constByName.set(v.label, v);
+  const usages: { name: string; pos: number }[] = [];
+  walk(ast, (n: any) => {
+    if (n.type === 'Identifier' && constByName.has(n.name)) usages.push({ name: n.name, pos: n.start });
+  });
+
+  return elements.map((el) => {
+    const refs: ValueRef[] = [];
+    const seen = new Set<number>();
+    const add = (r: ValueRef) => {
+      if (!seen.has(r.start)) { seen.add(r.start); refs.push(r); }
+    };
+    const within = (pos: number) => pos >= el.start && pos < el.end;
+    for (const r of inlineRefs) if (within(r.start)) add(r);
+    for (const u of usages) if (within(u.pos)) add(constByName.get(u.name)!);
+    const txt = refs.find((r) => r.label === 'Texto');
+    return { id: el.id, label: txt ? String(txt.value).slice(0, 24) : `<${el.tag}>`, type: el.type, refs };
+  });
+}
+
+/**
+ * MOVER un elemento (Fase 3, arrastrar): suma (ddx, ddy) px al desplazamiento del elemento vía
+ * `marginLeft`/`marginTop` en su `style` (desplaza toda su trayectoria sin tocar las fórmulas de
+ * posición). Acumula: si ya existen márgenes numéricos (nuestros), les suma; si no, los crea.
+ * Devuelve el código sin cambios si el elemento no tiene objeto `style`.
+ */
+export function setElementMargin(code: string, elementId: string, ddx: number, ddy: number): string {
+  const { elements } = tagElements(code);
+  const el = elements.find((e) => e.id === elementId);
+  if (!el) return code;
+  let ast: any;
+  try {
+    ast = parse(code, { sourceType: 'module', plugins: ['typescript', 'jsx'] });
+  } catch {
+    return code;
+  }
+  let styleObj: any = null;
+  walk(ast, (n: any) => {
+    if (styleObj || n.type !== 'JSXElement' || n.start !== el.start) return;
+    const sa = (n.openingElement?.attributes || []).find(
+      (a: any) => a.type === 'JSXAttribute' && a.name?.name === 'style',
+    );
+    const ex = sa?.value?.type === 'JSXExpressionContainer' ? sa.value.expression : null;
+    if (ex?.type === 'ObjectExpression') styleObj = ex;
+  });
+  if (!styleObj) return code;
+  const find = (name: string) =>
+    (styleObj.properties || []).find(
+      (p: any) => p.type === 'ObjectProperty' && (p.key?.name === name || p.key?.value === name),
+    );
+  // Lee un valor numérico, incluyendo negativos (`-20` es UnaryExpression, no NumericLiteral).
+  const numVal = (node: any): number | null => {
+    if (node?.type === 'NumericLiteral') return node.value;
+    if (node?.type === 'UnaryExpression' && node.operator === '-' && node.argument?.type === 'NumericLiteral')
+      return -node.argument.value;
+    return null;
+  };
+  const edits: { start: number; end: number; text: string }[] = [];
+  const handle = (name: string, delta: number) => {
+    if (!delta) return;
+    const p = find(name);
+    if (p) {
+      const cur = numVal(p.value);
+      if (cur !== null) edits.push({ start: p.value.start, end: p.value.end, text: String(Math.round(cur + delta)) });
+      // si existe pero es un margen calculado (no número) → no lo tocamos
+    } else {
+      edits.push({ start: styleObj.start + 1, end: styleObj.start + 1, text: ` ${name}: ${Math.round(delta)},` });
+    }
+  };
+  handle('marginLeft', ddx);
+  handle('marginTop', ddy);
+  let out = code;
+  for (const e of edits.sort((a, b) => b.start - a.start)) out = out.slice(0, e.start) + e.text + out.slice(e.end);
+  return out;
+}
+
+/**
+ * REDIMENSIONAR un elemento (Fase: handles): fija `width`/`height` en px (reemplaza el valor
+ * existente o lo agrega). Pierde el tamaño responsivo de esa propiedad, pero es lo que el usuario
+ * quiere al redimensionar a mano. La animación de escala (si la hay) sigue aplicando encima.
+ */
+export function setElementSizePx(code: string, elementId: string, w: number, h: number): string {
+  const { elements } = tagElements(code);
+  const el = elements.find((e) => e.id === elementId);
+  if (!el) return code;
+  let ast: any;
+  try {
+    ast = parse(code, { sourceType: 'module', plugins: ['typescript', 'jsx'] });
+  } catch {
+    return code;
+  }
+  let styleObj: any = null;
+  walk(ast, (n: any) => {
+    if (styleObj || n.type !== 'JSXElement' || n.start !== el.start) return;
+    const sa = (n.openingElement?.attributes || []).find(
+      (a: any) => a.type === 'JSXAttribute' && a.name?.name === 'style',
+    );
+    const ex = sa?.value?.type === 'JSXExpressionContainer' ? sa.value.expression : null;
+    if (ex?.type === 'ObjectExpression') styleObj = ex;
+  });
+  if (!styleObj) return code;
+  const find = (name: string) =>
+    (styleObj.properties || []).find(
+      (p: any) => p.type === 'ObjectProperty' && (p.key?.name === name || p.key?.value === name),
+    );
+  const edits: { start: number; end: number; text: string }[] = [];
+  const handle = (name: string, val: number) => {
+    if (!(val > 0)) return;
+    const v = Math.max(1, Math.round(val));
+    const p = find(name);
+    if (p) edits.push({ start: p.value.start, end: p.value.end, text: String(v) });
+    else edits.push({ start: styleObj.start + 1, end: styleObj.start + 1, text: ` ${name}: ${v},` });
+  };
+  handle('width', w);
+  handle('height', h);
+  let out = code;
+  for (const e of edits.sort((a, b) => b.start - a.start)) out = out.slice(0, e.start) + e.text + out.slice(e.end);
+  return out;
+}
+
+/** Z-ORDER: fija `zIndex` (apilado) en el style del elemento. Mayor = más al frente. */
+export function setElementZIndex(code: string, elementId: string, z: number): string {
+  const { elements } = tagElements(code);
+  const el = elements.find((e) => e.id === elementId);
+  if (!el) return code;
+  let ast: any;
+  try {
+    ast = parse(code, { sourceType: 'module', plugins: ['typescript', 'jsx'] });
+  } catch {
+    return code;
+  }
+  let styleObj: any = null;
+  walk(ast, (n: any) => {
+    if (styleObj || n.type !== 'JSXElement' || n.start !== el.start) return;
+    const sa = (n.openingElement?.attributes || []).find(
+      (a: any) => a.type === 'JSXAttribute' && a.name?.name === 'style',
+    );
+    const ex = sa?.value?.type === 'JSXExpressionContainer' ? sa.value.expression : null;
+    if (ex?.type === 'ObjectExpression') styleObj = ex;
+  });
+  if (!styleObj) return code;
+  const p = (styleObj.properties || []).find(
+    (q: any) => q.type === 'ObjectProperty' && (q.key?.name === 'zIndex' || q.key?.value === 'zIndex'),
+  );
+  const v = String(Math.round(z));
+  if (p) return code.slice(0, p.value.start) + v + code.slice(p.value.end);
+  return code.slice(0, styleObj.start + 1) + ` zIndex: ${v},` + code.slice(styleObj.start + 1);
 }
 
 /** Reemplaza el valor apuntado por `ref` con `newValue` (reescribe solo ese pedacito). */
