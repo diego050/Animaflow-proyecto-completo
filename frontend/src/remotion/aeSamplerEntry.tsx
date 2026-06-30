@@ -63,11 +63,82 @@ const remotionShim: any = {
   interpolateColors,
 };
 
+interface SubPath {
+  points: number[][];
+  inTangents: number[][];
+  outTangents: number[][];
+  closed: boolean;
+}
+
 /**
- * Parsea un `d` de SOLO líneas rectas (M/L/H/V/Z, abs y rel) → subpaths de puntos en coordenadas
- * del LIENZO (usa getScreenCTM, así respeta viewBox + transform del padre). Para trazos nativos AE.
+ * Convierte un arco elíptico SVG (A rx ry rot largeArc sweep x2 y2) en segmentos cúbicos bezier
+ * (AE no entiende arcos). Endpoint→center parametrization + aproximación bezier (k=4/3·tan(Δ/4)),
+ * partiendo en tramos de ≤90°. Devuelve [{c1x,c1y, c2x,c2y, x,y}, ...] (controles + fin de cada cúbica).
  */
-function parseStraightPath(pathEl: SVGPathElement, base: DOMRect): { points: number[][]; closed: boolean }[] {
+function arcToBeziers(
+  x1: number, y1: number, rx: number, ry: number, phiDeg: number,
+  largeArc: number, sweep: number, x2: number, y2: number,
+): { c1x: number; c1y: number; c2x: number; c2y: number; x: number; y: number }[] {
+  if (!rx || !ry) return [{ c1x: x1, c1y: y1, c2x: x2, c2y: y2, x: x2, y: y2 }];
+  rx = Math.abs(rx); ry = Math.abs(ry);
+  const phi = (phiDeg * Math.PI) / 180;
+  const cosP = Math.cos(phi), sinP = Math.sin(phi);
+  const dx = (x1 - x2) / 2, dy = (y1 - y2) / 2;
+  const x1p = cosP * dx + sinP * dy;
+  const y1p = -sinP * dx + cosP * dy;
+  let rxs = rx * rx, rys = ry * ry;
+  const x1ps = x1p * x1p, y1ps = y1p * y1p;
+  const lambda = x1ps / rxs + y1ps / rys;
+  if (lambda > 1) { const s = Math.sqrt(lambda); rx *= s; ry *= s; rxs = rx * rx; rys = ry * ry; }
+  const sign = largeArc !== sweep ? 1 : -1;
+  let num = rxs * rys - rxs * y1ps - rys * x1ps;
+  if (num < 0) num = 0;
+  const co = sign * Math.sqrt(num / (rxs * y1ps + rys * x1ps));
+  const cxp = (co * (rx * y1p)) / ry;
+  const cyp = (co * -(ry * x1p)) / rx;
+  const cx = cosP * cxp - sinP * cyp + (x1 + x2) / 2;
+  const cy = sinP * cxp + cosP * cyp + (y1 + y2) / 2;
+  const ang = (ux: number, uy: number, vx: number, vy: number) => {
+    const dot = ux * vx + uy * vy;
+    const len = Math.sqrt((ux * ux + uy * uy) * (vx * vx + vy * vy)) || 1;
+    let a = Math.acos(Math.max(-1, Math.min(1, dot / len)));
+    if (ux * vy - uy * vx < 0) a = -a;
+    return a;
+  };
+  const theta1 = ang(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+  let dTheta = ang((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+  if (!sweep && dTheta > 0) dTheta -= 2 * Math.PI;
+  if (sweep && dTheta < 0) dTheta += 2 * Math.PI;
+  const nSeg = Math.max(1, Math.ceil(Math.abs(dTheta) / (Math.PI / 2)));
+  const delta = dTheta / nSeg;
+  const t = (4 / 3) * Math.tan(delta / 4);
+  const pt = (a: number) => ({
+    x: cx + rx * cosP * Math.cos(a) - ry * sinP * Math.sin(a),
+    y: cy + rx * sinP * Math.cos(a) + ry * cosP * Math.sin(a),
+  });
+  const dv = (a: number) => ({
+    x: -rx * cosP * Math.sin(a) - ry * sinP * Math.cos(a),
+    y: -rx * sinP * Math.sin(a) + ry * cosP * Math.cos(a),
+  });
+  const out: { c1x: number; c1y: number; c2x: number; c2y: number; x: number; y: number }[] = [];
+  let th = theta1, p0 = pt(th);
+  for (let s = 0; s < nSeg; s++) {
+    const th2 = th + delta;
+    const p1 = pt(th2), d0 = dv(th), d1 = dv(th2);
+    out.push({ c1x: p0.x + t * d0.x, c1y: p0.y + t * d0.y, c2x: p1.x - t * d1.x, c2y: p1.y - t * d1.y, x: p1.x, y: p1.y });
+    th = th2; p0 = p1;
+  }
+  return out;
+}
+
+/**
+ * Parsea un `d` (M/L/H/V/C/S/Q/T/Z, abs y rel — sin arcos A) → subpaths de vértices con tangentes
+ * de bezier (inTangents/outTangents relativos al vértice), en coordenadas del LIENZO (getScreenCTM
+ * → respeta viewBox + transform del padre). Para trazos NATIVOS editables en AE. Quad (Q/T) se
+ * convierte a cúbico. Trabaja en coords de usuario y transforma vértices + puntos de control al
+ * final (la diferencia transformada = la tangente).
+ */
+function parsePath(pathEl: SVGPathElement, base: DOMRect): SubPath[] {
   const d = pathEl.getAttribute('d') || '';
   const ctm = pathEl.getScreenCTM();
   const svg = pathEl.ownerSVGElement;
@@ -77,51 +148,104 @@ function parseStraightPath(pathEl: SVGPathElement, base: DOMRect): { points: num
     pt.x = x;
     pt.y = y;
     const s = pt.matrixTransform(ctm);
-    return [Math.round(s.x - base.left), Math.round(s.y - base.top)];
+    return [s.x - base.left, s.y - base.top];
   };
-  const tokens = d.match(/[MmLlHhVvZz]|-?\d*\.?\d+(?:e-?\d+)?/g) || [];
-  const isCmd = (t: string) => /^[MmLlHhVvZz]$/.test(t);
-  const subs: { points: number[][]; closed: boolean }[] = [];
-  let cur: { points: number[][]; closed: boolean } | null = null;
-  let cx = 0, cy = 0, sx = 0, sy = 0, i = 0;
+  const tokens = d.match(/[MmLlHhVvCcSsQqTtAaZz]|-?\d*\.?\d+(?:e-?\d+)?/g) || [];
+  const isCmd = (t: string) => /^[MmLlHhVvCcSsQqTtAaZz]$/.test(t);
+
+  // Vértice con sus puntos de control ABSOLUTOS en coords de usuario (in/out = el vértice si no hay).
+  type V = { x: number; y: number; ix: number; iy: number; ox: number; oy: number };
+  const subs: { verts: V[]; closed: boolean }[] = [];
+  let cur: { verts: V[]; closed: boolean } | null = null;
+  let cx = 0, cy = 0, sx = 0, sy = 0, pcx = 0, pcy = 0, prevCmd = '', i = 0;
+  const num = () => parseFloat(tokens[i++]);
+  const pushV = (x: number, y: number): V => {
+    const v: V = { x, y, ix: x, iy: y, ox: x, oy: y };
+    cur!.verts.push(v);
+    return v;
+  };
+  const last = (): V => cur!.verts[cur!.verts.length - 1];
+
   while (i < tokens.length) {
-    const cmd = tokens[i++];
-    if (!isCmd(cmd)) continue;
-    if (cmd === 'M' || cmd === 'm') {
-      let x = parseFloat(tokens[i++]), y = parseFloat(tokens[i++]);
-      if (cmd === 'm') { x += cx; y += cy; }
+    let cmd = tokens[i];
+    if (isCmd(cmd)) i++;
+    else cmd = prevCmd === 'M' ? 'L' : prevCmd === 'm' ? 'l' : prevCmd; // repetición implícita
+    const rel = cmd >= 'a';
+    const C = cmd.toUpperCase();
+    if (C === 'M') {
+      let x = num(), y = num();
+      if (rel) { x += cx; y += cy; }
       cx = x; cy = y; sx = x; sy = y;
-      cur = { points: [toCanvas(cx, cy)], closed: false };
+      cur = { verts: [], closed: false };
       subs.push(cur);
-      while (i < tokens.length && !isCmd(tokens[i])) {
-        let lx = parseFloat(tokens[i++]), ly = parseFloat(tokens[i++]);
-        if (cmd === 'm') { lx += cx; ly += cy; }
-        cx = lx; cy = ly; cur.points.push(toCanvas(cx, cy));
+      pushV(cx, cy);
+    } else if (C === 'L') {
+      let x = num(), y = num();
+      if (rel) { x += cx; y += cy; }
+      cx = x; cy = y; pushV(cx, cy);
+    } else if (C === 'H') {
+      let x = num(); if (rel) x += cx; cx = x; pushV(cx, cy);
+    } else if (C === 'V') {
+      let y = num(); if (rel) y += cy; cy = y; pushV(cx, cy);
+    } else if (C === 'C' || C === 'S') {
+      let x1: number, y1: number;
+      if (C === 'S') {
+        // Control inicial = reflexión del control previo (si el comando previo fue C/S), si no el punto.
+        const sm = prevCmd.toUpperCase() === 'C' || prevCmd.toUpperCase() === 'S';
+        x1 = sm ? 2 * cx - pcx : cx;
+        y1 = sm ? 2 * cy - pcy : cy;
+      } else {
+        x1 = num(); y1 = num(); if (rel) { x1 += cx; y1 += cy; }
       }
-    } else if (cmd === 'L' || cmd === 'l') {
-      while (i < tokens.length && !isCmd(tokens[i])) {
-        let x = parseFloat(tokens[i++]), y = parseFloat(tokens[i++]);
-        if (cmd === 'l') { x += cx; y += cy; }
-        cx = x; cy = y; cur?.points.push(toCanvas(cx, cy));
+      let x2 = num(), y2 = num(), x = num(), y = num();
+      if (rel) { x2 += cx; y2 += cy; x += cx; y += cy; }
+      last().ox = x1; last().oy = y1;
+      const v = pushV(x, y); v.ix = x2; v.iy = y2;
+      pcx = x2; pcy = y2; cx = x; cy = y;
+    } else if (C === 'Q' || C === 'T') {
+      let qx: number, qy: number;
+      if (C === 'T') {
+        const sm = prevCmd.toUpperCase() === 'Q' || prevCmd.toUpperCase() === 'T';
+        qx = sm ? 2 * cx - pcx : cx;
+        qy = sm ? 2 * cy - pcy : cy;
+      } else {
+        qx = num(); qy = num(); if (rel) { qx += cx; qy += cy; }
       }
-    } else if (cmd === 'H' || cmd === 'h') {
-      while (i < tokens.length && !isCmd(tokens[i])) {
-        let x = parseFloat(tokens[i++]);
-        if (cmd === 'h') x += cx;
-        cx = x; cur?.points.push(toCanvas(cx, cy));
+      let x = num(), y = num();
+      if (rel) { x += cx; y += cy; }
+      // Cuadrática → cúbica: control out del prev y control in del nuevo a 2/3 del punto de control.
+      last().ox = cx + (2 / 3) * (qx - cx); last().oy = cy + (2 / 3) * (qy - cy);
+      const v = pushV(x, y); v.ix = x + (2 / 3) * (qx - x); v.iy = y + (2 / 3) * (qy - y);
+      pcx = qx; pcy = qy; cx = x; cy = y;
+    } else if (C === 'A') {
+      const rx = num(), ry = num(), rot = num(), laf = num(), sf = num();
+      let x = num(), y = num();
+      if (rel) { x += cx; y += cy; }
+      for (const sg of arcToBeziers(cx, cy, rx, ry, rot, laf, sf, x, y)) {
+        last().ox = sg.c1x; last().oy = sg.c1y;
+        const v = pushV(sg.x, sg.y); v.ix = sg.c2x; v.iy = sg.c2y;
+        cx = sg.x; cy = sg.y;
       }
-    } else if (cmd === 'V' || cmd === 'v') {
-      while (i < tokens.length && !isCmd(tokens[i])) {
-        let y = parseFloat(tokens[i++]);
-        if (cmd === 'v') y += cy;
-        cy = y; cur?.points.push(toCanvas(cx, cy));
-      }
-    } else if (cmd === 'Z' || cmd === 'z') {
+      pcx = cx; pcy = cy;
+    } else if (C === 'Z') {
       if (cur) cur.closed = true;
       cx = sx; cy = sy;
     }
+    prevCmd = cmd;
   }
-  return subs;
+
+  return subs.map((s) => {
+    const points: number[][] = [], inT: number[][] = [], outT: number[][] = [];
+    for (const v of s.verts) {
+      const P = toCanvas(v.x, v.y);
+      const I = toCanvas(v.ix, v.iy);
+      const O = toCanvas(v.ox, v.oy);
+      points.push([Math.round(P[0]), Math.round(P[1])]);
+      inT.push([Math.round(I[0] - P[0]), Math.round(I[1] - P[1])]);
+      outT.push([Math.round(O[0] - P[0]), Math.round(O[1] - P[1])]);
+    }
+    return { points, inTangents: inT, outTangents: outT, closed: s.closed };
+  });
 }
 
 /** Parsea strokeDasharray ("10px 20px" / "10 20") → [dash, gap] en px de lienzo; undefined si none. */
@@ -198,15 +322,26 @@ let Comp: React.FC | null = null;
       const transparent = (c: string) => !c || c === 'rgba(0, 0, 0, 0)' || c === 'transparent' || c === 'none';
       const isSvgShape = !!elx.getAttribute('data-ae-shape');
       let bgKind: 'solid' | 'gradient' | 'none' = 'none';
+      let grad: Record<string, any> | undefined; // degradado completo (para Gradient Fill nativo)
       let color = cs.color;
       if (!transparent(cs.backgroundColor)) {
         bgKind = 'solid';
         color = cs.backgroundColor;
       } else {
-        const cm = (cs.backgroundImage || '').match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/);
-        if ((cs.backgroundImage || '').includes('gradient') && cm) {
+        const bgi = cs.backgroundImage || '';
+        const cm = bgi.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/);
+        if (bgi.includes('gradient') && cm) {
           bgKind = 'gradient';
           color = cm[0];
+          // Degradado completo: 1er y último color + tipo + ángulo (para emitir Gradient Fill en AE).
+          const all = bgi.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/g) || [];
+          const am = bgi.match(/(-?\d+(?:\.\d+)?)deg/);
+          grad = {
+            shape: bgi.includes('radial-gradient') ? 'radial' : 'linear',
+            start: all[0],
+            end: all[all.length - 1],
+            angle: am ? parseFloat(am[1]) : 180,
+          };
         } else if (isSvgShape && !transparent(cs.fill)) {
           bgKind = 'solid';
           color = cs.fill;
@@ -224,7 +359,7 @@ let Comp: React.FC | null = null;
         const ctmScale = ctm2 ? Math.sqrt(ctm2.a * ctm2.a + ctm2.b * ctm2.b) : 1;
         const filled = !transparent(cs.fill);
         pathExtra = {
-          paths: parseStraightPath(elx as unknown as SVGPathElement, base),
+          paths: parsePath(elx as unknown as SVGPathElement, base),
           strokeWidth: Math.max(1, Math.round(parseFloat(cs.strokeWidth || '1') * ctmScale)),
           filled,
           dash: parseDash(cs.strokeDasharray, ctmScale),
@@ -279,12 +414,42 @@ let Comp: React.FC | null = null;
       const fm = (cs.filter || '').match(/blur\(([\d.]+)px\)/);
       const blurPx = fm ? parseFloat(fm[1]) : 0;
 
+      // Texto: familia, peso (bold), tracking (letter-spacing) e interlineado (line-height).
+      let textStyle: Record<string, any> | undefined;
+      if (aeType === 'text') {
+        const lh = parseFloat(cs.lineHeight);
+        textStyle = {
+          fontFamily: (cs.fontFamily || '').split(',')[0].replace(/["']/g, '').trim(),
+          fontWeight: parseInt(cs.fontWeight, 10) || 400,
+          letterSpacing: cs.letterSpacing === 'normal' ? 0 : parseFloat(cs.letterSpacing) || 0,
+          lineHeight: isNaN(lh) ? 0 : Math.round(lh),
+        };
+      }
+      // Forma div: esquinas redondeadas (borderRadius px, no 50%) + borde (border:Npx solid).
+      let roundness = 0;
+      let border: Record<string, any> | undefined;
+      if (aeType === 'shape' && !isSvgShape) {
+        const br = cs.borderRadius || '';
+        if (!br.includes('50%')) {
+          const brpx = parseFloat(br);
+          if (brpx > 0) roundness = Math.round(brpx);
+        }
+        const bw = parseFloat(cs.borderTopWidth || '0') || 0;
+        if (bw > 0 && cs.borderTopStyle !== 'none' && !transparent(cs.borderTopColor)) {
+          border = { width: Math.round(bw), color: cs.borderTopColor };
+        }
+      }
+
       out[id] = {
         type: aeType,
         shape: elx.getAttribute('data-ae-shape') || undefined,
         bgKind,
+        grad,
         shadow,
         blur: blurPx || undefined,
+        roundness: roundness || undefined,
+        border,
+        ...(textStyle || {}),
         ...(pathExtra || {}),
         ...(shapeStroke || {}),
         x: Math.round(r.left - base.left + r.width / 2),

@@ -178,6 +178,19 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
             out.append(f"{lvar}_td.fillColor = [{r}, {g}, {b}];")
             out.append(f"{lvar}_td.fontSize = {round(fsize, 1)};")
             out.append(f"{lvar}_td.justification = ParagraphJustification.CENTER_JUSTIFY;")
+            # Fuente (best-effort: si no está instalada AE la ignora), peso (fauxBold), tracking
+            # (letter-spacing: AE usa 1/1000 em), interlineado (leading).
+            fam = ap.get("fontFamily")
+            if fam:
+                out.append(f'try {{ {lvar}_td.font = {_js_str(fam)}; }} catch (e) {{}}')
+            if int(ap.get("fontWeight", 400) or 400) >= 600:
+                out.append(f"{lvar}_td.fauxBold = true;")
+            ls = float(ap.get("letterSpacing", 0) or 0)
+            if ls:
+                out.append(f"{lvar}_td.tracking = {round(ls / fsize * 1000, 1)};")
+            lh = float(ap.get("lineHeight", 0) or 0)
+            if lh:
+                out.append(f"{lvar}_td.leading = {round(lh, 1)};")
             out.append(f"{lvar}.property(\"Source Text\").setValue({lvar}_td);")
             # AE ancla el texto en la base-izquierda → centramos el anchor en su bounding box
             # para que Position quede en el CENTRO del texto (si no, sale corrido/cortado).
@@ -204,14 +217,21 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
                 pts = sp.get("points", [])
                 if len(pts) < 2:
                     continue
-                verts = "[" + ",".join(f"[{round(p[0], 2)}, {round(p[1], 2)}]" for p in pts) + "]"
-                zeros = "[" + ",".join("[0,0]" for _ in pts) + "]"
+                zeros = [[0, 0] for _ in pts]
+                ins = sp.get("inTangents") or zeros
+                outs = sp.get("outTangents") or zeros
+                # Alinear longitudes por seguridad (deben coincidir con #vértices).
+                if len(ins) != len(pts):
+                    ins = zeros
+                if len(outs) != len(pts):
+                    outs = zeros
+                fmt = lambda arr: "[" + ",".join(f"[{round(p[0], 2)}, {round(p[1], 2)}]" for p in arr) + "]"
                 sv = f"{lvar}_sh{si}"
                 out.append(f'var {sv} = {lvar}_g.property("Contents").addProperty("ADBE Vector Shape - Group");')
                 out.append(f"var {sv}_p = new Shape();")
-                out.append(f"{sv}_p.vertices = {verts};")
-                out.append(f"{sv}_p.inTangents = {zeros};")
-                out.append(f"{sv}_p.outTangents = {zeros};")
+                out.append(f"{sv}_p.vertices = {fmt(pts)};")
+                out.append(f"{sv}_p.inTangents = {fmt(ins)};")
+                out.append(f"{sv}_p.outTangents = {fmt(outs)};")
                 out.append(f"{sv}_p.closed = {'true' if sp.get('closed') else 'false'};")
                 out.append(f'{sv}.property("Path").setValue({sv}_p);')
             if ap.get("filled"):
@@ -234,11 +254,47 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
                 + ");"
             )
             out.append(f"{lvar}_s.property(\"Size\").setValue([{w}, {h}]);")
-            if ap.get("filled", True):
+            # Esquinas redondeadas (borderRadius en px) → Roundness del rect.
+            if shape_type == "rect" and float(ap.get("roundness", 0) or 0) > 0:
+                out.append(
+                    f'try {{ {lvar}_s.property("ADBE Vector Rect Roundness").setValue({round(float(ap["roundness"]), 1)}); }} catch (e) {{}}'
+                )
+            grad = ap.get("grad") if ap.get("filled", True) else None
+            if grad:
+                # Gradient Fill nativo (2 paradas). El "blob" de colores de AE es delicado → todo en
+                # try/catch; si falla, se quita el G-Fill y se pone un Fill sólido (la forma sigue
+                # editable, el user puede poner el gradiente a mano).
+                gr1, gg1, gb1 = _hex_to_rgb01(grad.get("start", ap.get("color", "#000000")))
+                gr2, gg2, gb2 = _hex_to_rgb01(grad.get("end", ap.get("color", "#000000")))
+                if grad.get("shape") == "radial":
+                    gtype, sx, sy, ex, ey = 2, 0.0, 0.0, w / 2, h / 2
+                else:
+                    ang = math.radians(float(grad.get("angle", 180)))
+                    dx, dy = math.sin(ang), -math.cos(ang)
+                    gtype, sx, sy, ex, ey = 1, -dx * w / 2, -dy * h / 2, dx * w / 2, dy * h / 2
+                # Blob = 2 paradas de color [loc,r,g,b] + 2 de opacidad [loc,a] (coincide con el
+                # G-Fill por defecto, que ya trae 2+2 → setValue lo acepta).
+                blob = f"[0, {gr1}, {gg1}, {gb1}, 1, {gr2}, {gg2}, {gb2}, 0, 1, 1, 1]"
+                out.append(f'var {lvar}_gf = {lvar}_g.property("Contents").addProperty("ADBE Vector Graphic - G-Fill");')
+                out.append(
+                    f'try {{ {lvar}_gf.property("ADBE Vector Grad Type").setValue({gtype}); '
+                    f'{lvar}_gf.property("ADBE Vector Grad Start Pt").setValue([{round(sx, 1)}, {round(sy, 1)}]); '
+                    f'{lvar}_gf.property("ADBE Vector Grad End Pt").setValue([{round(ex, 1)}, {round(ey, 1)}]); '
+                    f'{lvar}_gf.property("ADBE Vector Grad Colors").setValue({blob}); }} '
+                    f'catch (e) {{ {lvar}_gf.remove(); '
+                    f'var {lvar}_f = {lvar}_g.property("Contents").addProperty("ADBE Vector Graphic - Fill"); '
+                    f'{lvar}_f.property("Color").setValue([{r}, {g}, {b}, 1]); }}'
+                )
+            elif ap.get("filled", True):
                 out.append(f"var {lvar}_f = {lvar}_g.property(\"Contents\").addProperty(\"ADBE Vector Graphic - Fill\");")
                 out.append(f"{lvar}_f.property(\"Color\").setValue([{r}, {g}, {b}, 1]);")
             else:  # forma SVG con fill:none + stroke (ej. anillo punteado decorativo)
                 out += _emit_stroke(lvar, f"{lvar}_g", r, g, b, int(ap.get("strokeWidth", 2) or 2), ap.get("dash"))
+            # Borde CSS de un div relleno (border:Npx solid) → stroke ADEMÁS del fill.
+            border = ap.get("border")
+            if border and ap.get("filled", True):
+                br, bg, bb = _hex_to_rgb01(border.get("color", "#000000"))
+                out += _emit_stroke(lvar, f"{lvar}_g", br, bg, bb, int(border.get("width", 1) or 1), None)
 
         # Efectos nativos de AE (Nivel 2): Drop Shadow (sombra/glow) + Gaussian Blur. La capa sigue
         # siendo nativa/editable. matchNames (independientes del idioma).
