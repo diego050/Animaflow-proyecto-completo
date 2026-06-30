@@ -252,4 +252,38 @@ let Comp: React.FC | null = null;
     });
     return out;
   },
+
+  /**
+   * Lee el FONDO del contenedor raíz (el AbsoluteFill, primer hijo de #root): color sólido o
+   * gradiente (linear/radial) con su color inicial/final. El AbsoluteFill no se etiqueta, por eso
+   * se mide aparte. Devuelve null si no hay fondo visible.
+   */
+  background() {
+    const rootEl = document.getElementById('root');
+    const fill = rootEl?.firstElementChild as HTMLElement | null;
+    if (!fill) return null;
+    const cs = getComputedStyle(fill);
+    const transp = (c: string) => !c || c === 'rgba(0, 0, 0, 0)' || c === 'transparent';
+    const bgImg = cs.backgroundImage || '';
+    if (bgImg.includes('gradient')) {
+      const colors = bgImg.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/g) || [];
+      if (colors.length >= 2) {
+        let angle = 180;
+        const am = bgImg.match(/(-?\d+(?:\.\d+)?)deg/);
+        if (am) angle = parseFloat(am[1]);
+        let cx = 50, cy = 50;
+        const cm = bgImg.match(/at\s+([\d.]+)%\s+([\d.]+)%/);
+        if (cm) { cx = parseFloat(cm[1]); cy = parseFloat(cm[2]); }
+        return {
+          kind: 'gradient',
+          shape: bgImg.includes('radial-gradient') ? 'radial' : 'linear',
+          start: colors[0],
+          end: colors[colors.length - 1],
+          angle, cx, cy,
+        };
+      }
+    }
+    if (!transp(cs.backgroundColor)) return { kind: 'solid', color: cs.backgroundColor };
+    return null;
+  },
 };

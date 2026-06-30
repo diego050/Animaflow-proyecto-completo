@@ -285,7 +285,20 @@ app.post("/ae-sample", async (req, res) => {
       }
 
       const scene = assembleScene(frames, { fps, width, height, durationInFrames: frameCount });
-      console.log(`AE sample OK: ${scene.elements.length} elementos, ${frameCount} frames.`);
+
+      // Fondo del AbsoluteFill (capa de gradiente/solid al fondo en AE). Colores → hex.
+      const bg = await page.evaluate(() => window.__ae.background());
+      if (bg) {
+        if (bg.kind === "solid") {
+          bg.color = rgbToHex(bg.color);
+        } else {
+          bg.start = rgbToHex(bg.start);
+          bg.end = rgbToHex(bg.end);
+        }
+        scene.background = bg;
+      }
+
+      console.log(`AE sample OK: ${scene.elements.length} elementos, ${frameCount} frames${bg ? " + fondo" : ""}.`);
       return res.json(scene);
     } finally {
       try { await page.close(); } catch { /* noop */ }
