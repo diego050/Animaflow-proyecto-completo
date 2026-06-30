@@ -252,13 +252,24 @@ let Comp: React.FC | null = null;
       let effOpacity = parseFloat(cs.opacity || '1');
       let par = elx.parentElement;
       while (par && par !== rootEl) {
-        const po = parseFloat(getComputedStyle(par).opacity || '1');
+        const pcs = getComputedStyle(par);
+        const po = parseFloat(pcs.opacity || '1');
         if (!isNaN(po)) effOpacity *= po;
+        // Un padre con transform:scale/rotate ESCALA/ROTA a sus hijos (ej. el check dentro del
+        // círculo que hace scale(spring)). El bbox del hijo lo refleja, pero su matrix propia es
+        // identidad → hay que multiplicar la escala del padre (y sumar su rotación).
+        const pm = pcs.transform && pcs.transform !== 'none' ? pcs.transform.match(/matrix\(([^)]+)\)/) : null;
+        if (pm) {
+          const pp = pm[1].split(',').map((s) => parseFloat(s));
+          const ps = Math.sqrt(pp[0] * pp[0] + pp[1] * pp[1]);
+          if (!isNaN(ps)) scale *= ps;
+          rotation += Math.round((Math.atan2(pp[1], pp[0]) * 180) / Math.PI);
+        }
         par = par.parentElement;
       }
-      // boxShadow → sombra/glow; filter: blur() → desenfoque (efectos nativos de AE en Nivel 2).
+      // boxShadow (formas) o textShadow (texto) → sombra/glow; filter: blur() → desenfoque.
       let shadow: Record<string, any> | undefined;
-      const bs = cs.boxShadow;
+      const bs = cs.boxShadow && cs.boxShadow !== 'none' ? cs.boxShadow : cs.textShadow;
       if (bs && bs !== 'none' && !bs.startsWith('inset')) {
         const seg = bs.split(/,(?![^(]*\))/)[0]; // primera sombra (coma fuera de rgb())
         const col = seg.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/);
