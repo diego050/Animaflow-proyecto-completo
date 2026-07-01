@@ -40,12 +40,27 @@ export function NewProjectWizard() {
     fetchLLMSettings();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Prefill from ScriptsPage "Usar en proyecto"
+  // Prefill from ScriptsPage "Usar en proyecto" / "Duplicar"
   useEffect(() => {
     const state = location.state as
-      | { prefillScript?: string; prefillAspectRatio?: string }
+      | {
+          prefillScript?: string;
+          prefillAspectRatio?: string;
+          prefillScenes?: { text: string; media_query: string; duration_seconds: number }[];
+        }
       | undefined;
-    if (state?.prefillScript) {
+    if (state?.prefillScenes && state.prefillScenes.length > 0) {
+      // Duplicar CON direcciones → modo "Con prompts" (escenas texto+prompt), en el paso 1.
+      setWizardData({
+        script: state.prefillScript || '',
+        aspectRatio: state.prefillAspectRatio || settings.defaultAspectRatio || '9:16',
+        scenes: state.prefillScenes,
+        ownScriptMode: 'with-prompts',
+        wizardMode: 'own-script',
+      });
+      setWizardStep(1);
+      window.history.replaceState({}, '');
+    } else if (state?.prefillScript) {
       setWizardData({
         script: state.prefillScript,
         aspectRatio:

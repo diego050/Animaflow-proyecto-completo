@@ -11,6 +11,7 @@ import {
   Loader2,
   CheckCircle2,
   FileCode,
+  Pencil,
   X,
 } from 'lucide-react';
 import { useJobsStore } from '../../store/useJobsStore';
@@ -28,6 +29,46 @@ import { apiFetch, API_BASE } from '../../api/client';
 import { PreviewPlayer } from '../../components/PreviewPlayer';
 
 type FilterType = 'all' | 'completed' | 'rendering' | 'failed';
+
+// Barra de acciones del preview: editar / descargar MP4 / descargar .jsx (AE).
+function PreviewActions({
+  onEdit,
+  onMp4,
+  onAe,
+  busy,
+}: {
+  onEdit: () => void;
+  onMp4?: () => void;
+  onAe: () => void;
+  busy?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap justify-center">
+      <button
+        onClick={onEdit}
+        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-mint-precision text-deep-slate hover:bg-white transition-colors"
+      >
+        <Pencil size={14} /> Ir a editar
+      </button>
+      {onMp4 && (
+        <button
+          onClick={onMp4}
+          disabled={busy}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-surface-highest text-text-secondary hover:text-text-primary border border-border-tech transition-colors disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} MP4
+        </button>
+      )}
+      <button
+        onClick={onAe}
+        disabled={busy}
+        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-surface-highest text-text-secondary hover:text-text-primary border border-border-tech transition-colors disabled:opacity-50"
+      >
+        {busy ? <Loader2 size={14} className="animate-spin" /> : <FileCode size={14} />} .jsx (AE)
+      </button>
+    </div>
+  );
+}
 
 export function VideosPage() {
   const navigate = useNavigate();
@@ -469,135 +510,122 @@ export function VideosPage() {
         </div>
       )}
 
-      {/* Preview Modal */}
+      {/* Preview Modal — se adapta al aspecto del video y ocupa el máximo del área con padding. */}
       <AnimatePresence>
         {(previewJob || interactivePreviewJobId) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 sm:p-10"
             onClick={() => {
               setPreviewJob(null);
               setInteractivePreviewJobId(null);
             }}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative max-w-2xl w-full"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative flex flex-col items-center gap-3"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-surface-highest rounded-2xl overflow-hidden border border-border-tech relative">
-                {/* Close button */}
-                <button
-                  onClick={() => {
-                    setPreviewJob(null);
-                    setInteractivePreviewJobId(null);
-                  }}
-                  className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-black/70 transition-all"
-                >
-                  <X size={18} />
-                </button>
+              {/* Close button */}
+              <button
+                onClick={() => {
+                  setPreviewJob(null);
+                  setInteractivePreviewJobId(null);
+                }}
+                className="absolute -top-2 -right-2 z-20 w-9 h-9 rounded-full bg-surface-highest border border-border-tech flex items-center justify-center text-white/70 hover:text-white hover:bg-black/70 transition-all"
+              >
+                <X size={18} />
+              </button>
 
-                {/* Content area */}
-                <div className="flex flex-col items-center">
-                  {/* Case 1: Direct video preview (has video_url) */}
-                  {previewJob?.video_url && (
-                    <>
-                      <video
-                        src={
-                          previewJob.video_url.startsWith('http')
-                            ? previewJob.video_url
-                            : `${API_BASE}${previewJob.video_url}`
+              {/* Case 1: Direct video preview (has video_url) → el <video> se auto-dimensiona por su
+                  aspecto real, acotado a 82vh/86vw → ocupa lo máximo sin deformar (9:16 alto, 16:9 ancho). */}
+              {previewJob?.video_url && (
+                <>
+                  <video
+                    src={
+                      previewJob.video_url.startsWith('http')
+                        ? previewJob.video_url
+                        : `${API_BASE}${previewJob.video_url}`
+                    }
+                    className="block max-h-[82vh] max-w-[86vw] object-contain bg-black rounded-xl border border-border-tech"
+                    controls
+                    autoPlay
+                  />
+                  <PreviewActions
+                    onEdit={() => navigate(`/dashboard/project/${previewJob.job_id}`)}
+                    onMp4={() => handleDownloadMP4(previewJob.job_id, previewJob.video_url!)}
+                    onAe={() => handleDownloadAE(previewJob.job_id)}
+                    busy={downloading === previewJob.job_id}
+                  />
+                </>
+              )}
+
+              {/* Case 2: Interactive preview (Remotion / loading / sin preview) */}
+              {interactivePreviewJobId && !previewJob && (
+                <div className="bg-surface-highest rounded-2xl border border-border-tech p-4 max-h-[86vh] overflow-auto">
+                  {selectedJobLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 px-16 gap-4">
+                      <Loader2 size={32} className="animate-spin text-mint-precision" />
+                      <p className="text-sm text-text-secondary">Cargando preview...</p>
+                    </div>
+                  ) : selectedJob?.result_spec ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <PreviewPlayer
+                        spec={selectedJob.result_spec}
+                        aspectRatio={
+                          jobs.find((j) => j.job_id === interactivePreviewJobId)?.aspect_ratio || '9:16'
                         }
-                        className="w-full max-h-[70vh] object-contain bg-black"
-                        controls
-                        autoPlay
                       />
-                      <div className="p-4 w-full">
-                        <p className="text-sm text-text-primary font-medium line-clamp-2 mb-1">
-                          {previewJob.script_text}
-                        </p>
-                        <p className="text-xs text-text-secondary/50">
-                          {previewJob.aspect_ratio || '9:16'} · {formatDate(previewJob.created_at)}
-                        </p>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Case 2: Interactive preview (Remotion or loading or no preview) */}
-                  {interactivePreviewJobId && !previewJob && (
-                    <div className="w-full p-6">
-                      {selectedJobLoading ? (
-                        <div className="flex flex-col items-center justify-center py-20 gap-4">
-                          <Loader2 size={32} className="animate-spin text-mint-precision" />
-                          <p className="text-sm text-text-secondary">Cargando preview...</p>
-                        </div>
-                      ) : selectedJob?.result_spec ? (
-                        <div className="flex flex-col items-center gap-4">
-                          <PreviewPlayer
-                            spec={selectedJob.result_spec}
-                            aspectRatio={
-                              jobs.find((j) => j.job_id === interactivePreviewJobId)?.aspect_ratio || '9:16'
-                            }
-                          />
-                          <div className="w-full text-center">
-                            <p className="text-sm text-text-primary font-medium line-clamp-2 mb-1">
-                              {jobs.find((j) => j.job_id === interactivePreviewJobId)?.script_text || ''}
+                      <PreviewActions
+                        onEdit={() => navigate(`/dashboard/project/${interactivePreviewJobId}`)}
+                        onMp4={selectedJob.video_url ? () => handleDownloadMP4(interactivePreviewJobId, selectedJob.video_url!) : undefined}
+                        onAe={() => handleDownloadAE(interactivePreviewJobId)}
+                        busy={downloading === interactivePreviewJobId}
+                      />
+                    </div>
+                  ) : selectedJob?.video_url ? (
+                    <video
+                      src={
+                        selectedJob.video_url.startsWith('http')
+                          ? selectedJob.video_url
+                          : `${API_BASE}${selectedJob.video_url}`
+                      }
+                      className="block max-h-[80vh] max-w-[86vw] object-contain bg-black rounded-xl"
+                      controls
+                      autoPlay
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-16 px-8 gap-4">
+                      <Film size={48} className="text-text-secondary/30" />
+                      {isFailedStatus(selectedJob?.status || '') ? (
+                        <>
+                          <p className="text-sm text-red-400 text-center max-w-xs">
+                            Este proyecto falló durante el renderizado.
+                          </p>
+                          {selectedJob?.error_message && (
+                            <p className="text-xs text-text-secondary/50 text-center max-w-sm font-mono bg-surface-lowest p-3 rounded-lg">
+                              {selectedJob.error_message}
                             </p>
-                            <p className="text-xs text-text-secondary/50">
-                              {jobs.find((j) => j.job_id === interactivePreviewJobId)?.aspect_ratio || '9:16'} ·{' '}
-                              {formatDate(
-                                jobs.find((j) => j.job_id === interactivePreviewJobId)?.created_at || '',
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      ) : selectedJob?.video_url ? (
-                        // Fallback: job has video_url from detail fetch
-                        <video
-                          src={
-                            selectedJob.video_url.startsWith('http')
-                              ? selectedJob.video_url
-                              : `${API_BASE}${selectedJob.video_url}`
-                          }
-                          className="w-full max-h-[70vh] object-contain bg-black"
-                          controls
-                          autoPlay
-                        />
-                      ) : (
-                        // No preview available
-                        <div className="flex flex-col items-center justify-center py-16 gap-4">
-                          <Film size={48} className="text-text-secondary/30" />
-                          {isFailedStatus(selectedJob?.status || '') ? (
-                            <>
-                              <p className="text-sm text-red-400 text-center max-w-xs">
-                                Este proyecto falló durante el renderizado.
-                              </p>
-                              {selectedJob?.error_message && (
-                                <p className="text-xs text-text-secondary/50 text-center max-w-sm font-mono bg-surface-lowest p-3 rounded-lg">
-                                  {selectedJob.error_message}
-                                </p>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-sm text-text-secondary text-center max-w-xs">
-                                Este proyecto aún está en proceso. El preview estará disponible cuando se complete el renderizado.
-                              </p>
-                              <div className="flex items-center gap-2">
-                                {getStatusBadge(selectedJob?.status || '')}
-                              </div>
-                            </>
                           )}
-                        </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm text-text-secondary text-center max-w-xs">
+                            Este proyecto aún está en proceso. El preview estará disponible cuando se complete.
+                          </p>
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(selectedJob?.status || '')}
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
                 </div>
-              </div>
+              )}
             </motion.div>
           </motion.div>
         )}
