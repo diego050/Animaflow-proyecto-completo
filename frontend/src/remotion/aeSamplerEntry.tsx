@@ -385,11 +385,16 @@ let Comp: React.FC | null = null;
       // multiplicamos la opacidad del elemento por la de TODOS sus ancestros (hasta el root) → así
       // un fade-in puesto en el contenedor se conserva en cada hijo.
       let effOpacity = parseFloat(cs.opacity || '1');
+      // z efectivo: un hijo vive DENTRO del contexto de apilado de su padre → su z efectivo no puede
+      // ser menor que el del padre (si no, el padre con zIndex alto taparía a su propio hijo en AE).
+      let effZ = cs.zIndex && cs.zIndex !== 'auto' ? parseInt(cs.zIndex, 10) || 0 : 0;
       let par = elx.parentElement;
       while (par && par !== rootEl) {
         const pcs = getComputedStyle(par);
         const po = parseFloat(pcs.opacity || '1');
         if (!isNaN(po)) effOpacity *= po;
+        const pz = pcs.zIndex && pcs.zIndex !== 'auto' ? parseInt(pcs.zIndex, 10) || 0 : 0;
+        if (pz > effZ) effZ = pz;
         // Un padre con transform:scale/rotate ESCALA/ROTA a sus hijos (ej. el check dentro del
         // círculo que hace scale(spring)). El bbox del hijo lo refleja, pero su matrix propia es
         // identidad → hay que multiplicar la escala del padre (y sumar su rotación).
@@ -434,9 +439,16 @@ let Comp: React.FC | null = null;
           const brpx = parseFloat(br);
           if (brpx > 0) roundness = Math.round(brpx);
         }
-        const bw = parseFloat(cs.borderTopWidth || '0') || 0;
-        if (bw > 0 && cs.borderTopStyle !== 'none' && !transparent(cs.borderTopColor)) {
-          border = { width: Math.round(bw), color: cs.borderTopColor };
+        // Bordes POR LADO (para marcos no uniformes, ej. un arco con borderBottom:none = 3 lados).
+        const sideOf = (w: string, stl: string) => (stl !== 'none' && (parseFloat(w || '0') || 0) > 0 ? parseFloat(w) : 0);
+        const st = sideOf(cs.borderTopWidth, cs.borderTopStyle);
+        const sr = sideOf(cs.borderRightWidth, cs.borderRightStyle);
+        const sb = sideOf(cs.borderBottomWidth, cs.borderBottomStyle);
+        const sl = sideOf(cs.borderLeftWidth, cs.borderLeftStyle);
+        const anyW = Math.max(st, sr, sb, sl);
+        if (anyW > 0) {
+          const col = st ? cs.borderTopColor : sr ? cs.borderRightColor : sb ? cs.borderBottomColor : cs.borderLeftColor;
+          if (!transparent(col)) border = { width: Math.round(anyW), color: col, sides: [st > 0, sr > 0, sb > 0, sl > 0] };
         }
       }
 
@@ -449,7 +461,7 @@ let Comp: React.FC | null = null;
         blur: blurPx || undefined,
         roundness: roundness || undefined,
         border,
-        zIndex: cs.zIndex && cs.zIndex !== 'auto' ? parseInt(cs.zIndex, 10) || 0 : 0,
+        zIndex: effZ,
         ...(textStyle || {}),
         ...(pathExtra || {}),
         ...(shapeStroke || {}),

@@ -162,7 +162,7 @@ function assembleScene(frames, meta) {
           ? { shape: first.grad.shape, angle: first.grad.angle, start: rgbToHex(first.grad.start), end: rgbToHex(first.grad.end) }
           : undefined,
         roundness: first.roundness || 0,
-        border: first.border ? { width: first.border.width, color: rgbToHex(first.border.color) } : undefined,
+        border: first.border ? { width: first.border.width, color: rgbToHex(first.border.color), sides: first.border.sides } : undefined,
         colorTrack: colorVaries ? colorTrack : undefined, // relleno animado (color en el tiempo)
       };
     }
