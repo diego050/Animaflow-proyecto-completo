@@ -1,5 +1,6 @@
+import io
 import os
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import ProgrammingError, OperationalError
@@ -33,6 +34,41 @@ VIDEOS_STORAGE = get_storage_dir("videos")
 router = APIRouter()
 
 
+@router.post("/extract-text")
+@limiter.limit("20/minute")
+async def extract_text(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Extrae texto plano de un guión subido (.pdf, .txt, .md) para prellenar el editor."""
+    name = (file.filename or "").lower()
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:  # 10MB
+        raise HTTPException(status_code=413, detail="El archivo es demasiado grande (máx. 10MB).")
+
+    if name.endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            text = "\n".join((page.extract_text() or "") for page in reader.pages).strip()
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(status_code=422, detail=f"No se pudo leer el PDF: {e}")
+        if not text:
+            raise HTTPException(
+                status_code=422,
+                detail="El PDF no tiene texto seleccionable (¿es escaneado/imagen?). Copia el texto a mano.",
+            )
+        return {"text": text}
+
+    # .txt / .md (o cualquier texto): decodifica best-effort.
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        text = content.decode("latin-1", errors="ignore")
+    return {"text": text.strip()}
+
+
 @router.post("/", response_model=JobResponse, status_code=201)
 @limiter.limit("10/minute")
 async def create_job(
@@ -58,6 +94,12 @@ async def create_job(
         initial_spec["design_md"] = resolved_design_md
     if job_in.system_prompt:
         initial_spec["system_prompt"] = job_in.system_prompt
+    # Escenas predefinidas (modos "Con prompts" / "Solo Animación") y flag de solo-animación.
+    # Antes se perdían: el scheduler los necesita para NO segmentar y respetar el storyboard.
+    if job_in.scenes:
+        initial_spec["scenes"] = [s.model_dump() for s in job_in.scenes]
+    if job_in.animation_only:
+        initial_spec["animation_only"] = True
 
     # Associate job with the authenticated user
     new_job = JobModel(

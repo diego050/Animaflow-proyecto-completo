@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Player } from '@remotion/player';
 import { useAdminStore } from '../../store/useAdminStore';
-import { Loader2, Search, MoreVertical, RefreshCw, XCircle, Trash2, Eye } from 'lucide-react';
+import { Loader2, Search, MoreVertical, RefreshCw, XCircle, Trash2, Eye, Film, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { api } from '../../api/client';
+import { MainComposition } from '../../remotion/MainComposition';
+import { dimsFor } from '../../remotion/aspectDims';
+import type { TimelineSpec } from '../../types/spec';
 
 const statusColors: Record<string, string> = {
   pending: 'text-yellow-400 bg-yellow-400/10',
@@ -48,6 +53,29 @@ export function AdminJobsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [detailJob, setDetailJob] = useState<string | null>(null);
+  // Composición (solo lectura): spec del job para previsualizar el video completo en un modal.
+  const [comp, setComp] = useState<{ spec: TimelineSpec; aspect: string } | null>(null);
+  const [compLoading, setCompLoading] = useState(false);
+  const [compError, setCompError] = useState<string | null>(null);
+
+  const handleViewComposition = async (jobId: string) => {
+    setCompLoading(true);
+    setCompError(null);
+    try {
+      const data = await api.get<{ result_spec: TimelineSpec | null; aspect_ratio: string }>(
+        `/api/admin/jobs/${jobId}/spec`,
+      );
+      if (data.result_spec && data.result_spec.scenes?.length) {
+        setComp({ spec: data.result_spec, aspect: data.aspect_ratio || '9:16' });
+      } else {
+        setCompError('Este job todavía no tiene escenas para previsualizar.');
+      }
+    } catch (e) {
+      setCompError(e instanceof Error ? e.message : 'No se pudo cargar la composición.');
+    } finally {
+      setCompLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchJobs(1, statusFilter);
@@ -312,7 +340,18 @@ export function AdminJobsPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex justify-end mt-6">
+              {compError && (
+                <p className="mt-4 text-xs text-red-400 bg-red-400/10 p-2 rounded">{compError}</p>
+              )}
+              <div className="flex justify-between items-center mt-6">
+                <button
+                  onClick={() => handleViewComposition(selectedJob.job_id)}
+                  disabled={compLoading}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-mint-precision/15 hover:bg-mint-precision/25 text-mint-precision rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {compLoading ? <Loader2 size={15} className="animate-spin" /> : <Film size={15} />}
+                  Ver composición
+                </button>
                 <button
                   onClick={() => setDetailJob(null)}
                   className="px-4 py-2 text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors"
@@ -320,6 +359,49 @@ export function AdminJobsPage() {
                   Cerrar
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Composición (solo lectura): preview del video completo con Remotion Player. */}
+      <AnimatePresence>
+        {comp && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={() => setComp(null)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-gray-900 border border-gray-800 rounded-xl p-4 w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-100 flex items-center gap-2">
+                  <Film size={16} className="text-mint-precision" /> Composición (solo lectura)
+                </h3>
+                <button onClick={() => setComp(null)} className="text-gray-400 hover:text-gray-100">
+                  <X size={18} />
+                </button>
+              </div>
+              {(() => {
+                const dims = dimsFor(comp.aspect);
+                const total = comp.spec.scenes.reduce((a, s) => a + (s.duration_seconds ?? 0), 0);
+                return (
+                  <div className="rounded-lg overflow-hidden bg-black" style={{ aspectRatio: dims.cssRatio, maxHeight: '70vh' }}>
+                    <Player
+                      component={MainComposition}
+                      inputProps={{ spec: comp.spec }}
+                      durationInFrames={total > 0 ? Math.round(total * 30) : 150}
+                      compositionWidth={dims.w}
+                      compositionHeight={dims.h}
+                      fps={30}
+                      controls
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  </div>
+                );
+              })()}
+              <p className="text-[11px] text-gray-500 mt-2">Vista previa del video · no editable desde el panel admin.</p>
             </motion.div>
           </div>
         )}

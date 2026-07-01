@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Trash2, Upload, Minus } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, Upload, Minus, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DesignTemplateManager } from './DesignTemplateManager';
+import { apiUpload } from '../../api/client';
 
 interface WizardStepScriptProps {
   mode: 'own-script' | 'ai-generate' | 'animation-only';
@@ -57,9 +58,77 @@ export function WizardStepScript({
   onGenerate,
   loading,
 }: WizardStepScriptProps) {
-  const [showCustomPrompt, setShowCustomPrompt] = useState(false);
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
   const [showDesign, setShowDesign] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+  // Lee un archivo de guión subido. PDF → extrae texto en el backend; .txt/.md → local.
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadErr(null);
+    try {
+      let text: string;
+      if (file.name.toLowerCase().endsWith('.pdf')) {
+        setUploading(true);
+        const res = await apiUpload<{ text: string }>('/api/jobs/extract-text', file);
+        text = res.text;
+      } else {
+        text = await file.text();
+      }
+      onInfoChange(info ? info + '\n\n' + text : text);
+    } catch (err) {
+      setUploadErr(err instanceof Error ? err.message : 'No se pudo leer el archivo.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Sección UNIFICADA: guía de diseño (marca/colores/fuente) + instrucciones para la IA.
+  // Antes estaban separadas ("Guía de diseño" y "Personalizar instrucciones"); van a lo mismo.
+  const renderDesignAndInstructions = () => (
+    <div className="border-t border-border-tech/50 pt-3">
+      <button
+        type="button"
+        onClick={() => setShowDesign(!showDesign)}
+        className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+      >
+        Guía de diseño e instrucciones <span className="text-text-secondary/40">(opcional)</span>
+        <motion.div animate={{ rotate: showDesign ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown size={14} />
+        </motion.div>
+      </button>
+      <AnimatePresence>
+        {showDesign && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="pt-3 space-y-4">
+              <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
+              <div>
+                <label className="block text-text-secondary text-xs font-medium mb-1">
+                  Instrucciones extra para la IA (prompt de sistema)
+                </label>
+                <textarea
+                  value={customPrompt}
+                  onChange={(e) => onCustomPromptChange(e.target.value)}
+                  placeholder="Ej: tono formal, evita jerga, usa la marca X, prioriza datos…"
+                  className="w-full bg-surface-container border border-border-tech rounded-lg p-3 text-sm text-text-primary"
+                  rows={3}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 
   const handleAddScene = () => {
     onScenesChange([...scenes, { text: '', media_query: '', duration_seconds: 7 }]);
@@ -84,33 +153,6 @@ export function WizardStepScript({
     const newVal = Math.min(60, Math.max(1, current + delta));
     handleSceneChange(index, 'duration_seconds', newVal);
   };
-
-  const renderCustomInstructions = () => (
-    <div className="mt-4 border-t border-border-tech/50 pt-4">
-      <button
-        onClick={() => setShowCustomPrompt(!showCustomPrompt)}
-        className="flex items-center gap-1 text-xs text-mint-precision hover:underline mb-2"
-      >
-        {showCustomPrompt ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        {showCustomPrompt ? 'Ocultar' : 'Personalizar'} instrucciones de IA
-      </button>
-
-      {showCustomPrompt && (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-text-secondary text-xs font-medium mb-1">Prompt de sistema (Opcional)</label>
-            <textarea
-              value={customPrompt}
-              onChange={(e) => onCustomPromptChange(e.target.value)}
-              placeholder="Escribe instrucciones personalizadas para la IA..."
-              className="w-full bg-surface-container border border-border-tech rounded-lg p-3 text-sm text-text-primary mb-2"
-              rows={3}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   // ---------------------------------------------------------------------------
   // Animation-only mode — storyboard cards
@@ -225,36 +267,7 @@ export function WizardStepScript({
           Agregar nueva escena
         </button>
 
-        {/* Guía de diseño — OPCIONAL (plegada por defecto) */}
-        <div className="border-t border-border-tech/50 pt-3">
-          <button
-            type="button"
-            onClick={() => setShowDesign(!showDesign)}
-            className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-          >
-            Guía de diseño <span className="text-text-secondary/40">(opcional)</span>
-            <motion.div animate={{ rotate: showDesign ? 180 : 0 }} transition={{ duration: 0.2 }}>
-              <ChevronDown size={14} />
-            </motion.div>
-          </button>
-          <AnimatePresence>
-            {showDesign && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                className="overflow-hidden"
-              >
-                <div className="pt-3">
-                  <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {renderCustomInstructions()}
+        {renderDesignAndInstructions()}
       </div>
     );
   }
@@ -302,27 +315,17 @@ export function WizardStepScript({
               <div className="relative">
                 <input
                   type="file"
-                  accept=".txt,.md"
+                  accept=".txt,.md,.pdf"
                   className="hidden"
                   id="own-script-file-upload"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                      const text = event.target?.result as string;
-                      onInfoChange(info ? info + '\n\n' + text : text);
-                    };
-                    reader.readAsText(file);
-                    e.target.value = '';
-                  }}
+                  onChange={handleFileUpload}
                 />
                 <label
                   htmlFor="own-script-file-upload"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-high text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated cursor-pointer transition-colors"
                 >
-                  <Upload size={14} />
-                  Subir guión (.md, .txt)
+                  {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                  Subir guión (.pdf, .md, .txt)
                 </label>
               </div>
             </div>
@@ -338,6 +341,7 @@ export function WizardStepScript({
                 {info.trim() ? ` (aprox. ${Math.round((info.trim().split(/\s+/).length) / 2.17)} seg)` : ''}
               </span>
             </div>
+            {uploadErr && <p className="text-xs text-error mt-1">{uploadErr}</p>}
           </div>
         ) : (
           <div className="space-y-3">
@@ -380,36 +384,7 @@ export function WizardStepScript({
           </div>
         )}
 
-        {/* Guía de diseño — OPCIONAL (plegada por defecto) */}
-        <div className="border-t border-border-tech/50 pt-3">
-          <button
-            type="button"
-            onClick={() => setShowDesign(!showDesign)}
-            className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-          >
-            Guía de diseño <span className="text-text-secondary/40">(opcional)</span>
-            <motion.div animate={{ rotate: showDesign ? 180 : 0 }} transition={{ duration: 0.2 }}>
-              <ChevronDown size={14} />
-            </motion.div>
-          </button>
-          <AnimatePresence>
-            {showDesign && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                className="overflow-hidden"
-              >
-                <div className="pt-3">
-                  <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {renderCustomInstructions()}
+        {renderDesignAndInstructions()}
       </div>
     );
   }
@@ -448,27 +423,17 @@ export function WizardStepScript({
           <div className="relative">
             <input
               type="file"
-              accept=".txt,.md"
+              accept=".txt,.md,.pdf"
               className="hidden"
               id="info-file-upload"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                  const text = event.target?.result as string;
-                  onInfoChange(info ? info + '\n\n' + text : text);
-                };
-                reader.readAsText(file);
-                e.target.value = ''; // Reset
-              }}
+              onChange={handleFileUpload}
             />
             <label
               htmlFor="info-file-upload"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-high text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated cursor-pointer transition-colors"
             >
-              <Upload size={14} />
-              Subir info (.md, .txt)
+              {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              Subir info (.pdf, .md, .txt)
             </label>
           </div>
         </div>
@@ -478,14 +443,10 @@ export function WizardStepScript({
           placeholder="Ej: Un video promocional para mi tienda de ropa, enfocado en la colección de verano..."
           className="w-full h-32 bg-surface-lowest border border-border-tech rounded-lg p-4 text-sm text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none resize-none transition-colors"
         />
+        {uploadErr && <p className="text-xs text-error mt-1">{uploadErr}</p>}
       </div>
 
-      {/* Design.md section */}
-      <div className="border-t border-border-tech/50 pt-4">
-        <DesignTemplateManager value={designMd} onChange={onDesignMdChange} />
-      </div>
-
-      {renderCustomInstructions()}
+      {renderDesignAndInstructions()}
     </div>
   );
 }

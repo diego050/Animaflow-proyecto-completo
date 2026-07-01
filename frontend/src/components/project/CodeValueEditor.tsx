@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from 'react';
-import { Sliders, Scissors, Boxes, Type, TextCursorInput, Clock } from 'lucide-react';
+import { Sliders, Scissors, Boxes, Type, TextCursorInput, Clock, Code2 } from 'lucide-react';
 import { compileAnimation } from '../../remotion/compileAnimation';
 import { analyzeCode, applyValueRef, setElementColor, setElementSize, type ValueRef, type StyleRef } from '../../remotion/groupDetector';
 
@@ -54,6 +54,7 @@ export function CodeValueEditor({
 }) {
   const [expandedPE, setExpandedPE] = useState<Set<number>>(new Set());
   const [warning, setWarning] = useState<string | null>(null);
+  const [showCode, setShowCode] = useState(false);
 
   const analysis = useMemo(() => analyzeCode(code), [code]);
 
@@ -404,6 +405,31 @@ export function CodeValueEditor({
           </div>
         </div>
       )}
+
+      {/* Código crudo: ver y editar el TSX directamente. Auto-revert si rompe la compilación. */}
+      <div className="border border-border-tech rounded-lg p-3">
+        <button
+          onClick={() => setShowCode((s) => !s)}
+          className="w-full flex items-center gap-2 text-xs font-semibold text-text-primary"
+        >
+          <Code2 size={14} className="text-mint-precision" /> Código
+          <span className="ml-auto text-[11px] text-text-secondary/50">{showCode ? '▾ ocultar' : '▸ ver/editar'}</span>
+        </button>
+        {showCode && (
+          <div className="mt-2">
+            <textarea
+              key={code}
+              defaultValue={code}
+              spellCheck={false}
+              onBlur={(e) => commit(e.target.value)}
+              className="w-full h-64 bg-surface-lowest border border-border-tech rounded px-2 py-1.5 text-text-primary font-mono text-[11px] leading-relaxed resize-y"
+            />
+            <p className="text-[10px] text-text-secondary/40 mt-1">
+              Edita el TSX y sal del cuadro (blur) para aplicar. Si el cambio rompe la animación, se descarta solo.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

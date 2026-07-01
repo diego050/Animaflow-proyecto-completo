@@ -181,19 +181,19 @@ interface BusinessMetrics {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <HealthItem
-                label="Redis"
-                status={systemHealth.redis_connected}
-                detail={`${systemHealth.redis_queue_length} en cola`}
-              />
-              <HealthItem
                 label="Base de Datos"
                 status={systemHealth.database_connected}
                 detail={`${systemHealth.database_pool_used}/${systemHealth.database_pool_size} conexiones`}
               />
               <HealthItem
-                label="Workers"
-                status={systemHealth?.workers_connected ?? false}
-                detail={`${systemHealth.workers_active} activos, ${systemHealth.workers_idle} idle`}
+                label="Render-server"
+                status={systemHealth?.render_server_connected ?? false}
+                detail={systemHealth?.render_server_detail ?? '—'}
+              />
+              <HealthItem
+                label="Almacenamiento"
+                status={systemHealth?.storage_ok ?? false}
+                detail={systemHealth?.storage_ok ? 'OK' : (systemHealth?.storage_detail ?? '—')}
               />
               <HealthItem
                 label="Uptime"

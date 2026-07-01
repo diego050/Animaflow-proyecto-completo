@@ -69,7 +69,7 @@ L1_td.fillColor = [1.0, 1.0, 1.0];
 L1_td.fontSize = 151.2;
 L1_td.justification = ParagraphJustification.CENTER_JUSTIFY;
 try { L1_td.font = "Inter-Black"; } catch (e1) { try { L1_td.font = "Inter"; } catch (e2) {} }
-L1_td.tracking = -13.2;
+L1_td.tracking = -13;
 L1.property("Source Text").setValue(L1_td);
 var L1_r = L1.sourceRectAtTime(0, false);
 L1.property("Transform").property("Anchor Point").setValue([L1_r.left + L1_r.width / 2, L1_r.top + L1_r.height / 2]);
@@ -151,7 +151,7 @@ L2_td.fillColor = [0.9608, 0.6196, 0.0431];
 L2_td.fontSize = 54.0;
 L2_td.justification = ParagraphJustification.CENTER_JUSTIFY;
 try { L2_td.font = "Inter-SemiBold"; } catch (e1) { try { L2_td.font = "Inter"; } catch (e2) {} }
-L2_td.tracking = 74.1;
+L2_td.tracking = 74;
 L2.property("Source Text").setValue(L2_td);
 var L2_r = L2.sourceRectAtTime(0, false);
 L2.property("Transform").property("Anchor Point").setValue([L2_r.left + L2_r.width / 2, L2_r.top + L2_r.height / 2]);

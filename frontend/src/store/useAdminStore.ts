@@ -39,7 +39,8 @@ interface AdminState {
   fetchSystemHealth: () => Promise<void>;
   fetchSettings: () => Promise<void>;
   updateSettings: (data: AdminSettingsUpdate) => Promise<void>;
-  createUser: (data: { email: string; password: string; name: string; role: string }) => Promise<void>;
+  createUser: (data: { email: string; password: string; name: string; role: string; plan?: string }) => Promise<void>;
+  changeUserPlan: (userId: string, plan: string) => Promise<void>;
   toggleUserStatus: (userId: string, isActive: boolean) => Promise<void>;
   changeUserRole: (userId: string, role: string) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -163,6 +164,13 @@ export const useAdminStore = create<AdminState>((set) => ({
     await api.put(`/api/admin/users/${userId}/role`, { role });
     set((state) => ({
       users: state.users.map((u) => (u.id === userId ? { ...u, role: role as AdminUserDetail['role'] } : u)),
+    }));
+  },
+
+  changeUserPlan: async (userId: string, plan: string) => {
+    await api.put(`/api/admin/users/${userId}/plan`, { plan });
+    set((state) => ({
+      users: state.users.map((u) => (u.id === userId ? { ...u, plan: plan as AdminUserDetail['plan'] } : u)),
     }));
   },
 

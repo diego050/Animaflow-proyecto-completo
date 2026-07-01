@@ -139,6 +139,16 @@ def update_me(
         current_user.hashed_password = get_password_hash(update_data.new_password)
         log_audit_event(db, current_user.id, "password_change", ip_address=request.client.host if request.client else None)
 
+    # Perfil opcional (onboarding). Todos los campos son opcionales.
+    if update_data.persona is not None:
+        current_user.persona = update_data.persona or None
+    if update_data.referral_source is not None:
+        current_user.referral_source = update_data.referral_source or None
+    if update_data.use_case is not None:
+        current_user.use_case = update_data.use_case or None
+    if update_data.mark_onboarding_completed:
+        current_user.onboarding_completed = True
+
     db.commit()
     db.refresh(current_user)
     return current_user

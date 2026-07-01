@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Landing } from './pages/Landing';
 import { LoginPage } from './pages/LoginPage';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { OnboardingPage } from './pages/OnboardingPage';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -44,6 +45,9 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
+
+          {/* Onboarding: requiere auth pero NO pasa por el gate de onboarding (evita bucle). */}
+          <Route path="/onboarding" element={<OnboardingPage />} />
 
           {/* Dashboard routes (protected) */}
           <Route

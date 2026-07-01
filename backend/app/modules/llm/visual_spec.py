@@ -107,32 +107,48 @@ def generate_batch_visuals_with_llm(
             custom_instructions += f"\n\nSYSTEM PROMPT DEL USUARIO:\n{system_prompt}\n"
 
         prompt = f"""
-Eres el Director de Arte SENIOR de AnimaFlow. Analiza este guion y crea instrucciones visuales de alto nivel (media_query) para configurar los componentes de nuestra librería.
+Eres el Director de Arte SENIOR de AnimaFlow. Un motor de IA generará CÓDIGO de animación libre \
+(componentes Remotion, no una librería de plantillas) a partir de tu dirección de arte. Tu trabajo es \
+darle a cada escena una idea visual FUERTE y DISTINTA para que el video no se sienta repetitivo.
 
 CANVAS: {aspect_ratio} ({w}x{h} píxeles).
 
 {scenes_context}
 {custom_instructions}
 
-TU TAREA: Para cada escena, define el "mood", la paleta de colores, y el estilo de animación de texto y fondo que mejor refleje el mensaje.
+TU TAREA: Para cada escena, define una dirección de arte (media_query) que describa el mood, la \
+composición y el movimiento. Las escenas comparten una IDENTIDAD DE MARCA coherente, pero cada una debe \
+verse CLARAMENTE DIFERENTE de las demás.
 
 REQUISITOS CRÍTICOS:
 
-1. DESCRIPCIÓN CONCEPTUAL (media_query):
-   - NO describas "formas SVG", "coordenadas X,Y", ni "radios".
-   - Describe la **Atmósfera**, **Paleta de Colores**, y **Estilo de Animación**.
-   - **CONTINUIDAD VISUAL Y TRANSICIONES**: Si una escena es la continuación lógica de la anterior, INDICA EXPLÍCITAMENTE que mantenga la misma paleta y fondo, y si debe usar un "fade out" o "seamless transition". Si cambia radicalmente, indica que debe usar una transición de choque (glitch, wipe, blur) y cambiar la paleta.
-   - Ejemplo 1: "Cyberpunk theme with neon pink and cyan kinetic background. Text uses a fast slide-up reveal."
-   - Ejemplo 2: "Corporate elegant style. Dark slate background shifting to deep indigo. Seamless transition from previous scene."
+1. DIRECCIÓN DE ARTE (media_query, en INGLÉS):
+   - Describe **Atmósfera/mood**, **Composición/layout** y **Estilo de movimiento**. NADA de "formas SVG",
+     "coordenadas X,Y" ni "radios".
+   - **VARIEDAD DE COMPOSICIÓN (lo más importante)**: cada escena DEBE proponer un layout DISTINTO. NO
+     repitas la fórmula "ícono/figura centrada + título abajo" en todas. Alterna entre: pantalla dividida,
+     full-bleed / a sangre, tipografía gigante como protagonista, composición asimétrica o diagonal,
+     cuadrícula, primer plano de una forma abstracta, capas en profundidad/parallax, sin texto (visual
+     puro), número/dato gigante, etc. Si la escena anterior fue "figura centrada", la siguiente NO lo es.
+   - Describe un ELEMENTO VISUAL concreto y original acorde al mensaje (no solo "texto que aparece").
+   - Ejemplo A: "Split-screen: left half deep crimson with a giant kinetic number, right half charcoal. Bold type slams in from the top."
+   - Ejemplo B: "Full-bleed abstract fluid gradient in motion, no text, a single glowing orb pulsing off-center."
+   - Ejemplo C: "Oversized typography fills the frame edge to edge, letters revealing one by one over a flat cobalt background."
 
-2. ESTILO VISUAL Y COLORES:
-   - Elige un `backgroundColor` oscuro y elegante (Hexadecimal).
-   - Elige un `textColor` contrastante y vibrante (Hexadecimal).
-   - **IMPORTANTE**: Mantén ESTRICTA cohesión cromática (`backgroundColor` y `textColor`) entre escenas consecutivas a menos que haya un giro dramático en el guion. Evita cambiar de fondo claro a oscuro bruscamente.
+2. PALETA Y COHESIÓN:
+   - Elige `backgroundColor` (HEX) y `textColor` (HEX) con buen contraste y legibilidad.
+   - Mantén una FAMILIA de marca coherente a lo largo del video, pero PERMITE que la paleta EVOLUCIONE
+     entre escenas (distintos tonos/acentos dentro del mismo mood) — NO uses el mismo fondo idéntico en
+     todas. En un giro dramático del guion (ej. el call-to-action final) cambia la paleta con más fuerza.
 
-3. REGLAS ABSOLUTAS:
+3. TRANSICIONES:
+   - El sistema maneja las transiciones entre escenas automáticamente. NO menciones "fade out",
+     "seamless transition" ni "continuación de la escena anterior" en el media_query.
+
+4. REGLAS ABSOLUTAS:
    - El `media_query` DEBE estar en INGLÉS.
    - NUNCA uses frases genéricas como "generic abstract background" o "particle effects".
+   - Cada media_query debe ser DISTINTO de los demás (distinta composición y elemento visual).
    - Devuelve exactamente {len(chunks)} escenas en el mismo orden.
 
 Responde SOLO con JSON válido.

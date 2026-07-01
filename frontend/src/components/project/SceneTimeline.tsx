@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layers, Clock, Monitor, CheckCheck, Expand } from 'lucide-react';
+import { Layers, Clock, Monitor } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { TimelineSpec, Spec } from '../../types/spec';
 import { SceneEditorCard } from './SceneEditorCard';
@@ -123,13 +123,16 @@ export function SceneTimeline({
         </div>
       </div>
 
-      {/* Visual timeline bar */}
-      <SceneTimelineBar
-        spec={spec}
-        jobId={jobId}
-        focusSceneIndex={focusSceneIndex}
-        onSceneClick={handleSceneClick}
-      />
+      {/* Barra de línea de tiempo: solo cuando ya NO estás aprobando escenas (evita ruido en la
+          vista "dividido por escenas"). */}
+      {!isSegmented && (
+        <SceneTimelineBar
+          spec={spec}
+          jobId={jobId}
+          focusSceneIndex={focusSceneIndex}
+          onSceneClick={handleSceneClick}
+        />
+      )}
 
       {/* Scene breakdown header */}
       <div className="flex items-center justify-between mt-6">
@@ -137,26 +140,6 @@ export function SceneTimeline({
           <Layers size={16} className="text-mint-precision/70" />
           Desglose por escenas
         </h3>
-        <div className="flex items-center gap-2">
-          {isSegmented && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-mint-precision/10 text-mint-precision border border-mint-precision/30 hover:bg-mint-precision/20 transition-colors"
-            >
-              <CheckCheck size={12} />
-              Aprobar todas
-            </motion.button>
-          )}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-surface-high text-text-secondary/70 border border-border-tech/50 hover:text-text-primary hover:border-border-tech transition-colors"
-          >
-            <Expand size={12} />
-            Expandir todas
-          </motion.button>
-        </div>
       </div>
 
       {/* Scene cards grid */}

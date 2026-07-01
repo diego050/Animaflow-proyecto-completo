@@ -43,19 +43,29 @@ export function WizardNavigation({ wizardStep, onBack }: WizardNavigationProps) 
         {STEPS.map((item) => (
           <div key={item.num} className="relative z-10 flex flex-col items-center">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+              className={`relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                 item.num < wizardStep
-                  ? 'bg-mint-precision text-deep-slate'
+                  ? 'text-deep-slate'
                   : item.num === wizardStep
-                    ? 'bg-mint-precision/20 text-mint-precision border-2 border-mint-precision'
-                    : 'bg-surface-high text-text-secondary/30'
+                    ? 'text-mint-precision border-2 border-mint-precision'
+                    : 'text-text-secondary/30'
               }`}
             >
-              {item.num < wizardStep ? (
-                <CheckCircle2 size={14} strokeWidth={3} />
-              ) : (
-                item.num
-              )}
+              {/* Base OPACA (color de página) → tapa la línea de progreso que pasa por detrás. */}
+              <span className="absolute inset-0 rounded-full bg-deep-slate" />
+              {/* Relleno del estado sobre la base opaca. */}
+              <span
+                className={`absolute inset-0 rounded-full ${
+                  item.num < wizardStep
+                    ? 'bg-mint-precision'
+                    : item.num === wizardStep
+                      ? 'bg-mint-precision/20'
+                      : 'bg-surface-high'
+                }`}
+              />
+              <span className="relative z-10">
+                {item.num < wizardStep ? <CheckCircle2 size={14} strokeWidth={3} /> : item.num}
+              </span>
             </div>
             <span
               className={`text-[10px] font-medium whitespace-nowrap mt-1.5 ${

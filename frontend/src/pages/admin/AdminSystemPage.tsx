@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAdminStore } from '../../store/useAdminStore';
-import { Loader2, Database, Server, Clock, Activity, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Database, Server, Clock, HardDrive, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 
 export function AdminSystemPage() {
   const { systemHealth, systemHealthLoading, fetchSystemHealth } = useAdminStore();
@@ -28,9 +28,9 @@ export function AdminSystemPage() {
   }
 
   const uptime = formatUptime(systemHealth?.uptime_seconds);
-  const lastHeartbeat = systemHealth.last_worker_heartbeat
-    ? new Date(systemHealth.last_worker_heartbeat).toLocaleString('es-ES')
-    : 'Nunca';
+  const dbOk = systemHealth?.database_connected ?? false;
+  const renderOk = systemHealth?.render_server_connected ?? false;
+  const storageOk = systemHealth?.storage_ok ?? false;
 
   return (
     <div className="space-y-6">
@@ -41,31 +41,30 @@ export function AdminSystemPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ServiceCard
-          title="Redis"
-          icon={Server}
-          connected={systemHealth.redis_connected}
-          metrics={[
-            { label: 'Cola de jobs', value: String(systemHealth?.redis_queue_length ?? 0) },
-          ]}
-        />
-
-        <ServiceCard
           title="Base de Datos"
           icon={Database}
-          connected={systemHealth.database_connected}
+          connected={dbOk}
           metrics={[
             { label: 'Pool usado', value: `${systemHealth?.database_pool_used ?? 0}/${systemHealth?.database_pool_size ?? 0}` },
           ]}
         />
 
         <ServiceCard
-          title="Workers"
-          icon={Activity}
-          connected={systemHealth?.workers_connected ?? false}
+          title="Render-server (Remotion)"
+          icon={Server}
+          connected={renderOk}
           metrics={[
-            { label: 'Activos', value: String(systemHealth?.workers_active ?? 0) },
-            { label: 'Idle', value: String(systemHealth?.workers_idle ?? 0) },
-            { label: 'Último heartbeat', value: lastHeartbeat },
+            { label: 'Estado', value: systemHealth?.render_server_detail ?? '—' },
+            { label: 'URL', value: systemHealth?.render_server_url || 'No configurado' },
+          ]}
+        />
+
+        <ServiceCard
+          title="Almacenamiento"
+          icon={HardDrive}
+          connected={storageOk}
+          metrics={[
+            { label: 'Directorios', value: systemHealth?.storage_detail ?? '—' },
           ]}
         />
 
@@ -83,33 +82,21 @@ export function AdminSystemPage() {
         <h2 className="text-lg font-semibold mb-4" style={{ color: '#e4e2e3' }}>Diagnóstico</h2>
         <div className="space-y-3">
           <DiagnosticItem
-            label="Conexión a Redis"
-            status={systemHealth?.redis_connected ?? false}
-            detail={systemHealth?.redis_connected ?? false ? 'Conectado correctamente' : 'No se puede conectar a Redis'}
-          />
-          <DiagnosticItem
             label="Conexión a PostgreSQL"
-            status={systemHealth?.database_connected ?? false}
-            detail={systemHealth?.database_connected ?? false ? 'Base de datos operativa' : 'Base de datos no disponible'}
+            status={dbOk}
+            detail={dbOk ? 'Base de datos operativa' : 'Base de datos no disponible'}
           />
           <DiagnosticItem
-            label="Workers activos"
-            status={systemHealth?.workers_connected ?? false}
-            detail={
-              systemHealth?.workers_connected ?? false
-                ? `${systemHealth?.workers_active ?? 0} workers procesando jobs`
-                : 'No hay workers activos'
-            }
+            label="Render-server (preview / render / smoke-test)"
+            status={renderOk}
+            detail={renderOk
+              ? `Operativo — ${systemHealth?.render_server_url || ''}`
+              : `No responde — ${systemHealth?.render_server_detail ?? ''}`}
           />
           <DiagnosticItem
-            label="Cola de Redis"
-            status={(systemHealth?.redis_queue_length ?? 0) < 50}
-            detail={
-              (systemHealth?.redis_queue_length ?? 0) < 50
-                ? `${systemHealth?.redis_queue_length ?? 0} jobs en cola (normal)`
-                : `${systemHealth?.redis_queue_length ?? 0} jobs en cola (posible bottleneck)`
-            }
-            warning={(systemHealth?.redis_queue_length ?? 0) >= 50}
+            label="Almacenamiento (audio / videos / exports)"
+            status={storageOk}
+            detail={storageOk ? 'Directorios accesibles y escribibles' : `Problema: ${systemHealth?.storage_detail ?? ''}`}
           />
           <DiagnosticItem
             label="Pool de conexiones DB"

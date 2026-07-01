@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAdminStore } from '../../store/useAdminStore';
-import { Loader2, Search, MoreVertical, Ban, Check, Trash2, Shield, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Search, MoreVertical, Ban, Check, Trash2, Shield, Eye, EyeOff, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function AdminUsersPage() {
@@ -14,6 +14,7 @@ export function AdminUsersPage() {
     toggleUserStatus,
     deleteUser,
     changeUserRole,
+    changeUserPlan,
     createUser,
   } = useAdminStore();
 
@@ -26,7 +27,13 @@ export function AdminUsersPage() {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('user');
+  const [newUserPlan, setNewUserPlan] = useState('free');
   const [showPassword, setShowPassword] = useState(false);
+
+  const handleChangePlan = async (userId: string, plan: string) => {
+    await changeUserPlan(userId, plan);
+    setMenuOpen(null);
+  };
 
   useEffect(() => {
     fetchUsers(1, search);
@@ -81,24 +88,35 @@ export function AdminUsersPage() {
         password: newUserPassword,
         name: newUserName || 'User',
         role: newUserRole,
+        plan: newUserPlan,
       });
       setCreateModal(false);
       setNewUserName('');
       setNewUserEmail('');
       setNewUserPassword('');
       setNewUserRole('user');
+      setNewUserPlan('free');
       fetchUsers(1, search);
     } catch {
       // error handled by store
     }
   };
 
+  // Para DISPLAY (incluye legacy founder/agency de usuarios antiguos).
   const roles: Array<{ value: string; label: string; color: string }> = [
     { value: 'founder', label: 'Founder', color: 'text-amber-400 bg-amber-400/10' },
     { value: 'agency', label: 'Agency', color: 'text-blue-400 bg-blue-400/10' },
     { value: 'user', label: 'User', color: 'text-emerald-400 bg-emerald-400/10' },
     { value: 'admin', label: 'Admin', color: 'text-violet-400 bg-violet-400/10' },
   ];
+  // role = solo permisos. Los "tipos" viejos (founder/agency) ya no se asignan.
+  const assignableRoles = roles.filter((r) => r.value === 'user' || r.value === 'admin');
+  const plans: Array<{ value: string; label: string; color: string }> = [
+    { value: 'free', label: 'Gratis', color: 'text-gray-300 bg-gray-600/30' },
+    { value: 'paid', label: 'Pago', color: 'text-mint-precision bg-mint-precision/15' },
+    { value: 'business', label: 'Business', color: 'text-violet-400 bg-violet-400/10' },
+  ];
+  const planConfig = (p: string) => plans.find((x) => x.value === p) || plans[0];
 
   return (
     <div className="space-y-6">
@@ -151,6 +169,7 @@ export function AdminUsersPage() {
                 <tr className="border-b border-gray-800">
                   <th className="text-left px-4 py-3 text-gray-500 font-medium">Usuario</th>
                   <th className="text-left px-4 py-3 text-gray-500 font-medium hidden sm:table-cell">Rol</th>
+                  <th className="text-left px-4 py-3 text-gray-500 font-medium">Plan</th>
                   <th className="text-left px-4 py-3 text-gray-500 font-medium hidden md:table-cell">Jobs</th>
                   <th className="text-left px-4 py-3 text-gray-500 font-medium hidden lg:table-cell">Estado</th>
                   <th className="text-left px-4 py-3 text-gray-500 font-medium hidden lg:table-cell">Registro</th>
@@ -171,6 +190,11 @@ export function AdminUsersPage() {
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${roleConfig?.color || 'text-gray-400 bg-gray-700'}`}>
                           {roleConfig?.label || user.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${planConfig(user.plan).color}`}>
+                          {planConfig(user.plan).label}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
@@ -214,6 +238,13 @@ export function AdminUsersPage() {
                               >
                                 <Shield size={14} />
                                 Cambiar rol
+                              </button>
+                              <button
+                                onClick={() => handleChangePlan(user.id, user.plan === 'paid' ? 'free' : 'paid')}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                              >
+                                <CreditCard size={14} />
+                                {user.plan === 'paid' ? 'Marcar como Gratis' : 'Marcar como Pago'}
                               </button>
                               <button
                                 onClick={() => handleToggleStatus(user.id, user.is_active)}
@@ -313,16 +344,34 @@ export function AdminUsersPage() {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                <select
-                  value={newUserRole}
-                  onChange={(e) => setNewUserRole(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
-                  style={{ backgroundColor: '#0F172A', border: '1px solid #334155', color: '#e4e2e3' }}
-                >
-                  {roles.map((role) => (
-                    <option key={role.value} value={role.value}>{role.label}</option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Rol (permisos)</label>
+                    <select
+                      value={newUserRole}
+                      onChange={(e) => setNewUserRole(e.target.value)}
+                      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                      style={{ backgroundColor: '#0F172A', border: '1px solid #334155', color: '#e4e2e3' }}
+                    >
+                      {assignableRoles.map((role) => (
+                        <option key={role.value} value={role.value}>{role.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Plan (cobro)</label>
+                    <select
+                      value={newUserPlan}
+                      onChange={(e) => setNewUserPlan(e.target.value)}
+                      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                      style={{ backgroundColor: '#0F172A', border: '1px solid #334155', color: '#e4e2e3' }}
+                    >
+                      {plans.map((p) => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
               <div className="flex gap-2 justify-end">
                 <button
@@ -356,7 +405,7 @@ export function AdminUsersPage() {
             >
               <h3 className="text-lg font-semibold text-gray-100 mb-4">Cambiar Rol</h3>
               <div className="space-y-2 mb-6">
-                {roles.map((role) => (
+                {assignableRoles.map((role) => (
                   <label
                     key={role.value}
                     className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${

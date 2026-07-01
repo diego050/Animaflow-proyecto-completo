@@ -27,12 +27,12 @@ export function ProjectStatusBanner({
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="mb-6 bg-surface-container border border-border-tech rounded-xl p-6"
+          className="mb-6 bg-surface-container border border-border-tech rounded-xl p-4"
         >
-          <h3 className="text-sm font-semibold text-text-primary mb-4">
+          <h3 className="text-xs font-semibold text-text-secondary/70 mb-3">
             Progreso del pipeline
           </h3>
-          <ProgressSteps status={status} />
+          <ProgressSteps status={status} compact />
         </motion.div>
       )}
 
