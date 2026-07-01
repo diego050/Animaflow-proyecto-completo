@@ -293,62 +293,75 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
             h = max(1.0, float(ap.get("h", 100) or 100))
             r, g, b = _hex_to_rgb01(ap.get("color", "#22c55e"))
             shape_type = "ellipse" if ap.get("shape") == "ellipse" else "rect"
+            bdr = ap.get("border")
+            sides = bdr.get("sides") if bdr else None
+            partial = bool(sides) and not all(sides)  # marco abierto (ej. arco con borderBottom:none)
             out.append(f"var {lvar} = comp.layers.addShape();")
             out.append(f"{lvar}.name = {_js_str(name)};")
             out.append(f"var {lvar}_g = {lvar}.property(\"Contents\").addProperty(\"ADBE Vector Group\");")
-            out.append(
-                f"var {lvar}_s = {lvar}_g.property(\"Contents\").addProperty("
-                + ('"ADBE Vector Shape - Ellipse"' if shape_type == "ellipse" else '"ADBE Vector Shape - Rect"')
-                + ");"
-            )
-            out.append(f"{lvar}_s.property(\"Size\").setValue([{w}, {h}]);")
-            # Esquinas redondeadas (borderRadius en px) → Roundness del rect.
-            if shape_type == "rect" and float(ap.get("roundness", 0) or 0) > 0:
+            if partial:
+                # Solo líneas de los lados presentes (no el rect completo) + el trazo del borde.
+                hw, hh = w / 2, h / 2
+                pts = {"TL": (-hw, -hh), "TR": (hw, -hh), "BR": (hw, hh), "BL": (-hw, hh)}
+                edges = [("TL", "TR"), ("TR", "BR"), ("BR", "BL"), ("BL", "TL")]  # top, right, bottom, left
+                for i, (a, c) in enumerate(edges):
+                    if not sides[i]:
+                        continue
+                    pa, pc = pts[a], pts[c]
+                    sv = f"{lvar}_bd{i}"
+                    out.append(f'var {sv} = {lvar}_g.property("Contents").addProperty("ADBE Vector Shape - Group");')
+                    out.append(f"var {sv}_p = new Shape();")
+                    out.append(f"{sv}_p.vertices = [[{round(pa[0], 1)}, {round(pa[1], 1)}], [{round(pc[0], 1)}, {round(pc[1], 1)}]];")
+                    out.append(f"{sv}_p.inTangents = [[0,0],[0,0]];")
+                    out.append(f"{sv}_p.outTangents = [[0,0],[0,0]];")
+                    out.append(f"{sv}_p.closed = false;")
+                    out.append(f'{sv}.property("Path").setValue({sv}_p);')
+                br_, bg_, bb_ = _hex_to_rgb01(bdr.get("color", "#ffffff"))
+                out += _emit_stroke(lvar, f"{lvar}_g", br_, bg_, bb_, int(bdr.get("width", 1) or 1), None)
+            else:
                 out.append(
-                    f'try {{ {lvar}_s.property("ADBE Vector Rect Roundness").setValue({round(float(ap["roundness"]), 1)}); }} catch (e) {{}}'
+                    f'var {lvar}_s = {lvar}_g.property("Contents").addProperty('
+                    + ('"ADBE Vector Shape - Ellipse"' if shape_type == "ellipse" else '"ADBE Vector Shape - Rect"')
+                    + ");"
                 )
-            grad = ap.get("grad") if ap.get("filled", True) else None
-            if grad:
-                # Gradient Fill nativo (2 paradas). El "blob" de colores de AE es delicado → todo en
-                # try/catch; si falla, se quita el G-Fill y se pone un Fill sólido (la forma sigue
-                # editable, el user puede poner el gradiente a mano).
-                gr1, gg1, gb1 = _hex_to_rgb01(grad.get("start", ap.get("color", "#000000")))
-                gr2, gg2, gb2 = _hex_to_rgb01(grad.get("end", ap.get("color", "#000000")))
-                if grad.get("shape") == "radial":
-                    gtype, sx, sy, ex, ey = 2, 0.0, 0.0, w / 2, h / 2
-                else:
-                    ang = math.radians(float(grad.get("angle", 180)))
-                    dx, dy = math.sin(ang), -math.cos(ang)
-                    gtype, sx, sy, ex, ey = 1, -dx * w / 2, -dy * h / 2, dx * w / 2, dy * h / 2
-                # Blob = 2 paradas de color [loc,r,g,b] + 2 de opacidad [loc,a] (coincide con el
-                # G-Fill por defecto, que ya trae 2+2 → setValue lo acepta).
-                blob = f"[0, {gr1}, {gg1}, {gb1}, 1, {gr2}, {gg2}, {gb2}, 0, 1, 1, 1]"
-                out.append(f'var {lvar}_gf = {lvar}_g.property("Contents").addProperty("ADBE Vector Graphic - G-Fill");')
-                out.append(
-                    f'try {{ {lvar}_gf.property("ADBE Vector Grad Type").setValue({gtype}); '
-                    f'{lvar}_gf.property("ADBE Vector Grad Start Pt").setValue([{round(sx, 1)}, {round(sy, 1)}]); '
-                    f'{lvar}_gf.property("ADBE Vector Grad End Pt").setValue([{round(ex, 1)}, {round(ey, 1)}]); '
-                    f'{lvar}_gf.property("ADBE Vector Grad Colors").setValue({blob}); }} '
-                    f'catch (e) {{ {lvar}_gf.remove(); '
-                    f'var {lvar}_f = {lvar}_g.property("Contents").addProperty("ADBE Vector Graphic - Fill"); '
-                    f'{lvar}_f.property("Color").setValue([{r}, {g}, {b}, 1]); }}'
-                )
-            elif ap.get("filled", True):
-                out.append(f"var {lvar}_f = {lvar}_g.property(\"Contents\").addProperty(\"ADBE Vector Graphic - Fill\");")
-                ct = ap.get("colorTrack")
-                if ct and len(ct) > 1:  # color animado → keyframes
-                    out += _emit_color_keyframes(f'{lvar}_f.property("Color")', ct, fps)
-                else:
-                    out.append(f"{lvar}_f.property(\"Color\").setValue([{r}, {g}, {b}, 1]);")
-            # STROKE: el BORDE del div (border:Npx solid) gana — se dibuja AUNQUE no haya relleno (ej.
-            # el marco de un arco: div transparente con borde). Si no hay borde pero la forma no está
-            # rellena, es un svg fill:none (anillo punteado) → su propio trazo.
-            border = ap.get("border")
-            if border:
-                br, bg, bb = _hex_to_rgb01(border.get("color", "#000000"))
-                out += _emit_stroke(lvar, f"{lvar}_g", br, bg, bb, int(border.get("width", 1) or 1), None)
-            elif not ap.get("filled", True):
-                out += _emit_stroke(lvar, f"{lvar}_g", r, g, b, int(ap.get("strokeWidth", 2) or 2), ap.get("dash"), fps, ap.get("colorTrack"))
+                out.append(f'{lvar}_s.property("Size").setValue([{w}, {h}]);')
+                if shape_type == "rect" and float(ap.get("roundness", 0) or 0) > 0:
+                    out.append(f'try {{ {lvar}_s.property("ADBE Vector Rect Roundness").setValue({round(float(ap["roundness"]), 1)}); }} catch (e) {{}}')
+                grad = ap.get("grad") if ap.get("filled", True) else None
+                if grad:
+                    # Gradient Fill nativo (2 paradas); el "blob" de AE es delicado → try/catch que cae a sólido.
+                    gr1, gg1, gb1 = _hex_to_rgb01(grad.get("start", ap.get("color", "#000000")))
+                    gr2, gg2, gb2 = _hex_to_rgb01(grad.get("end", ap.get("color", "#000000")))
+                    if grad.get("shape") == "radial":
+                        gtype, sx, sy, ex, ey = 2, 0.0, 0.0, w / 2, h / 2
+                    else:
+                        ang = math.radians(float(grad.get("angle", 180)))
+                        dx, dy = math.sin(ang), -math.cos(ang)
+                        gtype, sx, sy, ex, ey = 1, -dx * w / 2, -dy * h / 2, dx * w / 2, dy * h / 2
+                    blob = f"[0, {gr1}, {gg1}, {gb1}, 1, {gr2}, {gg2}, {gb2}, 0, 1, 1, 1]"
+                    out.append(f'var {lvar}_gf = {lvar}_g.property("Contents").addProperty("ADBE Vector Graphic - G-Fill");')
+                    out.append(
+                        f'try {{ {lvar}_gf.property("ADBE Vector Grad Type").setValue({gtype}); '
+                        f'{lvar}_gf.property("ADBE Vector Grad Start Pt").setValue([{round(sx, 1)}, {round(sy, 1)}]); '
+                        f'{lvar}_gf.property("ADBE Vector Grad End Pt").setValue([{round(ex, 1)}, {round(ey, 1)}]); '
+                        f'{lvar}_gf.property("ADBE Vector Grad Colors").setValue({blob}); }} '
+                        f'catch (e) {{ {lvar}_gf.remove(); '
+                        f'var {lvar}_f = {lvar}_g.property("Contents").addProperty("ADBE Vector Graphic - Fill"); '
+                        f'{lvar}_f.property("Color").setValue([{r}, {g}, {b}, 1]); }}'
+                    )
+                elif ap.get("filled", True):
+                    out.append(f'var {lvar}_f = {lvar}_g.property("Contents").addProperty("ADBE Vector Graphic - Fill");')
+                    ct = ap.get("colorTrack")
+                    if ct and len(ct) > 1:
+                        out += _emit_color_keyframes(f'{lvar}_f.property("Color")', ct, fps)
+                    else:
+                        out.append(f'{lvar}_f.property("Color").setValue([{r}, {g}, {b}, 1]);')
+                # Borde (gana sobre el relleno) o, si no hay relleno, el trazo svg.
+                if bdr:
+                    br_, bg_, bb_ = _hex_to_rgb01(bdr.get("color", "#000000"))
+                    out += _emit_stroke(lvar, f"{lvar}_g", br_, bg_, bb_, int(bdr.get("width", 1) or 1), None)
+                elif not ap.get("filled", True):
+                    out += _emit_stroke(lvar, f"{lvar}_g", r, g, b, int(ap.get("strokeWidth", 2) or 2), ap.get("dash"), fps, ap.get("colorTrack"))
 
         # Efectos nativos de AE (Nivel 2): Drop Shadow (sombra/glow) + Gaussian Blur. La capa sigue
         # siendo nativa/editable. matchNames (independientes del idioma).
