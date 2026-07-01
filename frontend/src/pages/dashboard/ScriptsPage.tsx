@@ -142,6 +142,40 @@ export function ScriptsPage() {
 
   const isDerivedFromProject = !!editingScript?.sourceJobId;
 
+  // Duplicar un guion de proyecto → crea una COPIA editable y abre el wizard. `withDirections`
+  // arrastra también los prompts visuales por escena (para el modo "Con prompts").
+  const handleDuplicate = useCallback(
+    (withDirections: boolean) => {
+      if (!editingScript) return;
+      const cloned = addScript({
+        name: `${editingScript.name} (copia)`,
+        content: editingScript.content,
+        scenes: editingScript.scenes,
+        aspectRatio: editingScript.aspectRatio,
+        prompt: editingScript.prompt,
+      });
+      const state: {
+        prefillScript: string;
+        prefillAspectRatio: string;
+        prefillScenes?: { text: string; media_query: string; duration_seconds: number }[];
+      } = {
+        prefillScript: cloned.content,
+        prefillAspectRatio: cloned.aspectRatio,
+      };
+      if (withDirections) {
+        state.prefillScenes = scenes.map((text, i) => ({
+          text,
+          media_query: scenePrompts[i] || '',
+          duration_seconds: 7,
+        }));
+      }
+      navigate('/dashboard/new', { state });
+      setModalOpen(false);
+      setEditingScript(null);
+    },
+    [editingScript, addScript, scenes, scenePrompts, navigate],
+  );
+
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
@@ -256,13 +290,19 @@ export function ScriptsPage() {
             <label className="block text-text-secondary text-sm font-medium mb-2">
               Nombre del guion
             </label>
-            <input
-              type="text"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              placeholder="Ej: Video Bienestar Natural"
-              className="w-full bg-surface-lowest border border-border-tech rounded-lg px-4 py-2.5 text-sm text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors"
-            />
+            {isDerivedFromProject ? (
+              <div className="w-full bg-surface-lowest border border-border-tech/50 rounded-lg px-4 py-2.5 text-sm text-text-primary">
+                {formName}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="Ej: Video Bienestar Natural"
+                className="w-full bg-surface-lowest border border-border-tech rounded-lg px-4 py-2.5 text-sm text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none transition-colors"
+              />
+            )}
           </div>
 
           {/* Aspect ratio */}
@@ -328,12 +368,19 @@ export function ScriptsPage() {
               <label className="block text-text-secondary text-sm font-medium mb-2">
                 Contenido del guion
               </label>
-              <textarea
-                value={formContent}
-                onChange={(e) => setFormContent(e.target.value)}
-                placeholder="Escribe tu guion aquí..."
-                className="w-full h-48 bg-surface-lowest border border-border-tech rounded-lg p-4 text-sm text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none resize-none transition-colors"
-              />
+              {isDerivedFromProject ? (
+                // De solo lectura: pertenece a un proyecto. Para cambiarlo → duplícalo.
+                <div className="w-full h-48 overflow-y-auto bg-surface-lowest border border-border-tech/50 rounded-lg p-4 text-sm text-text-primary/90 whitespace-pre-wrap leading-relaxed">
+                  {formContent}
+                </div>
+              ) : (
+                <textarea
+                  value={formContent}
+                  onChange={(e) => setFormContent(e.target.value)}
+                  placeholder="Escribe tu guion aquí..."
+                  className="w-full h-48 bg-surface-lowest border border-border-tech rounded-lg p-4 text-sm text-text-primary placeholder:text-text-secondary/30 focus:border-mint-precision focus:ring-2 focus:ring-mint-precision/20 outline-none resize-none transition-colors"
+                />
+              )}
             </div>
           )}
 
@@ -376,22 +423,40 @@ export function ScriptsPage() {
             </div>
           )}
 
-          {/* Save / Duplicate button */}
-          <button
-            onClick={handleSave}
-            disabled={!formName.trim() || !formContent.trim()}
-            className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
-              formName.trim() && formContent.trim()
-                ? 'bg-mint-precision text-deep-slate hover:bg-white hover:-translate-y-0.5 shadow-[0_0_12px_rgba(0,255,171,0.15)]'
-                : 'bg-surface-high text-text-secondary/40 cursor-not-allowed'
-            }`}
-          >
-            {isDerivedFromProject
-              ? 'Duplicar para nuevo proyecto'
-              : editingScript
-                ? 'Guardar Cambios'
-                : 'Crear Guion'}
-          </button>
+          {/* Acciones: derivado de proyecto → solo DUPLICAR (no editar). Manual → guardar. */}
+          {isDerivedFromProject ? (
+            <div className="space-y-2">
+              <p className="text-xs text-text-secondary/60">
+                Este guion pertenece a un proyecto y no se edita aquí. Puedes duplicarlo para empezar uno nuevo.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => handleDuplicate(false)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold bg-mint-precision text-deep-slate hover:bg-white transition-all"
+                >
+                  Duplicar guion
+                </button>
+                <button
+                  onClick={() => handleDuplicate(true)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold bg-surface-high text-text-primary border border-border-tech hover:border-mint-precision/40 transition-all"
+                >
+                  Duplicar con direcciones
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleSave}
+              disabled={!formName.trim() || !formContent.trim()}
+              className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
+                formName.trim() && formContent.trim()
+                  ? 'bg-mint-precision text-deep-slate hover:bg-white hover:-translate-y-0.5 shadow-[0_0_12px_rgba(0,255,171,0.15)]'
+                  : 'bg-surface-high text-text-secondary/40 cursor-not-allowed'
+              }`}
+            >
+              {editingScript ? 'Guardar Cambios' : 'Crear Guion'}
+            </button>
+          )}
         </div>
       </Modal>
 

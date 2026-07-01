@@ -79,6 +79,24 @@ def download_audio_files(job: JobModel, audio_dir: str) -> List[str]:
     return downloaded_files
 
 
+def _copy_bundled_fonts(dest_dir: str) -> list:
+    """Copia las fuentes empaquetadas (Inter) a `dest_dir`. Devuelve los nombres copiados.
+    Best-effort: si no hay fuentes, no rompe la exportación."""
+    src_dir = os.path.join(os.path.dirname(__file__), "assets", "fonts")
+    copied: list = []
+    if not os.path.isdir(src_dir):
+        return copied
+    os.makedirs(dest_dir, exist_ok=True)
+    for name in os.listdir(src_dir):
+        if name.lower().endswith((".ttf", ".otf")):
+            try:
+                shutil.copy(os.path.join(src_dir, name), os.path.join(dest_dir, name))
+                copied.append(name)
+            except OSError as e:  # noqa: PERF203
+                logger.warning("No se pudo copiar la fuente %s: %s", name, e)
+    return copied
+
+
 def create_export_zip(job_id: str, db: Session) -> tuple:
     """
     Crea un archivo .zip con todo lo necesario para After Effects.
@@ -109,14 +127,33 @@ def create_export_zip(job_id: str, db: Session) -> tuple:
         
         # 3. Guardar spec.json
         spec_path = os.path.join(temp_dir, "spec.json")
-        
+
         with open(spec_path, 'w', encoding='utf-8') as f:
             json.dump(job.result_spec, f, indent=2)
-        
+
+        # 3b. Fuentes: incluir Inter en el ZIP para que AE no dependa de tenerla instalada.
+        fonts_added = _copy_bundled_fonts(os.path.join(temp_dir, "fonts"))
+
         aspect_ratio = job.result_spec.get('aspect_ratio', job.aspect_ratio or "9:16")
         width, height = get_resolution(aspect_ratio)
         
         # 4. Crear README.md
+        fonts_section = ""
+        if fonts_added:
+            fonts_list = "\n".join(f"   - `fonts/{n}`" for n in fonts_added)
+            fonts_section = f"""
+
+## IMPORTANTE: Instala las fuentes ANTES de correr el script
+
+El texto usa la fuente **Inter**. Para que se vea igual que en la web, instala las fuentes
+incluidas ANTES de ejecutar `script.jsx` (si ya la tienes instalada, ignora este paso):
+
+{fonts_list}
+
+- Windows: clic derecho sobre el `.ttf` → **Instalar** (o "Instalar para todos los usuarios").
+- macOS: doble clic sobre el `.ttf` → **Instalar fuente**.
+- Reinicia After Effects tras instalarla para que la reconozca."""
+
         readme_content = f"""# AnimaFlow Project - {job_id}
 
 ## Instrucciones para After Effects
@@ -130,11 +167,13 @@ def create_export_zip(job_id: str, db: Session) -> tuple:
    - Capas de texto con timing y color
    - Formas SVG animadas
    - Capa de audio
+{fonts_section}
 
 ## Estructura del proyecto
 
 - `script.jsx`: Script principal de After Effects
 - `audio/`: Archivos de audio TTS
+- `fonts/`: Fuentes usadas (instálalas antes de correr el script)
 - `spec.json`: Metadatos completos del proyecto
 
 ## Notas

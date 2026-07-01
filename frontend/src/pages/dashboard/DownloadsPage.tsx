@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Download, Eye, Play, FileJson, FileArchive, Film, Loader2 } from 'lucide-react';
+import { Search, Download, Eye, FileJson, FileArchive, Film, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useJobsStore } from '../../store/useJobsStore';
 import { useMediaStore } from '../../store/useMediaStore';
@@ -271,26 +271,13 @@ export function DownloadsPage() {
                           {mp4Size}
                         </span>
                         <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => {
-                              if (activeJob.video_url) {
-                                const url = activeJob.video_url.startsWith('http')
-                                  ? activeJob.video_url
-                                  : `${API_BASE}${activeJob.video_url}`;
-                                window.open(url, '_blank');
-                              }
-                            }}
-                            className="p-2 rounded-lg text-text-secondary/50 hover:text-mint-precision hover:bg-mint-precision/10 transition-colors"
-                            title="Preview"
-                          >
-                            <Play size={14} />
-                          </button>
+                          {/* El preview/reproducción del video está en la sección Videos; aquí solo se descarga. */}
                           <button
                             onClick={() => handleDownloadMp4(activeJob)}
-                            className="p-2 rounded-lg text-text-secondary/50 hover:text-text-primary hover:bg-surface-high transition-colors"
-                            title="Descargar"
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-text-secondary/70 hover:text-text-primary hover:bg-surface-high transition-colors text-xs font-medium"
+                            title="Descargar MP4"
                           >
-                            <Download size={14} />
+                            <Download size={14} /> Descargar
                           </button>
                         </div>
                       </div>
