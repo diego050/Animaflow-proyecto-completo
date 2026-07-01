@@ -166,7 +166,30 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
 
         <div className="w-full flex items-center justify-center" style={{ maxHeight: 'calc(100vh - 340px)' }}>
           <div ref={boxRef} style={{ aspectRatio: dims.cssRatio }} className="w-full max-h-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative border border-border-tech/50">
-            {isReadyToRender ? (
+            {focusedScene && (focusedScene as Spec).custom_code && box.w > 0 ? (
+              // Escena code-gen ENFOCADA → el preview grande es EDITABLE (clic/arrastrar) sobre su
+              // custom_code. Editable AUNQUE el proyecto esté completado (para editar y re-renderizar).
+              // Encaja en el área medida sin deformar.
+              (() => {
+                const ar = compWidth / compHeight;
+                let pw = Math.round(box.h * ar);
+                let ph = box.h;
+                if (pw > box.w) { pw = box.w; ph = Math.round(box.w / ar); }
+                return (
+                  <VisualEditor
+                    key={`ve-${focusSceneIndex}`}
+                    code={(focusedScene as Spec).custom_code as string}
+                    onChange={handleFocusedCodeChange}
+                    width={compWidth}
+                    height={compHeight}
+                    fps={30}
+                    durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
+                    previewW={pw}
+                    previewH={ph}
+                  />
+                );
+              })()
+            ) : isReadyToRender ? (
               /* Full video with audio - seek to scene on click */
               <Player
                 key={`main-full-${debouncedSpecKey}`}
@@ -181,48 +204,24 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
                 style={{ width: '100%', height: '100%' }}
               />
             ) : focusedScene ? (
-              (focusedScene as Spec).custom_code && box.w > 0 ? (
-                // Escena code-gen ENFOCADA → el preview grande es EDITABLE (clic/arrastrar) sobre su
-                // custom_code. Encaja en el área medida sin deformar.
-                (() => {
-                  const ar = compWidth / compHeight;
-                  let pw = Math.round(box.h * ar);
-                  let ph = box.h;
-                  if (pw > box.w) { pw = box.w; ph = Math.round(box.w / ar); }
-                  return (
-                    <VisualEditor
-                      key={`ve-${focusSceneIndex}`}
-                      code={(focusedScene as Spec).custom_code as string}
-                      onChange={handleFocusedCodeChange}
-                      width={compWidth}
-                      height={compHeight}
-                      fps={30}
-                      durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
-                      previewW={pw}
-                      previewH={ph}
-                    />
-                  );
-                })()
-              ) : (
-                /* Pre-render: scene preview (no editable, sin custom_code) */
-                <Player
-                  key={`scene-${focusSceneIndex}-${debouncedSpecKey}`}
-                  component={SceneWrapper}
-                  inputProps={{
-                    type: focusedScene.type,
-                    text: focusedScene.text,
-                    durationInFrames: Math.round((focusedScene.duration_seconds || 5) * 30),
-                    customCode: (focusedScene as Spec).custom_code,
-                    fallbackBg: String((focusedScene as Spec).remotion_props?.backgroundColor || '#000000'),
-                  }}
-                  durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
-                  compositionWidth={compWidth}
-                  compositionHeight={compHeight}
-                  fps={30}
-                  controls
-                  style={{ width: '100%', height: '100%' }}
-                />
-              )
+              /* Pre-render: scene preview (no editable, sin custom_code) */
+              <Player
+                key={`scene-${focusSceneIndex}-${debouncedSpecKey}`}
+                component={SceneWrapper}
+                inputProps={{
+                  type: focusedScene.type,
+                  text: focusedScene.text,
+                  durationInFrames: Math.round((focusedScene.duration_seconds || 5) * 30),
+                  customCode: (focusedScene as Spec).custom_code,
+                  fallbackBg: String((focusedScene as Spec).remotion_props?.backgroundColor || '#000000'),
+                }}
+                durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
+                compositionWidth={compWidth}
+                compositionHeight={compHeight}
+                fps={30}
+                controls
+                style={{ width: '100%', height: '100%' }}
+              />
             ) : (
               <Player
                 key={`main-fallback-${debouncedSpecKey}`}
@@ -245,8 +244,10 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
         </div>
 
         <p className="text-text-secondary/40 text-[10px] mt-4 flex items-center gap-2">
-          {isReadyToRender
-            ? (focusedScene != null ? `Video completo · Escena ${focusSceneIndex! + 1} seleccionada` : 'Video MP4 final')
+          {focusedScene && (focusedScene as Spec).custom_code && box.w > 0
+            ? `Editor visual — Escena ${focusSceneIndex! + 1} · clic para editar, arrastra para mover`
+            : isReadyToRender
+            ? (focusedScene != null ? `Preview en vivo · Escena ${focusSceneIndex! + 1} seleccionada` : 'Preview en vivo — el MP4 se genera al Renderizar/Descargar')
             : (focusedScene != null
               ? (focusedScene.type === 'custom' && (focusedScene as Spec)?.anima_composer
                 ? `Preview en vivo — AnimaComposer · Escena ${focusSceneIndex! + 1}`

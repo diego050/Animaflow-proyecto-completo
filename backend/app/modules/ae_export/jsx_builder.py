@@ -224,7 +224,8 @@ def build_jsx(scene: dict, tol: float = 0.5) -> str:
                 )
             ls = float(ap.get("letterSpacing", 0) or 0)
             if ls:
-                out.append(f"{lvar}_td.tracking = {round(ls / fsize * 1000, 1)};")
+                # AE exige que tracking sea ENTERO (si no: "no es un número entero").
+                out.append(f"{lvar}_td.tracking = {int(round(ls / fsize * 1000))};")
             lh = float(ap.get("lineHeight", 0) or 0)
             if lh:
                 out.append(f"{lvar}_td.leading = {round(lh, 1)};")
