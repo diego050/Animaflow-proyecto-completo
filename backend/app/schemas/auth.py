@@ -8,6 +8,7 @@ from typing import Optional, Literal
 from datetime import datetime
 
 UserRole = Literal["founder", "agency", "user", "admin"]
+UserPlan = Literal["free", "paid", "business"]
 
 
 class UserCreate(BaseModel):
@@ -46,8 +47,14 @@ class UserResponse(BaseModel):
     email: str
     name: str
     role: UserRole
+    plan: UserPlan = "free"
     is_active: bool
     created_at: datetime
+    # Perfil opcional + estado de onboarding.
+    persona: Optional[str] = None
+    referral_source: Optional[str] = None
+    use_case: Optional[str] = None
+    onboarding_completed: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -57,6 +64,11 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     current_password: Optional[str] = None
     new_password: Optional[str] = Field(default=None, min_length=8, max_length=72)
+    # Perfil opcional (onboarding).
+    persona: Optional[str] = Field(default=None, max_length=50)
+    referral_source: Optional[str] = Field(default=None, max_length=100)
+    use_case: Optional[str] = Field(default=None, max_length=2000)
+    mark_onboarding_completed: Optional[bool] = None
 
 
 class ForgotPasswordRequest(BaseModel):

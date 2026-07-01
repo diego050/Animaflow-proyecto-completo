@@ -464,6 +464,20 @@ def _smoke_test_code(code: str) -> Optional[str]:
     return f"el código no compila o no exporta bien el componente: {data.get('error')}"
 
 
+# Estilos de transición entrada/salida — uno por escena (según índice) para GARANTIZAR variedad
+# (si no, la IA genera "fade in/out" en todas). La IA los IMPLEMENTA en código con useCurrentFrame().
+_TRANSITION_STYLES = [
+    "ENTRADA: desliza desde la IZQUIERDA (translateX de -100% a 0). SALIDA: desliza hacia la DERECHA saliendo del cuadro.",
+    "ENTRADA: zoom-in (scale 0.6→1) con un ligero desenfoque que se aclara. SALIDA: zoom-out y desvanece al color de fondo.",
+    "ENTRADA: sube desde ABAJO (translateY de 100% a 0) con rebote (spring). SALIDA: se va hacia ARRIBA acelerando.",
+    "ENTRADA: revela por máscara/clip (clip-path o un wipe que descubre el contenido). SALIDA: se cubre con un wipe del color de acento.",
+    "ENTRADA: aparece con rotación + escala (rotate -8deg→0, scale 0.8→1). SALIDA: rota levemente y se desvanece a negro.",
+    "ENTRADA: desliza desde la DERECHA. SALIDA: desvanece (opacidad 1→0) mientras se encoge un poco.",
+    "ENTRADA: los elementos entran ESCALONADOS (stagger, cada uno con su delay). SALIDA: salen escalonados hacia abajo.",
+    "ENTRADA: baja desde ARRIBA con desenfoque. SALIDA: barrido (wipe) horizontal que la despeja.",
+]
+
+
 def generate_scene_animation(
     text: str,
     duration_seconds: float,
@@ -474,6 +488,7 @@ def generate_scene_animation(
     model: Optional[str] = None,
     aspect_ratio: str = "9:16",
     variation: bool = False,
+    scene_index: int = 0,
 ) -> dict:
     """Fase 3: genera el componente de UNA escena (consciente del guion + timing del audio).
 
@@ -503,13 +518,17 @@ def generate_scene_animation(
                 "la voz, el frame de cada palabra es: " + ", ".join(parts) + ".)"
             )
     bg = f"Color de fondo sugerido (úsalo o uno coherente): {bg_hint}." if bg_hint else ""
+    # Transición ASIGNADA por índice → cada escena del video usa un estilo DISTINTO (no todas fade).
+    # La IA la implementa en código (useCurrentFrame + interpolate/spring). Es una guía, no una jaula:
+    # puede adaptarla al diseño, pero NO debe caer en el mismo fade de siempre.
+    style = _TRANSITION_STYLES[scene_index % len(_TRANSITION_STYLES)]
     transitions = (
         "\nTRANSICIONES (es UNA escena de un VIDEO con otras): anima una ENTRADA al inicio "
-        "(~primeros 10-15 frames) y una SALIDA al final (~últimos 10-15 frames), derivadas de "
-        "useCurrentFrame(). VARÍA el estilo entre escenas (NO siempre el mismo): slide desde "
-        "cualquier lado, fade, zoom in/out, desvanecer a negro o al color de fondo, wipe, escala, "
-        "rotación, etc. — elige lo que combine. La salida puede terminar en negro/color para "
-        "encadenar con la siguiente escena. Sé creativo, hay muchísimas transiciones posibles."
+        "(~primeros 10-15 frames) y una SALIDA al final (~últimos 10-15 frames), TODO derivado de "
+        f"useCurrentFrame(). Para ESTA escena usa este estilo (impleméntalo tú en código): {style} "
+        "Aplícalo al bloque de contenido con transform/opacity (clamp obligatorio). El objetivo es que "
+        "cada escena del video tenga una transición CLARAMENTE distinta — NO uses un simple fade si el "
+        "estilo pide movimiento."
     )
     vary = (
         "\nIMPORTANTE: genera una versión con un ENFOQUE VISUAL CLARAMENTE DISTINTO al típico "

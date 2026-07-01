@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Pencil, Wand2, Film, Settings, ChevronDown, ChevronUp, Check } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Pencil, Wand2, Film, Settings, Check } from 'lucide-react';
 import { useWizardStore } from '../../store/useWizardStore';
 import { useDesignTemplatesStore } from '../../store/useDesignTemplatesStore';
 import { WizardStepScript } from './WizardStepScript';
@@ -119,7 +118,6 @@ export function WizardStepInfo({
 }: WizardStepInfoProps) {
   const [mode, setMode] = useState<WizardMode>('own-script');
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const { wizardData, setWizardData } = useWizardStore();
   const { templates, fetchTemplates } = useDesignTemplatesStore();
 
@@ -234,32 +232,11 @@ export function WizardStepInfo({
         loading={loading}
       />
 
-      {/* Advanced settings — collapsible */}
-      <div className="border-t border-border-tech/50 pt-2">
-        <button
-          onClick={() => setAdvancedOpen(!advancedOpen)}
-          className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors py-2"
-        >
-          <Settings size={14} />
-          Configuración avanzada
-          <motion.div
-            animate={{ rotate: advancedOpen ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ChevronDown size={14} />
-          </motion.div>
-        </button>
-
-        <AnimatePresence>
-          {advancedOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-              className="overflow-hidden"
-            >
-              <div className="space-y-5 pt-4 pb-2">
+      {/* Ajustes del proyecto — SIEMPRE visibles (antes escondidos en "Configuración avanzada"). */}
+      <div className="border-t border-border-tech/50 pt-4">
+        <h3 className="text-sm font-semibold text-text-primary mb-4">Ajustes del proyecto</h3>
+        <div>
+          <div className="space-y-5 pb-2">
                 {/* Model selector */}
                 <Tooltip text="Modelo que generará el guión y los prompts visuales">
                   <ModelSelector
@@ -269,7 +246,7 @@ export function WizardStepInfo({
                   />
                 </Tooltip>
 
-                {/* Design template selector */}
+                {/* Design template selector (diseños guardados — junto a la guía de diseño) */}
                 {onDesignTemplateChange && (
                   <div>
                     <label className="block text-text-secondary text-sm font-medium mb-2">
@@ -388,10 +365,8 @@ export function WizardStepInfo({
                     onCustomHeightChange={onCustomHeightChange}
                   />
                 </Tooltip>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        </div>
       </div>
 
       {/* Primary CTA — always last */}

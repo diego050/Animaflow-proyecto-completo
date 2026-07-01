@@ -64,6 +64,37 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
     return () => ro.disconnect();
   }, []);
 
+  // Clic en el preview GLOBAL (mientras corre): detecta la escena que va reproduciéndose por el
+  // frame actual, la enfoca (→ editable) y recuerda el punto del clic para AUTO-SELECCIONAR el
+  // elemento en el editor. Así no hay que apretar "Escena N" en el panel.
+  const [pendingSelect, setPendingSelect] = useState<{ sceneIdx: number; frame: number; fx: number; fy: number } | null>(null);
+  const handlePreviewClick = useCallback(
+    (e: React.MouseEvent) => {
+      const p = playerRef.current;
+      const boxEl = boxRef.current;
+      if (!p || !boxEl) return;
+      let frame = 0;
+      try { frame = p.getCurrentFrame(); } catch { return; }
+      // Mapea el frame global → índice de escena + frame relativo (escenas contiguas a 30fps).
+      let acc = 0;
+      let sceneIdx = spec.scenes.length - 1;
+      let rel = 0;
+      for (let i = 0; i < spec.scenes.length; i++) {
+        const d = Math.max(1, Math.round((spec.scenes[i].duration_seconds || 0) * 30));
+        if (frame < acc + d) { sceneIdx = i; rel = frame - acc; break; }
+        acc += d;
+        rel = frame - acc;
+      }
+      const scene = spec.scenes[sceneIdx] as Spec;
+      const rect = boxEl.getBoundingClientRect();
+      const fx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const fy = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      setPendingSelect(scene?.custom_code ? { sceneIdx, frame: Math.max(0, rel), fx, fy } : null);
+      onFocusScene?.(sceneIdx);
+    },
+    [spec.scenes, onFocusScene],
+  );
+
   // Edición visual de la escena ENFOCADA (en el preview grande): guarda su custom_code (live + debounced).
   const focusCodeSave = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleFocusedCodeChange = useCallback(
@@ -186,23 +217,35 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
                     durationInFrames={Math.round((focusedScene.duration_seconds || 5) * 30)}
                     previewW={pw}
                     previewH={ph}
+                    initialSelect={pendingSelect && pendingSelect.sceneIdx === focusSceneIndex
+                      ? { frame: pendingSelect.frame, fx: pendingSelect.fx, fy: pendingSelect.fy }
+                      : null}
+                    onInitialSelectConsumed={() => setPendingSelect(null)}
                   />
                 );
               })()
             ) : isReadyToRender ? (
-              /* Full video with audio - seek to scene on click */
-              <Player
-                key={`main-full-${debouncedSpecKey}`}
-                ref={playerRef}
-                component={MainComposition}
-                inputProps={{ spec }}
-                durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
-                compositionWidth={compWidth}
-                compositionHeight={compHeight}
-                fps={30}
-                controls
-                style={{ width: '100%', height: '100%' }}
-              />
+              /* Preview global en vivo → clic sobre una escena code-gen = editarla (overlay). */
+              <div className="relative w-full h-full">
+                <Player
+                  key={`main-full-${debouncedSpecKey}`}
+                  ref={playerRef}
+                  component={MainComposition}
+                  inputProps={{ spec }}
+                  durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
+                  compositionWidth={compWidth}
+                  compositionHeight={compHeight}
+                  fps={30}
+                  controls
+                  style={{ width: '100%', height: '100%' }}
+                />
+                <div
+                  onClick={handlePreviewClick}
+                  title="Clic para editar la escena que se está reproduciendo"
+                  className="absolute inset-x-0 top-0 cursor-pointer"
+                  style={{ bottom: 44 }}
+                />
+              </div>
             ) : focusedScene ? (
               /* Pre-render: scene preview (no editable, sin custom_code) */
               <Player
@@ -223,17 +266,27 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
                 style={{ width: '100%', height: '100%' }}
               />
             ) : (
-              <Player
-                key={`main-fallback-${debouncedSpecKey}`}
-                component={MainComposition}
-                inputProps={{ spec }}
-                durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
-                compositionWidth={compWidth}
-                compositionHeight={compHeight}
-                fps={30}
-                controls
-                style={{ width: '100%', height: '100%' }}
-              />
+              /* Preview global en vivo (pre-render) → clic sobre una escena code-gen = editarla. */
+              <div className="relative w-full h-full">
+                <Player
+                  key={`main-fallback-${debouncedSpecKey}`}
+                  ref={playerRef}
+                  component={MainComposition}
+                  inputProps={{ spec }}
+                  durationInFrames={totalDuration > 0 ? Math.round(totalDuration * 30) : 150}
+                  compositionWidth={compWidth}
+                  compositionHeight={compHeight}
+                  fps={30}
+                  controls
+                  style={{ width: '100%', height: '100%' }}
+                />
+                <div
+                  onClick={handlePreviewClick}
+                  title="Clic para editar la escena que se está reproduciendo"
+                  className="absolute inset-x-0 top-0 cursor-pointer"
+                  style={{ bottom: 44 }}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -298,6 +351,7 @@ export function PreviewPlayer({ spec, jobId, isReadyToRender, aspectRatio, focus
                 isFocused={focusSceneIndex === idx}
                 aspectRatio={aspectRatio}
                 onSpecChange={onSceneSpecChange}
+                onFocusScene={onFocusScene}
               />
             ))}
           </div>

@@ -111,12 +111,9 @@ export function ProjectHeader({
 
         {/* Metadata row */}
         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-          {aspectRatio && (
-            <span className="bg-surface-high px-2 py-0.5 rounded text-xs font-mono text-text-secondary/70">
-              {aspectRatio}
-            </span>
-          )}
-          {formats.length > 0 && (
+          {/* Selector de VERSIONES/formatos: solo si hay más de una (si no, el ratio ya lo
+              muestra el botón "Formato" de abajo → evita mostrar 9:16 dos veces). */}
+          {formats.length > 1 && (
             <select
               value={formats.find(f => f.is_current)?.job_id || ''}
               onChange={(e) => {

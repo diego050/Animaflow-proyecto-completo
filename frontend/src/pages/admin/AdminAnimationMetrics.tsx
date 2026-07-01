@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import { BarChart3, Coins, Cpu, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 
 interface Metrics {
+  period: string;
   total_generations: number;
   valid: number;
   fallback: number;
@@ -12,7 +13,12 @@ interface Metrics {
   by_model: Record<string, number>;
   tokens: { in: number; out: number; total: number; avg_total_per_gen: number };
   cost_usd: { total: number; by_model: Record<string, number>; avg_per_gen: number };
+  per_video: { videos: number; avg_cost: number; max_cost: number; avg_scenes: number; avg_seconds: number };
+  per_scene: { avg_cost: number; max_cost: number };
+  per_second: { total_seconds: number; cost_per_second: number };
 }
+
+const PERIODS: [string, string][] = [['week', 'Semana'], ['month', 'Mes'], ['all', 'Total']];
 
 const fmt = (n: number) => n.toLocaleString('es');
 
@@ -53,18 +59,19 @@ export function AdminAnimationMetrics() {
   const [m, setM] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<string>('all');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setM(await api.get<Metrics>('/api/admin/animations/metrics'));
+      setM(await api.get<Metrics>(`/api/admin/animations/metrics?period=${period}`));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error cargando métricas');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     load();
@@ -79,13 +86,28 @@ export function AdminAnimationMetrics() {
           </h1>
           <p className="text-sm text-text-secondary/60 mt-1">Tokens, costo estimado y calidad de generación.</p>
         </div>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="flex items-center gap-2 bg-surface-high border border-border-tech text-text-primary px-3 py-2 rounded-lg hover:border-mint-precision disabled:opacity-50 text-sm"
-        >
-          {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} Actualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-border-tech overflow-hidden">
+            {PERIODS.map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setPeriod(key)}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                  period === key ? 'bg-mint-precision text-deep-slate' : 'bg-surface-high text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={load}
+            disabled={loading}
+            className="flex items-center gap-2 bg-surface-high border border-border-tech text-text-primary px-3 py-2 rounded-lg hover:border-mint-precision disabled:opacity-50 text-sm"
+          >
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} Actualizar
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -107,6 +129,18 @@ export function AdminAnimationMetrics() {
               sub={`~$${m.cost_usd.avg_per_gen.toFixed(5)}/gen`} />
             <Card icon={<BarChart3 size={13} />} label="Tokens" value={fmt(m.tokens.total)}
               sub={`~${fmt(m.tokens.avg_total_per_gen)}/gen`} />
+          </div>
+
+          {/* Promedios por video / escena / segundo */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card icon={<Coins size={13} />} label="Costo prom./video" value={`$${m.per_video.avg_cost.toFixed(5)}`}
+              sub={`${fmt(m.per_video.videos)} videos · ~${m.per_video.avg_scenes} escenas`} />
+            <Card icon={<AlertTriangle size={13} />} label="Máx. costo/video" value={`$${m.per_video.max_cost.toFixed(5)}`}
+              sub={`~${m.per_video.avg_seconds}s de media`} />
+            <Card icon={<Coins size={13} />} label="Costo prom./escena" value={`$${m.per_scene.avg_cost.toFixed(6)}`}
+              sub={`máx $${m.per_scene.max_cost.toFixed(5)}/escena`} />
+            <Card icon={<BarChart3 size={13} />} label="Costo por segundo" value={`$${m.per_second.cost_per_second.toFixed(6)}`}
+              sub={`${fmt(Math.round(m.per_second.total_seconds))}s generados`} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

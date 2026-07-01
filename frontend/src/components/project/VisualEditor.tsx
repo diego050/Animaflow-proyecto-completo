@@ -50,6 +50,7 @@ type Rect = { left: number; top: number; width: number; height: number };
  */
 export function VisualEditor({
   code, onChange, width, height, fps, durationInFrames, previewW, previewH,
+  initialSelect, onInitialSelectConsumed,
 }: {
   code: string;
   onChange: (c: string) => void;
@@ -59,6 +60,10 @@ export function VisualEditor({
   durationInFrames: number;
   previewW: number;
   previewH: number;
+  /** Al entrar desde un clic en el preview global: frame + posición (fracción 0..1) del clic
+   *  → el editor hace seek a ese frame y AUTO-SELECCIONA el elemento en ese punto. */
+  initialSelect?: { frame: number; fx: number; fy: number } | null;
+  onInitialSelectConsumed?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<PlayerRef>(null);
@@ -122,6 +127,39 @@ export function VisualEditor({
     },
     [elements],
   );
+
+  // Selección inicial (entrando desde un clic en el preview global): seek al frame del clic y
+  // selecciona el elemento que está en ese punto. Reintenta unas veces mientras el Player pinta.
+  useEffect(() => {
+    if (!initialSelect) return;
+    const c = containerRef.current;
+    const p = playerRef.current;
+    if (!c || !p) { onInitialSelectConsumed?.(); return; }
+    try { p.seekTo(Math.max(0, Math.min(durationInFrames - 1, Math.round(initialSelect.frame)))); } catch { /* noop */ }
+    let tries = 0;
+    let timer = 0 as unknown as ReturnType<typeof setTimeout>;
+    const pick = () => {
+      tries++;
+      const rect = c.getBoundingClientRect();
+      const x = rect.left + initialSelect.fx * rect.width;
+      const y = rect.top + initialSelect.fy * rect.height;
+      const el = document.elementFromPoint(x, y) as HTMLElement | null;
+      const node = el && c.contains(el) ? (el.closest('[data-ae-id]') as HTMLElement | null) : null;
+      if (node) {
+        const id = baseId(node);
+        setIds([id]);
+        setRects({ [id]: rectOf(node) });
+        placePanel();
+        onInitialSelectConsumed?.();
+        return;
+      }
+      if (tries < 12) timer = setTimeout(pick, 60);
+      else onInitialSelectConsumed?.();
+    };
+    timer = setTimeout(pick, 90);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSelect]);
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {

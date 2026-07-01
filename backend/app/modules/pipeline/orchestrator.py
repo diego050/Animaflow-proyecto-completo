@@ -233,6 +233,7 @@ async def _process_chunks_async(
                     user_id=user_id,
                     model=model_to_use,
                     aspect_ratio=aspect_ratio,
+                    scene_index=i,
                 )
             except Exception:  # noqa: BLE001
                 logger.exception(
@@ -352,6 +353,7 @@ async def _regenerate_components_for_reformat(
                 user_id=user_id,
                 model=model_to_use,
                 aspect_ratio=aspect_ratio,
+                scene_index=i,
             )
         except Exception:  # noqa: BLE001
             logger.exception("Code-gen excepción (regen escena %d)", i)
@@ -429,12 +431,20 @@ def run_pipeline(
             logger.info("Text split into %d chunks for job %s", len(chunks), job_id)
             JobFileLogger.log(job_id, "INFO", f"Texto segmentado en {len(chunks)} escenas")
 
-            # 2. Generate visual prompts (media_query) via LLM — NO TTS yet
-            logger.info("Generating batch visual prompts for %d scenes...", len(chunks))
-            JobFileLogger.log(job_id, "INFO", "Generando prompts visuales...")
-            batch_visuals = generate_batch_visuals_with_llm(
-                chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt, llm_model_override=job.llm_model
-            )
+            # 2. Prompts visuales (media_query). Si el usuario YA los definió (modo "Con prompts" o
+            #    "Solo Animación"), se RESPETAN y no se regeneran. Solo se llama al LLM si faltan.
+            provided = scenes or []
+            all_have_mq = bool(provided) and all((s.get("media_query") or "").strip() for s in provided)
+            if all_have_mq:
+                logger.info("Usando %d media_query provistos por el usuario (sin LLM)", len(provided))
+                JobFileLogger.log(job_id, "INFO", "Usando tus prompts visuales (sin regenerar)")
+                batch_visuals = None
+            else:
+                logger.info("Generating batch visual prompts for %d scenes...", len(chunks))
+                JobFileLogger.log(job_id, "INFO", "Generando prompts visuales...")
+                batch_visuals = generate_batch_visuals_with_llm(
+                    chunks, aspect_ratio, user_id, design_md=design_md, system_prompt=system_prompt, llm_model_override=job.llm_model
+                )
 
             # 3. Build scenes with estimated durations (no real audio yet)
             #    ~2.17 words/sec → duration = word_count / 2.17, minimum 3s
@@ -444,16 +454,29 @@ def run_pipeline(
             current_start = 0.0
 
             for i, chunk in enumerate(chunks):
+                uscene = provided[i] if i < len(provided) else None
                 word_count = len(chunk.split())
                 estimated_duration = max(3.0, word_count / ESTIMATED_WPS)
-                visual = batch_visuals.scenes[i] if i < len(batch_visuals.scenes) else None
+                # Duración: respeta la que fijó el usuario (storyboard) si la hay.
+                user_dur = None
+                if uscene and uscene.get("duration_seconds"):
+                    try:
+                        user_dur = float(uscene["duration_seconds"])
+                    except (TypeError, ValueError):
+                        user_dur = None
+                duration = user_dur if user_dur and user_dur > 0 else estimated_duration
+
+                visual = batch_visuals.scenes[i] if (batch_visuals and i < len(batch_visuals.scenes)) else None
+                # media_query: el del usuario manda; si no, el generado.
+                user_mq = (uscene.get("media_query") or "").strip() if uscene else ""
+                media_query = user_mq or (visual.media_query if visual else "")
 
                 preliminary_scenes.append({
                     "start_time_seconds": round(current_start, 2),
-                    "duration_seconds": round(estimated_duration, 2),
+                    "duration_seconds": round(duration, 2),
                     "text": chunk,
                     "type": "pending",
-                    "media_query": visual.media_query if visual else "",
+                    "media_query": media_query,
                     "remotion_props": {
                         "backgroundColor": visual.backgroundColor if visual else "#0f172a",
                         "textColor": visual.textColor if visual else "#38bdf8",
@@ -464,7 +487,7 @@ def run_pipeline(
                     "ae_script_code": None,
                 })
 
-                current_start += estimated_duration + GAP_SECONDS
+                current_start += duration + GAP_SECONDS
 
             # Save preliminary spec and pause for user approval
             preliminary_spec = {

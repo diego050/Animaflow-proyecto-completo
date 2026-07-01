@@ -27,7 +27,14 @@ class User(Base):
     name = Column(String(255), nullable=False)
     role = Column(
         String(50), nullable=False, default="user"
-    )  # founder, agency, user, admin
+    )  # user, admin (founder/agency = legacy, se tratan como 'user' para permisos)
+    # Suscripción: 'free' | 'paid' (extensible a 'business'). Define si se le cobra o no.
+    plan = Column(String(20), nullable=False, server_default="free")
+    # Perfil OPCIONAL (onboarding): descriptivo, no obligatorio.
+    persona = Column(String(50), nullable=True)             # founder|student|agency|creator|company|other
+    referral_source = Column(String(100), nullable=True)    # cómo se enteró
+    use_case = Column(Text, nullable=True)                  # para qué usará la app
+    onboarding_completed = Column(Boolean, nullable=False, server_default="false")
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(
         DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)

@@ -269,36 +269,85 @@ def update_codegen_settings(
 # ── Observabilidad: métricas de las animaciones code-gen generadas ──
 
 @router.get("/metrics")
-def metrics(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    """Resumen global: generaciones, % fallback, tokens, por estado/fuente/modelo."""
-    GA = GeneratedAnimation
-    total = db.query(func.count(GA.id)).scalar() or 0
-    by_status = dict(db.query(GA.status, func.count(GA.id)).group_by(GA.status).all())
-    by_source = dict(db.query(GA.source, func.count(GA.id)).group_by(GA.source).all())
-    by_model = dict(db.query(GA.model, func.count(GA.id)).group_by(GA.model).all())
-    tok_in = int(db.query(func.coalesce(func.sum(GA.tokens_in), 0)).scalar() or 0)
-    tok_out = int(db.query(func.coalesce(func.sum(GA.tokens_out), 0)).scalar() or 0)
-    tok_total = int(db.query(func.coalesce(func.sum(GA.tokens_total), 0)).scalar() or 0)
-    valid_count = db.query(func.count(GA.id)).filter(GA.valid.is_(True)).scalar() or 0
-    fallback_count = int(by_status.get("fallback", 0) or 0)
+def metrics(
+    period: str = "all",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Resumen: generaciones, % fallback, tokens, costo por modelo/video/escena/segundo.
 
-    # Costo estimado en USD (tokens × precio por modelo).
+    `period` filtra por fecha: `week` (7d), `month` (30d) o `all` (todo).
+    """
+    from datetime import datetime, timezone, timedelta
     from app.services.model_catalog import estimate_cost_usd
-    per_model_tokens = (
-        db.query(
-            GA.model,
-            func.coalesce(func.sum(GA.tokens_in), 0),
-            func.coalesce(func.sum(GA.tokens_out), 0),
-        )
-        .group_by(GA.model)
-        .all()
+    GA = GeneratedAnimation
+
+    since = None
+    if period == "week":
+        since = datetime.now(timezone.utc) - timedelta(days=7)
+    elif period == "month":
+        since = datetime.now(timezone.utc) - timedelta(days=30)
+
+    # Una sola lectura (columnas necesarias) → agregamos en Python (el costo depende del modelo,
+    # no se puede sumar en SQL). Con el filtro de periodo el volumen es acotado.
+    q = db.query(
+        GA.model, GA.status, GA.source, GA.valid,
+        GA.tokens_in, GA.tokens_out, GA.tokens_total,
+        GA.job_id, GA.scene_index, GA.duration_frames,
     )
-    cost_by_model = {
-        (m or "?"): estimate_cost_usd(m, int(ti or 0), int(to or 0))
-        for m, ti, to in per_model_tokens
-    }
-    cost_total = round(sum(cost_by_model.values()), 4)
+    if since is not None:
+        q = q.filter(GA.created_at >= since)
+    rows = q.all()
+
+    total = len(rows)
+    by_status: dict = {}
+    by_source: dict = {}
+    by_model: dict = {}
+    cost_by_model: dict = {}
+    tok_in = tok_out = tok_total = 0
+    valid_count = fallback_count = 0
+    cost_total = 0.0
+    scene_costs: list[float] = []          # costo de cada generación (= una escena)
+    total_seconds = 0.0
+    # Agregado por video (job_id): costo, tokens, nº escenas, segundos.
+    per_job: dict = {}
+
+    for r in rows:
+        m = r.model or "?"
+        by_status[r.status or "?"] = by_status.get(r.status or "?", 0) + 1
+        by_source[r.source or "?"] = by_source.get(r.source or "?", 0) + 1
+        by_model[m] = by_model.get(m, 0) + 1
+        ti, to = int(r.tokens_in or 0), int(r.tokens_out or 0)
+        tok_in += ti; tok_out += to; tok_total += int(r.tokens_total or 0)
+        if r.valid:
+            valid_count += 1
+        if r.status == "fallback":
+            fallback_count += 1
+        c = estimate_cost_usd(r.model, ti, to)
+        cost_total += c
+        cost_by_model[m] = cost_by_model.get(m, 0.0) + c
+        scene_costs.append(c)
+        secs = (r.duration_frames or 0) / 30.0
+        total_seconds += secs
+        if r.job_id:
+            j = per_job.setdefault(r.job_id, {"cost": 0.0, "tokens": 0, "scenes": 0, "seconds": 0.0})
+            j["cost"] += c
+            j["tokens"] += int(r.tokens_total or 0)
+            j["scenes"] += 1
+            j["seconds"] += secs
+
+    cost_by_model = {k: round(v, 6) for k, v in cost_by_model.items()}
+    cost_total = round(cost_total, 4)
+
+    videos = len(per_job)
+    video_costs = [v["cost"] for v in per_job.values()]
+    avg_cost_per_video = round(sum(video_costs) / videos, 6) if videos else 0
+    max_cost_per_video = round(max(video_costs), 6) if video_costs else 0
+    avg_scenes_per_video = round(sum(v["scenes"] for v in per_job.values()) / videos, 1) if videos else 0
+    avg_seconds_per_video = round(sum(v["seconds"] for v in per_job.values()) / videos, 1) if videos else 0
+
     return {
+        "period": period,
         "total_generations": total,
         "valid": valid_count,
         "fallback": fallback_count,
@@ -314,6 +363,24 @@ def metrics(db: Session = Depends(get_db), current_user: User = Depends(require_
             "total": cost_total,
             "by_model": cost_by_model,
             "avg_per_gen": round(cost_total / total, 6) if total else 0,
+        },
+        # Por VIDEO (agrupado por job_id).
+        "per_video": {
+            "videos": videos,
+            "avg_cost": avg_cost_per_video,
+            "max_cost": max_cost_per_video,
+            "avg_scenes": avg_scenes_per_video,
+            "avg_seconds": avg_seconds_per_video,
+        },
+        # Por ESCENA (cada generación = una escena).
+        "per_scene": {
+            "avg_cost": round(cost_total / total, 6) if total else 0,
+            "max_cost": round(max(scene_costs), 6) if scene_costs else 0,
+        },
+        # Por SEGUNDO de animación generada.
+        "per_second": {
+            "total_seconds": round(total_seconds, 1),
+            "cost_per_second": round(cost_total / total_seconds, 6) if total_seconds else 0,
         },
     }
 

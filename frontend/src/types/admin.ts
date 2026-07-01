@@ -16,11 +16,13 @@ export interface AdminUserDetail {
   email: string;
   name: string;
   role: 'founder' | 'agency' | 'user' | 'admin';
+  plan: 'free' | 'paid' | 'business';
   is_active: boolean;
   created_at: string;
   last_login: string | null;
   total_jobs: number;
   completed_jobs: number;
+  persona?: string | null;
 }
 
 export interface AdminJobDetail {
@@ -37,16 +39,16 @@ export interface AdminJobDetail {
 }
 
 export interface SystemHealth {
-  redis_connected: boolean;
-  redis_queue_length: number;
-  workers_active: number;
-  workers_idle: number;
-  workers_connected: boolean;
   database_connected: boolean;
   database_pool_size: number;
   database_pool_used: number;
+  render_server_connected: boolean;
+  render_server_url: string;
+  render_server_detail: string;
+  storage_ok: boolean;
+  storage_detail: string;
   uptime_seconds: number;
-  last_worker_heartbeat: string | null;
+  status: string;
 }
 
 export interface AdminSettingsConfig {
@@ -78,11 +80,13 @@ export interface AdminUser {
   email: string;
   name: string;
   role: 'founder' | 'agency' | 'user' | 'admin';
+  plan: 'free' | 'paid' | 'business';
   is_active: boolean;
   created_at: string;
   last_login: string | null;
   total_jobs: number;
   completed_jobs: number;
+  persona?: string | null;
 }
 
 export interface AdminJob {

@@ -1,12 +1,19 @@
 // Auth TypeScript interfaces matching backend Pydantic schemas 1:1
 
+export type UserPlan = 'free' | 'paid' | 'business';
+
 export interface User {
   id: string;
   email: string;
   name: string;
   role: 'founder' | 'agency' | 'user' | 'admin';
+  plan: UserPlan;
   is_active: boolean;
   created_at: string;
+  persona?: string | null;
+  referral_source?: string | null;
+  use_case?: string | null;
+  onboarding_completed: boolean;
 }
 
 export interface LoginRequest {
@@ -32,6 +39,10 @@ export interface UpdateUserRequest {
   email?: string;
   current_password?: string;
   new_password?: string;
+  persona?: string | null;
+  referral_source?: string | null;
+  use_case?: string | null;
+  mark_onboarding_completed?: boolean;
 }
 
 // ---------------------------------------------------------------------------

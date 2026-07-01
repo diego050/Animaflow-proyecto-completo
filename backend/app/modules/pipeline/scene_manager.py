@@ -84,6 +84,7 @@ async def _regenerate_scene_async(
             art_direction=new_media_query,
             user_id=user_id,
             aspect_ratio=aspect_ratio,
+            scene_index=scene_index,
         )
     except Exception:  # noqa: BLE001
         logger.exception("Code-gen excepción (editor regen escena %d)", scene_index)

@@ -13,6 +13,7 @@ interface SceneInlineEditorProps {
   isFocused: boolean;
   aspectRatio?: string;
   onSpecChange?: (sceneIndex: number, updatedScene: Spec) => void;
+  onFocusScene?: (index: number) => void;
 }
 
 export function SceneInlineEditor({
@@ -22,8 +23,15 @@ export function SceneInlineEditor({
   isFocused,
   aspectRatio = '9:16',
   onSpecChange,
+  onFocusScene,
 }: SceneInlineEditorProps) {
   const [expanded, setExpanded] = useState(isFocused);
+  // Al abrir/clicar una escena, ENFÓCALA en el preview grande → pasa a ser editable (clic/arrastrar).
+  const toggleExpand = useCallback(() => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next) onFocusScene?.(sceneIndex);
+  }, [expanded, onFocusScene, sceneIndex]);
   const [saving, setSaving] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { addToast } = useToastStore();
@@ -144,7 +152,7 @@ export function SceneInlineEditor({
     return (
       <div className={`border-b border-border-tech/30 ${isFocused ? 'bg-mint-precision/5' : ''}`}>
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={toggleExpand}
           className="w-full flex items-center justify-between p-3 hover:bg-surface-elevated transition-colors"
         >
           <div className="flex items-center gap-2">

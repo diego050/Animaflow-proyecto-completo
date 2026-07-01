@@ -239,7 +239,10 @@ class Scheduler:
             design_md = spec.get("design_md")
             system_prompt = spec.get("system_prompt")
             animation_only = spec.get("animation_only", False)
-                
+            # Escenas predefinidas del usuario (storyboard / "Con prompts"). Antes se pasaba None
+            # hardcodeado → se perdían. Ahora se reenvían para respetar el storyboard.
+            user_scenes = spec.get("scenes") or None
+
             async with self.llm_semaphore:
                 await loop.run_in_executor(
                     None,
@@ -253,7 +256,7 @@ class Scheduler:
                     None, # tts_api_key
                     None, # reformatted_from
                     None, # scenes_to_reformat
-                    None, # scenes
+                    user_scenes, # scenes
                     design_md,
                     system_prompt,
                     animation_only,

@@ -43,11 +43,13 @@ class AdminUserResponse(BaseModel):
     email: str
     name: str
     role: str
+    plan: str = "free"
     is_active: bool
     created_at: Optional[str] = None
     last_login: Optional[str] = None
     total_jobs: int = 0
     completed_jobs: int = 0
+    persona: Optional[str] = None
 
 
 class AdminJobResponse(BaseModel):
@@ -95,7 +97,9 @@ class AdminUserCreate(BaseModel):
     email: str
     password: str = Field(min_length=8, max_length=72)
     name: str = Field(min_length=1, max_length=100)
-    role: str = Field(pattern=r"^(founder|agency|user|admin)$")
+    # role = solo permisos (user/admin). El "tipo" descriptivo va en persona (onboarding).
+    role: str = Field(default="user", pattern=r"^(user|admin)$")
+    plan: str = Field(default="free", pattern=r"^(free|paid|business)$")
 
 
 # ---------------------------------------------------------------------------
@@ -203,11 +207,13 @@ def list_admin_users(
             email=u.email,
             name=u.name,
             role=u.role,
+            plan=getattr(u, "plan", None) or "free",
             is_active=u.is_active,
             created_at=u.created_at.isoformat() if u.created_at else None,
             last_login=None,
             total_jobs=stats["total"],
             completed_jobs=stats["completed"],
+            persona=getattr(u, "persona", None),
         ))
 
     return PaginatedUsersResponse(
@@ -255,6 +261,27 @@ def change_user_role(
     db.commit()
     log_audit_event(db, current_user.id, "role_change", ip_address=request.client.host if request.client else None, details={"target_user_id": user_id, "new_role": role})
     return {"id": user.id, "role": user.role}
+
+
+@router.put("/users/{user_id}/plan")
+@limiter.limit("30/minute")
+def change_user_plan(
+    request: Request,
+    user_id: str,
+    plan: str = Body(..., embed=True),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Cambiar el plan/suscripción del usuario (define si se le cobra)."""
+    if plan not in ["free", "paid", "business"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid plan")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.plan = plan
+    db.commit()
+    log_audit_event(db, current_user.id, "plan_change", ip_address=request.client.host if request.client else None, details={"target_user_id": user_id, "new_plan": plan})
+    return {"id": user.id, "plan": user.plan}
 
 
 @router.delete("/users/{user_id}")
@@ -337,6 +364,7 @@ def create_user(
         hashed_password=get_password_hash(password),
         name=name,
         role=role,
+        plan=data.plan,
         is_active=True,
     )
     db.add(user)
@@ -349,11 +377,13 @@ def create_user(
         email=user.email,
         name=user.name,
         role=user.role,
+        plan=user.plan,
         is_active=user.is_active,
         created_at=user.created_at.isoformat() if user.created_at else None,
         last_login=None,
         total_jobs=0,
         completed_jobs=0,
+        persona=user.persona,
     )
 
 
@@ -400,6 +430,27 @@ def list_admin_jobs(
         page=page,
         per_page=per_page,
     )
+
+
+@router.get("/jobs/{job_id}/spec")
+@limiter.limit("60/minute")
+def admin_job_spec(
+    job_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Spec completo de un job (solo lectura) → para ver la composición en el panel admin."""
+    job = db.query(JobModel).filter(JobModel.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job no encontrado.")
+    return {
+        "job_id": job.id,
+        "status": job.status,
+        "aspect_ratio": job.aspect_ratio or (job.result_spec or {}).get("aspect_ratio") or "9:16",
+        "video_url": job.video_url,
+        "result_spec": job.result_spec,
+    }
 
 
 @router.post("/jobs/{job_id}/retry")
@@ -502,6 +553,33 @@ def system_health(
     except Exception as e:
         logger.exception("Database health check failed: %s", e)
 
+    # Render-server (Node/Remotion): motor de preview/render y smoke-test. Ping a /health.
+    render_url = getattr(settings, "RENDER_SERVER_URL", "") or ""
+    render_connected = False
+    render_detail = "No configurado"
+    if render_url:
+        try:
+            import httpx
+            with httpx.Client(timeout=4.0) as client:
+                r = client.get(f"{render_url.rstrip('/')}/health")
+            render_connected = r.status_code == 200
+            render_detail = "Conectado correctamente" if render_connected else f"HTTP {r.status_code}"
+        except Exception as e:  # noqa: BLE001
+            render_detail = f"No se puede conectar ({type(e).__name__})"
+
+    # Almacenamiento: los directorios de trabajo existen y se puede escribir.
+    storage_ok = True
+    storage_detail_parts = []
+    for name in ("audio", "videos", "exports"):
+        try:
+            d = get_storage_dir(name)
+            writable = os.path.isdir(d) and os.access(d, os.W_OK)
+            storage_ok = storage_ok and writable
+            storage_detail_parts.append(f"{name}:{'ok' if writable else 'error'}")
+        except Exception:  # noqa: BLE001
+            storage_ok = False
+            storage_detail_parts.append(f"{name}:error")
+
     # Uptime (process start time approximation)
     uptime_seconds = time.time() - _APP_START_TIME
 
@@ -509,8 +587,13 @@ def system_health(
         "database_connected": database_connected,
         "database_pool_size": database_pool_size,
         "database_pool_used": database_pool_used,
+        "render_server_connected": render_connected,
+        "render_server_url": render_url,
+        "render_server_detail": render_detail,
+        "storage_ok": storage_ok,
+        "storage_detail": ", ".join(storage_detail_parts),
         "uptime_seconds": uptime_seconds,
-        "status": "healthy",
+        "status": "healthy" if (database_connected and render_connected and storage_ok) else "degraded",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 

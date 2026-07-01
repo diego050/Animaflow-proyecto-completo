@@ -608,6 +608,7 @@ async def regenerate_scene_code(
             user_id=current_user.id,
             aspect_ratio=job.result_spec.get("aspect_ratio", job.aspect_ratio or "9:16"),
             variation=True,
+            scene_index=scene_index,
         )
     except Exception as e:  # noqa: BLE001
         logger.exception("Regeneración code-gen falló (job %s, escena %d)", job_id, scene_index)
@@ -798,7 +799,7 @@ async def assistant(
                     text=scene.get("text", ""), duration_seconds=scene.get("duration_seconds", 6.0),
                     word_timestamps=rel_wts, bg_hint=(scene.get("remotion_props") or {}).get("backgroundColor"),
                     art_direction=scene.get("media_query"), user_id=current_user.id, aspect_ratio=aspect,
-                    variation=True,
+                    variation=True, scene_index=i,
                 )
                 src = "regenerate"
             else:
